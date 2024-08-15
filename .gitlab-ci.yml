@@ -1,0 +1,78 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - build_and_test
+  - security-scan
+
+.test_setup:
+  before_script:
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+    - eval "$(./bin/micromamba shell hook -s posix)"
+
+build_and_test:
+  extends: .test_setup
+  stage: build_and_test
+  script:
+    - micromamba create -f environment.yml -n test-env
+    - micromamba activate test-env
+    - pip install -e .
+    - micromamba list
+    - pytest tests -svv
+
+# SECURITY STAGES
+include:
+- template: Jobs/SAST.gitlab-ci.yml
+- template: Security/Dependency-Scanning.gitlab-ci.yml
+- template: Security/Secret-Detection.gitlab-ci.yml
+
+clam-av:
+  stage: security-scan
+  image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/clamav/clamav:latest
+  script:
+    # update virus definitions
+    - freshclam
+    # run virus scan
+    - clamscan -r . --infected --scan-archive=yes --log virus-scan.txt
+    # determine if there are any infected files
+    - NUM_INFECTED_FILES=$(awk '{if(/Infected files:/) print $3}' < virus-scan.txt)
+    - status=$([ "$NUM_INFECTED_FILES" -gt 0 ] && echo 1 || echo 0)
+    - exit $status
+  artifacts:
+    when: always
+    paths:
+      - virus-scan.txt
+
+sast:
+  stage: security-scan
+  needs: [build_and_test]
+  dependencies: []
+  artifacts:
+    paths:
+      - gl-sast-report.json
+    reports:
+      sast: gl-sast-report.json
+
+dependency_scanning:
+  stage: security-scan
+  needs: [build_and_test]
+  dependencies: []
+  artifacts:
+    paths:
+    - gl-dependency-scanning-report.json
+    reports:
+      dependency_scanning:
+        - gl-dependency-scanning-report.json
+
+secret_detection:
+  stage: security-scan
+  needs: [build_and_test]
+  dependencies: []
+  artifacts:
+    paths:
+    - gl-secret-detection-report.json
+    reports:
+      secret_detection:
+        - gl-secret-detection-report.json
