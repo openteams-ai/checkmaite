@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: end-of-file-fixer
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter
+      - id: ruff-format
+  - repo: https://github.com/PyCQA/bandit
+    rev: '1.7.9'
+    hooks:
+    - id: bandit
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.377
+    hooks:
+    - id: pyright
