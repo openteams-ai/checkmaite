@@ -4,23 +4,41 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 stages:
+  - lint
+  - pyright
   - build_and_test
   - security-scan
 
-.test_setup:
+.conda_setup:
   before_script:
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
     - eval "$(./bin/micromamba shell hook -s posix)"
-
-build_and_test:
-  extends: .test_setup
-  stage: build_and_test
-  script:
     - micromamba create -f environment.yml -n test-env
     - micromamba activate test-env
     - pip install -e .
     - micromamba list
+
+build_and_test:
+  extends: .conda_setup
+  stage: build_and_test
+  needs: []
+  script:
     - pytest tests -svv
+
+lint:
+  extends: .conda_setup
+  stage: lint
+  needs: []
+  script:
+    - pre-commit install 
+    - pre-commit run --all-files --verbose
+
+pyright:
+  extends: .conda_setup
+  stage: pyright
+  needs: []
+  script:
+    - pyright --ignoreexternal --verifytypes jatic_ri
 
 # SECURITY STAGES
 include:
@@ -30,6 +48,7 @@ include:
 
 clam-av:
   stage: security-scan
+  needs: [build_and_test]
   image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/clamav/clamav:latest
   script:
     # update virus definitions

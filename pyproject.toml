@@ -22,7 +22,18 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+dependencies = []
 
-[tool.setuptools.dynamic]
-dependencies = {file = "requirements.txt"}
+[project.optional-dependencies]
+# project development and testing
+dev = [
+    "pre-commit",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jatic_ri = ["py.typed"]
