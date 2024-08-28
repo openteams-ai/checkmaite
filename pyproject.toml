@@ -23,7 +23,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+    'maite',
+]
 
 [project.optional-dependencies]
 # project development and testing
@@ -37,3 +39,53 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 jatic_ri = ["py.typed"]
+
+# Ruff rules - https://docs.astral.sh/ruff/rules/
+[tool.ruff]
+exclude = [
+  "*env*",
+]
+
+line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
+indent-width = 4
+
+# Assume Python 3.9
+target-version = "py39"
+
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", "D419", "UP",
+          "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
+          "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
+          "RUF100", "PERF"]
+
+ignore = ["ANN101","ANN102"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.pyright]
+reportMissingImports = "warning"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.isort]
+known-first-party = ["jatic_ri"]
+
+# [tool.ruff.lint.mccabe]
+# # Flag errors (`C901`) whenever the complexity level exceeds 5.
+# max-complexity = 5
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"

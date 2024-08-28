@@ -3,8 +3,9 @@ channels:
 - conda-forge
 dependencies:
 - python=3.11
+- maite
 # test
-- pytest
+- pytest  # TODO: sort out dev/test deps properly
 # linting and formatting
 - pre-commit
 - pyright

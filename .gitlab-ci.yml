@@ -15,7 +15,7 @@ stages:
     - eval "$(./bin/micromamba shell hook -s posix)"
     - micromamba create -f environment.yml -n test-env
     - micromamba activate test-env
-    - pip install -e .
+    - pip install .
     - micromamba list
 
 build_and_test:
@@ -30,6 +30,7 @@ lint:
   stage: lint
   needs: []
   script:
+    - which python  # TODO: this is a test - remove it
     - pre-commit install 
     - pre-commit run --all-files --verbose
 

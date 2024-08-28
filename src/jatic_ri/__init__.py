@@ -1,3 +1,5 @@
+"""JATIC Reference Implementation package"""
+
 import importlib.metadata as importlib_metadata
 
 # dynamic version based on git
