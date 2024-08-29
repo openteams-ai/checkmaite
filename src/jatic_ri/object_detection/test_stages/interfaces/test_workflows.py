@@ -10,7 +10,7 @@ from jatic_ri.object_detection.test_stages.interfaces.plugins import (
 )
 
 
-class ModelDatasetMetricThreshold(
+class SingleModelDatasetMetricThreshold(
     TestStage,
     SingleModelPlugin,
     SingleDatasetPlugin,
@@ -35,6 +35,16 @@ class TwoDataset(
     TwoDatasetPlugin,
 ):
     """High level implementation of TestStage requiring two dataset"""
+
+    pass
+
+
+class SingleModelSingleDataset(
+    TestStage,
+    SingleModelPlugin,
+    SingleDatasetPlugin,
+):
+    """High level implementation of TestStage requiring one model and one dataset"""
 
     pass
 
