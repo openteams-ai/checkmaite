@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from jatic_ri.object_detection.test_stages.interfaces.model_dataset_metric_threshold import ModelDatasetMetricThreshold
+from jatic_ri.object_detection.test_stages.interfaces.test_workflows import ModelDatasetMetricThreshold
 
 
 class BaselineEvaluation(ModelDatasetMetricThreshold):
