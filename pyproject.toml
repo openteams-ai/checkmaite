@@ -44,6 +44,7 @@ jatic_ri = ["py.typed"]
 [tool.ruff]
 exclude = [
   "*env*",
+  "tests",
 ]
 
 line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
@@ -71,6 +72,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.pyright]
 reportMissingImports = "warning"
+exclude = [
+    "tests/**",
+]
 
 [tool.ruff.format]
 quote-style = "double"
