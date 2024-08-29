@@ -6,6 +6,7 @@ dependencies:
 - maite
 # test
 - pytest  # TODO: sort out dev/test deps properly
+- pytest-cov
 # linting and formatting
 - pre-commit
 - pyright
