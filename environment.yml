@@ -2,8 +2,7 @@
 channels:
 - conda-forge
 dependencies:
-- python=3.11
-- maite
+- maite >= 0.6.0
 # test
 - pytest  # TODO: sort out dev/test deps properly
 - pytest-cov
