@@ -8,6 +8,7 @@ stages:
   - pyright
   - test
   - security-scan
+  - test-poetry
 
 .conda_setup:
   parallel:
@@ -26,7 +27,7 @@ test:
   stage: test
   needs: []
   script:
-    - pytest -vvv --cov --cov-report term --cov-report xml:coverage_report.xml
+    - pytest tests -vvv --cov=jatic_ri --cov-report term --cov-report xml:coverage_report.xml
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always
@@ -57,6 +58,22 @@ pyright:
     - when: never  # dont run in all other cases
   script:
     - pyright --ignoreexternal --verifytypes jatic_ri
+
+test-poetry:
+  stage: test-poetry
+  image: python:3.10
+  needs: ["lint: [3.10]", "pyright: [3.10]"]
+  script:
+    - pip install --upgrade pip
+    - pip install poetry
+    - poetry config --local virtualenvs.in-project true
+    - poetry config --local virtualenvs.prefer-active-python true
+    - python --version
+    - pip --version
+    - poetry --version
+    - poetry check
+    - poetry install --with dev
+    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term
 
 # SECURITY STAGES
 include:
