@@ -1,12 +1,14 @@
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "jatic-ri"
 description = "JATIC Reference Implementation"
+authors = ["JATIC Developers"]
+version = "0.0.1"
 readme = "README.md"
-requires-python = ">=3.9"
+packages =[{include="jatic_ri", from="src"}]
 keywords = [
     "jatic", 
     "artificial intelligence",
@@ -14,31 +16,27 @@ keywords = [
     "object detection",
     "image classification",
     ]
-license = {text = "TBD"}
+license = "TBD"
 classifiers = [
-    "Framework :: Python",
     "Development Status :: 1 - Planning",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-dynamic = ["version"]
-dependencies = [
-    'maite',
-]
 
-[project.optional-dependencies]
-# project development and testing
-dev = [
-    "pre-commit",
-    "pytest",
-]
+[tool.poetry.dependencies]
+python = ">=3.9, <3.12"  # required by SDP
+maite = ">=0.6.0"  # required by SDP
 
-[tool.setuptools.packages.find]
-where = ["src"]
+# development dependencies
+[tool.poetry.group.dev]
+optional = true
 
-[tool.setuptools.package-data]
-jatic_ri = ["py.typed"]
+[tool.poetry.group.dev.dependencies]
+pre-commit = ">=3.0.0"  # arbitrary
+pytest = ">=8.3.0"  # necessary
+pytest-cov = ">=4.0.0"  # arbitrary
 
 # Ruff rules - https://docs.astral.sh/ruff/rules/
 [tool.ruff]
