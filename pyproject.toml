@@ -28,6 +28,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9, <3.12"  # required by SDP
 maite = ">=0.6.0"  # required by SDP
+# rich = "*"# TODO temp change to trigger dep scanning
 
 # development dependencies
 [tool.poetry.group.dev]

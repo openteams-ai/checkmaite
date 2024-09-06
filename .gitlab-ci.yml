@@ -6,6 +6,7 @@ workflow:
 stages:
   - lint
   - pyright
+  - build
   - test
   - security-scan
   - docs
@@ -22,6 +23,42 @@ stages:
     - micromamba activate test-env
     - pip install .
     - micromamba list
+
+.shared-setup:
+  image: python:3.9
+  interruptible: true
+  allow_failure: false
+  rules:
+    # If changes are make to an active merge request.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: on_success
+    # If changes are pushed to the default branch.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+    - when: never  # explicit fail-exclude terminal condition.
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/poetry"
+  before_script:
+    # For internal git dependencies
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.jatic.net".insteadof "ssh://git@gitlab.jatic.net"
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.jatic.net/".insteadOf "git@gitlab.jatic.net:"
+
+    # Setup poetry
+    - export PATH=${HOME}/.local/bin:${PATH}
+    - pip install --upgrade pip
+    - pip install --user -U poetry
+    - poetry config --local virtualenvs.in-project true
+    - poetry config --local virtualenvs.prefer-active-python true
+    - python --version
+    - pip --version
+    - poetry --version
+    - poetry check
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+    - .cache
+    policy: pull
 
 test:
   extends: .conda_setup
@@ -61,18 +98,11 @@ pyright:
     - pyright --ignoreexternal --verifytypes jatic_ri
 
 test-poetry:
+  extends: .shared-setup
   stage: test-poetry
   image: python:3.10
   needs: ["lint: [3.10]", "pyright: [3.10]"]
   script:
-    - pip install --upgrade pip
-    - pip install poetry
-    - poetry config --local virtualenvs.in-project true
-    - poetry config --local virtualenvs.prefer-active-python true
-    - python --version
-    - pip --version
-    - poetry --version
-    - poetry check
     - poetry install --with dev
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term
 
@@ -96,8 +126,8 @@ docs:
 # SECURITY STAGES
 include:
 - template: Jobs/SAST.gitlab-ci.yml
-- template: Security/Dependency-Scanning.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+- template: Jobs/Dependency-Scanning.latest.gitlab-ci.yml
+- template: Jobs/Secret-Detection.gitlab-ci.yml
 
 clam-av:
   stage: security-scan
@@ -127,16 +157,26 @@ sast:
     reports:
       sast: gl-sast-report.json
 
-dependency_scanning:
+gemnasium-python-dependency_scanning:
   stage: security-scan
   needs: [test]
-  dependencies: []
+  allow_failure: false
+  variables:
+    DEPENDENCY_SCANNING_DISABLED: "false"
+    DS_INCLUDE_DEV_DEPENDENCIES: "false"
+  rules:
+    # If changes are make to an active merge request.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: on_success
   artifacts:
     paths:
     - gl-dependency-scanning-report.json
+    - gl-sbom-pypi-poetry.cdx.json
     reports:
       dependency_scanning:
         - gl-dependency-scanning-report.json
+      cyclonedx:
+        - gl-sbom-pypi-poetry.cdx.json
 
 secret_detection:
   stage: security-scan
