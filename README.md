@@ -50,3 +50,17 @@ This project has been created and maintained by CDAO JATIC.
 ## License
 
 TODO
+
+## Documentation
+
+The documentation for this project uses `mkdocs`. 
+
+For active development of the documentation, start a live-reloading docs server:
+
+`mkdocs serve`
+
+For production documentation builds, build a static website using 
+
+`mkdocs build -d public`
+
+where `public` is the output folder. The main page in this case will be at `public/index.html`.
