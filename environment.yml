@@ -9,3 +9,5 @@ dependencies:
 # linting and formatting
 - pre-commit
 - pyright
+# docs
+- mkdocs

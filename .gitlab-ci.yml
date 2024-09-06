@@ -8,6 +8,7 @@ stages:
   - pyright
   - test
   - security-scan
+  - docs
   - test-poetry
 
 .conda_setup:
@@ -74,6 +75,23 @@ test-poetry:
     - poetry check
     - poetry install --with dev
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term
+
+
+# DOCUMENTATION
+docs:
+  extends: .conda_setup
+  stage: docs
+  rules:
+    - if: $VERSION == "3.10"
+      when: always # run the job in this case
+    - when: never  # dont run in all other cases
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script: 
+    - mkdocs build -d public
+  artifacts:
+    paths:
+      - public
 
 # SECURITY STAGES
 include:

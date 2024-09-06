@@ -1,0 +1,8 @@
+site_name: JATIC Reference Implementation
+nav:  # navigation links on main page header
+  - Home: index.md
+  - About: about.md
+theme: readthedocs
+markdown_extensions:
+  - admonition  # enables callout boxes
+  
