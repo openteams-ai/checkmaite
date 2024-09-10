@@ -1,6 +1,7 @@
 site_name: JATIC Reference Implementation
 nav:  # navigation links on main page header
   - Home: index.md
+  - Conventions: conventions.md
   - About: about.md
 theme: readthedocs
 markdown_extensions:
