@@ -28,7 +28,6 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9, <3.12"  # required by SDP
 maite = ">=0.6.0"  # required by SDP
-# rich = "*"# TODO temp change to trigger dep scanning
 
 # development dependencies
 [tool.poetry.group.dev]
@@ -38,6 +37,13 @@ optional = true
 pre-commit = ">=3.0.0"  # arbitrary
 pytest = ">=8.3.0"  # necessary
 pytest-cov = ">=4.0.0"  # arbitrary
+
+# documentation dependencies
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = ">=1.6.1"  # arbitrary
 
 # Ruff rules - https://docs.astral.sh/ruff/rules/
 [tool.ruff]
