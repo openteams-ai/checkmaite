@@ -1,9 +1,11 @@
 site_name: JATIC Reference Implementation
-nav:  # navigation links on main page header
+nav:  # navigation links on sidebar
   - Home: index.md
   - Conventions: conventions.md
   - About: about.md
+  - Community:
+    - Development Strategies: community/development.md
+    - Contributing: community/contributing.md
 theme: readthedocs
 markdown_extensions:
   - admonition  # enables callout boxes
-  
