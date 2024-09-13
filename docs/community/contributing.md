@@ -78,3 +78,13 @@ Type checking is performed by `pyright`. The CI must report a type-completeness 
 ```bash
 pyright --ignoreexternal --verifytypes jatic_ri
 ```
+
+## Setting minimum package versions
+
+The JATIC Software Development Plan (SDP) requires that all dependencies include a minimum version. 
+It is preferable that these minimums be valid minimums due to a real incompatibility with the 
+previous version. However, discovering the true minimums in a complex environment is highly 
+time consuming. For this reason, we ask that miminums be set (in compliance with the SDP), but 
+that they be comment tagged as either "necessary" (you are aware of an incompatibility with the
+previous version) or "arbitrary" (you set this version artitrarily and it may be lowered if
+an issue with cross-compatibility arises). 
