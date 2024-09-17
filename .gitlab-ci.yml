@@ -11,6 +11,7 @@ stages:
   - security-scan
   - docs
   - test-poetry
+  - test-poetry-optional-deps
 
 .conda_setup:
   parallel:
@@ -83,7 +84,7 @@ lint:
       when: always # run the job in this case
     - when: never  # dont run in all other cases
   script:
-    - pre-commit install 
+    - pre-commit install
     - pre-commit run --all-files --verbose
 
 pyright:
@@ -106,6 +107,17 @@ test-poetry:
     - poetry install --with dev
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term
 
+# test optional dependencies
+test-poetry-optional-deps:
+  extends: .shared-setup
+  stage: test-poetry-optional-deps
+  image: python:3.10
+  needs: ["lint: [3.10]", "pyright: [3.10]"]
+  script:
+    - poetry install --with dev,docs
+    - poetry check
+    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term
+
 
 # DOCUMENTATION
 # deploy docs for merge requests
@@ -122,7 +134,7 @@ pages-branch:
       auto_stop_in: 1 week
   script:
     - poetry install --with docs
-    - poetry run mkdocs build -d public --no-directory-urls 
+    - poetry run mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/increment-demos/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
   rules:
@@ -139,7 +151,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   stage: docs
   script:
     - poetry install --with docs
-    - poetry run mkdocs build -d public --no-directory-urls 
+    - poetry run mkdocs build -d public --no-directory-urls
   artifacts:
     paths:
     - public
