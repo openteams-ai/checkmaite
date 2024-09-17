@@ -147,7 +147,7 @@ pages-branch:
 
 # deploy production docs on merge with main
 pages: # this must be named "pages" to get GitLab to run "pages:deploy"
-  extends: .conda_setup
+  extends: .shared-setup
   stage: docs
   script:
     - poetry install --with docs
