@@ -28,6 +28,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9, <3.12"  # required by SDP
 maite = ">=0.6.0"  # required by SDP
+dataeval = {extras = ["all"], version = "^0.69.1"}
 
 # development dependencies
 [tool.poetry.group.dev]
@@ -37,6 +38,7 @@ optional = true
 pre-commit = ">=3.0.0"  # arbitrary
 pytest = ">=8.3.0"  # necessary
 pytest-cov = ">=4.0.0"  # arbitrary
+torch = ">=2.1.1"  # arbitrary
 
 # documentation dependencies
 [tool.poetry.group.docs]
@@ -44,6 +46,17 @@ optional = true
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = ">=1.6.1"  # arbitrary
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+]
+
+[tool.pyright]
+reportMissingImports = "warning"
+exclude = [
+    "tests/**",
+]
 
 # Ruff rules - https://docs.astral.sh/ruff/rules/
 [tool.ruff]
@@ -74,12 +87,6 @@ unfixable = []
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-[tool.pyright]
-reportMissingImports = "warning"
-exclude = [
-    "tests/**",
-]
 
 [tool.ruff.format]
 quote-style = "double"
