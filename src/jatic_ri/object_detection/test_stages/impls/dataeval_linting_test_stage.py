@@ -6,7 +6,12 @@ from jatic_ri.object_detection.test_stages.interfaces.test_workflows import Sing
 
 
 class DatasetLintingTest(TestStage, SingleDatasetPlugin):
-    """LintingTestStage"""
+    """
+    Dataset Linting TestStage implementation.
+
+    Performs dataset linting by identifying duplicates (exact and near) as well as statistical outliers
+    using various pixel and image statistics on the image data.
+    """
 
     outputs = None
 
@@ -27,7 +32,7 @@ class DatasetLintingTest(TestStage, SingleDatasetPlugin):
         self.outputs["outliers"] = outliers.dict()
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect consumables"""
+        """Collect duplicates and outliers"""
         if self.outputs is None:
             return []
 

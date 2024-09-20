@@ -17,3 +17,9 @@ def test_linting(dummy_dataset) -> None:
     assert len(output) == 1
     assert "duplicates" in output[0]
     assert "outliers" in output[0]
+
+def test_linting_cache() -> None:
+    test = DatasetLintingTest()
+    test.run(use_cache=True)
+
+    assert test.collect_report_consumables() == []

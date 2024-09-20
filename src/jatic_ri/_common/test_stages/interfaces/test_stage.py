@@ -12,7 +12,6 @@ class TestStage(ABC):
     @abstractmethod
     def run(self, use_cache: bool = True) -> None:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
-        pass
 
     @abstractmethod
     def collect_report_consumables(self) -> list[dict[str, Any]]:
