@@ -21,19 +21,21 @@ def dummy_dataset() -> od.Dataset:
     """Creates and returns a dummy maite-compliant dataset"""
 
     class DummyObjectDetectionTarget:
-        boxes = torch.ones(size=(25, 4))
-        labels = torch.ones(size=(25,))
-        scores = torch.zeros(size=(25,))
+        """5x Target data entries per image with labels [0-4]"""
+        boxes = torch.ones(size=(5, 4))
+        labels = torch.arange(0, 5)
+        scores = torch.zeros(size=(5,))
 
 
     class DummyDataset(od.Dataset):
-        images = torch.ones(size=(25, 1, 16, 16))
+        """Dataset with 10 1x16x16 CHW images"""
+        images = torch.ones(size=(10, 1, 16, 16))
 
         def __len__(self) -> int:
             return len(self.images)
 
         def __getitem__(self, ind: int):
-            return self.images[ind], DummyObjectDetectionTarget(), {}
+            return self.images[ind], DummyObjectDetectionTarget(), {"dummy": 0}
 
     return DummyDataset()
 

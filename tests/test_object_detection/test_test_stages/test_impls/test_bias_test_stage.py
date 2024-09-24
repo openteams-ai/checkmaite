@@ -1,0 +1,27 @@
+"""Test Dataset Bias Analysis"""
+
+from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import (
+    DatasetBiasTest,
+)
+
+
+def test_bias(dummy_dataset) -> None:
+    """Test Linting implementation"""
+
+    test = DatasetBiasTest()
+    test.load_dataset(dataset=dummy_dataset, dataset_id="dataset_1")
+    test.run()
+    output = test.collect_report_consumables()
+
+    assert output
+    assert len(output) == 2
+    for slide in output:
+        assert isinstance(slide, dict)
+
+def test_empty_cache() -> None:
+    """Tests return from cache and default self.outputs"""
+
+    test = DatasetBiasTest()
+    test.run(use_cache=True)
+    output = test.collect_report_consumables()
+    assert output == []
