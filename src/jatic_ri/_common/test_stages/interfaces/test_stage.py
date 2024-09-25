@@ -1,17 +1,52 @@
 """Base Test Stage for all test implementations"""
 
+import os
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Generic, Optional, TypeVar
+
+TData = TypeVar("TData")
 
 
-class TestStage(ABC):
+class Cache(Generic[TData]):
+    """Caching mechanism for test stages"""
+
+    def read_cache(self, cache_path: str) -> Optional[TData]: ...
+    def write_cache(self, cache_path: str, data: TData) -> None: ...
+
+
+class TestStage(Generic[TData], ABC):
     """Base class for running a test and recieving report values"""
 
-    outputs: Optional[Any]  # test results are expected to be stored within the test stage
+    outputs: Optional[TData]  # test results are expected to be stored within the test stage
+    cache: Optional[Cache[TData]] = None
+    cache_base_path: str = ".tscache"
+
+    @property
+    def cache_id(self) -> str:
+        """Override this with a unique cache id to save outputs to cache"""
+        return ""
+
+    @property
+    def cache_path(self) -> str:
+        return os.path.join(self.cache_base_path, self.cache_id) if self.cache_id else ""
+
+    def run(self, use_cache: bool = True) -> None:
+        """Run the test stage leveraging cache if available and store any outputs of the evaluation in test stage"""
+
+        if use_cache and self.cache and self.cache_path:
+            cached_outputs = self.cache.read_cache(self.cache_path)
+            if cached_outputs:
+                self.outputs = cached_outputs
+                return
+
+        self._run()
+
+        if use_cache and self.cache and self.cache_path and self.outputs:
+            self.cache.write_cache(self.cache_path, self.outputs)
 
     @abstractmethod
-    def run(self, use_cache: bool = True) -> None:
-        """Run the test stage, and store any outputs of the evaluation in test stage"""
+    def _run(self) -> None:
+        """Override this with logic to execute test stage and store outputs"""
 
     @abstractmethod
     def collect_report_consumables(self) -> list[dict[str, Any]]:
@@ -40,4 +75,3 @@ class TestStage(ABC):
             }
         ]
         """
-        return []

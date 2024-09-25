@@ -1,9 +1,9 @@
 """Drift Test Stage Implementation"""
 
 from functools import partial
-from statistics import mean
-from typing import Any
+from typing import Any, Optional
 
+import numpy as np
 import torch
 from dataeval.detectors.drift import (
     DriftCVM,
@@ -11,11 +11,12 @@ from dataeval.detectors.drift import (
     DriftMMD,
 )
 
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.object_detection.test_stages.interfaces.plugins import TwoDatasetPlugin
+from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
-class DatasetDriftTestStage(TestStage, TwoDatasetPlugin):
+class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
     """
     Drift detection TestStage implementation.
 
@@ -24,14 +25,17 @@ class DatasetDriftTestStage(TestStage, TwoDatasetPlugin):
     preprocessing the images before performing drift detection against the embeddings.
     """
 
-    outputs = None
+    outputs: Optional[dict[str, Any]] = None
+    cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
     device = "cpu"
 
-    def run(self, use_cache: bool = False) -> None:
-        """Run MMD, CVM and KS drift detectors"""
+    @property
+    def cache_id(self) -> str:
+        """Unique identifier for cached results"""
+        return f"drift-{self.dataset_1_id}-{self.dataset_2_id}.json"
 
-        if use_cache:
-            return
+    def _run(self) -> None:
+        """Run MMD, CVM and KS drift detectors"""
 
         images_1 = torch.stack([data[0] for data in self.dataset_1])  # type: ignore
         images_2 = torch.stack([data[0] for data in self.dataset_2])  # type: ignore
@@ -45,21 +49,21 @@ class DatasetDriftTestStage(TestStage, TwoDatasetPlugin):
             "Kolmogorov-Smirnov": DriftKS,
         }
 
-        self.outputs = {k: cls(**drift_kwargs).predict(images_2) for k, cls in drift_cls.items()}
+        self.outputs = {k: cls(**drift_kwargs).predict(images_2).dict() for k, cls in drift_cls.items()}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect drift results"""
 
-        if not isinstance(self.outputs, dict):
+        if not self.outputs:
             return []
 
-        def get_mean(output, attr_mean, attr) -> float:  # noqa: ANN001
-            return mean(getattr(output, attr_mean)) if hasattr(output, attr_mean) else getattr(output, attr)
+        def get_mean(d: dict, array_key: str, value_key: str) -> float:
+            return np.mean(d[array_key]) if array_key in d else d[value_key]
 
         return [
             {
                 "Method": list(self.outputs),
-                "Has drifted?": ["Yes" if d.is_drift else "No" for d in self.outputs.values()],
+                "Has drifted?": ["Yes" if d["is_drift"] else "No" for d in self.outputs.values()],
                 "Test statistic": [str(get_mean(d, "distances", "distance")) for d in self.outputs.values()],
                 "P-value": [str(get_mean(d, "p_vals", "p_val")) for d in self.outputs.values()],
             },

@@ -26,7 +26,6 @@ def dummy_dataset() -> od.Dataset:
         labels = torch.arange(0, 5)
         scores = torch.zeros(size=(5,))
 
-
     class DummyDataset(od.Dataset):
         """Dataset with 10 1x16x16 CHW images"""
         images = torch.ones(size=(10, 1, 16, 16))
