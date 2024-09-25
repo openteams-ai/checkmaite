@@ -2,13 +2,18 @@
 
 from typing import Any
 
-from jatic_ri.object_detection.test_stages.interfaces.test_workflows import SingleModelDatasetMetricThreshold
+from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+    MetricThresholdPlugin,
+    SingleDatasetPlugin,
+    SingleModelPlugin,
+)
 
 
-class BaselineEvaluation(SingleModelDatasetMetricThreshold):
-    """Baseline evaluation implementation of SingleModelDatasetMetricThreshold interface"""
+class BaselineEvaluation(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin, MetricThresholdPlugin):
+    """Baseline evaluation implementation of TestStage interface with single model, dataset and metric plugins"""
 
-    def run(self, use_cache: bool = True) -> None:
+    def _run(self) -> None:
         """TODO: actually define run here"""
         pass
 

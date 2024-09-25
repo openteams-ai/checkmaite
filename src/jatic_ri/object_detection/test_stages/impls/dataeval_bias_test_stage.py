@@ -1,11 +1,13 @@
 from dataeval.metrics.bias import coverage, parity  # noqa
-from typing import Any
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from typing import Any, Optional
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.object_detection.test_stages.interfaces.plugins import SingleDatasetPlugin
 import maite.protocols.object_detection as od
 from maite.protocols import ArrayLike
 from collections import defaultdict
 import numpy as np
+
+from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
 def read_dataset(dataset: od.Dataset) -> tuple[od.InputBatchType, od.TargetBatchType, list[dict[str, Any]]]:
@@ -22,7 +24,7 @@ def read_dataset(dataset: od.Dataset) -> tuple[od.InputBatchType, od.TargetBatch
     return images, od_targets, metadata
 
 
-class DatasetBiasTest(TestStage, SingleDatasetPlugin):
+class DatasetBiasTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
     """
     Tests for bias in a dataset
 
@@ -30,13 +32,16 @@ class DatasetBiasTest(TestStage, SingleDatasetPlugin):
     parity and balance between metadata and labels
     """
 
-    outputs = None
+    outputs: Optional[dict[str, Any]] = None
+    cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
 
-    def run(self, use_cache: bool = False) -> None:
+    @property
+    def cache_id(self) -> str:
+        """Bias Test Stage cache identifier"""
+        return f"bias-{self.dataset_id}.json"
+
+    def _run(self) -> None:
         """Run bias analysis using coverage and parity"""
-
-        if use_cache:
-            return
 
         # Separate data into individual lists
         images, targets, metadata = read_dataset(self.dataset)
@@ -64,11 +69,10 @@ class DatasetBiasTest(TestStage, SingleDatasetPlugin):
         # Convert all lists into ArrayLike
         data_factors = {k: np.array(v) for k, v in factor_lists.items()}
 
-        if self.outputs is None:
-            self.outputs = {}
-
-        self.outputs["coverage"] = coverage(images, k=5)
-        self.outputs["parity"] = parity(data_factors)
+        self.outputs = {
+            "coverage": coverage(images, k=5).dict(),
+            "parity": parity(data_factors).dict(),
+        }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect consumables"""

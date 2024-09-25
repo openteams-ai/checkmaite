@@ -1,11 +1,13 @@
-from typing import Any  # noqa: D100
+from typing import Any, Optional  # noqa: D100
 
 from dataeval.detectors.linters import Duplicates, Outliers
 
-from jatic_ri.object_detection.test_stages.interfaces.test_workflows import SingleDatasetPlugin, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+from jatic_ri.object_detection.test_stages.interfaces.plugins import SingleDatasetPlugin
+from jatic_ri.util.cache import JSONCache
 
 
-class DatasetLintingTest(TestStage, SingleDatasetPlugin):
+class DatasetLintingTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
     """
     Dataset Linting TestStage implementation.
 
@@ -13,14 +15,16 @@ class DatasetLintingTest(TestStage, SingleDatasetPlugin):
     using various pixel and image statistics on the image data.
     """
 
-    outputs = None
+    outputs: Optional[dict[str, Any]] = None
+    cache: Optional[Cache[dict[str, Any]]] = JSONCache()
 
-    def run(self, use_cache: bool = False) -> None:
+    @property
+    def cache_id(self) -> str:
+        """Unique cache id for output"""
+        return f"linting-{self.dataset_id}.json"
+
+    def _run(self) -> None:
         """Run linting"""
-
-        if use_cache:
-            return
-
         images = [data[0] for data in self.dataset]
 
         dupes = Duplicates().evaluate(images)
