@@ -75,7 +75,7 @@ test:
   needs: []
   script:
     - poetry install --with dev
-    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term --cov-report xml:coverage_report.xml
+    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term --cov-report xml:coverage_report.xml --cov-fail-under=90
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always
