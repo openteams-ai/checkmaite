@@ -9,12 +9,13 @@ stages:
   - build
   - test
   - security-scan
+  - export-sbom
   - docs
 
 .git_config: &git_config
 # For internal git dependencies
-- git config --global url."https://gitlab-ci-token:${JATIC_PAT}@gitlab.jatic.net".insteadof "ssh://git@gitlab.jatic.net"
-- git config --global url."https://gitlab-ci-token:${JATIC_PAT}@gitlab.jatic.net/".insteadOf "git@gitlab.jatic.net:"
+- git config --global url."https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net".insteadof "ssh://git@gitlab.jatic.net"
+- git config --global url."https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/".insteadOf "git@gitlab.jatic.net:"
 
 .python-matrix:
   parallel:
@@ -62,8 +63,8 @@ stages:
     - poetry config --local virtualenvs.prefer-active-python true
     - poetry config repositories.reallabel https://gitlab.jatic.net/jatic/morse/reallabel.git
     - poetry config repositories.survivor https://gitlab.jatic.net/jatic/morse/survivor.git
-    - poetry config http-basic.reallabel x-token-auth ${JATIC_PAT}
-    - poetry config http-basic.survivor x-token-auth ${JATIC_PAT}
+    - poetry config http-basic.reallabel x-token-auth ${PRIVATE_TOKEN}
+    - poetry config http-basic.survivor x-token-auth ${PRIVATE_TOKEN}
     - python --version
     - pip --version
     - poetry --version
@@ -162,7 +163,6 @@ include:
 
 clam-av:
   stage: security-scan
-  needs: [test]
   image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/clamav/clamav:latest
   script:
     # update virus definitions
@@ -180,7 +180,6 @@ clam-av:
 
 sast:
   stage: security-scan
-  needs: [test]
   dependencies: []
   artifacts:
     paths:
@@ -190,7 +189,6 @@ sast:
 
 gemnasium-python-dependency_scanning:
   stage: security-scan
-  needs: [test]
   allow_failure: false
   variables:
     DEPENDENCY_SCANNING_DISABLED: "false"
@@ -202,16 +200,12 @@ gemnasium-python-dependency_scanning:
   artifacts:
     paths:
     - gl-dependency-scanning-report.json
-    - gl-sbom-pypi-poetry.cdx.json
     reports:
       dependency_scanning:
         - gl-dependency-scanning-report.json
-      cyclonedx:
-        - gl-sbom-pypi-poetry.cdx.json
 
 secret_detection:
   stage: security-scan
-  needs: [test]
   dependencies: []
   artifacts:
     paths:
@@ -219,3 +213,24 @@ secret_detection:
     reports:
       secret_detection:
         - gl-secret-detection-report.json
+
+
+# EXPORT-SBOM STAGE
+# NOTE: This job requires the completion of all dependency scanning
+# jobs before executing in order to merge them for export.
+export-merged-sbom:
+  stage: export-sbom
+  image: docker:stable
+  rules:
+    # Only run this rule if on main branch
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --update jq curl
+  script:
+    - >
+      curl --header "Authorization: Bearer $PRIVATE_TOKEN"
+      --output export.sh --url "https://gitlab.jatic.net/api/v4/snippets/7/raw"
+    - /bin/sh export.sh
+  artifacts:
+    paths:
+      - "gl-sbom-merged-*.cdx.json"

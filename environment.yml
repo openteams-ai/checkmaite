@@ -17,8 +17,8 @@ dependencies:
 - openjdk=17.0.9  # pin required
 - pip
 - pip:
-  - reallabel @ git+https://gitlab-ci-token:${JATIC_PAT}@gitlab.jatic.net/jatic/morse/reallabel.git@0.4.2
-  - survivor @ git+https://gitlab-ci-token:${JATIC_PAT}@gitlab.jatic.net/jatic/morse/survivor.git@0.1.3
+  - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.4.2
+  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.1.3
 # test
 - pytest  # TODO: sort out dev/test deps properly
 - pytest-cov
