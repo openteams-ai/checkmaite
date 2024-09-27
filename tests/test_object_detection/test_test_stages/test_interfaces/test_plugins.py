@@ -1,3 +1,5 @@
+from typing import Any
+
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
 from jatic_ri.object_detection.test_stages.interfaces.plugins import (
     MetricThresholdPlugin,
@@ -6,8 +8,6 @@ from jatic_ri.object_detection.test_stages.interfaces.plugins import (
     SingleModelPlugin,
     TwoDatasetPlugin,
 )
-
-from typing import Any
 
 
 def test_model_dataset_metric_threshold(dummy_model, dummy_dataset, dummy_metric) -> None:
@@ -164,4 +164,5 @@ def test_test_stage_no_default_cache() -> None:
 
     stage = TestImpl()
 
-    assert not stage.cache_path and not stage.cache
+    assert not stage.cache_path
+    assert not stage.cache

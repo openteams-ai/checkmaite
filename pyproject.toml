@@ -66,7 +66,6 @@ exclude = [
 [tool.ruff]
 exclude = [
   "*env*",
-  "tests",
 ]
 
 line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
@@ -80,8 +79,7 @@ extend-include = ["*.ipynb"]
 [tool.ruff.lint]
 select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", "D419", "UP",
           "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
-          "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
-          "RUF100", "PERF"]
+          "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF100", "PERF"]
 
 ignore = ["ANN101","ANN102"]
 
@@ -91,6 +89,9 @@ unfixable = []
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"**/tests/*" = ["ANN001", "ANN204", "D100", "D103", "S101"]
 
 [tool.ruff.format]
 quote-style = "double"

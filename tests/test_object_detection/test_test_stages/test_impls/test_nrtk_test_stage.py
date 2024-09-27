@@ -5,18 +5,19 @@ from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import (
 )
 
 ARGS = {
-        "name": "NRTKTestStage Example",
-        "perturber_factory": {
-            "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.GaussianBlurPerturber",
-                "theta_key": "ksize",
-                "start": 1,
-                "stop": 10,
-                "step": 1
-            }
+    "name": "NRTKTestStage Example",
+    "perturber_factory": {
+        "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
+        "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
+            "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.GaussianBlurPerturber",
+            "theta_key": "ksize",
+            "start": 1,
+            "stop": 10,
+            "step": 1,
         },
-    }
+    },
+}
+
 
 def test_nrtk_test_stage(dummy_model, dummy_dataset, dummy_metric) -> None:
     """Test NRTKTestStage implementation"""
@@ -29,6 +30,7 @@ def test_nrtk_test_stage(dummy_model, dummy_dataset, dummy_metric) -> None:
     test.load_dataset(dataset=dummy_dataset, dataset_id="dataset_1")
     test.run()
     test.collect_report_consumables()
+
 
 def test_nrtk_test_stage_no_cache(dummy_model, dummy_dataset, dummy_metric) -> None:
     """Test NRTKTestStage implementation"""

@@ -1,6 +1,7 @@
 """Test baseline evalutation"""
 
 import os
+
 from jatic_ri.object_detection.test_stages.impls.dataeval_linting_test_stage import (
     DatasetLintingTest,
 )

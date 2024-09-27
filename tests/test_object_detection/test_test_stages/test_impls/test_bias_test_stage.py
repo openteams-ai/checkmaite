@@ -19,6 +19,7 @@ def test_bias(dummy_dataset, tmp_path) -> None:
     for slide in output:
         assert isinstance(slide, dict)
 
+
 def test_empty_cache() -> None:
     """Tests return from cache and default self.outputs"""
 
