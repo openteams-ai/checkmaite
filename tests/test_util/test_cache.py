@@ -5,6 +5,7 @@ import pytest
 
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
+
 def test_cache_read_none() -> None:
     cache = JSONCache()
     result = cache.read_cache("does_not_exist")
