@@ -9,7 +9,7 @@ ARGS = {
     "perturber_factory": {
         "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
         "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-            "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.GaussianBlurPerturber",
+            "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.AverageBlurPerturber",
             "theta_key": "ksize",
             "start": 1,
             "stop": 10,
