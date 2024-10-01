@@ -2,16 +2,17 @@ from typing import Any
 
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
 from jatic_ri.object_detection.test_stages.interfaces.plugins import (
-    MetricThresholdPlugin,
+    MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
+    ThresholdPlugin,
     TwoDatasetPlugin,
 )
 
 
 def test_model_dataset_metric_threshold(dummy_model, dummy_dataset, dummy_metric) -> None:
-    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin, MetricThresholdPlugin):
+    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -127,7 +128,7 @@ def test_multi_model_single_dataset(dummy_model, dummy_dataset) -> None:
 
 
 def test_dataset_metric_threshold(dummy_dataset, dummy_metric) -> None:
-    class TestImpl(TestStage[bool], SingleDatasetPlugin, MetricThresholdPlugin):
+    class TestImpl(TestStage[bool], SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:

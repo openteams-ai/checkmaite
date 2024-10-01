@@ -64,17 +64,22 @@ class TwoDatasetPlugin:
 
 
 # METRICS AND THRESHOLD -------------------------------
-class MetricThresholdPlugin:
-    """TestStage Plugin for loading a metric and threshold"""
+class MetricPlugin:
+    """TestStage Plugin for loading a metric"""
 
     metric: od.Metric
     metric_id: str
-    threshold: float
 
     def load_metric(self, metric: od.Metric, metric_id: str) -> None:
         """Injest a pre-loaded, maite-compliant metric"""
         self.metric = metric
         self.metric_id = metric_id
+
+
+class ThresholdPlugin:
+    """TestStage Plugin for loading a threshold"""
+
+    threshold: float
 
     def load_threshold(self, threshold: float) -> None:
         """Set threshold for the test"""

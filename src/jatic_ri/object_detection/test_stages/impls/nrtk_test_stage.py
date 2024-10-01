@@ -22,14 +22,21 @@ from smqtk_core.configuration import from_config_dict
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 from jatic_ri.object_detection.test_stages.interfaces.plugins import (
-    MetricThresholdPlugin,
+    MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
+    ThresholdPlugin,
 )
 from jatic_ri.util.cache import JSONCache
 
 
-class NRTKTestStage(TestStage[list[dict[str, Any]]], SingleDatasetPlugin, SingleModelPlugin, MetricThresholdPlugin):
+class NRTKTestStage(
+    TestStage[list[dict[str, Any]]],
+    SingleDatasetPlugin,
+    SingleModelPlugin,
+    MetricPlugin,
+    ThresholdPlugin,
+):
     """
     NRTK Test Stage to perform augmentation on images in a dataset based
     on a given factory configuration.
