@@ -158,11 +158,12 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
 # SECURITY STAGES
 include:
 - template: Jobs/SAST.gitlab-ci.yml
-- template: Jobs/Dependency-Scanning.latest.gitlab-ci.yml
+- template: Jobs/Dependency-Scanning.gitlab-ci.yml
 - template: Jobs/Secret-Detection.gitlab-ci.yml
 
 clam-av:
   stage: security-scan
+  needs: []
   image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/clamav/clamav:latest
   script:
     # update virus definitions
@@ -178,42 +179,23 @@ clam-av:
     paths:
       - virus-scan.txt
 
-sast:
+semgrep-sast:
   stage: security-scan
-  dependencies: []
-  artifacts:
-    paths:
-      - gl-sast-report.json
-    reports:
-      sast: gl-sast-report.json
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
 
 gemnasium-python-dependency_scanning:
   stage: security-scan
-  allow_failure: false
-  variables:
-    DEPENDENCY_SCANNING_DISABLED: "false"
-    DS_INCLUDE_DEV_DEPENDENCIES: "false"
+  needs: []
   rules:
-    # If changes are make to an active merge request.
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: on_success
-  artifacts:
-    paths:
-    - gl-dependency-scanning-report.json
-    reports:
-      dependency_scanning:
-        - gl-dependency-scanning-report.json
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
 
 secret_detection:
   stage: security-scan
-  dependencies: []
-  artifacts:
-    paths:
-    - gl-secret-detection-report.json
-    reports:
-      secret_detection:
-        - gl-secret-detection-report.json
-
+  needs: []
+  rules:
+    - when: always
 
 # EXPORT-SBOM STAGE
 # NOTE: This job requires the completion of all dependency scanning
