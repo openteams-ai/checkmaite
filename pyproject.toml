@@ -30,8 +30,8 @@ python = ">=3.9, <3.12"  # required by SDP
 maite = ">=0.6.0"  # required by SDP
 dataeval = {version = ">=0.69.2", extras = ["all"]}
 nrtk = {version = ">=0.12.0", extras = ["headless"]}
-reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.4.2"}
-survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.1.3"}
+reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
+survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.2.1"}
 
 # development dependencies
 [tool.poetry.group.dev]
