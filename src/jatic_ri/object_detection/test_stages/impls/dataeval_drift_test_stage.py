@@ -4,12 +4,14 @@ from functools import partial
 from typing import Any, Optional
 
 import numpy as np
+import pandas as pd
 import torch
 from dataeval.detectors.drift import (
     DriftCVM,
     DriftKS,
     DriftMMD,
 )
+from dataeval.utils import read_dataset
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.object_detection.test_stages.interfaces.plugins import TwoDatasetPlugin
@@ -36,12 +38,9 @@ class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
 
     def _run(self) -> None:
         """Run MMD, CVM and KS drift detectors"""
+        images_1 = torch.stack(read_dataset(self.dataset_1)[0])  # type: ignore
+        images_2 = torch.stack(read_dataset(self.dataset_2)[0])  # type: ignore
 
-        images_1 = torch.stack([data[0] for data in self.dataset_1])  # type: ignore
-        images_2 = torch.stack([data[0] for data in self.dataset_2])  # type: ignore
-
-        # model expects embedding outputs rather than the prediction outputs
-        # preprocess_fn = partial(preprocess_drift, model=self.model, batch_size=64, device=self.device)
         drift_kwargs = {"x_ref": images_1}
         drift_cls = {
             "Maximum Mean Discrepency": partial(DriftMMD, device=self.device),
@@ -60,11 +59,23 @@ class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
         def get_mean(d: dict, array_key: str, value_key: str) -> float:
             return np.mean(d[array_key]) if array_key in d else d[value_key]
 
-        return [
+        drift_df = pd.DataFrame(
             {
                 "Method": list(self.outputs),
                 "Has drifted?": ["Yes" if d["is_drift"] else "No" for d in self.outputs.values()],
                 "Test statistic": [str(get_mean(d, "distances", "distance")) for d in self.outputs.values()],
                 "P-value": [str(get_mean(d, "p_vals", "p_val")) for d in self.outputs.values()],
             },
-        ]
+        )
+
+        drift_slide_args = {
+            "deck": "object_detection_dataset_evaluation",
+            "layout_name": "TableText",
+            "layout_arguments": {
+                "title": "Drift Results",
+                "text": "Drift Body Text",
+                "table": drift_df,
+            },
+        }
+
+        return [drift_slide_args]
