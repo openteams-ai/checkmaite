@@ -19,7 +19,7 @@ dependencies:
 - pip
 - pip:
   - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
-  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.2.1
+  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.2.2
 # test
 - pytest  # TODO: sort out dev/test deps properly
 - pytest-cov
