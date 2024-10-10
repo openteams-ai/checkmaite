@@ -13,6 +13,7 @@ dependencies:
 - matplotlib=3.8.4
 - tensorflow-probability=0.23.0
 - nrtk>=0.12.0
+- xaitk-jatic>=0.2.0
 - opencv-python-headless=4.9.0.80
 - openjdk=17.0.9  # pin required
 - pip
