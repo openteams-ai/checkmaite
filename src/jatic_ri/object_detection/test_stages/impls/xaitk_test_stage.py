@@ -4,9 +4,17 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Hashable
 from hashlib import sha256
 from typing import Any
+
+# 3rd Party Imports
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from matplotlib.patches import Rectangle  # type: ignore
+from PIL import Image  # type: ignore
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict
@@ -88,7 +96,64 @@ class XAITKTestStage(
         """Access the in-depth data needed by Gradient to produce a report
         generated in the run method or in the load_cached_results method"""
 
-        return []
+        if self.outputs is None:
+            return []
+
+        gradient_slides = []
+        output_values = list(self.outputs[0].values())
+
+        for dataset_idx, (ref_img, dets, _) in enumerate(self.dataset):
+            sub_dir = os.path.join(self.cache_path[:-5], f"img_{dataset_idx}")
+
+            os.makedirs(sub_dir, exist_ok=True)
+            bboxes = np.asarray(dets.boxes)
+            for sal_idx, bbox in enumerate(bboxes):
+                sal_map = output_values[dataset_idx][sal_idx]
+                if ref_img.shape[0] == 1:
+                    gray_img = np.asarray(Image.fromarray(ref_img[0].numpy()).convert("L"))
+                else:
+                    gray_img = np.asarray(Image.fromarray(ref_img.numpy()).convert("L"))
+
+                sal_map_path = os.path.join(sub_dir, f"det_{sal_idx}.png")
+
+                fig = plt.figure()
+                plt.axis("off")
+                plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                plt.xticks(())
+                plt.yticks(())
+
+                plt.gca().add_patch(
+                    Rectangle(
+                        (bbox[0], bbox[1]),
+                        bbox[2] - bbox[0],
+                        bbox[3] - bbox[1],
+                        linewidth=1,
+                        edgecolor="r",
+                        facecolor="none",
+                    ),
+                )
+                plt.imshow(sal_map, cmap="jet", alpha=0.3)
+                plt.colorbar()
+                plt.savefig(sal_map_path, bbox_inches="tight")
+                plt.close(fig)
+
+                gradient_slides.append(
+                    {
+                        "deck": "object_detection_dataset_evaluation",
+                        "layout_name": "OneImageText",
+                        "layout_arguments": {
+                            "title": f"**XAITK Saliency Map**: {sal_idx} \n",
+                            "text": (
+                                f"Model: {self.model_id}\nImage: {dataset_idx}\n"
+                                f"GT: {self.id2label[dets.labels[sal_idx].item()]}\n"
+                                f"Pred: {self.id2label[torch.argmax(dets.scores).item()]}"
+                            ),
+                            "image_path": sal_map_path,
+                        },
+                    },
+                )
+
+        return gradient_slides
 
     @property
     def name(self) -> str:
