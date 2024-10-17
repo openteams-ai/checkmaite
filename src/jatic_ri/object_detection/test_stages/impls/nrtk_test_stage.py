@@ -7,11 +7,12 @@ import json
 from hashlib import sha256
 from typing import Any
 
+# 3rd party imports
+import pandas as pd
+
 # MAITE imports
 from maite.workflows import evaluate
 
-# MAITE imports
-# 3rd party imports
 # NRTK imports
 from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 
@@ -63,7 +64,8 @@ class NRTKTestStage(
     def _run(self) -> list[dict[str, Any]]:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
 
-        outputs = []
+        outputs = list()  # noqa: C408
+
         for perturber in self.factory:
             augmentation = JATICDetectionAugmentation(perturber)
 
@@ -84,4 +86,39 @@ class NRTKTestStage(
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
         load_cached_results method"""
 
-        return []
+        lowest_perturb_score = [metric[self.metric_id] for metric in self.outputs]
+
+        final_dict = {
+            "dataset": self.dataset_id,
+            "model": self.model_id,
+            self.factory.theta_key: self.factory.thetas,
+            self.metric_id: lowest_perturb_score,
+        }
+        df_perturbation = pd.DataFrame.from_dict(final_dict)
+
+        return [
+            {
+                "deck": "object_detection_dataset_evaluation",
+                "layout_name": "NRTKEvaluation",
+                "layout_arguments": {
+                    "title": self.name,
+                    "data": df_perturbation,
+                    "line_col": "item_response_curve",
+                    "x_data_col": self.factory.theta_key,
+                    "y_data_col": self.metric_id,
+                    "perturbation_type": self.factory.get_config()["perturber"],
+                    "lower_bound": 3.4,
+                    "upper_bound": 5.3,
+                    "model": self.model_id,
+                    "plot_kwargs": {
+                        "y_threshold_value": self.threshold,
+                        "title": "NRTK Item Response Curve",
+                    },
+                },
+            },
+        ]
+
+    @property
+    def name(self) -> str:
+        """Returns classname as a string"""
+        return self.__class__.__name__

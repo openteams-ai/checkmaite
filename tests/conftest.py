@@ -96,7 +96,7 @@ def dummy_metric_od() -> od.Metric:
             pass
 
         def compute(self) -> dict[str, Any]:
-            return {"dummy": 1.0}
+            return {"metric_1": 1.0}
 
         def reset(self) -> None:
             pass
