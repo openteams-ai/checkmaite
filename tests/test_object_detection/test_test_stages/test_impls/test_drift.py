@@ -12,11 +12,11 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_drift_test_stage impor
 class TestDatasetDriftTestStage:
     """Tests DatasetDriftTestStage correctly handles caching, results, and gradient consumables"""
 
-    def test_drift(self, dummy_dataset) -> None:
+    def test_drift(self, dummy_dataset_od) -> None:
         """Test DataEval implementation"""
 
-        dev_dataset = dummy_dataset
-        op_dataset = dummy_dataset
+        dev_dataset = dummy_dataset_od
+        op_dataset = dummy_dataset_od
         op_dataset.images *= 0.5
 
         stage = DatasetDriftTestStage()
@@ -38,12 +38,17 @@ class TestDatasetDriftTestStage:
         assert len(drift_df) == 3
         assert all(drift_df.columns == ["Method", "Has drifted?", "Test statistic", "P-value"])
 
-    def test_drift_cache(self, dummy_dataset, tmp_path) -> None:
+    def test_drift_cache(self, dummy_dataset_od, tmp_path) -> None:
         """Tests outputs is saved into a file"""
 
         stage = DatasetDriftTestStage()
         stage.cache_base_path = tmp_path
-        stage.load_datasets(dataset_1=dummy_dataset, dataset_2=dummy_dataset, dataset_1_id="dev", dataset_2_id="op")
+        stage.load_datasets(
+            dataset_1=dummy_dataset_od,
+            dataset_2=dummy_dataset_od,
+            dataset_1_id="dev",
+            dataset_2_id="op",
+        )
         stage.run()
 
         assert os.path.exists(stage.cache_path)
