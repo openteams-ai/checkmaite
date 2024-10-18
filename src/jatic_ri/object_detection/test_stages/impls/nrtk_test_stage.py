@@ -46,12 +46,10 @@ class NRTKTestStage(
     stage_name: str
     factory: PerturbImageFactory
     factory_hash: str
-    outputs: list[dict[str, Any]] | None
     cache: Cache[list[dict[str, Any]]] | None = JSONCache()
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
-        self.outputs = None
         self.config = args
         self.stage_name = args["name"]
         self.factory = from_config_dict(args["perturber_factory"], PerturbImageFactory.get_impls())
@@ -62,11 +60,10 @@ class NRTKTestStage(
         """Cache file for NRTK Test Stage"""
         return f"nrtk_{self.model_id}_{self.dataset_id}_{self.factory_hash}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> list[dict[str, Any]]:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
 
-        self.outputs = []
-
+        outputs = []
         for perturber in self.factory:
             augmentation = JATICDetectionAugmentation(perturber)
 
@@ -79,7 +76,9 @@ class NRTKTestStage(
                 return_augmented_data=False,
                 return_preds=False,
             )
-            self.outputs.append(perturbed_metrics)
+            outputs.append(perturbed_metrics)
+
+        return outputs
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the

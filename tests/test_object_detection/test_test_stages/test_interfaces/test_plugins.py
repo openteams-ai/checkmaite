@@ -12,7 +12,7 @@ from jatic_ri.object_detection.test_stages.interfaces.plugins import (
 
 
 def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
-    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
+    class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -43,7 +43,7 @@ def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_
 
 
 def test_single_dataset(dummy_dataset_od) -> None:
-    class TestImpl(TestStage[bool], SingleDatasetPlugin):
+    class TestImpl(TestStage[None], SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -61,7 +61,7 @@ def test_single_dataset(dummy_dataset_od) -> None:
 
 
 def test_two_dataset(dummy_dataset_od) -> None:
-    class TestImpl(TestStage[bool], TwoDatasetPlugin):
+    class TestImpl(TestStage[None], TwoDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -81,7 +81,7 @@ def test_two_dataset(dummy_dataset_od) -> None:
 
 
 def test_single_model_dataset(dummy_model_od, dummy_dataset_od) -> None:
-    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin):
+    class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -104,7 +104,7 @@ def test_single_model_dataset(dummy_model_od, dummy_dataset_od) -> None:
 
 
 def test_multi_model_single_dataset(dummy_model_od, dummy_dataset_od) -> None:
-    class TestImpl(TestStage[bool], MultiModelPlugin, SingleDatasetPlugin):
+    class TestImpl(TestStage[None], MultiModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -128,7 +128,7 @@ def test_multi_model_single_dataset(dummy_model_od, dummy_dataset_od) -> None:
 
 
 def test_dataset_metric_threshold(dummy_dataset_od, dummy_metric_od) -> None:
-    class TestImpl(TestStage[bool], SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
+    class TestImpl(TestStage[None], SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -154,7 +154,7 @@ def test_dataset_metric_threshold(dummy_dataset_od, dummy_metric_od) -> None:
 
 
 def test_test_stage_no_default_cache() -> None:
-    class TestImpl(TestStage[bool]):
+    class TestImpl(TestStage[None]):
         """Dummy implementation class"""
 
         def _run(self) -> None:

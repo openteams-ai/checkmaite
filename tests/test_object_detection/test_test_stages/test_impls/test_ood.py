@@ -60,7 +60,3 @@ def test_ood_with_cached_values(dummy_dataset_od, tmp_path) -> None:
     assert os.path.exists(test.cache_path)
     assert test.cache_path == test2.cache_path
     assert output1 == output2
-
-
-def test_ood_report_consumables_with_no_outputs() -> None:
-    assert DatasetOODTestStage().collect_report_consumables() == []

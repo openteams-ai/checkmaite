@@ -51,12 +51,10 @@ class XAITKTestStage(
     sal_generator: GenerateObjectDetectorBlackboxSaliency
     sal_generator_hash: str
     id2label: dict[int, Hashable]
-    outputs: list[dict[str, Any]] | None
     cache: Cache[list[dict[str, Any]]] | None = JSONCache()
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
-        self.outputs = None
         self.config = args
         self.stage_name = args["name"]
         self.sal_generator = from_config_dict(
@@ -73,12 +71,11 @@ class XAITKTestStage(
         """Cache file for XAITK Test Stage"""
         return f"xaitk_{self.model_id}_{self.dataset_id}_{self.sal_generator_hash}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> list[dict[str, Any]]:
         """Run the test stage, and store any outputs of the saliency
         generation in test stage"""
 
-        self.outputs = list()  # noqa: C408
-
+        outputs = []
         img_sal_maps, _ = sal_on_dets(
             dataset=self.dataset,
             sal_generator=self.sal_generator,
@@ -90,14 +87,13 @@ class XAITKTestStage(
             "saliency_map_" + str(i): NumpyEncoder().default(sal_map) for i, sal_map in enumerate(img_sal_maps)
         }
 
-        self.outputs.append(sal_maps_json_serializable)
+        outputs.append(sal_maps_json_serializable)
+
+        return outputs
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report
         generated in the run method or in the load_cached_results method"""
-
-        if self.outputs is None:
-            return []
 
         gradient_slides = []
         output_values = list(self.outputs[0].values())

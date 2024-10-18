@@ -16,7 +16,6 @@ from jatic_ri.util.cache import JSONCache, NumpyEncoder
 class DatasetOODTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin, SingleModelPlugin):
     """OODTestStage"""
 
-    outputs: Optional[dict[str, Any]] = None
     cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
 
     @property
@@ -24,7 +23,7 @@ class DatasetOODTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin, SingleMod
         """Unique cache id for output"""
         return f"ood-{self.dataset_1_id}-{self.dataset_2_id}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, Any]:
         """Run OOD detectors"""
 
         images_1 = np.asarray([to_numpy(data[0]) for data in self.dataset_1])
@@ -46,15 +45,10 @@ class DatasetOODTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin, SingleMod
         for detector in detectors.values():
             detector.fit(images_1, **ood_kwargs)
 
-        self.outputs = {
-            detector_name: detector.predict(images_2).is_ood for detector_name, detector in detectors.items()
-        }
+        return {detector_name: detector.predict(images_2).is_ood for detector_name, detector in detectors.items()}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect OOD results"""
-
-        if not isinstance(self.outputs, dict):
-            return []
 
         return [
             {

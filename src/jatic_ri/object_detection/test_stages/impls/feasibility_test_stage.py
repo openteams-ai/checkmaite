@@ -27,7 +27,6 @@ class FeasibilityTestStage(
 ):
     """Docstring"""
 
-    outputs: Optional[dict[str, float]] = None
     cache: Optional[Cache[dict[str, float]]] = JSONCache(encoder=NumpyEncoder)
 
     @property
@@ -35,7 +34,7 @@ class FeasibilityTestStage(
         """Unique path identifier for feasibility tasks"""
         return f"feasibility-{self.dataset}-{self.model}-{self.threshold}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, float]:
         results = evaluate(model=self.model, dataset=self.dataset)
 
         batches: Sequence[Sequence[od.TargetType]] = results[1]
@@ -54,15 +53,10 @@ class FeasibilityTestStage(
 
         result = uap(labels=labels, scores=scores)
 
-        if self.outputs is None:
-            self.outputs = {}
-        self.outputs["uap"] = result.uap
+        return {"uap": result.uap}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect"""
-        if self.outputs is None:
-            return []
-
         return [
             {
                 "feasible": self.outputs["uap"] >= self.threshold,

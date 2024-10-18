@@ -32,7 +32,6 @@ class DatasetBiasTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
     parity and balance between metadata and labels
     """
 
-    outputs: Optional[dict[str, Any]] = None
     cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
 
     @property
@@ -40,7 +39,7 @@ class DatasetBiasTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
         """Bias Test Stage cache identifier"""
         return f"bias-{self.dataset_id}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, Any]:
         """Run bias analysis using coverage and parity"""
 
         # Separate data into individual lists
@@ -69,15 +68,12 @@ class DatasetBiasTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
         # Convert all lists into ArrayLike
         data_factors = {k: np.array(v) for k, v in factor_lists.items()}
 
-        self.outputs = {
+        return {
             "coverage": coverage(images, k=5).dict(),
             "parity": parity(data_factors).dict(),
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect consumables"""
-        if self.outputs is None:
-            return []
-
         # Creates a dict slide for each metric
         return [{k: v} for k, v in self.outputs.items()]
