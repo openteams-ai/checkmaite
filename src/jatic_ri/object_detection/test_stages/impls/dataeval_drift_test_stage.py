@@ -27,7 +27,6 @@ class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
     preprocessing the images before performing drift detection against the embeddings.
     """
 
-    outputs: Optional[dict[str, Any]] = None
     cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
     device = "cpu"
 
@@ -36,7 +35,7 @@ class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
         """Unique identifier for cached results"""
         return f"drift-{self.dataset_1_id}-{self.dataset_2_id}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, Any]:
         """Run MMD, CVM and KS drift detectors"""
         images_1 = torch.stack(read_dataset(self.dataset_1)[0])  # type: ignore
         images_2 = torch.stack(read_dataset(self.dataset_2)[0])  # type: ignore
@@ -48,13 +47,10 @@ class DatasetDriftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
             "Kolmogorov-Smirnov": DriftKS,
         }
 
-        self.outputs = {k: cls(**drift_kwargs).predict(images_2).dict() for k, cls in drift_cls.items()}
+        return {k: cls(**drift_kwargs).predict(images_2).dict() for k, cls in drift_cls.items()}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect drift results"""
-
-        if not self.outputs:
-            return []
 
         def get_mean(d: dict, array_key: str, value_key: str) -> float:
             return np.mean(d[array_key]) if array_key in d else d[value_key]

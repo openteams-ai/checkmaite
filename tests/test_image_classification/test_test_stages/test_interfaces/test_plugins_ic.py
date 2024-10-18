@@ -11,7 +11,7 @@ from jatic_ri.image_classification.test_stages.interfaces.plugins import (
 
 
 def test_model_dataset_metric(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic) -> None:
-    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin):
+    class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -39,7 +39,7 @@ def test_model_dataset_metric(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic)
 
 
 def test_single_dataset(dummy_dataset_ic) -> None:
-    class TestImpl(TestStage[bool], SingleDatasetPlugin):
+    class TestImpl(TestStage[None], SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -57,7 +57,7 @@ def test_single_dataset(dummy_dataset_ic) -> None:
 
 
 def test_two_dataset(dummy_dataset_ic) -> None:
-    class TestImpl(TestStage[bool], TwoDatasetPlugin):
+    class TestImpl(TestStage[None], TwoDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -77,7 +77,7 @@ def test_two_dataset(dummy_dataset_ic) -> None:
 
 
 def test_single_model_dataset(dummy_model_ic, dummy_dataset_ic) -> None:
-    class TestImpl(TestStage[bool], SingleModelPlugin, SingleDatasetPlugin):
+    class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -100,7 +100,7 @@ def test_single_model_dataset(dummy_model_ic, dummy_dataset_ic) -> None:
 
 
 def test_multi_model_single_dataset(dummy_model_ic, dummy_dataset_ic) -> None:
-    class TestImpl(TestStage[bool], MultiModelPlugin, SingleDatasetPlugin):
+    class TestImpl(TestStage[None], MultiModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -124,7 +124,7 @@ def test_multi_model_single_dataset(dummy_model_ic, dummy_dataset_ic) -> None:
 
 
 def test_dataset_metric(dummy_dataset_ic, dummy_metric_ic) -> None:
-    class TestImpl(TestStage[bool], SingleDatasetPlugin, MetricPlugin):
+    class TestImpl(TestStage[None], SingleDatasetPlugin, MetricPlugin):
         """Dummy implementation class"""
 
         def _run(self) -> None:
@@ -147,7 +147,7 @@ def test_dataset_metric(dummy_dataset_ic, dummy_metric_ic) -> None:
 
 
 def test_test_stage_no_default_cache() -> None:
-    class TestImpl(TestStage[bool]):
+    class TestImpl(TestStage[None]):
         """Dummy implementation class"""
 
         def _run(self) -> None:

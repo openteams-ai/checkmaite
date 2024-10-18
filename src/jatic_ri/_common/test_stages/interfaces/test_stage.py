@@ -17,9 +17,21 @@ class Cache(Generic[TData]):
 class TestStage(Generic[TData], ABC):
     """Base class for running a test and recieving report values"""
 
-    outputs: Optional[TData]  # test results are expected to be stored within the test stage
+    _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
     cache: Optional[Cache[TData]] = None
     cache_base_path: str = ".tscache"
+
+    @property
+    def outputs(self) -> TData:
+        """Property getter for TestStage run outputs - raises RunTimeError if accessed before set"""
+        if self._outputs is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        return self._outputs
+
+    @outputs.setter
+    def outputs(self, value: TData) -> None:
+        """Property setter for TestStage run outputs"""
+        self._outputs = value
 
     @property
     def cache_id(self) -> str:
@@ -39,14 +51,14 @@ class TestStage(Generic[TData], ABC):
                 self.outputs = cached_outputs
                 return
 
-        self._run()
+        self.outputs = self._run()
 
-        if use_cache and self.cache and self.cache_path and self.outputs:
+        if use_cache and self.cache and self.cache_path:
             self.cache.write_cache(self.cache_path, self.outputs)
 
     @abstractmethod
-    def _run(self) -> None:
-        """Override this with logic to execute test stage and store outputs"""
+    def _run(self) -> TData:
+        """Override this with logic to execute test stage and return outputs"""
 
     @abstractmethod
     def collect_report_consumables(self) -> list[dict[str, Any]]:

@@ -15,7 +15,6 @@ class DatasetLintingTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
     using various pixel and image statistics on the image data.
     """
 
-    outputs: Optional[dict[str, Any]] = None
     cache: Optional[Cache[dict[str, Any]]] = JSONCache()
 
     @property
@@ -23,21 +22,16 @@ class DatasetLintingTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
         """Unique cache id for output"""
         return f"linting-{self.dataset_id}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, Any]:
         """Run linting"""
         images = [data[0] for data in self.dataset]
 
         dupes = Duplicates().evaluate(images)
         outliers = Outliers().evaluate(images)
 
-        if self.outputs is None:
-            self.outputs = {}
-        self.outputs["duplicates"] = dupes.dict()
-        self.outputs["outliers"] = outliers.dict()
+        return {"duplicates": dupes.dict(), "outliers": outliers.dict()}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect duplicates and outliers"""
-        if self.outputs is None:
-            return []
 
         return [self.outputs]

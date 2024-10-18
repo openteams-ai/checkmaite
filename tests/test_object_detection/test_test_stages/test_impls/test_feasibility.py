@@ -27,7 +27,3 @@ def test_feasibility_teststage(mock_evaluate: MagicMock, dummy_model_od, dummy_d
 
     assert test.outputs is not None
     assert test.outputs["uap"]
-
-
-def test_empty_return() -> None:
-    assert FeasibilityTestStage().collect_report_consumables() == []

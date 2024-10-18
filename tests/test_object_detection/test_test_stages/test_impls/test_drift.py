@@ -52,8 +52,3 @@ class TestDatasetDriftTestStage:
         stage.run()
 
         assert os.path.exists(stage.cache_path)
-
-    def test_drift_no_outputs(self) -> None:
-        """Tests no consumable is generated if run is not called"""
-
-        assert DatasetDriftTestStage().collect_report_consumables() == []

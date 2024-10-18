@@ -18,11 +18,3 @@ def test_bias(dummy_dataset_od, tmp_path) -> None:
     assert len(output) == 2
     for slide in output:
         assert isinstance(slide, dict)
-
-
-def test_empty_cache() -> None:
-    """Tests return from cache and default self.outputs"""
-
-    test = DatasetBiasTest()
-    output = test.collect_report_consumables()
-    assert output == []
