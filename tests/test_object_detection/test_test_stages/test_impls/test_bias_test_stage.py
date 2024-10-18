@@ -5,12 +5,12 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import
 )
 
 
-def test_bias(dummy_dataset, tmp_path) -> None:
+def test_bias(dummy_dataset_od, tmp_path) -> None:
     """Test Linting implementation"""
 
     test = DatasetBiasTest()
     test.cache_base_path = tmp_path
-    test.load_dataset(dataset=dummy_dataset, dataset_id="dataset_1")
+    test.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
     test.run()
     output = test.collect_report_consumables()
 

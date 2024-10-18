@@ -8,9 +8,9 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_ood_test_stage import 
 )
 
 
-def test_ood(dummy_dataset, tmp_path) -> None:
+def test_ood(dummy_dataset_od, tmp_path) -> None:
     """Test OOD Detection implementation"""
-    dev_dataset = dummy_dataset
+    dev_dataset = dummy_dataset_od
     op_dataset = copy.deepcopy(dev_dataset)
     op_dataset.images *= 0.5
 
@@ -26,11 +26,11 @@ def test_ood(dummy_dataset, tmp_path) -> None:
     assert "Test statistic" in report[0]
 
 
-def test_ood_with_cache(dummy_dataset, tmp_path) -> None:
+def test_ood_with_cache(dummy_dataset_od, tmp_path) -> None:
     test = DatasetOODTestStage()
     test.cache_base_path = tmp_path
 
-    dev_dataset = dummy_dataset
+    dev_dataset = dummy_dataset_od
     op_dataset = copy.deepcopy(dev_dataset)
     op_dataset.images *= 0.5
 
@@ -40,8 +40,8 @@ def test_ood_with_cache(dummy_dataset, tmp_path) -> None:
     assert os.path.exists(test.cache_path)
 
 
-def test_ood_with_cached_values(dummy_dataset, tmp_path) -> None:
-    dev_dataset = dummy_dataset
+def test_ood_with_cached_values(dummy_dataset_od, tmp_path) -> None:
+    dev_dataset = dummy_dataset_od
     op_dataset = copy.deepcopy(dev_dataset)
     op_dataset.images *= 0.5
 
