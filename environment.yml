@@ -2,11 +2,13 @@
 channels:
 - conda-forge
 - fastai
+- pytorch
 dependencies:
 # jatic-ri
 - maite>=0.6.0
-- dataeval>=0.69.2
-- pytorch=2.1.2
+- dataeval>=0.70.0
+- pytorch>=2.2.0
+- torchvision>=0.17.0
 - tensorflow=2.15.0  # required to avoid 2.15.1 which is unavailable for nebari
 - tensorflow-datasets=4.8.3
 - torchmetrics=1.4.0

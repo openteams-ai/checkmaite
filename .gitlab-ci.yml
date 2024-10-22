@@ -84,6 +84,8 @@ test:
       coverage_report:
         coverage_format: cobertura
         path: coverage_report.xml
+    paths:
+      - artifacts/*
 
 conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]

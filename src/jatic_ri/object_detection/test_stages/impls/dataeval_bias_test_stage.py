@@ -62,15 +62,12 @@ class DatasetBiasTest(TestStage[dict[str, Any]], SingleDatasetPlugin):
                 v = [v] * len(tlabels)
                 factor_lists[k].extend(v)
 
-        # Parity considers labels as metadata
-        factor_lists["class"] = labels
-
         # Convert all lists into ArrayLike
         data_factors = {k: np.array(v) for k, v in factor_lists.items()}
 
         return {
             "coverage": coverage(images, k=5).dict(),
-            "parity": parity(data_factors).dict(),
+            "parity": parity(labels, data_factors).dict(),
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
