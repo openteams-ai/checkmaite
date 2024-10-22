@@ -2,11 +2,13 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import maite.protocols.object_detection as od
 import pandas as pd
 import pytest
+from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage import DatasetFeasibilityTestStage
 
@@ -82,16 +84,13 @@ class TestFeasibilityTestStage:
         test_stage.load_threshold(0.5)
         assert test_stage.cache_id == "feasibility_Dataset1_Model1_0.5.json"
 
-    def test_gradient_pptx(self) -> None:
-        """This is used to test the output of the gradient slides. Not for pipeline use"""
-        from typing import Any
 
-        from gradient.templates_and_layouts.create_deck import create_deck
+def test_feasibility_gradient_pptx() -> None:
+    """This is used to test the output of the feasibility gradient slides"""
+    teststage: DatasetFeasibilityTestStage = DatasetFeasibilityTestStage()
+    teststage.load_dataset(None, "VOC")  # type: ignore -> Only needs a dataset_id
+    teststage.outputs = {"uap": 0.75}
+    teststage.threshold = 0.5
 
-        teststage: DatasetFeasibilityTestStage = DatasetFeasibilityTestStage()
-        teststage.load_dataset(None, "VOC")  # type: ignore -> Only needs a dataset_id
-        teststage.outputs = {"uap": 0.75}
-        teststage.threshold = 0.5
-
-        slides: list[dict[str, Any]] = teststage.collect_report_consumables()
-        create_deck(slides, path=Path("artifacts"), deck_name="DatasetFeasibilityDeck")
+    slides: list[dict[str, Any]] = teststage.collect_report_consumables()
+    create_deck(slides, path=Path("artifacts"), deck_name="DatasetFeasibilityDeck")
