@@ -57,6 +57,19 @@ This project utilized `pre-commit` for linting and formatting. Install the
 pre-commit install
 ```
 
+Alternatively, if you have `poetry` and `make` installed on your machine, you can build the environment by running: 
+
+```bash
+make init
+```
+
+This will create a virtual environment with all regular dependencies, developer dependencies,
+and pre-commit hooks installed. This environment can be found at can be found at `[your cloned RI directory]/.venv/`
+and can be manually activated by running:
+```bash
+source ./venv/bin/activate
+```
+
 ## Testing
 
 This project uses `pytest` for it's test suite. Run the full test suite with:
@@ -65,12 +78,26 @@ This project uses `pytest` for it's test suite. Run the full test suite with:
 pytest tests -svv
 ```
 
+NOTE:
+If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
+directory to run tests with coverage:
+```bash
+make test
+```
+
 ## Linting and formatting
 
 Linting and formatting are automated via `pre-commit` hooks. However, if you'd like to run them directly, you can run:
 
 ```bash
 pre-commit run --all-files --verbose
+```
+
+NOTE:
+If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
+directory to run all pre-commit hooks:
+```bash
+make format
 ```
 
 Type checking is performed by `pyright`. The CI must report a type-completeness score of 100% for the public API. This can be run using:

@@ -26,24 +26,31 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9, <3.12"  # required by SDP
-maite = ">=0.6.0"  # required by SDP
+python = ">=3.9, <3.12"                                                                 # required by SDP
+
 dataeval = {version = ">=0.70.0", extras = ["all"]}
+gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
+maite = ">=0.6.0"                                                                       # required by SDP
 nrtk = {version = ">=0.12.0", extras = ["headless"]}
-xaitk-jatic = {version = ">=0.2.0", extras = ["docker"]}
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
-survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.2.2"}
+survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.0"}
+xaitk-jatic = {version = ">=0.2.0", extras = ["docker"]}
 
 # development dependencies
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.0.0"  # arbitrary
-pytest = ">=8.3.0"  # necessary
-pytest-cov = ">=4.0.0"  # arbitrary
+huggingface-hub = ">=0.12.0"                    # artibrary, needed to run tests using example MAITE-wrapped objects.
+pre-commit = ">=3.0.0"                          # arbitrary
 pyright = {version = "*", extras = ["nodejs"]}  # arbitrary
-torch = ">=2.2.0"  # necessary (security)
+pyspark = '*'                                   # arbitrary
+pytest = ">=8.3.0"                              # necessary
+pytest-cov = ">=4.0.0"                          # arbitrary
+torch = ">=2.2.0"                               # necessary (at least >=2.2.0 for security)
+torchmetrics = ">=1.4.0"                        # arbitrary, needed to run tests using example MAITE-wrapped objects.
+urllib3 = "<2.1"                                # necessary to yolov5 / botocore issues.
+yolov5 = ">=7.0.0"                              # artibrary, needed to run tests using example MAITE-wrapped objects.
 
 # documentation dependencies
 [tool.poetry.group.docs]
@@ -67,6 +74,7 @@ exclude = [
 [tool.ruff]
 exclude = [
   "*env*",
+  "tests",
 ]
 
 line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
@@ -80,7 +88,8 @@ extend-include = ["*.ipynb"]
 [tool.ruff.lint]
 select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", "D419", "UP",
           "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
-          "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF100", "PERF"]
+          "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
+          "RUF100", "PERF"]
 
 ignore = ["ANN101","ANN102"]
 
