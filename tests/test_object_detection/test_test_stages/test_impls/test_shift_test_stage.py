@@ -1,11 +1,12 @@
 """Test drift methods in DatasetShiftTestStage"""
 
 import os
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pytest
 import torch
+from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage import (
     DatasetShiftTestStage,
@@ -262,10 +263,8 @@ class TestOOD:
         assert all(result_df["Threshold"] == [0.75, 0.25])
 
 
-@pytest.mark.skip(reason="For internal gradient pptx testing. Not for pipeline")
-def test_gradient_pptx() -> None:
-    from gradient.templates_and_layouts.create_deck import create_deck
-
+def test_shift_gradient_pptx() -> None:
+    """This is used to test the output of the shift gradient slides"""
     teststage: DatasetShiftTestStage = DatasetShiftTestStage()
     teststage.load_datasets(None, "VOC1", None, "VOC2")  # type: ignore -> Only needs a dataset_id
 
@@ -300,4 +299,4 @@ def test_gradient_pptx() -> None:
     teststage.outputs = dummy_output
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()
-    create_deck(slides, deck_name="DatasetDriftDeck")
+    create_deck(slides, path=Path("artifacts"), deck_name="DatasetShiftDeck")
