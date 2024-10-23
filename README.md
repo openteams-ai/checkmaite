@@ -22,6 +22,12 @@ Alternately, if you have a local copy of the repository, you can run:
 pip install -e .
 ```
 
+For testing purposes, you'll also need to install [git LFS](https://git-lfs.com/) and run these two commands to ensure that larger testing-only files are checked out prior to actual running testing:
+```bash
+git lfs install 
+git lfs pull
+```
+
 Finally, if you want to install this package as part of a conda environment yaml specification, you can add a `pip` section to yaml. Note that you will need to tweak the syntax slightly:
 
 ```environment.yml
