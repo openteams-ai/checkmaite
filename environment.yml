@@ -5,8 +5,8 @@ channels:
 - pytorch
 dependencies:
 # jatic-ri
-- maite>=0.6.0
-- dataeval>=0.70.0
+- maite=0.6.0
+- dataeval=0.71.0
 - pytorch>=2.2.0
 - torchvision>=0.17.0
 - tensorflow=2.15.0               # required to avoid 2.15.1 which is unavailable for nebari
@@ -16,8 +16,8 @@ dependencies:
 - tensorflow-probability=0.23.0
 - libgl=*                         # Supplementary requirement for opencv-python-headless. Needed for yolov5 to successfully import.
 - opencv-python-headless=4.9.0.80
-- nrtk>=0.12.0
-- xaitk-jatic>=0.2.0
+- nrtk=0.12.0
+- xaitk-jatic=0.2.0
 - openjdk=17.0.9                  # pin required. Needed for pyspark in MORSE RealLabel and Survivor Test Stages.
 - pip
 - pip:
