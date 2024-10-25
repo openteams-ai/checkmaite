@@ -10,8 +10,8 @@ import torch
 # _run imports
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_AE, OOD_VAEGMM
-from dataeval.tensorflow.models import AE, VAEGMM, create_model
-from dataeval.utils import read_dataset
+from dataeval.utils.tensorflow.models import AE, VAEGMM, create_model
+from dataeval.utils.torch import read_dataset
 
 # report_consumable imports
 from gradient.templates_and_layouts.generic_layouts.text_data import Text, TextData

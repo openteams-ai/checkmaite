@@ -26,15 +26,15 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9, <3.12"                                                                 # required by SDP
+python = ">=3.9, <3.12"                         # required by SDP
+maite = {version = "0.6.0"}                     # required by SDP
 
-dataeval = {version = ">=0.70.0", extras = ["all"]}
+dataeval = {version = "0.71.0", extras = ["all"]}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
-maite = ">=0.6.0"                                                                       # required by SDP
-nrtk = {version = ">=0.12.0", extras = ["headless"]}
+nrtk = {version = "0.12.0", extras = ["headless"]}
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.0"}
-xaitk-jatic = {version = ">=0.2.0", extras = ["docker"]}
+xaitk-jatic = {version = "0.2.0", extras = ["docker"]}
 
 # development dependencies
 [tool.poetry.group.dev]
