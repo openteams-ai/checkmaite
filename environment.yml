@@ -7,6 +7,8 @@ dependencies:
 # jatic-ri
 - maite=0.6.0
 - dataeval=0.71.0
+- panel=1.4.5
+- pybsm >=0.8.0  # optional dep for nrtk, required here
 - pytorch>=2.2.0
 - torchvision>=0.17.0
 - tensorflow=2.15.0               # required to avoid 2.15.1 which is unavailable for nebari
