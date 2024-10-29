@@ -1,5 +1,6 @@
 """Test baseline evalutation"""
 
+import tempfile
 from collections.abc import Sequence
 from typing import Any
 
@@ -18,7 +19,12 @@ from tests.testing_utilities.example_maite_objects import (  # noqa: E501
     YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
 )
 
+import jatic_ri
+
 RNG = np.random.default_rng(seed=42)
+
+# Set the test_stage default cache root to temp path
+jatic_ri.DEFAULT_CACHE_ROOT = tempfile.gettempdir()
 
 
 class DummyObjectDetectionTarget(od.ObjectDetectionTarget):
