@@ -37,6 +37,7 @@ survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.
 xaitk-jatic = {version = "0.2.0", extras = ["docker"]}
 panel = "=1.4.5"            # arbitrary
 pybsm = ">=0.8.0"           # optional dep for nrtk, required here
+huggingface_hub = "==0.24.7"  # pin required
 
 # development dependencies
 [tool.poetry.group.dev]
@@ -93,7 +94,7 @@ select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", 
           "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
           "RUF100", "PERF"]
 
-ignore = ["ANN101","ANN102"]
+ignore = ["ANN101","ANN102","COM812", "ISC001"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

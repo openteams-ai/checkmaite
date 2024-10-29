@@ -9,6 +9,14 @@ import numpy as np
 import pytest
 import torch
 from maite.protocols import ArrayLike
+from tests.testing_utilities.example_maite_objects import (  # noqa: E501
+    create_maite_wrapped_metric,
+    FMOWDetectionDataset,
+    USA_SUMMER_DATA_IMAGERY_DIR,
+    USA_SUMMER_DATA_METADATA_FILE_PATH,
+    Yolov5sModel,
+    YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
+)
 
 RNG = np.random.default_rng(seed=42)
 
@@ -92,11 +100,13 @@ def dummy_metric_od() -> od.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
+        _return_key = 'metric_1'
+
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
 
         def compute(self) -> dict[str, Any]:
-            return {"metric_1": 1.0}
+            return {self._return_key: 1.0}
 
         def reset(self) -> None:
             pass
@@ -154,3 +164,41 @@ def dummy_metric_ic() -> ic.Metric:
             pass
 
     return DummyMetric()
+
+
+@pytest.fixture
+def model_od_yolov5() -> od.Model:
+    """Yolov5s USA All seasons V1 model for OD"""
+    return Yolov5sModel(
+        model_path=str(YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH),
+        transforms=None,
+        device="cpu",
+    )
+
+
+@pytest.fixture
+def dataset_od_fwow() -> od.Dataset:
+    """FWOW detection dataset using USA summer for OD"""
+    return FMOWDetectionDataset(
+        USA_SUMMER_DATA_IMAGERY_DIR, USA_SUMMER_DATA_METADATA_FILE_PATH,
+    )
+
+
+@pytest.fixture
+def metric_od_map() -> od.Metric:
+    """mAP 50 metric for OD"""
+    return create_maite_wrapped_metric("mAP_50")
+
+@pytest.fixture
+def threshold_od() -> float:
+    """threshold for OD, realistic value to be paired with metric_od_map"""
+    return 0.3
+
+@pytest.fixture
+def metric_results() -> dict:
+    """metric results dictionary"""
+    return {
+        'map50': 0.12,
+        'airports': 0.43,
+        'elephants': 0.56,
+        }

@@ -5,6 +5,7 @@ from os import makedirs, path
 from typing import Any, Generic, Optional, TypeVar
 
 import numpy as np
+import torch
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 
@@ -46,6 +47,21 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(o, np.ndarray):
             return o.tolist()
         return super().default(o)
+
+
+# Custom JSON encoder to handle PyTorch tensors and NumPy arrays
+class TensorEncoder(json.JSONEncoder):
+    """Convert Pytorch tensors and numpy arrays to serializable objects"""
+
+    def default(self, obj: Any) -> Any:  # noqa: ANN401
+        """JSON encoding entry point"""
+        if isinstance(obj, torch.Tensor):
+            return obj.tolist()  # Convert tensor to list
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()  # Convert NumPy array to list
+        if isinstance(obj, (np.float32, np.float64, np.int32, np.int64)):
+            return obj.item()  # Convert NumPy scalar to a Python scalar
+        return super().default(obj)
 
 
 # class ParquetCache(Cache[pd.DataFrame]):

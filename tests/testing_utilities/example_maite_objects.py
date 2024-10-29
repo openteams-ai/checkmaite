@@ -463,7 +463,6 @@ class WrappedODMetric:
         # For why this copy is needed, see the comment in update()
         self._od_metric_by_datum = copy.deepcopy(od_metric)
         self._return_key = return_key
-        self.results = {PER_DATUM_METRIC_KEY: {self._return_key: []}}
 
     # create utility function to convert ObjectDetectionTarget_impl type to what
     # the type expected by torchmetrics IntersectionOverUnion metric
