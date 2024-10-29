@@ -4,6 +4,8 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Optional, TypeVar
 
+from jatic_ri import DEFAULT_CACHE_ROOT
+
 TData = TypeVar("TData")
 
 
@@ -19,7 +21,7 @@ class TestStage(Generic[TData], ABC):
 
     _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
     cache: Optional[Cache[TData]] = None
-    cache_base_path: str = ".tscache"
+    cache_base_path: str = DEFAULT_CACHE_ROOT
 
     @property
     def outputs(self) -> TData:
