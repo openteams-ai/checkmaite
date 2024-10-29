@@ -163,5 +163,5 @@ cython_debug/
 # macos files
 .DS_Store
 
-# TestStage cache dir
+# default test stage cache dir
 .tscache/

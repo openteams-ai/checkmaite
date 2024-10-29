@@ -22,6 +22,8 @@ Alternately, if you have a local copy of the repository, you can run:
 pip install -e .
 ```
 
+You will be prompted for your username and password. Your password will the be PAT you created above. 
+
 For testing purposes, you'll also need to install [git LFS](https://git-lfs.com/) and run these two commands to ensure that larger testing-only files are checked out prior to actual running testing:
 ```bash
 git lfs install 

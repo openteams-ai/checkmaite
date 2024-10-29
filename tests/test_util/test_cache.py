@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 import pytest
+import torch
 
-from jatic_ri.util.cache import JSONCache, NumpyEncoder
+from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder
 
 
 def test_cache_read_none() -> None:
@@ -55,3 +56,31 @@ def test_numpy_cache(tmp_path) -> None:
     cache_result = cache.read_cache(cache_path)
     assert isinstance(cache_result, dict)
     assert cache_result == {"a": array, "b": 0.25, "c": 3, "d": "dummy_string"}
+
+
+def test_tensor_encoder() -> None:
+    te = TensorEncoder()
+    assert te.default(torch.tensor([1.0, 2.0, 3.0])) == [1.0, 2.0, 3.0]
+    with pytest.raises(TypeError):
+        te.default("dummy_string")
+
+
+def test_tensor_numpy_mixed_cache(tmp_path) -> None:
+    cache = JSONCache(TensorEncoder)
+    data = {
+        "tensor": torch.tensor([1.0, 2.0]),
+        "array": np.array([4.0, 5.0]),
+        "value": 42,
+        "string": "dummy_string",
+    }
+    cache_path = tmp_path / "test_file.json"
+    cache.write_cache(cache_path, data)
+    assert os.path.exists(cache_path)
+    cache_result = cache.read_cache(cache_path)
+    assert isinstance(cache_result, dict)
+    assert cache_result == {
+        "tensor": [1.0, 2.0],
+        "array": [4.0, 5.0],
+        "value": 42,
+        "string": "dummy_string",
+    }
