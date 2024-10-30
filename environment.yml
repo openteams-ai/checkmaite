@@ -6,17 +6,18 @@ channels:
 dependencies:
 # jatic-ri
 - maite=0.6.0
-- dataeval=0.71.0
+- dataeval=0.72.0
 - panel=1.4.5
 - pybsm >=0.8.0  # optional dep for nrtk, required here
 - pytorch>=2.2.0
 - torchvision>=0.17.0
-- tensorflow=2.15.0               # required to avoid 2.15.1 which is unavailable for nebari
+- tensorflow>=2.16.0
+- tf-keras>=2.16
 - huggingface_hub==0.24.7      # pin required
 - tensorflow-datasets=4.8.3
 - torchmetrics=1.4.0
 - matplotlib=3.8.4
-- tensorflow-probability=0.23.0
+- tensorflow-probability>=0.24.0
 - libgl=*                         # Supplementary requirement for opencv-python-headless. Needed for yolov5 to successfully import.
 - opencv-python-headless=4.9.0.80
 - nrtk=0.12.0
