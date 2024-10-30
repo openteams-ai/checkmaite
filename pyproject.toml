@@ -43,7 +43,7 @@ pybsm = ">=0.8.0"           # optional dep for nrtk, required here
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-huggingface-hub = ">=0.12.0"                    # artibrary, needed to run tests using example MAITE-wrapped objects.
+huggingface-hub = "==0.24.7"                    # necessary, needed to run tests using example MAITE-wrapped objects.
 pre-commit = ">=3.0.0"                          # arbitrary
 pyright = {version = "*", extras = ["nodejs"]}  # arbitrary
 pyspark = '*'                                   # arbitrary
