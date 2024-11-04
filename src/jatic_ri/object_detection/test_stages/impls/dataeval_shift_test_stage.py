@@ -61,17 +61,17 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Converts results from drift and ood into a Gradient consumable list of slides"""
 
-        report_consumable = []
+        report_consumables = []
 
         # Adds drift slide
         drift_slide = self._collect_drift(self.outputs["drift"])
-        report_consumable.extend(drift_slide)
+        report_consumables.append(drift_slide)
 
         # Adds ood slide
         ood_slide = self._collect_ood(self.outputs["ood"])
-        report_consumable.extend(ood_slide)
+        report_consumables.append(ood_slide)
 
-        return report_consumable
+        return report_consumables
 
     def _run_drift(self, images_1: list[Any], images_2: list[Any]) -> dict[str, Any]:
         """Runs MMD, CVM, and KS methods against images"""
@@ -113,7 +113,7 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
         outputs = {name: detector.predict(imgs2).dict() for name, detector in detectors.items()}
         return {"ood": outputs}
 
-    def _collect_drift(self, outputs: dict[str, Any]) -> list[dict[str, Any]]:
+    def _collect_drift(self, outputs: dict[str, Any]) -> dict[str, Any]:
         any_drift = any(d["is_drift"] for d in outputs.values())
 
         drift_df = pd.DataFrame(
@@ -142,7 +142,7 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
         content = [Text(t, fontsize=16) for t in text]
 
         # Set up Gradient slide
-        slide_args = {
+        return {
             "deck": "object_detection_dataset_evaluation",
             "layout_name": "TextData",
             "layout_arguments": {
@@ -153,9 +153,7 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
             },
         }
 
-        return [slide_args]
-
-    def _collect_ood(self, outputs: dict[str, Any]) -> list[dict[str, Any]]:
+    def _collect_ood(self, outputs: dict[str, Any]) -> dict[str, Any]:
         """
         Parses ood results into a report consumable slide
 
@@ -211,7 +209,7 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
 
         content = [Text(t, fontsize=16) for t in text]
 
-        slide_args = {
+        return {
             "deck": "object_detection_dataset_evaluation",
             "layout_name": "TextData",
             "layout_arguments": {
@@ -222,5 +220,3 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
                 TextData.ArgKeys.DATA_COLUMN_TABLE.value: ood_df,
             },
         }
-
-        return [slide_args]
