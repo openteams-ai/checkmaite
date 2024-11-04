@@ -55,16 +55,16 @@ class TestDatasetShift:
             for slide in report:
                 assert required_key in slide
 
-    def test_create_cache(self, dummy_dataset_od, tmp_path) -> None:
-        """Test that the cache file is written to after the run method is called"""
+    def test_create_data(self, dummy_dataset_od, tmp_path) -> None:
+        """Test that the cache file is written after the run method is called without data modifications"""
 
         stage = DatasetShiftTestStage()
         stage.cache_base_path = tmp_path
         stage.load_datasets(
             dataset_1=dummy_dataset_od,
             dataset_2=dummy_dataset_od,
-            dataset_1_id="dev",
-            dataset_2_id="op",
+            dataset_1_id="DummyDataset1",
+            dataset_2_id="DummyDataset2",
         )
         stage.run()
 
@@ -74,8 +74,8 @@ class TestDatasetShift:
         """Tests the unique cache id is set based on the ids of dataset 1 and dataset 2"""
 
         stage = DatasetShiftTestStage()
-        stage.load_datasets(None, "Dummy1", None, "Dummy2")  # type: ignore
-        assert stage.cache_id == "shift_Dummy1_Dummy2.json"
+        stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
+        assert stage.cache_id == "shift_DummyDataset1_DummyDataset2.json"
 
 
 class TestDrift:
@@ -119,7 +119,7 @@ class TestDrift:
         """
 
         test_stage = DatasetShiftTestStage()
-        test_stage.load_datasets(None, "Dummy1", None, "Dummy2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
 
         # One test set to drifted regardless of values
         dummy_outputs = {
@@ -140,16 +140,12 @@ class TestDrift:
             },
         }
 
-        results = test_stage._collect_drift(outputs=dummy_outputs)  # noqa: SLF001 > ignore private method access
-
-        assert isinstance(results, list)
-        assert len(results) == 1
-
-        results = results[0]["layout_arguments"]
         # Outer gradient kwargs checked by DatasetShiftTestStage
+        results = test_stage._collect_drift(outputs=dummy_outputs)  # noqa: SLF001 > ignore private method access
+        results = results["layout_arguments"]
 
-        assert "Dummy1" in results["title"]
-        assert "Dummy2" in results["title"]
+        assert "DummyDataset1" in results["title"]
+        assert "DummyDataset2" in results["title"]
 
         assert results["text_column_heading"] == "Metric: Drift"
 
@@ -209,7 +205,7 @@ class TestOOD:
         """
 
         test_stage = DatasetShiftTestStage()
-        test_stage.load_datasets(None, "Dummy1", None, "Dummy2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
 
         # One test with outliers, one without; regardless of values
         dummy_outputs = {
@@ -237,16 +233,12 @@ class TestOOD:
             },
         }
 
-        results = test_stage._collect_ood(outputs=dummy_outputs)  # noqa: SLF001 > ignore private method access
-
-        assert isinstance(results, list)
-        assert len(results) == 1
-
-        results = results[0]["layout_arguments"]
         # Outer gradient kwargs checked by DatasetShiftTestStage
+        results = test_stage._collect_ood(outputs=dummy_outputs)  # noqa: SLF001 > ignore private method access
+        results = results["layout_arguments"]
 
-        assert "Dummy1" in results["title"]
-        assert "Dummy2" in results["title"]
+        assert "DummyDataset1" in results["title"]
+        assert "DummyDataset2" in results["title"]
 
         assert results["text_column_heading"] == "Metric: Out-of-distribution (OOD)"
 
