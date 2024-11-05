@@ -37,6 +37,7 @@ survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.
 xaitk-jatic = {version = "0.2.0", extras = ["docker"]}
 panel = "=1.4.5"            # arbitrary
 pybsm = ">=0.8.0"           # optional dep for nrtk, required here
+matplotlib = ">=3.4.0"      # arbitrary, required by panel
 
 # development dependencies
 [tool.poetry.group.dev]
@@ -49,6 +50,7 @@ pyright = {version = "*", extras = ["nodejs"]}  # arbitrary
 pyspark = '*'                                   # arbitrary
 pytest = ">=8.3.0"                              # necessary
 pytest-cov = ">=4.0.0"                          # arbitrary
+pytest-mock = ">=3.6.1"                         # arbitrary, needed to test heart_app
 torch = ">=2.2.0"                               # necessary (at least >=2.2.0 for security)
 torchmetrics = ">=1.4.0"                        # arbitrary, needed to run tests using example MAITE-wrapped objects.
 urllib3 = "<2.1"                                # necessary to yolov5 / botocore issues.
