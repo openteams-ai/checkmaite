@@ -23,6 +23,8 @@ dependencies:
 - nrtk=0.12.0
 - xaitk-jatic=0.2.0
 - openjdk=17.0.9                  # pin required. Needed for pyspark in MORSE RealLabel and Survivor Test Stages.
+- panel=1.4.5
+- pybsm >=0.8.0  # optional dep for nrtk, required here
 - pip
 - pip:
   - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
@@ -34,6 +36,7 @@ dependencies:
 # test
 - pytest  # TODO: sort out dev/test deps properly
 - pytest-cov
+- pytest-mock
 # linting and formatting
 - pre-commit
 - pyright
