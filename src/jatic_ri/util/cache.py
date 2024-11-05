@@ -6,6 +6,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 import numpy as np
 import torch
+import zstandard as zstd
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 
@@ -15,15 +16,17 @@ TData = TypeVar("TData", dict, list)
 class JSONCache(Generic[TData], Cache[TData]):
     """Basic JSON file based caching plugin"""
 
-    def __init__(self, encoder: type = json.JSONEncoder) -> None:
+    def __init__(self, encoder: type = json.JSONEncoder, compress: bool = False) -> None:
         self.encoder = encoder
+        self.compress = compress
 
     def read_cache(self, cache_path: str) -> Optional[TData]:
         """Read cache from file and returns as dictionary"""
         if path.exists(cache_path):
             with open(cache_path, "rb") as file:
-                data = file.read().decode("utf-8")
-            return json.loads(data)
+                raw = file.read()
+            contents = zstd.decompress(raw).decode("utf-8") if self.compress else raw.decode("utf-8")
+            return json.loads(contents)
         return None
 
     def write_cache(self, cache_path: str, data: TData) -> None:
@@ -31,8 +34,11 @@ class JSONCache(Generic[TData], Cache[TData]):
         dirname = path.dirname(cache_path)
         if dirname and not path.exists(dirname):
             makedirs(dirname)
+        contents = json.dumps(data, cls=self.encoder).encode(encoding="utf-8")
+        if self.compress:
+            contents = zstd.compress(contents)
         with open(cache_path, "wb") as file:
-            file.write(json.dumps(data, cls=self.encoder).encode(encoding="utf-8"))
+            file.write(contents)
 
 
 class NumpyEncoder(json.JSONEncoder):

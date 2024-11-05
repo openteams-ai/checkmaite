@@ -12,9 +12,9 @@ def test_cache_read_none() -> None:
     result = cache.read_cache("does_not_exist")
     assert result is None
 
-
-def test_cache_write_read_dict_of_list(tmp_path) -> None:
-    cache = JSONCache()
+@pytest.mark.parametrize("compress", [True, False])
+def test_cache_write_read_dict_of_list(compress, tmp_path) -> None:
+    cache = JSONCache(compress=compress)
     data = {"a": 1, "b": [2, 2]}
     cache_path = tmp_path / "test_file.json"
     cache.write_cache(cache_path, data)
@@ -22,8 +22,9 @@ def test_cache_write_read_dict_of_list(tmp_path) -> None:
     assert data == cache.read_cache(cache_path)
 
 
-def test_cache_write_read_list_of_dict(tmp_path) -> None:
-    cache = JSONCache()
+@pytest.mark.parametrize("compress", [True, False])
+def test_cache_write_read_list_of_dict(compress, tmp_path) -> None:
+    cache = JSONCache(compress=compress)
     data = [{"a": 1}, {"b": [2], "c": 3}]
     cache_path = tmp_path / "test_file.json"
     cache.write_cache(cache_path, data)
@@ -46,8 +47,9 @@ def test_numpy_encoder() -> None:
         ne.default("dummy_string")
 
 
-def test_numpy_cache(tmp_path) -> None:
-    cache = JSONCache(NumpyEncoder)
+@pytest.mark.parametrize("compress", [True, False])
+def test_numpy_cache(compress, tmp_path) -> None:
+    cache = JSONCache(NumpyEncoder, compress=compress)
     array = [1, 2, 3]
     data = {"a": np.array(array), "b": np.float64(0.25), "c": np.int8(3), "d": "dummy_string"}
     cache_path = tmp_path / "test_file.json"
