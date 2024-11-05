@@ -30,17 +30,25 @@ jatic_ri.DEFAULT_CACHE_ROOT = tempfile.gettempdir()
 class DummyObjectDetectionTarget(od.ObjectDetectionTarget):
     """5x Target data entries per image with labels [0-4]"""
 
-    boxes = torch.ones(size=(5, 4))
-    labels = torch.arange(0, 5)
-    scores = torch.zeros(size=(5, 5))
+    @property
+    def boxes(self) -> ArrayLike:
+        return torch.ones(size=(5, 4))
+    
+    @property
+    def labels(self) -> ArrayLike:
+        return torch.arange(0, 5)
+
+    @property
+    def scores(self) -> ArrayLike:
+        return torch.zeros(size=(5, 5))
 
 
-class DummyXAITKObjectDetectionTarget(od.ObjectDetectionTarget):
+class DummyXAITKObjectDetectionTarget(DummyObjectDetectionTarget):
     """5x Target data entries per image with labels [0-4]"""
 
-    boxes = torch.ones(size=(5, 4))
-    labels = torch.arange(0, 5)
-    scores = torch.zeros(size=(5,))
+    @property
+    def scores(self) -> ArrayLike:
+        return torch.zeros(size=(5, ))
 
 
 @pytest.fixture
@@ -63,6 +71,51 @@ def dummy_xaitk_model() -> od.Model:
             return [DummyXAITKObjectDetectionTarget() for _ in input_batch]
 
     return DummyModel()
+
+
+@pytest.fixture
+def dummy_linting_dataset_od():
+    """Creates and returns a dummy maite-compliant dataset"""
+    def _dummy_linting_dataset_od(offset_box: bool = True) -> od.Dataset:
+
+        class LintingObjectDetectionTarget:
+            def __init__(self, ind: int):
+                self.ind = ind
+
+            """Linting OD Target"""
+            @property
+            def boxes(self) -> ArrayLike:
+                boxes = torch.tensor([4, 4, 24, 24]).tile(5, 1)
+                if offset_box and self.ind == 9:
+                    boxes[0][0:2] = 5
+                    boxes[0][2:4] = 16
+                return boxes
+            
+            @property
+            def labels(self) -> ArrayLike:
+                return torch.arange(0, 5)
+
+            @property
+            def scores(self) -> ArrayLike:
+                return torch.zeros(size=(5, 5))
+
+        class DummyDataset:
+            """Dataset with 50 1x32x32 CHW images"""
+
+            images = torch.tensor(RNG.random((50, 1, 32, 32)))
+            images[10] = images[0]  # add duplicate
+            images[15] = 0.0  # add outliers
+            images[16] = 1.0  # add outliers
+            images[20] = images[2]*0.99  # add near duplicate
+
+            def __len__(self) -> int:
+                return len(self.images)
+
+            def __getitem__(self, ind: int):
+                return self.images[ind], LintingObjectDetectionTarget(ind), {"dummy": torch.ones((5,))}
+
+        return DummyDataset()
+    return _dummy_linting_dataset_od
 
 
 @pytest.fixture
