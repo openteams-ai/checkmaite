@@ -179,9 +179,9 @@ def dummy_model_ic() -> ic.Model:
 
     class DummyModel:
         def __call__(self, input_batch: Sequence[ArrayLike]) -> Sequence[Any]:
-            self.targets = RNG.random(input_batch)
+            self.targets = RNG.random(len(input_batch))
 
-            return [self.targets for _ in input_batch]
+            return self.targets
 
     return DummyModel()
 
@@ -203,7 +203,7 @@ def dummy_dataset_ic() -> ic.Dataset:
             return self.data.shape[0]
 
         def __getitem__(self, ind: int) -> tuple[np.ndarray, np.ndarray, dict]:
-            return (self._data[ind], self.targets[ind], self.metadata[ind])
+            return (self.data[ind], self.targets[ind], self.metadata[ind])
 
     return DummyDataset()
 
@@ -213,11 +213,13 @@ def dummy_metric_ic() -> ic.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
+        _return_key = 'metric_1'
+
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
 
         def compute(self) -> dict[str, Any]:
-            return {"dummy": 1.0}
+            return {self._return_key: 1.0}
 
         def reset(self) -> None:
             pass

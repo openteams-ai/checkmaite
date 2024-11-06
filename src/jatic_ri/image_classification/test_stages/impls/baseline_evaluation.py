@@ -23,4 +23,4 @@ class BaselineEvaluation(BaselineEvaluationBase):
         threshold: float
     """
 
-    _deck: str = "object_detection_model_evaluation"
+    _deck: str = "image_classification_model_evaluation"
