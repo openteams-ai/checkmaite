@@ -72,11 +72,11 @@ class BaselineEvaluationBase(
         """Cache file for Baseline Evaluation Test Stage"""
         return f"baseline-{self.model_id}-{self.dataset_id}.json"
 
-    def _run(self) -> None:
+    def _run(self) -> dict[str, float]:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
         self._validate()
 
-        self.metric_key = self.metric._return_key  # noqa: SLF001
+        self.metric_key = self.metric._return_key  # noqa: SLF001 # type: ignore
 
         # run evaluation
         result, _, _ = evaluate(

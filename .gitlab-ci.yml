@@ -112,7 +112,17 @@ lint:
     - pre-commit install
     - pre-commit run --all-files --verbose
 
-pyright:
+pyright-internal:
+  extends: [.shared-setup, .poetry-setup]
+  image: python:3.10
+  stage: pyright
+  needs: []
+  script:
+    - poetry install --with dev
+    - poetry run pyright src/
+  allow_failure: true
+
+pyright-external:
   extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: pyright

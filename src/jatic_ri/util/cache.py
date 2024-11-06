@@ -59,15 +59,15 @@ class NumpyEncoder(json.JSONEncoder):
 class TensorEncoder(json.JSONEncoder):
     """Convert Pytorch tensors and numpy arrays to serializable objects"""
 
-    def default(self, obj: Any) -> Any:  # noqa: ANN401
+    def default(self, o: Any) -> Any:  # noqa: ANN401
         """JSON encoding entry point"""
-        if isinstance(obj, torch.Tensor):
-            return obj.tolist()  # Convert tensor to list
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()  # Convert NumPy array to list
-        if isinstance(obj, (np.float32, np.float64, np.int32, np.int64)):
-            return obj.item()  # Convert NumPy scalar to a Python scalar
-        return super().default(obj)
+        if isinstance(o, torch.Tensor):
+            return o.tolist()  # Convert tensor to list
+        if isinstance(o, np.ndarray):
+            return o.tolist()  # Convert NumPy array to list
+        if isinstance(o, (np.floating, np.integer)):
+            return o.item()  # Convert NumPy scalar to a Python scalar
+        return super().default(o)
 
 
 # class ParquetCache(Cache[pd.DataFrame]):
