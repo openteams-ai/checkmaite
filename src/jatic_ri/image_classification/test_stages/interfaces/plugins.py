@@ -74,3 +74,13 @@ class MetricPlugin:
         """Injest a pre-loaded, maite-compliant metric"""
         self.metric = metric
         self.metric_id = metric_id
+
+
+class ThresholdPlugin:
+    """TestStage Plugin for loading a threshold"""
+
+    threshold: float
+
+    def load_threshold(self, threshold: float) -> None:
+        """Set threshold for the test"""
+        self.threshold = threshold

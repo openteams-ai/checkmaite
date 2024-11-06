@@ -55,7 +55,6 @@ def create_metrics_bar_plot(
     Returns
     -------
     [matplotlib.figure.Figure] Bar chart showing all of the metrics
-
     """
     default_color = "blue"
     metric_color = "orange"
