@@ -30,8 +30,8 @@ from survivor.analysis import HistogramBarPlot
 from survivor.config import Config as SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
+from jatic_ri._common.test_stages.interfaces.plugins import MetricPlugin, MultiModelPlugin, SingleDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TData, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import MetricPlugin, MultiModelPlugin, SingleDatasetPlugin
 
 # This constant represents the expected location of the Survivor output directory under the test_stage.cache_base_path
 # directory where the SurvivorTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -142,7 +142,12 @@ class SurvivorCache(Generic[TData], Cache[TData]):
                 file.write(json.dumps(self.cache_configuration))
 
 
-class SurvivorTestStage(TestStage[tuple[DataFrame, Path]], MultiModelPlugin, SingleDatasetPlugin, MetricPlugin):
+class SurvivorTestStage(
+    TestStage[tuple[DataFrame, Path]],
+    MultiModelPlugin[od.Model],
+    SingleDatasetPlugin[od.Dataset],
+    MetricPlugin[od.Metric],
+):
     """Survivor Test Stage Object.
 
     Survivor uses an ensemble of models and metrics based on model inference results, to provide insight into

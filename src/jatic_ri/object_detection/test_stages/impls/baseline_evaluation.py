@@ -1,9 +1,11 @@
 """Baseline Evaluation implementation"""
 
+import maite.protocols.object_detection as od
+
 from jatic_ri._common.test_stages.impls import BaselineEvaluationBase
 
 
-class BaselineEvaluation(BaselineEvaluationBase):
+class BaselineEvaluation(BaselineEvaluationBase[od.Model, od.Dataset, od.Metric]):
     """Baseline evaluation implementation of TestStage interface with single model, dataset and metric plugins
 
     Parameters

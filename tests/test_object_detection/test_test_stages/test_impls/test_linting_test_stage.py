@@ -10,7 +10,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_linting_test_stage imp
 )
 
 
-def test_linting(dummy_linting_dataset_od) -> None:
+def test_od_linting(dummy_linting_dataset_od) -> None:
     """Test Linting implementation"""
 
     test = DatasetLintingTestStage()
@@ -22,7 +22,7 @@ def test_linting(dummy_linting_dataset_od) -> None:
     assert len(output) == 4
 
 
-def test_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> None:
+def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> None:
     """Verify cached """
     test1 = DatasetLintingTestStage()
     test1.cache_base_path = tmp_path
@@ -44,7 +44,7 @@ def test_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> None:
 
 
 @pytest.mark.parametrize("offset_box", [True, False])
-def test_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path) -> None:
+def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetLintingTestStage()
     test.cache_base_path = tmp_path

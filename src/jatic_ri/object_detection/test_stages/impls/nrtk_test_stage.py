@@ -7,10 +7,8 @@ import json
 from hashlib import sha256
 from typing import Any
 
-# 3rd party imports
+import maite.protocols.object_detection as od
 import pandas as pd
-
-# MAITE imports
 from maite.workflows import evaluate
 
 # NRTK imports
@@ -19,23 +17,24 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict
 
-# Import TestStage
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
-from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     ThresholdPlugin,
 )
+
+# Import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 from jatic_ri.util.cache import JSONCache
 
 
 class NRTKTestStage(
     TestStage[list[dict[str, Any]]],
-    SingleDatasetPlugin,
-    SingleModelPlugin,
-    MetricPlugin,
+    SingleDatasetPlugin[od.Dataset],
+    SingleModelPlugin[od.Model],
+    MetricPlugin[od.Metric],
     ThresholdPlugin,
 ):
     """

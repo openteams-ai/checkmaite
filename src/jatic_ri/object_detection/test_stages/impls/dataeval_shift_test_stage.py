@@ -3,6 +3,7 @@
 from functools import partial
 from typing import Any, Optional
 
+import maite.protocols.object_detection as od
 import numpy as np
 import pandas as pd
 import torch
@@ -16,12 +17,12 @@ from dataeval.utils.torch import read_dataset
 # report_consumable imports
 from gradient.templates_and_layouts.generic_layouts.text_data import Text, TextData
 
+from jatic_ri._common.test_stages.interfaces.plugins import TwoDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import TwoDatasetPlugin
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
-class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin):
+class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin[od.Dataset]):
     """Detects dataset shift between two datasets using various methods
 
     Performs three drift detection and two out of distribution tests

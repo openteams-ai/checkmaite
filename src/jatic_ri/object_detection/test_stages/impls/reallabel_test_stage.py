@@ -27,11 +27,11 @@ from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
 
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TData, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TData, TestStage
 
 FILENAME_INDEX = "img_filename"
 
@@ -141,7 +141,9 @@ class RealLabelCache(Generic[TData], Cache[TData]):
                 file.write(json.dumps(self.cache_configuration))
 
 
-class RealLabelTestStage(MultiModelPlugin, SingleDatasetPlugin, TestStage[tuple[DataFrame, Path]]):
+class RealLabelTestStage(
+    MultiModelPlugin[od.Model], SingleDatasetPlugin[od.Dataset], TestStage[tuple[DataFrame, Path]]
+):
     """RealLabel test stage.
 
     RealLabel uses an ensemble of models and their inference results to provide insight into the potential
