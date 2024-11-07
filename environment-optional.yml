@@ -1,0 +1,52 @@
+# conda environment requirements
+# this includes all of the required direct dependencies as well as
+# the optional dependencies and those for dev/test/docs
+channels:
+- conda-forge
+- fastai
+dependencies:
+# Required deps
+- python>=3.9, <3.12
+# JATIC tools
+- dataeval>=0.72.0
+- heart-library>=0.4.3
+- maite>=0.6.0                      # required by SDP
+- nrtk>=0.12.0
+- pybsm >=0.8.0                     # optional dep for nrtk, required here
+- xaitk-jatic>=0.2.0
+
+# External tools
+- panel>=1.4.5                      # arbitrary pin
+- pyspark>=3.5.3                    # arbitrary pin
+- timm>=1.0.7                       # arbitrary pin, required for nrtk panel app
+- transformers>=4.42.3              # arbitrary pin, required for nrtk panel app
+- pip
+- pip:
+  # Required pip deps
+  - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
+  - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
+  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.0
+  # Optional pip deps
+  - yolov5>=7.0.0                   # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
+  - urllib3<2.1                     # necessary pin, pkg needed for parity with pyproject.toml's yolov5 / botocore issues.
+# Optional deps
+- huggingface_hub<0.25              # necessary pin for yolov5 <=0.7.13 https://github.com/ultralytics/yolov5/issues/13371
+- libgl=*                           # Supplementary requirement for opencv-python-headless. Needed for yolov5 to successfully import on nebari.
+- matplotlib>=3.8.4
+- opencv-python-headless>=4.9.0.80  # arbitrary pin, pkg needed for yolov5/opencv to successfully import on nebari
+- openjdk=17.0.9                    # necessary pin, pkg needed for pyspark in MORSE RealLabel and Survivor Test Stages.
+- pytorch>=2.2.0                    # necessary pin (at least >=2.2.0 for security)
+- tensorflow>=2.16.0                # dataeval[all] equivalent, pin reflected from there
+- tensorflow-datasets>=4.8.3        # dataeval[all] equivalent, pin reflected from there
+- tensorflow-probability>=0.24.0    # dataeval[all] equivalent, pin reflected from there
+- tf-keras>=2.16                    # dataeval[all] equivalent, pin reflected from there
+- torchmetrics>=1.4.0               # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
+- torchvision>=0.17.0               # dataeval[all] equivalent, pin reflected from there, pkg needed to run tests using example MAITE-wrapped objects.
+# test
+- pytest>=8.3.0                     # necessary pin for compatibility
+- pytest-cov>=4.0.0                 # arbitrary pin
+# linting and formatting
+- pre-commit>=3.0.0                 # arbitrary pin
+- pyright>=1.1.320                  # arbitrary pin        
+# docs
+- mkdocs>=1.6.1                     # arbitrary pin

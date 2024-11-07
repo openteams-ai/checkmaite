@@ -51,7 +51,7 @@ stages:
     - *git_config
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
     - eval "$(./bin/micromamba shell hook -s posix)"
-    - micromamba create -f environment.yml -n test-env python=$VERSION
+    - micromamba create -f environment-optional.yml -n test-env python=$VERSION
     - micromamba activate test-env
     - pip install . --no-deps
     - micromamba list
