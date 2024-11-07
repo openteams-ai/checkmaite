@@ -1,7 +1,7 @@
 from typing import Any
 
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,

@@ -9,6 +9,8 @@ from collections.abc import Hashable
 from hashlib import sha256
 from typing import Any
 
+import maite.protocols.object_detection as od
+
 # 3rd Party Imports
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,21 +26,21 @@ from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency import GenerateObjectDetectorBlackboxSaliency
 
 # Import TestStage
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     ThresholdPlugin,
 )
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
 class XAITKTestStage(
     TestStage[list[dict[str, Any]]],
-    SingleDatasetPlugin,
-    SingleModelPlugin,
-    MetricPlugin,
+    SingleDatasetPlugin[od.Dataset],
+    SingleModelPlugin[od.Model],
+    MetricPlugin[od.Metric],
     ThresholdPlugin,
 ):
     """

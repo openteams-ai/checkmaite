@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Optional
 
+import maite.protocols.object_detection as od
 import numpy as np
 import pandas as pd
 from dataeval.metrics.bias import balance, coverage, diversity, parity
@@ -14,8 +15,8 @@ from gradient.templates_and_layouts.generic_layouts.text_table_images import Tex
 from maite.protocols import ArrayLike
 from PIL import Image
 
+from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import SingleDatasetPlugin
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
@@ -50,7 +51,7 @@ def create_text_data_slide(
     return template
 
 
-class DatasetBiasTestStage(TestStage[dict[str, Any]], SingleDatasetPlugin):
+class DatasetBiasTestStage(TestStage[dict[str, Any]], SingleDatasetPlugin[od.Dataset]):
     """
     Measures four aspects of bias in a single dataset and programmatically generates a Gradient report
     with the measurements of bias, potential risks, and any actions required to reduce bias if found

@@ -4,13 +4,16 @@ from typing import Any, Union
 
 from maite.workflows import evaluate
 
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
-from jatic_ri.image_classification.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
+    TDataset,
     ThresholdPlugin,
+    TMetric,
+    TModel,
 )
+from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
 from jatic_ri.util.utils import create_metrics_bar_plot, save_figure_to_tempfile
 
 
@@ -23,9 +26,9 @@ def as_float(value: Union[float, str]) -> float:
 
 class BaselineEvaluationBase(
     TestStage[dict[str, float]],
-    SingleModelPlugin,
-    SingleDatasetPlugin,
-    MetricPlugin,
+    SingleModelPlugin[TModel],
+    SingleDatasetPlugin[TDataset],
+    MetricPlugin[TMetric],
     ThresholdPlugin,
 ):
     """Baseline evaluation implementation of TestStage interface with single model, dataset and metric plugins

@@ -1,59 +1,66 @@
-"""Plugins to be used for image classification implementations of TestStage classes
-Implementations may use one or more plugins depending on the application.
+"""Plugins to be used for image classification and object detection implementations of
+TestStage classes. Implementations may use one or more plugins depending on the application.
 """
 
+from typing import Generic, TypeVar
+
 import maite.protocols.image_classification as ic
+import maite.protocols.object_detection as od
+
+TDataset = TypeVar("TDataset", ic.Dataset, od.Dataset)
+TMetric = TypeVar("TMetric", ic.Metric, od.Metric)
+TModel = TypeVar("TModel", ic.Model, od.Model)
 
 
 # MODELS --------------------------------------------
-class SingleModelPlugin:
+class SingleModelPlugin(Generic[TModel]):
     """TestStage Plugin for loading a single, maite-compliant model"""
 
-    model: ic.Model
+    model: TModel
     model_id: str
 
-    def load_model(self, model: ic.Model, model_id: str) -> None:
+    def load_model(self, model: TModel, model_id: str) -> None:
         """Injest a pre-loaded maite-compliant model."""
         self.model = model
         self.model_id = model_id
 
 
-class MultiModelPlugin:
+class MultiModelPlugin(Generic[TModel]):
     """TestStage Plugin for loading multiple, maite-compliant models"""
 
-    models: dict[str, ic.Model]  # {model_id: model}
+    models: dict[str, TModel]  # {model_id: model}
 
-    def load_models(self, models: dict[str, ic.Model]) -> None:
+    def load_models(self, models: dict[str, TModel]) -> None:
         """Injest a pre-loaded maite-compliant set of models."""
         self.models = models
 
 
 # DATASETS -------------------------------------------
-class SingleDatasetPlugin:
+class SingleDatasetPlugin(Generic[TDataset]):
     """TestStage Plugin for loading a single, maite-compliant dataset"""
 
-    dataset: ic.Dataset
+    dataset: TDataset
     dataset_id: str
 
-    def load_dataset(self, dataset: ic.Dataset, dataset_id: str) -> None:
+    def load_dataset(self, dataset: TDataset, dataset_id: str) -> None:
         """Injest a pre-loaded maite-compliant dataset"""
         self.dataset = dataset
         self.dataset_id = dataset_id
 
 
-class TwoDatasetPlugin:
+class TwoDatasetPlugin(Generic[TDataset]):
     """TestStage Plugin for loading two, maite-compliant datasets"""
 
-    dataset_1: ic.Dataset
+    dataset_1: TDataset
     dataset_1_id: str
-    dataset_2: ic.Dataset
+    dataset_2: TDataset
     dataset_2_id: str
 
     def load_datasets(
         self,
-        dataset_1: ic.Dataset,
+        dataset_1: TDataset,
         dataset_1_id: str,
-        dataset_2: ic.Dataset,
+        dataset_2: TDataset,
         dataset_2_id: str,
     ) -> None:
         """Injest a pre-loaded maite-compliant set of datasets."""
@@ -64,13 +71,13 @@ class TwoDatasetPlugin:
 
 
 # METRICS AND THRESHOLD -------------------------------
-class MetricPlugin:
+class MetricPlugin(Generic[TMetric]):
     """TestStage Plugin for loading a metric"""
 
-    metric: ic.Metric
+    metric: TMetric
     metric_id: str
 
-    def load_metric(self, metric: ic.Metric, metric_id: str) -> None:
+    def load_metric(self, metric: TMetric, metric_id: str) -> None:
         """Injest a pre-loaded, maite-compliant metric"""
         self.metric = metric
         self.metric_id = metric_id

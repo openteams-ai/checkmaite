@@ -11,21 +11,21 @@ from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.text_data import TextData
 from maite.workflows import predict
 
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import (
+from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     ThresholdPlugin,
 )
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 
 class DatasetFeasibilityTestStage(
     TestStage[dict[str, float]],
-    SingleModelPlugin,
-    SingleDatasetPlugin,
-    MetricPlugin,
+    SingleModelPlugin[od.Model],
+    SingleDatasetPlugin[od.Dataset],
+    MetricPlugin[od.Metric],
     ThresholdPlugin,
 ):
     """Docstring"""

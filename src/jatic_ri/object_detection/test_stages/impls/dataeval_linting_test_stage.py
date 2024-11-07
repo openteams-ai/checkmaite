@@ -6,6 +6,7 @@ from pathlib import Path
 from string import capwords
 from typing import Any
 
+import maite.protocols.object_detection as od
 import numpy as np
 import pandas as pd
 from dataeval._internal.interop import as_numpy
@@ -17,8 +18,8 @@ from matplotlib import patches
 from matplotlib import pyplot as plt
 from more_itertools import take
 
+from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.object_detection.test_stages.interfaces.plugins import SingleDatasetPlugin
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
 MU = "\u03bc"
@@ -66,7 +67,7 @@ IMAGE_ARGKEYS = [
 ]
 
 
-class DatasetLintingTestStage(TestStage[dict[str, Any]], SingleDatasetPlugin):
+class DatasetLintingTestStage(TestStage[dict[str, Any]], SingleDatasetPlugin[od.Dataset]):
     """
     Dataset Linting TestStage implementation.
 
