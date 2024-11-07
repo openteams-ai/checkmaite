@@ -26,6 +26,43 @@ matplotlib = "*"
 numpy = "*"
 
 [[package]]
+name = "adversarial-robustness-toolbox"
+version = "1.18.2"
+description = "Toolbox for adversarial machine learning."
+optional = false
+python-versions = "*"
+files = [
+    {file = "adversarial-robustness-toolbox-1.18.2.tar.gz", hash = "sha256:5bb024463ff3f5a84aba080eb3de1d7c7210111d301a235548bd0c73800a959b"},
+    {file = "adversarial_robustness_toolbox-1.18.2-py3-none-any.whl", hash = "sha256:fa07b2cb97618a5d3ed0b6f28487f08502e328805bc47db89a3b431ee44e2ff1"},
+]
+
+[package.dependencies]
+numpy = ">=1.18.0"
+scikit-learn = ">=0.22.2"
+scipy = ">=1.4.1"
+setuptools = "*"
+six = "*"
+tqdm = "*"
+
+[package.extras]
+all = ["Pillow", "catboost", "cma", "ffmpeg-python", "h5py", "kornia", "librosa", "lightgbm", "matplotlib", "mxnet", "numba", "opencv-python", "pandas", "pydub", "resampy", "statsmodels", "tensorflow", "tensorflow-addons", "torch", "torchvision", "xgboost"]
+catboost = ["catboost"]
+docs = ["Pillow (>=6.0.0)", "matplotlib", "numpy (>=1.18.0)", "scikit-learn (>=0.22.2)", "scipy (>=1.4.1)", "six (>=1.13.0)", "sphinx (>=1.4)", "sphinx-autodoc-annotation", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
+gpy = ["GPy"]
+keras = ["h5py", "keras"]
+lightgbm = ["lightgbm"]
+lingvo-asr = ["librosa", "lingvo (==0.6.4)", "pydub", "resampy", "tensorflow-gpu (==2.1.0)"]
+mxnet = ["mxnet"]
+non-framework = ["Pillow", "cma", "ffmpeg-python", "librosa", "matplotlib", "multiprocess", "numba", "opencv-python", "pandas", "pydub", "pytest", "pytest-cov", "pytest-flake8", "pytest-mock", "requests", "resampy", "sortedcontainers", "statsmodels", "timm"]
+pytorch = ["torch", "torchvision"]
+pytorch-audio = ["librosa", "pydub", "resampy", "torch", "torchaudio", "torchvision"]
+pytorch-image = ["Pillow", "ffmpeg-python", "kornia", "opencv-python", "torch", "torchvision"]
+tensorflow = ["h5py", "tensorflow", "tensorflow-addons"]
+tensorflow-audio = ["h5py", "librosa", "pydub", "resampy", "tensorflow", "tensorflow-addons"]
+tensorflow-image = ["Pillow", "ffmpeg-python", "h5py", "opencv-python", "tensorflow", "tensorflow-addons"]
+xgboost = ["xgboost"]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 description = "Reusable constraint types to use with typing.Annotated"
@@ -1142,6 +1179,36 @@ scikit-learn = ">=0.20"
 scipy = ">=1.0"
 
 [[package]]
+name = "heart-library"
+version = "0.4.4"
+description = "Hardened Extension of the Adversarial Robustness Toolbox (HEART) supports assessment of adversarial AI vulnerabilities in Test & Evaluation workflows."
+optional = false
+python-versions = "<3.12,>=3.9"
+files = [
+    {file = "heart_library-0.4.4-py3-none-any.whl", hash = "sha256:7ee6dae1b8a2592801e26d42d2c3e9d8b71ef8d170fbac76b738f0b5c414be36"},
+    {file = "heart_library-0.4.4.tar.gz", hash = "sha256:174465700fdc97cd39f8d435542b61c74c3fedabd1d61669eeaead4ab0a8f83a"},
+]
+
+[package.dependencies]
+adversarial-robustness-toolbox = ">=1.17.1"
+maite = ">=0.6.0,<0.7.0"
+numpy = ">=1.18.5,<2"
+scikit-learn = ">=0.22.2"
+setuptools = "*"
+six = "*"
+tqdm = "*"
+
+[package.extras]
+all = ["Pillow", "datasets (>=2.18.0)", "huggingface_hub (<0.25.0)", "jupyter", "kornia", "matplotlib", "multiprocess", "numba", "opencv-python", "pandas", "pycocotools", "timm", "torch (<=2.3.1)", "torchmetrics", "torchvision", "transformers", "yolov5"]
+docs = ["furo", "sphinx (>=4.2.0)", "sphinx-charts (>=0.2.1)", "sphinx-design (>=0.6.1)"]
+image-classification = ["torch (<=2.3.1)", "torchvision", "transformers"]
+non-framework = ["Pillow", "datasets (>=2.18.0)", "jupyter", "kornia", "matplotlib", "multiprocess", "numba", "opencv-python", "pandas", "pycocotools", "timm", "transformers"]
+notebooks = ["jupyter", "kornia", "matplotlib", "pandas"]
+object-detection = ["huggingface_hub (<0.25.0)", "opencv-python", "pycocotools", "torch (<=2.3.1)", "yolov5"]
+pytorch = ["torch (<=2.3.1)", "torchmetrics", "torchvision"]
+script = ["GPUtil", "memory-profiler", "pympler"]
+
+[[package]]
 name = "huggingface-hub"
 version = "0.24.7"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
@@ -2115,8 +2182,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">1.20", markers = "python_version < \"3.10\""},
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">=1.23.3", markers = "python_version >= \"3.11\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
 ]
 
 [package.extras]
@@ -2459,10 +2526,10 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\" and python_version < \"3.11\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
-    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -2484,10 +2551,10 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\" and python_version < \"3.11\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
-    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -5701,4 +5768,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <3.12"
-content-hash = "609f636e9cce5e94fbdb4d4784d5c33642ea4cf7271198752c4aba35f46f9549"
+content-hash = "89d804cf9e865b9d77969967049ab1c25a7625761ce132527aa3a4281bfbc198"

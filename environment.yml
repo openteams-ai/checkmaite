@@ -1,45 +1,29 @@
 # conda environment requirements
+# these are the required direct dependencies of the package
+# optional dependencies and dev/test/docs are not included
 channels:
 - conda-forge
 - fastai
-- pytorch
 dependencies:
-# jatic-ri
-- maite=0.6.0
-- dataeval=0.72.0
-- panel=1.4.5
-- pybsm >=0.8.0  # optional dep for nrtk, required here
-- pytorch>=2.2.0
-- torchvision>=0.17.0
-- tensorflow>=2.16.0
-- tf-keras>=2.16
-- huggingface_hub==0.24.7      # pin required
-- tensorflow-datasets=4.8.3
-- torchmetrics=1.4.0
-- matplotlib=3.8.4
-- tensorflow-probability>=0.24.0
-- libgl=*                         # Supplementary requirement for opencv-python-headless. Needed for yolov5 to successfully import.
-- opencv-python-headless=4.9.0.80
-- nrtk=0.12.0
-- xaitk-jatic=0.2.0
-- openjdk=17.0.9                  # pin required. Needed for pyspark in MORSE RealLabel and Survivor Test Stages.
-- panel=1.4.5
-- pybsm >=0.8.0  # optional dep for nrtk, required here
+# Required deps
+- python>=3.9, <3.12
+# JATIC tools
+- dataeval>=0.72.0
+- heart-library>=0.4.3
+- maite>=0.6.0                      # required by SDP
+- nrtk>=0.12.0
+- pybsm >=0.8.0                     # optional dep for nrtk, required here
+- xaitk-jatic>=0.2.0
+
+# External tools
+- panel>=1.4.5                      # arbitrary pin
+- pyspark>=3.5.3                    # arbitrary pin
+- timm>=1.0.7                       # arbitrary pin, required for nrtk panel app
+- transformers>=4.42.3              # arbitrary pin, required for nrtk panel app
 - zstandard=0.23.0
 - pip
 - pip:
+  # Required pip deps
   - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
   - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
   - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.0
-  - yolov5==7.0.0                 # Needed to run tests using example MAITE-wrapped objects.
-  - huggingface-hub>=0.12.0       # Needed for yolov5 to successfully import.
-  - urllib3<2.1                   # Needed for parity with pyproject.toml's yolov5 / botocore issues.
-# test
-- pytest  # TODO: sort out dev/test deps properly
-- pytest-cov
-- pytest-mock
-# linting and formatting
-- pre-commit
-- pyright
-# docs
-- mkdocs
