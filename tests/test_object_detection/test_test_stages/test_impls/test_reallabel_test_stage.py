@@ -74,18 +74,32 @@ def reallabel_test_stage_args() -> dict[str, Any]:
         threshold_max_aggregated_confidence_fp=0.01,
     )
 
+    dict_config = {
+        "deduplication_algorithm": "wbf",
+        "column_names": ColumnNameConfig(
+            unique_identifier_columns=["img_filename"],
+            calibrated_confidence_column="score",
+        ),
+        "run_confidence_calibration": False,
+        "keep_true_positives": True,
+        "deduplication_iou_threshold": 0.5,
+        "minimum_confidence_threshold": 0.1,
+        "threshold_max_aggregated_confidence_fp": 0.01,
+    }
+
     return {
         "config": config,
         "dataset": detection_dataset,
         "models": model_dict,
+        "dict_config": dict_config,
     }
 
 
 @pytest.fixture
-def test_stage(reallabel_test_stage_args: dict) -> RealLabelTestStage:
+def test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
     """Default fully initialized test_stage object"""
     # Create and yield test_stage
-    test_stage = RealLabelTestStage(config=reallabel_test_stage_args["config"])
+    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", "config")])
     test_stage.load_models(models=reallabel_test_stage_args["models"])
     test_stage.load_dataset(
         dataset=reallabel_test_stage_args["dataset"],
@@ -105,6 +119,12 @@ def test_stage(reallabel_test_stage_args: dict) -> RealLabelTestStage:
         shutil.rmtree(test_stage.cache_base_path)
 
 
+@pytest.mark.parametrize(
+    "test_stage",
+    ["config", "dict_config"],
+    ids=["Using RealLabelConfig", "Using dict config"],
+    indirect=True,
+)
 def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
     # Arrange
