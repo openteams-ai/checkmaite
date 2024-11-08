@@ -4,12 +4,11 @@ TestStage classes. Implementations may use one or more plugins depending on the 
 
 from typing import Generic, TypeVar
 
-import maite.protocols.image_classification as ic
-import maite.protocols.object_detection as od
+from maite._internals.protocols import generic as gen
 
-TDataset = TypeVar("TDataset", ic.Dataset, od.Dataset)
-TMetric = TypeVar("TMetric", ic.Metric, od.Metric)
-TModel = TypeVar("TModel", ic.Model, od.Model)
+TDataset = TypeVar("TDataset", bound=gen.Dataset)
+TMetric = TypeVar("TMetric", bound=gen.Metric)
+TModel = TypeVar("TModel", bound=gen.Model)
 
 
 # MODELS --------------------------------------------

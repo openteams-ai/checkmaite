@@ -26,3 +26,4 @@ class BaselineEvaluation(BaselineEvaluationBase[ic.Model, ic.Dataset, ic.Metric]
     """
 
     _deck: str = "image_classification_model_evaluation"
+    _task: str = "ic"

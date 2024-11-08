@@ -19,6 +19,8 @@ class Cache(Generic[TData]):
 class TestStage(Generic[TData], ABC):
     """Base class for running a test and recieving report values"""
 
+    _deck: str
+    _task: str
     _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
     cache: Optional[Cache[TData]] = None
     cache_base_path: str = DEFAULT_CACHE_ROOT
