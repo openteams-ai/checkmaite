@@ -17,7 +17,7 @@ import shutil
 import warnings
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Generic, Optional
+from typing import Any, Generic, Optional, Union
 
 import maite.protocols.object_detection as od
 import pyspark.sql.functions as sf
@@ -67,9 +67,9 @@ class RealLabelCache(Generic[TData], Cache[TData]):
     and the png image with the most bounding boxes updated to include ReallLabel results visualized on top.
 
     Attributes:
-        cache_configuration: A dictionary of information relating to the configuration of the RealLabelTestStage
-            providing data to the cache. If set, when write_cache() is called, an additional json file will be added
-            to the cache with the configuration information.
+        cache_configuration (dict[str, Any]): A dictionary of information relating to the configuration of the
+            RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
+            json file will be added to the cache with the configuration information.
     """
 
     def __init__(self) -> None:
@@ -155,23 +155,30 @@ class RealLabelTestStage(
     results needed if they are not present in the cache before running RealLabel itself.
 
     Attributes:
-        config: The RealLabel Config object that should be used when running Reallabel.
-        cache: The RealLabelCache object used to read from and write to cache locations.
-        outputs: A tuple of RealLabel results with the layout:
+        config (Config): The RealLabel Config object that should be used when running Reallabel.
+        cache (RealLabelCache): The RealLabelCache object used to read from and write to cache locations.
+        outputs (Optional[tuple[DataFrame, Path]]): A tuple of RealLabel results with the layout:
             [0]: The RealLabelResults.results dataframe.
             [1]: A Path to the visualization of the RealLabelResults on the image with the most bounding boxes.
                 NOTE: The use of "the image with the most bounding boxes" is pretty arbitrary and just chosen
                       to show something interesting. Potentially configurable.
-        models: The dictionary of model names to their MAITE-wrapped model objects whose inference should be used
-            when running RealLabel.
-        dataset: The MAITE-wrapped dataset object on which the models should run inference and produce results.
+        models (dict[str, od.Model]): The dictionary of model names to their MAITE-wrapped model objects whose
+            inference should be used when running RealLabel.
+        dataset (od.Dataset): The MAITE-wrapped dataset object on which the models should run inference
+            and produce results.
     """
 
     def __init__(
         self,
-        config: Config,
+        config: Union[Config, dict[str, Any]],
     ) -> None:
-        self.config: Config = config
+        """Initialize the RealLabel test stage.
+
+        Args:
+            config (Union[Config, dict[str, Any]]): The RealLabel Config object that should be used when running
+                Reallabel. Or a dict representing a RealLabel config in a json readable format.
+        """
+        self.config: Config = Config(**config) if isinstance(config, dict) else config
         # Need AG for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
         # that we need to fix.
         if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self.config.additional_columns_clean_results:

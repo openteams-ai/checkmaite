@@ -3,6 +3,8 @@ This module contains the BaseApp class, which serves as the base class for all i
 It provides common methods and visualization elements that can be utilized by the individual pages.
 """
 
+from typing import Any
+
 import panel as pn
 import param
 
@@ -31,7 +33,7 @@ class BaseApp(param.Parameterized):
     page_width: int = param.Integer(800)
     title_font_size: int = param.Integer(default=24)
     status_text: str = param.String("Waiting for input...")
-    output_test_stages: dict[str, str] = param.Dict({})
+    output_test_stages: dict[str, Any] = param.Dict({})
     task: str = param.String("detection")
     export_button: pn.widgets.Button
 

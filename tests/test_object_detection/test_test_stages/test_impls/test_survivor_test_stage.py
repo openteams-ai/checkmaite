@@ -77,22 +77,32 @@ def survivor_test_stage_args() -> dict[str, Any]:
         conversion_args={"decimals_to_round": 2},
     )
 
+    dict_config = {
+        "unique_identifier_columns": ["image_id"],
+        "metric_column": "map_50",
+        "otb_threshold": 0.9,
+        "difficulty_threshold": 0.5,
+        "conversion_type": ScoreConversionType.ROUNDED,
+        "conversion_args": {"decimals_to_round": 2},
+    }
+
     return {
         "config": config,
         "dataset": detection_dataset,
         "metric": map_metric,
         "models": model_dict,
+        "dict_config": dict_config,
     }
 
 
 @pytest.fixture
-def test_stage(survivor_test_stage_args: dict) -> SurvivorTestStage:
+def test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest) -> SurvivorTestStage:
     # Ensure cache doesn't exist
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree(CACHE_DIR)
 
     # Create and configure SurvivorTestStage
-    test_stage = SurvivorTestStage(config=survivor_test_stage_args["config"])
+    test_stage = SurvivorTestStage(config=survivor_test_stage_args["dict_config" if hasattr(request, "param") and request.param else "config"])
     test_stage.load_models(models=survivor_test_stage_args["models"])
     test_stage.load_dataset(dataset=survivor_test_stage_args["dataset"], dataset_id="test-dataset")
     test_stage.load_metric(
@@ -109,9 +119,14 @@ def test_stage(survivor_test_stage_args: dict) -> SurvivorTestStage:
         shutil.rmtree(test_stage.cache_base_path)
 
 
+@pytest.mark.parametrize(
+    "test_stage",
+    [False, True],
+    ids=["Using SurvivorConfig", "Using dict config"],
+    indirect=True,
+)
 def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
     """Test RealLabelTestStage generates a cache object that can be read correctly."""
-
     # Arrange
     expected_cache_location = Path(test_stage.cache_base_path) / test_stage.cache_id
     expected_results_df_path = expected_cache_location / _SURVIVOR_CACHE_CSV_PATH

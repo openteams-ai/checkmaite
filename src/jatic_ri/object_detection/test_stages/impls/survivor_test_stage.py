@@ -16,7 +16,7 @@ import shutil
 import warnings
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Generic, Optional
+from typing import Any, Generic, Optional, Union
 
 import maite.protocols.object_detection as od
 import numpy as np
@@ -62,9 +62,9 @@ class SurvivorCache(Generic[TData], Cache[TData]):
     csv, and a png image with a histogram of the number of images per Survivor category, Easy, On the Bubble, and Hard.
 
     Attributes:
-        cache_configuration: A dictionary of information relating to the configuration of the RealLabelTestStage
-            providing data to the cache. If set, when write_cache() is called, an additional json file will be added
-            to the cache with the configuration information.
+        cache_configuration (dict[str, Any]): A dictionary of information relating to the configuration of the
+            RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
+            json file will be added to the cache with the configuration information.
     """
 
     def __init__(self) -> None:
@@ -161,28 +161,30 @@ class SurvivorTestStage(
     metric results needed if they are not present in the cache before running Survivor itself.
 
     Attributes:
-        config: The Survivor Config object that should be used when running Survivor.
-        cache: The SurvivorCache object used to read from and write to cache locations.
-        outputs: A tuple of Survivor results with the layout:
+        config (SurvivorConfig): The Survivor Config object that should be used when running Survivor.
+        cache (SurvivorCache): The SurvivorCache object used to read from and write to cache locations.
+        outputs (Optional[tuple[DataFrame, Path]]): A tuple of Survivor results with the layout:
             [0]: The SurvivorResults.raw_output_df dataframe.
             [1]: A Path to a PNG with a histogram of the number of images per Survivor category: Easy, Hard, and
                 On the Bubble.
-        metric: The MAITE-wrapped metric object that should be fed the model inference results for metric calculation.
-        dataset: The MAITE-wrapped dataset object on which the models should run inference and produce results.
-        models: The dictionary of model names to their MAITE-wrapped model objects whose inference should be used
-            when running RealLabel.
+        metric (od.Metric): The MAITE-wrapped metric object that should be fed the model inference results
+            for metric calculation.
+        dataset (od.Dataset): The MAITE-wrapped dataset object on which the models should run inference and
+            produce results.
+        models (dict[str, od.Model]): The dictionary of model names to their MAITE-wrapped model objects
+            whose inference should be used when running RealLabel.
     """
 
     def __init__(
         self,
-        config: SurvivorConfig,
+        config: Union[SurvivorConfig, dict[str, Any]],
     ) -> None:
         """Create instance of SurvivorTestStage
 
         Args:
-            config (SurvivorConfig): config for survivor run.
+            config (Union[SurvivorConfig, dict[str, Any]]): config for survivor run.
         """
-        self.config: SurvivorConfig = config
+        self.config: SurvivorConfig = SurvivorConfig(**config) if isinstance(config, dict) else config
         self.cache: SurvivorCache[tuple[DataFrame, Path]] = SurvivorCache()
         # self.outputs is where we store `run()` results. It is a tuple containing the following:
         #  [0]: pyspark DataFrame containing output results
