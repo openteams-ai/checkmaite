@@ -70,14 +70,14 @@ def create_metrics_bar_plot(
     # plot the individual bars
     for idx, (key, value) in enumerate(metrics.items()):
         color = metric_color if key is metric_key else default_color
-        ax.bar(index[idx], value, width, color=color)
+        ax.bar(index[idx], value, width, color=color)  # type: ignore (matplotlib)
 
     # plot the threshold line
-    ax.axhline(threshold, color=threshold_color)
+    ax.axhline(threshold, color=threshold_color)  # type: ignore (matplotlib)
 
     # set title and xtick labels
-    ax.set_title("Computed metrics")
-    ax.set_xticks(index, metrics.keys())
-    fig.tight_layout()
+    ax.set_title("Computed metrics")  # type: ignore (matplotlib)
+    ax.set_xticks(index, metrics.keys())  # type: ignore (matplotlib)
+    fig.tight_layout()  # type: ignore (matplotlib)
 
-    return fig
+    return fig  # type: ignore (matplotlib)

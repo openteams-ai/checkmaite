@@ -15,7 +15,8 @@ from dataeval.utils.tensorflow.models import AE, VAEGMM, create_model
 from dataeval.utils.torch import read_dataset
 
 # report_consumable imports
-from gradient.templates_and_layouts.generic_layouts.text_data import Text, TextData
+from gradient.slide_deck.shapes import Text
+from gradient.templates_and_layouts.generic_layouts.text_data import TextData
 
 from jatic_ri._common.test_stages.interfaces.plugins import TwoDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage

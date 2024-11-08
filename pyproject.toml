@@ -74,8 +74,12 @@ exclude_dirs = [
 
 [tool.pyright]
 reportMissingImports = "warning"
+include = [
+    "src",
+    "tests",
+]
 exclude = [
-    "tests/**",
+    "**/_panel",
 ]
 
 # Ruff rules - https://docs.astral.sh/ruff/rules/
