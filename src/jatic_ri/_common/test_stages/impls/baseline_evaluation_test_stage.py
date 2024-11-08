@@ -51,7 +51,6 @@ class BaselineEvaluationBase(
     """
 
     metric_key: str
-    _deck: str
 
     def __init__(self) -> None:
         super().__init__()
@@ -70,15 +69,15 @@ class BaselineEvaluationBase(
     @property
     def cache_id(self) -> str:
         """Cache file for Baseline Evaluation Test Stage"""
-        return f"baseline-{self.model_id}-{self.dataset_id}.json"
+        return f"baseline-{self._task}-{self.model_id}-{self.dataset_id}.json"
 
     def _run(self) -> dict[str, float]:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
         self._validate()
 
-        self.metric_key = self.metric._return_key  # noqa: SLF001 # type: ignore
+        # Get the human readable _return_key from a wrapped Metric if available, otherwise fallback to the metric_id
+        self.metric_key = getattr(self.metric, "_return_key", self.metric_id)
 
-        # run evaluation
         result, _, _ = evaluate(
             model=self.model,
             metric=self.metric,

@@ -26,3 +26,4 @@ class BaselineEvaluation(BaselineEvaluationBase[od.Model, od.Dataset, od.Metric]
     """
 
     _deck: str = "object_detection_model_evaluation"
+    _task: str = "od"
