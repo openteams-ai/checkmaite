@@ -32,7 +32,7 @@ dataeval = {version = ">=0.72.0", extras = ["all"]}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
 heart-library = ">=0.4.3"
 maite = {version = ">=0.6.0"}                     # required by SDP
-nrtk = {version = ">=0.12.0", extras = ["headless"]}
+nrtk = {version = ">=0.15.1", extras = ["headless"]}
 pybsm = ">=0.8.0"                                 # optional dep for nrtk, required here
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.0"}
