@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import maite.protocols.object_detection as od
+import maite.protocols.image_classification as od
 import numpy as np
 from dataeval._internal.interop import as_numpy
 from dataeval.metrics.stats import DatasetStatsOutput, HashStatsOutput, datasetstats, hashstats
@@ -21,21 +21,20 @@ class DatasetLintingTestStage(DatasetLintingTestStageBase[od.Dataset]):
     using various pixel and image statistics on the image data on the datset images.
     """
 
-    _deck: str = "object_detection_linting_evaluation"
-    _task: str = "od"
+    _deck: str = "image_classification_linting_evaluation"
+    _task: str = "ic"
 
     def _run_stats(self) -> tuple[HashStatsOutput, DatasetStatsOutput]:
         """Run stats for specific dataset type"""
-        hashes = hashstats((d[0] for d in self.dataset), (d[1].boxes for d in self.dataset))
-        stats = datasetstats((d[0] for d in self.dataset), (d[1].boxes for d in self.dataset))
+        hashes = hashstats(d[0] for d in self.dataset)
+        stats = datasetstats(d[0] for d in self.dataset)
         return hashes, stats
 
-    def _get_image_label_box(self, index: int, target: int | None) -> tuple[NDArray[Any], str, NDArray[np.int_]]:
+    def _get_image_label_box(self, index: int, target: int | None) -> tuple[NDArray[Any], str, NDArray[np.int_] | None]:  # noqa: ARG002
         """Get image, label and box from dataset at specified index and target"""
-        datum = self.dataset[index]
-        image = as_numpy(datum[0])
-        label = int(as_numpy(datum[1].labels)[target or 0])
-        box = as_numpy(datum[1].boxes).astype(np.int_)[target or 0]
+        data = self.dataset[index]
+        image = as_numpy(data[0])
+        label = int(np.argmax(as_numpy(data[1])))
         mapping: dict[int, str] | None = getattr(self.dataset, "index2label", None)
         label = "NO_LABEL" if label is None else str(label) if mapping is None else mapping[label]
-        return image, label, box
+        return image, label, None
