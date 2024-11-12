@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 from maite.protocols.object_detection import Augmentation, DatumMetadataBatchType, InputBatchType, TargetBatchType
 from nrtk.interfaces.perturb_image import PerturbImage
+from numpy.typing import NDArray
 
 OBJ_DETECTION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatchType]
 
@@ -41,17 +42,15 @@ class JATICDetectionAugmentation(Augmentation):
     ) -> OBJ_DETECTION_BATCH_T:
         """Apply augmentations to the given data batch."""
         imgs, anns, metadata = batch
-        imgs = np.asarray(imgs)
-        imgs_new = np.transpose(imgs, (0, 2, 3, 1))
 
         # iterate over (parallel) elements in batch
-        aug_imgs = []  # list of individual augmented inputs
-        aug_dets = []  # list of individual object detection targets
-        aug_metadata = []  # list of individual image-level metadata
+        aug_imgs: list[NDArray[Any]] = []  # list of individual augmented inputs
+        aug_dets: list[JATICDetectionTarget] = []  # list of individual object detection targets
+        aug_metadata: list[dict[str, Any]] = []  # list of individual image-level metadata
 
-        for img, ann, md in zip(imgs_new, anns, metadata):
+        for img, ann, md in zip(imgs, anns, metadata):
             # Perform augmentation
-            aug_img = copy.deepcopy(img)
+            aug_img = np.array(img, copy=True).transpose((1, 2, 0))
             height, width = aug_img.shape[0:2]
             aug_img = self.augment(aug_img, md)
             aug_height, aug_width = aug_img.shape[0:2]
@@ -80,4 +79,4 @@ class JATICDetectionAugmentation(Augmentation):
             aug_metadata.append(m_aug)
 
         # return batch of augmented inputs, resized bounding boxes and updated metadata
-        return np.stack(aug_imgs), aug_dets, aug_metadata
+        return aug_imgs, aug_dets, aug_metadata

@@ -17,7 +17,7 @@ import shutil
 import warnings
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Generic, Optional, Union
+from typing import Any, Optional, Union
 
 import maite.protocols.object_detection as od
 import pyspark.sql.functions as sf
@@ -31,7 +31,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TData, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 
 FILENAME_INDEX = "img_filename"
 
@@ -60,7 +60,7 @@ _REALLABEL_CACHE_IMAGE_PATH = Path("reallabel_result_visualization.png")
 _REALLABEL_CACHE_CONFIGURATION_PATH = Path("reallabel_cache_configuration.json")
 
 
-class RealLabelCache(Generic[TData], Cache[TData]):
+class RealLabelCache(Cache[tuple[DataFrame, Path]]):
     """Cache implementation for RealLabelTestStage.
 
     The cache directory will, at minimum, contain two files: The RealLabelResults.results dataframe saved to a csv,
@@ -72,11 +72,11 @@ class RealLabelCache(Generic[TData], Cache[TData]):
             json file will be added to the cache with the configuration information.
     """
 
-    def __init__(self) -> None:
-        self.cache_configuration: dict[str, Any] = None
+    def __init__(self, configuration: Optional[dict[str, Any]] = None) -> None:
+        self.cache_configuration: Optional[dict[str, Any]] = configuration
         super().__init__()
 
-    def read_cache(self, cache_path: str) -> Optional[TData]:
+    def read_cache(self, cache_path: str) -> Optional[tuple[DataFrame, Path]]:
         """Read in cache from cache_path.
 
         Args:
@@ -89,7 +89,7 @@ class RealLabelCache(Generic[TData], Cache[TData]):
         """
         try:
             cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
-            spark = SparkSession.builder.getOrCreate()
+            spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
             cached_results_df = spark.read.csv(str(cached_results_csv_file_path), header=True, inferSchema=True).drop(
                 "_c0",
             )
@@ -112,7 +112,7 @@ class RealLabelCache(Generic[TData], Cache[TData]):
 
         return cached_results_df, cached_results_img_file_path
 
-    def write_cache(self, cache_path: str, data: TData) -> None:
+    def write_cache(self, cache_path: str, data: tuple[DataFrame, Path]) -> None:
         """Write the given RealLabel result data to cache.
 
         Args:
@@ -184,23 +184,20 @@ class RealLabelTestStage(
         if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self.config.additional_columns_clean_results:
             self.config.additional_columns_clean_results.append(RealLabelColumns.AGGREGATED_CONFIDENCE.value)
 
-        self.cache: RealLabelCache[tuple[DataFrame, Path]] = RealLabelCache()
         # self.outputs is where we store `run()` results. It is a tuple containing the following:
         #  [0]: pyspark DataFrame containing output results
         #  [1]: Path object pointing to image of a bar plot showing distribution of RealLabel results
-        self.outputs: Optional[tuple[DataFrame, Path]] = None
-        self.models: dict[str, od.Model] = None
-        self.dataset: od.Dataset = None
+
         # A dictionary of identifying information that will be hashed into an ID
-        self._cache_configuration: dict[str, Any] = None
+        self._cache_configuration: Optional[dict[str, Any]] = None
 
         super().__init__()
 
     def validate_input_present(self) -> None:
         """Validates that the requisite inputs have been provided: models, metric, and dataset."""
-        if not self.dataset:
+        if not getattr(self, "dataset", None):
             raise RuntimeError("Dataset not set! Please use `load_dataset()` function to set the dataset.")
-        if not self.models:
+        if not getattr(self, "models", None):
             raise RuntimeError("Models not set! Please use `load_models()` function to load the models.")
 
     def _generate_cache_config(self) -> None:
@@ -221,7 +218,7 @@ class RealLabelTestStage(
             "dataset_id": self.dataset_id,
             "reallabel_config": reallabel_config,
         }
-        self.cache.cache_configuration = self._cache_configuration
+        self.cache: Optional[Cache[tuple[DataFrame, Path]]] = RealLabelCache(self._cache_configuration)
 
     @property
     def cache_id(self) -> str:
@@ -253,8 +250,10 @@ class RealLabelTestStage(
         """
         out = {}
         try:
-            for col in self.config.column_names.unique_identifier_columns:
-                out[image_df.first()[_METADATA_IMAGE_FILE_NAME_FIELD]] = {col: image_df.first()[col]}
+            image_row = image_df.first()  # issue 123
+            if image_row is not None:
+                for col in self.config.column_names.unique_identifier_columns:
+                    out[image_row[_METADATA_IMAGE_FILE_NAME_FIELD]] = {col: image_row[col]}
         except Exception as e:
             raise ValueError(  # pragma: no cover
                 "Unique Identifier Columns must include `img_filename`",
@@ -277,8 +276,8 @@ class RealLabelTestStage(
         # Dataset), then check for required metadata fields.
         metadata_dicts_list = [datum[2] for datum in self.dataset]
 
-        spark = SparkSession.builder.getOrCreate()
-        dataset_metadata_df = spark.createDataFrame(metadata_dicts_list)
+        spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
+        dataset_metadata_df = spark.createDataFrame(metadata_dicts_list)  # type: ignore  # issue 123
         if not _REALLABEL_REQUIRED_METADATA_FIELDS.issubset(set(dataset_metadata_df.columns)):
             raise ValueError(
                 f"Dataset metadata does not contain the required fields: {_REALLABEL_REQUIRED_METADATA_FIELDS}",
@@ -302,12 +301,10 @@ class RealLabelTestStage(
         # visualizer. Then retrieve its associated dataset sub-directory from the metadata and create a smaller
         # version of the full results df that's only for that image. These will then be turned into a RealLabel
         # visualization saved to a temporary directory that will later be copied into the proper cacheing directory.
-        image_filename = (
-            reallabel_results.groupBy(_METADATA_IMAGE_FILE_NAME_FIELD)
-            .count()
-            .orderBy(sf.col("count").desc())
-            .first()[_METADATA_IMAGE_FILE_NAME_FIELD]
+        image_filenames = (
+            reallabel_results.groupBy(_METADATA_IMAGE_FILE_NAME_FIELD).count().orderBy(sf.col("count").desc()).first()
         )
+        image_filename = image_filenames[_METADATA_IMAGE_FILE_NAME_FIELD] if image_filenames else None  # issue 123:
         image_parent_dir = dataset_metadata_df.where(sf.col(_METADATA_IMAGE_FILE_NAME_FIELD) == image_filename).first()[
             _METADATA_IMAGE_PARENT_DIR_FIELD
         ]
@@ -325,7 +322,7 @@ class RealLabelTestStage(
         cache_miss_output_img_path.parent.mkdir(parents=True, exist_ok=True)
 
         plot_reallabel_results(
-            image_location=self.dataset._dataset_path  # noqa: SLF001
+            image_location=self.dataset._dataset_path  # noqa: SLF001  # type: ignore  # issue 123
             / image_parent_dir
             / image_filename,
             reallabel_results_df=results_for_visualized_image_df,

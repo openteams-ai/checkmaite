@@ -172,14 +172,14 @@ class YoloDetectionDataset(Dataset):
         """Return length of dataset."""
         return len(self._images)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, YoloDetectionDataset, dict[str, Any]]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, dict[str, Any]]:
         """Get `index`-th element from dataset."""
         try:
             image = self._images[index]
             annotation = self._annotations[index]
         except IndexError as e:
             raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self.dataset)}",
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
             ) from e
 
         img_pt = pil_to_tensor(Image.open(os.path.join(self._train, image)))

@@ -120,7 +120,6 @@ pyright-internal:
   script:
     - poetry install --with dev
     - poetry run pyright src/
-  allow_failure: true
 
 pyright-external:
   extends: [.shared-setup, .poetry-setup]

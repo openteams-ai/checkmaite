@@ -14,7 +14,6 @@ import maite.protocols.object_detection as od
 # 3rd Party Imports
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from matplotlib.patches import Rectangle  # type: ignore
 from PIL import Image  # type: ignore
 
@@ -23,7 +22,7 @@ from smqtk_core.configuration import from_config_dict
 
 # XAITK imports
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
-from xaitk_saliency import GenerateObjectDetectorBlackboxSaliency
+from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
 # Import TestStage
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -100,17 +99,21 @@ class XAITKTestStage(
         gradient_slides = []
         output_values = list(self.outputs[0].values())
 
-        for dataset_idx, (ref_img, dets, _) in enumerate(self.dataset):
+        for dataset_idx in range(len(self.dataset)):
+            ref_img, dets, _ = self.dataset[dataset_idx]
             sub_dir = os.path.join(self.cache_path[:-5], f"img_{dataset_idx}")
 
             os.makedirs(sub_dir, exist_ok=True)
+            labels = np.asarray(dets.labels)
             bboxes = np.asarray(dets.boxes)
+            scores = np.asarray(dets.scores)
             for sal_idx, bbox in enumerate(bboxes):
                 sal_map = output_values[dataset_idx][sal_idx]
-                if ref_img.shape[0] == 1:
-                    gray_img = np.asarray(Image.fromarray(ref_img[0].numpy()).convert("L"))
+                ref_img_np = np.asarray(ref_img)
+                if ref_img_np.shape[0] == 1:
+                    gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
                 else:
-                    gray_img = np.asarray(Image.fromarray(ref_img.numpy()).convert("L"))
+                    gray_img = np.asarray(Image.fromarray(ref_img_np).convert("L"))
 
                 sal_map_path = os.path.join(sub_dir, f"det_{sal_idx}.png")
 
@@ -143,8 +146,8 @@ class XAITKTestStage(
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                             "text": (
                                 f"Model: {self.model_id}\nImage: {dataset_idx}\n"
-                                f"GT: {self.id2label[dets.labels[sal_idx].item()]}\n"
-                                f"Pred: {self.id2label[torch.argmax(dets.scores).item()]}"
+                                f"GT: {self.id2label[int(labels[sal_idx])]}\n"
+                                f"Pred: {self.id2label[int(np.argmax(scores))]}"
                             ),
                             "image_path": sal_map_path,
                         },

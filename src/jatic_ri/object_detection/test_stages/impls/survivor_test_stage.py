@@ -16,7 +16,7 @@ import shutil
 import warnings
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Generic, Optional, Union
+from typing import Any, Optional, Union
 
 import maite.protocols.object_detection as od
 import numpy as np
@@ -31,7 +31,7 @@ from survivor.config import Config as SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri._common.test_stages.interfaces.plugins import MetricPlugin, MultiModelPlugin, SingleDatasetPlugin
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TData, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 
 # This constant represents the expected location of the Survivor output directory under the test_stage.cache_base_path
 # directory where the SurvivorTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -55,7 +55,7 @@ _SURVIVOR_CACHE_CONFIGURATION_PATH = Path("survivor_cache_configuration.json")
 PER_DATUM_METRIC_KEY = "per_datum"
 
 
-class SurvivorCache(Generic[TData], Cache[TData]):
+class SurvivorCache(Cache[tuple[DataFrame, Path]]):
     """Cache implementation for RealLabelTestStage.
 
     The cache directory will, at minimum, contain two files: The SurvivorResults.raw_output_df dataframe saved to a
@@ -67,11 +67,11 @@ class SurvivorCache(Generic[TData], Cache[TData]):
             json file will be added to the cache with the configuration information.
     """
 
-    def __init__(self) -> None:
-        self.cache_configuration: dict[str, Any] = None
+    def __init__(self, cache_configuration: Optional[dict[str, Any]] = None) -> None:
+        self.cache_configuration: Optional[dict[str, Any]] = cache_configuration
         super().__init__()
 
-    def read_cache(self, cache_path: str) -> Optional[TData]:
+    def read_cache(self, cache_path: str) -> Optional[tuple[DataFrame, Path]]:
         """Read in cache from cache_path
 
         Args:
@@ -84,7 +84,7 @@ class SurvivorCache(Generic[TData], Cache[TData]):
         """
         try:
             cached_results_csv_file_path = Path(cache_path) / _SURVIVOR_CACHE_CSV_PATH
-            spark = SparkSession.builder.getOrCreate()
+            spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
             cached_results_df = (
                 spark.read.csv(
                     str(cached_results_csv_file_path),
@@ -113,7 +113,7 @@ class SurvivorCache(Generic[TData], Cache[TData]):
 
         return cached_results_df, cached_image_path
 
-    def write_cache(self, cache_path: str, data: TData) -> None:
+    def write_cache(self, cache_path: str, data: tuple[DataFrame, Path]) -> None:
         """Write given data to cache.
 
         Args:
@@ -185,26 +185,22 @@ class SurvivorTestStage(
             config (Union[SurvivorConfig, dict[str, Any]]): config for survivor run.
         """
         self.config: SurvivorConfig = SurvivorConfig(**config) if isinstance(config, dict) else config
-        self.cache: SurvivorCache[tuple[DataFrame, Path]] = SurvivorCache()
         # self.outputs is where we store `run()` results. It is a tuple containing the following:
         #  [0]: pyspark DataFrame containing output results
         #  [1]: Path object pointing to image of a bar plot showing distribution of survivor results
-        self.outputs: Optional[tuple[DataFrame, Path]] = None
-        self.metric: od.Metric = None
-        self.dataset: od.Dataset = None
-        self.models: dict[str, od.Model] = None
+
         # A dictionary of identifying information that will be hashed into an ID
-        self._cache_configuration: dict[str, Any] = None
+        self._cache_configuration: Optional[dict[str, Any]] = None
 
         super().__init__()
 
     def validate_input_present(self) -> None:
         """Validates that the requisite inputs have been provided: models, metric, and dataset."""
-        if not self.metric:
+        if not getattr(self, "metric", None):
             raise RuntimeError("Metric not set! Please use `load_metric()` function to set the metric.")
-        if not self.dataset:
+        if not getattr(self, "dataset", None):
             raise RuntimeError("Dataset not set! Please use `load_dataset()` function to set the dataset.")
-        if not self.models:
+        if not getattr(self, "models", None):
             raise RuntimeError("Models not set! Please use `load_models()` function to load the models.")
 
     def _generate_cache_config(self) -> None:
@@ -224,7 +220,7 @@ class SurvivorTestStage(
             "dataset_id": self.dataset_id,
             "survivor_config": survivor_config,
         }
-        self.cache.cache_configuration = self._cache_configuration
+        self.cache: Optional[Cache[tuple[DataFrame, Path]]] = SurvivorCache(self._cache_configuration)
 
     @property
     def cache_id(self) -> str:
@@ -275,7 +271,7 @@ class SurvivorTestStage(
             maite_dataset=self.dataset,
             config=self.config,
             metrics=metrics,
-            spark_session=SparkSession.builder.getOrCreate(),
+            spark_session=SparkSession.builder.getOrCreate(),  # type: ignore
         )
         results_df = survivor.run().raw_output_df
 
