@@ -18,6 +18,7 @@ dependencies:
 # External tools
 - panel>=1.4.5                      # arbitrary pin
 - pyspark>=3.5.3                    # arbitrary pin
+- more-itertools>=10.0              # arbitrary pin
 - timm>=1.0.7                       # arbitrary pin, required for nrtk panel app
 - transformers>=4.42.3              # arbitrary pin, required for nrtk panel app
 - pip
