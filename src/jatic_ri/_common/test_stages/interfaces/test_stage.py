@@ -16,6 +16,14 @@ class Cache(Generic[TData]):
     def write_cache(self, cache_path: str, data: TData) -> None: ...
 
 
+class RIValidationError(Exception):
+    """Exception raised for validation errors."""
+
+    def __init__(self, message: str = "Validation error occurred.") -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
 class TestStage(Generic[TData], ABC):
     """Base class for running a test and recieving report values"""
 
@@ -45,6 +53,32 @@ class TestStage(Generic[TData], ABC):
     @property
     def cache_path(self) -> str:
         return os.path.join(self.cache_base_path, self.cache_id) if self.cache_id else ""
+
+    def validate_plugins(self) -> None:
+        plugin_requirements = {
+            "SingleModelPlugin": (["model", "model_id"], "load_model"),
+            "MultiModelPlugin": (["models"], "load_models"),
+            "SingleDatasetPlugin": (["dataset", "dataset_id"], "load_dataset"),
+            "TwoDatasetPlugin": (["dataset_1", "dataset_1_id", "dataset_2", "dataset_2_id"], "load_datasets"),
+            "MetricPlugin": (["metric", "metric_id"], "load_metric"),
+            "ThresholdPlugin": (["threshold"], "load_threshold"),
+        }
+
+        # Identify plugins in the inheritance hierarchy
+        plugin_list = plugin_requirements.keys()
+        inherited_classes = [cls for cls in self.__class__.mro() if cls.__name__ in plugin_list]
+
+        # Iterate through each valid plugin inheritted
+        for plugin in inherited_classes:
+            plugin_name = plugin.__name__
+            required_attrs, load_func = plugin_requirements[plugin_name]
+
+            # Check for missing attributes and raise appropriate error
+            missing_attr = next((attr for attr in required_attrs if not hasattr(self, attr)), None)
+            if missing_attr:
+                raise RIValidationError(
+                    f"'{missing_attr}' not set! Please use `{load_func}()` function to set the '{missing_attr}'.",
+                )
 
     def run(self, use_cache: bool = True) -> None:
         """Run the test stage leveraging cache if available and store any outputs of the evaluation in test stage"""

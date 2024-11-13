@@ -1,6 +1,6 @@
 from typing import Any
 
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import TestStage, RIValidationError
 from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     MultiModelPlugin,
@@ -9,6 +9,10 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     ThresholdPlugin,
     TwoDatasetPlugin,
 )
+import re
+
+import pytest
+
 
 
 def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
@@ -40,6 +44,39 @@ def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_
 
     dummy_threshold = 99.99
     stage.load_threshold(threshold=dummy_threshold)
+
+
+def test_threshold_validation(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
+    class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
+        """Dummy implementation class"""
+
+        def _run(self) -> None:
+            pass
+
+        def collect_report_consumables(self) -> list[dict[str, Any]]:
+            return super().collect_report_consumables()
+
+    stage = TestImpl()
+
+    stage.load_model(
+        model=dummy_model_od,
+        model_id="dummy1",
+    )
+
+    stage.load_dataset(
+        dataset=dummy_dataset_od,
+        dataset_id="dummy1",
+    )
+
+    stage.load_metric(
+        metric=dummy_metric_od,
+        metric_id="dummy1",
+    )
+    with pytest.raises(
+        RIValidationError,
+        match=re.escape("'threshold' not set! Please use `load_threshold()` function to set the 'threshold'.")
+    ):
+        stage.validate_plugins()
 
 
 def test_single_dataset(dummy_dataset_od) -> None:
