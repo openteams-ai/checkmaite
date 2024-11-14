@@ -8,20 +8,20 @@ dependencies:
 # Required deps
 - python>=3.9, <3.12
 # JATIC tools
-- dataeval>=0.72.0
+- dataeval==0.72.0
 - heart-library>=0.4.3
-- maite>=0.6.0                      # required by SDP
+- maite>=0.6.0                          # required by SDP
 - nrtk>=0.15.1
-- pybsm >=0.8.0                     # optional dep for nrtk, required here
+- pybsm >=0.8.0                         # optional dep for nrtk, required here
 - xaitk-jatic>=0.2.0
 
 # External tools
-- panel>=1.4.5                      # arbitrary pin
-- pyspark>=3.5.3                    # arbitrary pin
-- more-itertools>=10.0              # arbitrary pin
-- timm>=1.0.7                       # arbitrary pin, required for nrtk panel app
-- transformers>=4.42.3              # arbitrary pin, required for nrtk panel app
-- zstandard=0.23.0
+- panel>=1.4.5                          # arbitrary pin
+- pyspark>=3.5.3                        # arbitrary pin
+- more-itertools>=10.0                  # arbitrary pin, required for dataeval linting test stage
+- timm>=1.0.7                           # arbitrary pin, required for nrtk panel app
+- transformers>=4.42.3                  # arbitrary pin, required for nrtk panel app
+- zstandard>=0.23.0                     # arbitrary pin, required for zip compressed cache
 - pip
 - pip:
   # Required pip deps
