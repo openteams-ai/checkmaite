@@ -668,35 +668,36 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataeval"
-version = "0.72.0"
+version = "0.73.0"
 description = "DataEval provides a simple interface to characterize image data and its impact on model performance across classification and object-detection tasks"
 optional = false
-python-versions = "<3.12,>=3.9"
+python-versions = "<3.13,>=3.9"
 files = [
-    {file = "dataeval-0.72.0-py3-none-any.whl", hash = "sha256:917eb1afd39f14d710dd8597118c3da37a05b82f468977a00c0c64f6f5f8d9d5"},
-    {file = "dataeval-0.72.0.tar.gz", hash = "sha256:dcad65d615ebc95384dab9e208e1251adecc55309c020ca564c4515b8c378330"},
+    {file = "dataeval-0.73.0-py3-none-any.whl", hash = "sha256:c4161c385699460b3a3c2ef0f1dad0c12887ec36bb39a97b6e3420de3be9b1ea"},
+    {file = "dataeval-0.73.0.tar.gz", hash = "sha256:3e0e961c537ecc9adc372d4f637249715500e466c33165a48e69f7163d9fcf9d"},
 ]
 
 [package.dependencies]
 hdbscan = ">=0.8.36"
+markupsafe = {version = "<3.0.2", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
 matplotlib = {version = "*", optional = true, markers = "extra == \"torch\" or extra == \"all\""}
 numpy = ">1.24.3"
-nvidia-cudnn-cu11 = {version = ">=8.6.0.163", optional = true, markers = "extra == \"tensorflow\" or extra == \"torch\" or extra == \"all\""}
 pillow = ">=10.3.0"
 scikit-learn = ">=1.5.0"
 scipy = ">=1.10"
-tensorflow = {version = ">=2.16", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
-tensorflow_probability = {version = ">=0.24", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
-tf-keras = {version = ">=2.16", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
+tensorflow = {version = ">=2.16,<2.18", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
+tensorflow_probability = {version = ">=0.24,<0.25", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
+tf-keras = {version = ">=2.16,<2.18", optional = true, markers = "extra == \"tensorflow\" or extra == \"all\""}
 torch = {version = ">=2.2.0", optional = true, markers = "extra == \"torch\" or extra == \"all\""}
 torchvision = {version = ">=0.17.0", optional = true, markers = "extra == \"torch\" or extra == \"all\""}
 tqdm = "*"
+typing-extensions = {version = ">=4.12", markers = "python_version >= \"3.9\" and python_version < \"3.10\""}
 xxhash = ">=3.3"
 
 [package.extras]
-all = ["matplotlib", "nvidia-cudnn-cu11 (>=8.6.0.163)", "tensorflow (>=2.16)", "tensorflow_probability (>=0.24)", "tf-keras (>=2.16)", "torch (>=2.2.0)", "torchvision (>=0.17.0)"]
-tensorflow = ["nvidia-cudnn-cu11 (>=8.6.0.163)", "tensorflow (>=2.16)", "tensorflow_probability (>=0.24)", "tf-keras (>=2.16)"]
-torch = ["matplotlib", "nvidia-cudnn-cu11 (>=8.6.0.163)", "torch (>=2.2.0)", "torchvision (>=0.17.0)"]
+all = ["markupsafe (<3.0.2)", "matplotlib", "tensorflow (>=2.16,<2.18)", "tensorflow_probability (>=0.24,<0.25)", "tf-keras (>=2.16,<2.18)", "torch (>=2.2.0)", "torchvision (>=0.17.0)"]
+tensorflow = ["markupsafe (<3.0.2)", "tensorflow (>=2.16,<2.18)", "tensorflow_probability (>=0.24,<0.25)", "tf-keras (>=2.16,<2.18)"]
+torch = ["matplotlib", "torch (>=2.2.0)", "torchvision (>=0.17.0)"]
 
 [[package]]
 name = "decorator"
@@ -2348,17 +2349,6 @@ files = [
 ]
 
 [[package]]
-name = "nvidia-cublas-cu11"
-version = "11.11.3.6"
-description = "CUBLAS native runtime libraries"
-optional = false
-python-versions = ">=3"
-files = [
-    {file = "nvidia_cublas_cu11-11.11.3.6-py3-none-manylinux1_x86_64.whl", hash = "sha256:39fb40e8f486dd8a2ddb8fdeefe1d5b28f5b99df01c87ab3676f057a74a5a6f3"},
-    {file = "nvidia_cublas_cu11-11.11.3.6-py3-none-win_amd64.whl", hash = "sha256:6ab12b1302bef8ac1ff4414edd1c059e57f4833abef9151683fb8f4de25900be"},
-]
-
-[[package]]
 name = "nvidia-cublas-cu12"
 version = "12.1.3.1"
 description = "CUBLAS native runtime libraries"
@@ -2401,20 +2391,6 @@ files = [
     {file = "nvidia_cuda_runtime_cu12-12.1.105-py3-none-manylinux1_x86_64.whl", hash = "sha256:6e258468ddf5796e25f1dc591a31029fa317d97a0a94ed93468fc86301d61e40"},
     {file = "nvidia_cuda_runtime_cu12-12.1.105-py3-none-win_amd64.whl", hash = "sha256:dfb46ef84d73fababab44cf03e3b83f80700d27ca300e537f85f636fac474344"},
 ]
-
-[[package]]
-name = "nvidia-cudnn-cu11"
-version = "9.5.0.50"
-description = "cuDNN runtime libraries"
-optional = false
-python-versions = ">=3"
-files = [
-    {file = "nvidia_cudnn_cu11-9.5.0.50-py3-none-manylinux2014_x86_64.whl", hash = "sha256:15ddd1c8e2904f35debb4a0452f4df57eeb9d363e760de5a5c2ca0daba8e545a"},
-    {file = "nvidia_cudnn_cu11-9.5.0.50-py3-none-win_amd64.whl", hash = "sha256:ecf46a9ca869c1628f0ce91c160d53cbd28f0805dca856f85f3e65b4ef3496b1"},
-]
-
-[package.dependencies]
-nvidia-cublas-cu11 = "*"
 
 [[package]]
 name = "nvidia-cudnn-cu12"
@@ -4493,12 +4469,12 @@ dev = ["hypothesis (>=6.70.0)", "pytest (>=7.1.0)"]
 
 [[package]]
 name = "tensorboard"
-version = "2.18.0"
+version = "2.17.1"
 description = "TensorBoard lets you watch Tensors Flow"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "tensorboard-2.18.0-py3-none-any.whl", hash = "sha256:107ca4821745f73e2aefa02c50ff70a9b694f39f790b11e6f682f7d326745eab"},
+    {file = "tensorboard-2.17.1-py3-none-any.whl", hash = "sha256:253701a224000eeca01eee6f7e978aea7b408f60b91eb0babdb04e78947b773e"},
 ]
 
 [package.dependencies]
@@ -4527,27 +4503,27 @@ files = [
 
 [[package]]
 name = "tensorflow"
-version = "2.18.0"
+version = "2.17.1"
 description = "TensorFlow is an open source machine learning framework for everyone."
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "tensorflow-2.18.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:8da90a9388a1f6dd00d626590d2b5810faffbb3e7367f9783d80efff882340ee"},
-    {file = "tensorflow-2.18.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:589342fb9bdcab2e9af0f946da4ca97757677e297d934fcdc087e87db99d6353"},
-    {file = "tensorflow-2.18.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1eb77fae50d699442726d1b23c7512c97cd688cc7d857b028683d4535bbf3709"},
-    {file = "tensorflow-2.18.0-cp310-cp310-win_amd64.whl", hash = "sha256:46f5a8b4e6273f488dc069fc3ac2211b23acd3d0437d919349c787fa341baa8a"},
-    {file = "tensorflow-2.18.0-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:453cb60638a02fd26316fb36c8cbcf1569d33671f17c658ca0cf2b4626f851e7"},
-    {file = "tensorflow-2.18.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:85f1e7369af6d329b117b52e86093cd1e0458dd5404bf5b665853f873dd00b48"},
-    {file = "tensorflow-2.18.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:70b8dd70fa3600bfce66ab529eebb804e1f9d7c863d2f71bc8fe9fc7a1ec3976"},
-    {file = "tensorflow-2.18.0-cp311-cp311-win_amd64.whl", hash = "sha256:6e8b0f499ef0b7652480a58e358a73844932047f21c42c56f7f3bdcaf0803edc"},
-    {file = "tensorflow-2.18.0-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:ec4133a215c59314e929e7cbe914579d3afbc7874d9fa924873ee633fe4f71d0"},
-    {file = "tensorflow-2.18.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4822904b3559d8a9c25f0fe5fef191cfc1352ceca42ca64f2a7bc7ae0ff4a1f5"},
-    {file = "tensorflow-2.18.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bfdd65ea7e064064283dd78d529dd621257ee617218f63681935fd15817c6286"},
-    {file = "tensorflow-2.18.0-cp312-cp312-win_amd64.whl", hash = "sha256:a701c2d3dca5f2efcab315b2c217f140ebd3da80410744e87d77016b3aaf53cb"},
-    {file = "tensorflow-2.18.0-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:336cace378c129c20fee6292f6a541165073d153a9a4c9cf4f14478a81895776"},
-    {file = "tensorflow-2.18.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:bcfd32134de8f95515b2d0ced89cdae15484b787d3a21893e9291def06c10c4e"},
-    {file = "tensorflow-2.18.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ada1f7290c75b34748ee7378c1b77927e4044c94b8dc72dc75e7667c4fdaeb94"},
-    {file = "tensorflow-2.18.0-cp39-cp39-win_amd64.whl", hash = "sha256:f8c946df1cb384504578fac1c199a95322373b8e04abd88aa8ae01301df469ea"},
+    {file = "tensorflow-2.17.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:61f45ca991cf3dddf0b1069674c455fdbf38edf749dab962bb4bb8a3f99fb25f"},
+    {file = "tensorflow-2.17.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8aa202e17894dcb0582283e5a5c703391d793ccce11c5c02b1fe8f839ae09f3c"},
+    {file = "tensorflow-2.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d618cc21b0adf695fc8b4323f56ccd17c1408379422e1a177481d4fd8523fa8e"},
+    {file = "tensorflow-2.17.1-cp310-cp310-win_amd64.whl", hash = "sha256:4c23498b370c9d6b2521722b6acc89fab61e6a593e886df16bed3075584bf1c7"},
+    {file = "tensorflow-2.17.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:595c220b0febe2295a150e0d870c742a75c56b145a63ed878f78d64aa43c6ca6"},
+    {file = "tensorflow-2.17.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:bc41bc3e31d205dcf6e4b8afc0514de05445303d93fade03549085ef8c45a2b2"},
+    {file = "tensorflow-2.17.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:68841e17e573301d8ba9192f929b8096b0b341567cb81414096305c723de68d0"},
+    {file = "tensorflow-2.17.1-cp311-cp311-win_amd64.whl", hash = "sha256:a6bd9474f1e0dedb7deb331c8e93cf2d5997da8781a1949f75c4a7cf8923d2e3"},
+    {file = "tensorflow-2.17.1-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:d43698039fd057ee6d7c3f908c4e9a6e310be6e77adda419bae3fee5ca7192fe"},
+    {file = "tensorflow-2.17.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:695741b80ea9b2603a8d3f423051476c02a9cf48f4721d18c4dafbe0a8a5ca91"},
+    {file = "tensorflow-2.17.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0c3452ab09940cbc3be896641b256855ba92154b79a90c864c5b2be79db78a64"},
+    {file = "tensorflow-2.17.1-cp312-cp312-win_amd64.whl", hash = "sha256:faf032fae35de0071f20850abd23d78e0e3ae116ce7fbfb9d034da2acc900543"},
+    {file = "tensorflow-2.17.1-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:eacaa75fe3a9b912180a98a61dcc8f0fc23cddfbdbccfc43a654932506d6a3f8"},
+    {file = "tensorflow-2.17.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:65a8cb84496da6abe08a579ef5cc8452c88affdb98a7e14ae84a0dd303798804"},
+    {file = "tensorflow-2.17.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:92c4bbd80013d3ce2f2908923907317286d80be15f8687eb02a54b0af4ff4351"},
+    {file = "tensorflow-2.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:67df8c8f2920cfc6d6585a23650e170abcc487f7cdeed13c1550df65d3265966"},
 ]
 
 [package.dependencies]
@@ -4557,25 +4533,25 @@ flatbuffers = ">=24.3.25"
 gast = ">=0.2.1,<0.5.0 || >0.5.0,<0.5.1 || >0.5.1,<0.5.2 || >0.5.2"
 google-pasta = ">=0.1.1"
 grpcio = ">=1.24.3,<2.0"
-h5py = ">=3.11.0"
-keras = ">=3.5.0"
+h5py = ">=3.10.0"
+keras = ">=3.2.0"
 libclang = ">=13.0.0"
-ml-dtypes = ">=0.4.0,<0.5.0"
-numpy = ">=1.26.0,<2.1.0"
+ml-dtypes = ">=0.3.1,<0.5.0"
+numpy = {version = ">=1.23.5,<2.0.0", markers = "python_version <= \"3.11\""}
 opt-einsum = ">=2.3.2"
 packaging = "*"
-protobuf = ">=3.20.3,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<6.0.0dev"
+protobuf = ">=3.20.3,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<5.0.0dev"
 requests = ">=2.21.0,<3"
 setuptools = "*"
 six = ">=1.12.0"
-tensorboard = ">=2.18,<2.19"
+tensorboard = ">=2.17,<2.18"
 tensorflow-io-gcs-filesystem = {version = ">=0.23.1", markers = "python_version < \"3.12\""}
 termcolor = ">=1.1.0"
 typing-extensions = ">=3.6.6"
 wrapt = ">=1.11.0"
 
 [package.extras]
-and-cuda = ["nvidia-cublas-cu12 (==12.5.3.2)", "nvidia-cuda-cupti-cu12 (==12.5.82)", "nvidia-cuda-nvcc-cu12 (==12.5.82)", "nvidia-cuda-nvrtc-cu12 (==12.5.82)", "nvidia-cuda-runtime-cu12 (==12.5.82)", "nvidia-cudnn-cu12 (==9.3.0.75)", "nvidia-cufft-cu12 (==11.2.3.61)", "nvidia-curand-cu12 (==10.3.6.82)", "nvidia-cusolver-cu12 (==11.6.3.83)", "nvidia-cusparse-cu12 (==12.5.1.3)", "nvidia-nccl-cu12 (==2.21.5)", "nvidia-nvjitlink-cu12 (==12.5.82)"]
+and-cuda = ["nvidia-cublas-cu12 (==12.3.4.1)", "nvidia-cuda-cupti-cu12 (==12.3.101)", "nvidia-cuda-nvcc-cu12 (==12.3.107)", "nvidia-cuda-nvrtc-cu12 (==12.3.107)", "nvidia-cuda-runtime-cu12 (==12.3.101)", "nvidia-cudnn-cu12 (==8.9.7.29)", "nvidia-cufft-cu12 (==11.0.12.1)", "nvidia-curand-cu12 (==10.3.4.107)", "nvidia-cusolver-cu12 (==11.5.4.101)", "nvidia-cusparse-cu12 (==12.2.0.103)", "nvidia-nccl-cu12 (==2.19.3)", "nvidia-nvjitlink-cu12 (==12.3.101)"]
 
 [[package]]
 name = "tensorflow-io-gcs-filesystem"
@@ -4657,17 +4633,17 @@ files = [
 
 [[package]]
 name = "tf-keras"
-version = "2.18.0"
+version = "2.17.0"
 description = "Deep learning for humans."
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "tf_keras-2.18.0-py3-none-any.whl", hash = "sha256:c431d04027eef790fcd3261cf7fdf93eb74f3cb32e05078b57b7f5a54bd53262"},
-    {file = "tf_keras-2.18.0.tar.gz", hash = "sha256:ebf744519b322afead33086a2aba872245473294affd40973694f3eb7c7ad77d"},
+    {file = "tf_keras-2.17.0-py3-none-any.whl", hash = "sha256:cc97717e4dc08487f327b0740a984043a9e0123c7a4e21206711669d3ec41c88"},
+    {file = "tf_keras-2.17.0.tar.gz", hash = "sha256:fda97c18da30da0f72a5a7e80f3eee343b09f4c206dad6c57c944fb2cd18560e"},
 ]
 
 [package.dependencies]
-tensorflow = ">=2.18,<2.19"
+tensorflow = ">=2.17,<2.18"
 
 [[package]]
 name = "thop"
@@ -5772,4 +5748,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <3.12"
-content-hash = "9c7a1a2b551e07fff1faef8e880dfa673d14f7f0e0804ef45df9a280b260b6a6"
+content-hash = "eeab765e6226b683f2dd59867cdf572b1542755f61b8e84af30579d8425179c2"

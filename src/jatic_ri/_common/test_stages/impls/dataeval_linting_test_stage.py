@@ -9,8 +9,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from dataeval._internal.interop import as_numpy
 from dataeval.detectors.linters import Duplicates, Outliers
+from dataeval.interop import as_numpy
 from dataeval.metrics.stats import (
     DatasetStatsOutput,
     DimensionStatsOutput,

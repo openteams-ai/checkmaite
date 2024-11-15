@@ -8,11 +8,11 @@ dependencies:
 # Required deps
 - python>=3.9, <3.12
 # JATIC tools
-- dataeval==0.72.0
+- dataeval>=0.73.0
 - heart-library>=0.4.3
 - maite>=0.6.0                          # required by SDP
 - nrtk>=0.15.1
-- pybsm >=0.8.0                         # optional dep for nrtk, required here
+- pybsm>=0.8.0                          # optional dep for nrtk, required here
 - xaitk-jatic>=0.2.0
 
 # External tools

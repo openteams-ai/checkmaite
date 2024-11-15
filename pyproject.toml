@@ -28,7 +28,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9, <3.12"                           # required by SDP
 # jatic tools
-dataeval = {version = ">=0.72.0", extras = ["all"]}
+dataeval = {version = ">=0.73.0", extras = ["all"]}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
 heart-library = ">=0.4.3"
 maite = {version = ">=0.6.0"}                     # required by SDP

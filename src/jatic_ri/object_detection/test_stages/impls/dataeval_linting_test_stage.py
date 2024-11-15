@@ -6,7 +6,7 @@ from typing import Any
 
 import maite.protocols.object_detection as od
 import numpy as np
-from dataeval._internal.interop import as_numpy
+from dataeval.interop import as_numpy
 from dataeval.metrics.stats import DatasetStatsOutput, HashStatsOutput, datasetstats, hashstats
 from numpy.typing import NDArray
 

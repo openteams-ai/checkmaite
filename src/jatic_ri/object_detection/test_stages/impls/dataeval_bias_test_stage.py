@@ -123,7 +123,7 @@ class DatasetBiasTestStage(TestStage[dict[str, Any]], SingleDatasetPlugin[od.Dat
         result_dict = {
             self.BALANCE_KEY: balance(labels, metadata_arrs).dict(),
             self.DIVERSITY_KEY: diversity(labels, metadata_arrs).dict(),
-            self.PARITY_KEY: parity(labels, data_factors=metadata_arrs).dict(),
+            self.PARITY_KEY: parity(labels, metadata_arrs).dict(),
         }
         try:  # In the case where images are non-homogenous, skip running coverage
             images = np.array(images)
