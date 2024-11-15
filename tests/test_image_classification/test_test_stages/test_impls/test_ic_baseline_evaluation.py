@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import maite.protocols.image_classification as ic
+from unittest.mock import MagicMock
 
 from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import (
     BaselineEvaluation,
@@ -20,3 +21,29 @@ def test_baseline_evaluation_dummy_ic(dummy_model_ic, dummy_dataset_ic, dummy_me
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
     test.run()
     test.collect_report_consumables()
+
+def test_baseline_evaluation_dummy_ic_with_cache(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, tmp_path) -> None:
+    """Test BaselineEvaluation implementation using cache"""
+    test1 = BaselineEvaluation()
+    test1.load_model(model=dummy_model_ic, model_id="model_1")
+    test1.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
+    test1.load_threshold(threshold=0.5)
+    test1.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
+    test1.cache_base_path = tmp_path
+    test1.run(use_cache=True)
+    output1 =test1.collect_report_consumables()
+
+    test2 = BaselineEvaluation()
+    test2.load_model(model=dummy_model_ic, model_id="model_1")
+    test2.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
+    test2.load_threshold(threshold=0.5)
+    test2.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
+    test2.cache_base_path = tmp_path
+    test2._run = MagicMock()  # mock out _run to ensure cache hit
+    test2.run(use_cache=True)
+    output2 = test2.collect_report_consumables()
+
+    assert test2._run.call_count == 0
+    assert len(output1) == len(output2)
+    assert all(len(output1[i]) == len(output2[i]) for i in range(len(output1)))
+    assert all(output1[i].keys() == output2[i].keys() for i in range(len(output1)))

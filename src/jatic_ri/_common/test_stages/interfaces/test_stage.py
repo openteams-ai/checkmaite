@@ -82,7 +82,6 @@ class TestStage(Generic[TData], ABC):
 
     def run(self, use_cache: bool = True) -> None:
         """Run the test stage leveraging cache if available and store any outputs of the evaluation in test stage"""
-
         if use_cache and self.cache and self.cache_path:
             cached_outputs = self.cache.read_cache(self.cache_path)
             if cached_outputs:

@@ -1,6 +1,8 @@
 """Baseline Evaluation base class"""
 
-from typing import Any, Union
+from __future__ import annotations
+
+from typing import Any
 
 from maite.workflows import evaluate
 
@@ -13,11 +15,12 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TMetric,
     TModel,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+from jatic_ri.util.cache import JSONCache, NumpyEncoder
 from jatic_ri.util.utils import create_metrics_bar_plot, save_figure_to_tempfile
 
 
-def as_float(value: Union[float, str]) -> float:
+def as_float(value: float | str) -> float:
     """Ensure value is a float"""
     if not isinstance(value, float):
         value = float(value)
@@ -50,7 +53,7 @@ class BaselineEvaluationBase(
         threshold: float
     """
 
-    metric_key: str
+    cache: Cache[dict[str, Any]] | None = JSONCache(encoder=NumpyEncoder, compress=True)
 
     def __init__(self) -> None:
         super().__init__()
@@ -67,6 +70,13 @@ class BaselineEvaluationBase(
             raise Exception("self.dataset is None")
 
     @property
+    def _metric_key(self) -> str:
+        if self.model is None:
+            raise Exception("self.model is None")
+        # Get the human readable _return_key from a wrapped Metric if available, otherwise fallback to the metric_id
+        return getattr(self.metric, "_return_key", self.metric_id)
+
+    @property
     def cache_id(self) -> str:
         """Cache file for Baseline Evaluation Test Stage"""
         return f"baseline-{self._task}-{self.model_id}-{self.dataset_id}.json"
@@ -74,9 +84,6 @@ class BaselineEvaluationBase(
     def _run(self) -> dict[str, float]:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
         self._validate()
-
-        # Get the human readable _return_key from a wrapped Metric if available, otherwise fallback to the metric_id
-        self.metric_key = getattr(self.metric, "_return_key", self.metric_id)
 
         result, _, _ = evaluate(
             model=self.model,
@@ -106,19 +113,20 @@ class BaselineEvaluationBase(
         https://gitlab.jatic.net/jatic/morse/jatic-increment-5-gradient-demo-repo/-/tree/main/src/jatic_increment_5_gradient_demo_repo/cards?ref_type=heads
         - "layout_arguments": (dict) arguments pertaining to the specific layout
         """
+        metric_key = self._metric_key
 
         if self.outputs is None:
             raise Exception("No clean result computed or loaded before call to `collect_report_consumables`")
 
         # create bar plot of metric results
-        fig = create_metrics_bar_plot(self.outputs, metric_key=self.metric_key, threshold=self.threshold)
+        fig = create_metrics_bar_plot(self.outputs, metric_key=metric_key, threshold=self.threshold)
         # save to tempfile
         image_path = save_figure_to_tempfile(fig)
 
         text = ""
         text += f"**Model**: {self.model_id} \n\n"
         text += f"**Dataset**: {self.dataset_id} \n\n"
-        text += f"**{self.metric_key}**: {self.outputs[self.metric_key]}"
+        text += f"**{metric_key}**: {self.outputs[metric_key]}"
 
         return [
             {
