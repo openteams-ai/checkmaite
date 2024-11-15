@@ -11,7 +11,7 @@ import torch
 # _run imports
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_AE, OOD_VAEGMM
-from dataeval.utils.tensorflow.models import AE, VAEGMM, create_model
+from dataeval.utils.tensorflow import create_model
 from dataeval.utils.torch import read_dataset
 
 # report_consumable imports
@@ -105,8 +105,8 @@ class DatasetShiftTestStage(TestStage[dict[str, Any]], TwoDatasetPlugin[od.Datas
         }
 
         detectors = {
-            "OOD_AE": OOD_AE(create_model(AE, input_shape)),
-            "OOD_VAEGMM": OOD_VAEGMM(create_model(VAEGMM, input_shape)),
+            "OOD_AE": OOD_AE(create_model("AE", input_shape)),
+            "OOD_VAEGMM": OOD_VAEGMM(create_model("VAEGMM", input_shape)),
         }
 
         for detector in detectors.values():

@@ -6,7 +6,7 @@ from typing import Any
 
 import maite.protocols.image_classification as od
 import numpy as np
-from dataeval._internal.interop import as_numpy
+from dataeval.interop import as_numpy
 from dataeval.metrics.stats import DatasetStatsOutput, HashStatsOutput, datasetstats, hashstats
 from numpy.typing import NDArray
 
