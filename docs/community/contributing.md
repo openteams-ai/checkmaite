@@ -26,7 +26,7 @@ instructions are based on conda) on your machine and build the
 environment by running:
 
 ```bash
-conda env create -f environemnt.yml -n jatic_env
+conda env create -f environment.yml -n jatic_env
 ```
 
 Then activate the environment

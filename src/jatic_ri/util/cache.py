@@ -2,7 +2,7 @@
 
 import json
 from os import makedirs, path
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 TData = TypeVar("TData", dict, list)
 
 
-class JSONCache(Generic[TData], Cache[TData]):
+class JSONCache(Cache[TData]):
     """Basic JSON file based caching plugin"""
 
     def __init__(self, encoder: type = json.JSONEncoder, compress: bool = False) -> None:
