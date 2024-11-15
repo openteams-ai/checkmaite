@@ -15,7 +15,7 @@ import yolov5
 from maite.protocols import object_detection as od
 from maite.protocols.object_detection import TargetBatchType as OD_TargetBatchType
 from PIL import Image
-from torchmetrics.detection import MeanAveragePrecision
+from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from torchvision.transforms.v2 import Resize
 
 to_1280x1280 = Resize((1280, 1280))
@@ -448,68 +448,10 @@ class FMOWDetectionDataset:
         return img_np, target, metadata
 
 
-class WrappedODMetric:
-    """Wraps an object detection metric."""
-
-    def __init__(
-        self,
-        od_metric: Callable[
-            [list[dict[str, torch.Tensor]], list[dict[str, torch.Tensor]]],
-            dict[str, Any],
-        ],
-        return_key: str,  # single key to return from Torchmetric's return dict
-    ):
-        self._od_metric = od_metric
-        # For why this copy is needed, see the comment in update()
-        self._od_metric_by_datum = copy.deepcopy(od_metric)
-        self._return_key = return_key
-
-    # create utility function to convert ObjectDetectionTarget_impl type to what
-    # the type expected by torchmetrics IntersectionOverUnion metric
-    @staticmethod
-    def to_tensor_dict(tgt: od.ObjectDetectionTarget) -> dict[str, torch.Tensor]:
-        """
-        Convert an ObjectDetectionTarget_impl into a dictionary expected internally by
-        raw `update` method of raw torchmetrics method
-        """
-        return {
-            "boxes": torch.as_tensor(tgt.boxes),
-            "scores": torch.as_tensor(tgt.scores),
-            "labels": torch.as_tensor(tgt.labels),
-        }
-
-    def update(
-        self,
-        preds: OD_TargetBatchType,
-        targets: OD_TargetBatchType,
-    ) -> None:
-        # convert to natively-typed from of preds/targets
-        preds_tm = [self.to_tensor_dict(pred) for pred in preds]
-        targets_tm = [self.to_tensor_dict(tgt) for tgt in targets]
-        self._od_metric.update(preds_tm, targets_tm)
-
-    def compute(self) -> dict[str, Any]:
-        all_results = self._od_metric.compute()
-        assert self._return_key in all_results, f"key '{self._return_key}' not in Torchmetrics results"
-        return {self._return_key: all_results[self._return_key]}
-
-    def reset(self) -> None:
-        self._od_metric.reset()
-
-
 def create_maite_wrapped_metric(name: Literal["mAP_50"]) -> od.Metric:
     if name == "mAP_50":
-        tm_metric = MeanAveragePrecision(
-            box_format="xyxy",
-            iou_type="bbox",
-            iou_thresholds=[0.5],
-            rec_thresholds=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            max_detection_thresholds=[1, 10, 100],
-            class_metrics=False,
-            extended_summary=False,
-            average="macro",
-        )
-        return WrappedODMetric(tm_metric, return_key="map_50")
+        map50_torch_metric = map50_torch_metric_factory()
+        return map50_torch_metric
     raise Exception(f"Unsupported object detection metric: {name}")
 
 

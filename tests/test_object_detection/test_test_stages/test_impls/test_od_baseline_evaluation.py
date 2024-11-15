@@ -53,7 +53,7 @@ def test_baseline_evaluation_od_real(model_od_yolov5, dataset_od_fwow, metric_od
 
     test = BaselineEvaluation()
     test.load_model(model=model_od_yolov5, model_id="model_1")
-    test.load_metric(metric=metric_od_map, metric_id="metric_1")
+    test.load_metric(metric=metric_od_map, metric_id="map_50")
     test.load_threshold(threshold=10)
     test.load_dataset(dataset=dataset_od_fwow, dataset_id="dataset_1")
     test.run(use_cache=False)
