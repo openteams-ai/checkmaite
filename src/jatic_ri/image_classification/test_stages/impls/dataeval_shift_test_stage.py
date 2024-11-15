@@ -1,12 +1,12 @@
-"""Dataset Shift Object Detection Test Stage Implementation"""
+"""Dataset Shift Image Classification Test Stage Implementation"""
 
-import maite.protocols.object_detection as od
+import maite.protocols.image_classification as ic
 
 from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import DatasetShiftTestStageBase
 
 
-class DatasetShiftTestStage(DatasetShiftTestStageBase[od.Dataset]):
-    """Detects dataset shift between two datasets using various methods
+class DatasetShiftTestStage(DatasetShiftTestStageBase[ic.Dataset]):
+    """Detects dataset shift between two image classification datasets using various methods
 
     Performs three drift detection and two out of distribution tests
     against dataset 2 using dataset 1 as the reference
@@ -21,9 +21,9 @@ class DatasetShiftTestStage(DatasetShiftTestStageBase[od.Dataset]):
         Cache object that can load in pre-run results into self.outputs
     device : Literal["cpu"], default "cpu"
         The device to run preprocessing models on
-    deck_name : Literal["object_detection_dataset_evaluation"]
+    deck_name : Literal["image_classification_dataset_evaluation"]
         Title slide of the gradient PowerPoint
     """
 
-    _deck: str = "object_detection_dataset_evaluation"
-    _task: str = "od"
+    _deck: str = "image_classification_dataset_evaluation"
+    _task: str = "ic"
