@@ -160,6 +160,9 @@ cython_debug/
 # Pycharm
 .idea/
 
+# VSCode
+.vscode/
+
 # macos files
 .DS_Store
 

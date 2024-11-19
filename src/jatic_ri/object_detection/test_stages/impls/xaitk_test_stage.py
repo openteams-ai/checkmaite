@@ -57,14 +57,16 @@ class XAITKTestStage(
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
         self.config = args
-        self.stage_name = args["name"]
+        self.stage_name = self.config["name"]
         self.sal_generator = from_config_dict(
-            args["GenerateObjectDetectorBlackboxSaliency"],
+            self.config["saliency_generator"],
             GenerateObjectDetectorBlackboxSaliency.get_impls(),
         )
-        self.id2label = args["id2label"]
+        # id2label mapping should be used from model protocol
+        # metadata after relevant updates to protocols are added
+        self.id2label = self.config["id2label"]
         self.sal_generator_hash = sha256(
-            json.dumps(args["GenerateObjectDetectorBlackboxSaliency"]).encode("utf-8"),
+            json.dumps(self.config["saliency_generator"]).encode("utf-8"),
         ).hexdigest()
 
     @property
@@ -77,6 +79,8 @@ class XAITKTestStage(
         generation in test stage"""
 
         outputs = []
+        # id2label mapping should be used from model protocol
+        # metadata after relevant updates to protocols are added
         img_sal_maps, _ = sal_on_dets(
             dataset=self.dataset,
             sal_generator=self.sal_generator,
