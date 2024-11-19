@@ -9,7 +9,7 @@ from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import (
 ARGS = {
     "name": "XAITKTestStage Example",
     "id2label": {0: "dummy_0", 1: "dummy_1", 2: "dummy_2", 3: "dummy_3", 4: "dummy_4"},
-    "GenerateObjectDetectorBlackboxSaliency": {
+    "saliency_generator": {
         "type": "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.DRISEStack",
         "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.DRISEStack": {
             "n": 10,
