@@ -1,4 +1,4 @@
-"""Test Object Detection Survivor test stage."""
+"""Test image classification survivor test stage."""
 import contextlib
 import json
 import os
@@ -8,16 +8,16 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from maite.protocols import object_detection as od
+from maite.protocols import image_classification as ic
 from pyspark.sql import functions as sf
 from survivor.config import ScoreConversionType
 from matplotlib.testing.compare import compare_images
 from gradient import Text
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import (
+from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import (
     SurvivorConfig,
-    SurvivorTestStage,
+    SurvivorTestStage
 )
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
     SurvivorCache,
@@ -26,20 +26,16 @@ from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
 
 from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
 from tests.testing_utilities.example_maite_objects import (  # noqa: E501
-    create_maite_wrapped_metric,
-    FMOWDetectionDataset,
     USA_SUMMER_DATA_IMAGERY_DIR,
-    USA_SUMMER_DATA_METADATA_FILE_PATH,
-    Yolov5sModel,
-    YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
-    YOLOV5S_USA_RUS_ALL_SEASONS_V1_MODEL_PATH,
+    USA_SUMMER_DATA_METADATA_FILE_PATH, ImageClassificationModel, FMOWClassificationDataset,
+    create_maite_wrapped_ic_metric, DEV_RESNEXT_MODEL_PATH,
 )
 
 # This file is the expected output of Survivor if using all the information found in the survivor_test_stage_args
 # fixture, and if any of the data, model, metric, or SurvivorConfig information used by that fixture changes,
 # then this file will need to be updated
 EXPECTED_SURVIVOR_IMAGE = Path(
-    os.path.abspath(__file__)).parent / "reallabel_survivor_shared_data" / "expected_survivor_output.png"
+    os.path.abspath(__file__)).parent / "test_data" / "expected_survivor_result_visualization.png"
 
 CACHE_DIR = Path(os.path.abspath(__file__)).parent / ".tscache"
 _DICT_CONFIG = "dict_config"
@@ -49,28 +45,22 @@ _SURVIVOR_CONFIG = "config"
 @pytest.fixture(scope="session")
 def survivor_test_stage_args() -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
-    yolov5s_all_v1_dev_model: od.Model = Yolov5sModel(
-        model_path=str(YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH),
-        transforms=None,
-        device="cpu",
-    )
-    yolov5s_all_v2_dev_model: od.Model = Yolov5sModel(
-        model_path=str(YOLOV5S_USA_RUS_ALL_SEASONS_V1_MODEL_PATH),
-        transforms=None,
+    resnext_model: ic.Model = ImageClassificationModel(
+        model_name="resnext",
+        model_path=str(DEV_RESNEXT_MODEL_PATH),
         device="cpu",
     )
     model_dict = {
-        "yolov5s_all_v1_dev_model": yolov5s_all_v1_dev_model,
-        "yolov5s_all_v2_dev_model": yolov5s_all_v2_dev_model,
+        "resnext": resnext_model,
     }
-    detection_dataset: od.Dataset = FMOWDetectionDataset(
+    detection_dataset: ic.Dataset = FMOWClassificationDataset(
         USA_SUMMER_DATA_IMAGERY_DIR, USA_SUMMER_DATA_METADATA_FILE_PATH,
     )
-    map_metric: od.Metric = create_maite_wrapped_metric("mAP_50")
+    map_metric: ic.Metric = create_maite_wrapped_ic_metric("accuracy")
 
     config = SurvivorConfig(
         unique_identifier_columns=["image_id"],
-        metric_column="map_50",
+        metric_column="accuracy",
         otb_threshold=0.9,
         difficulty_threshold=0.5,
         conversion_type=ScoreConversionType.ROUNDED,
@@ -79,7 +69,7 @@ def survivor_test_stage_args() -> dict[str, Any]:
 
     dict_config = {
         "unique_identifier_columns": ["image_id"],
-        "metric_column": "map_50",
+        "metric_column": "accuracy",
         "otb_threshold": 0.9,
         "difficulty_threshold": 0.5,
         "conversion_type": ScoreConversionType.ROUNDED,
@@ -100,14 +90,15 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
     """Create a SurvivorTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
-    string input to `request.param` (set through indirect parametrization of `test_stage`).
+    string input to `request.param` (set through indirect parametrization of `test_stage`, defaults to `config`).
     """
     # Ensure cache doesn't exist
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree(CACHE_DIR)
 
     # Create and configure SurvivorTestStage
-    test_stage = SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
+    test_stage = SurvivorTestStage(
+        config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
     test_stage.load_models(models=survivor_test_stage_args["models"])
     test_stage.load_dataset(dataset=survivor_test_stage_args["dataset"], dataset_id="test-dataset")
     test_stage.load_metric(
@@ -134,8 +125,8 @@ def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
     """Test RealLabelTestStage generates a cache object that can be read correctly."""
     # Arrange
     expected_cache_location = Path(test_stage.cache_base_path) / test_stage.cache_id
-    expected_results_df_path = expected_cache_location / Path("survivor_standard_results.csv")
-    expected_results_png_path = expected_cache_location / Path("survivor_result_visualization.png")
+    expected_results_df_path = expected_cache_location / "survivor_standard_results.csv"
+    expected_results_png_path = expected_cache_location / "survivor_result_visualization.png"
     expected_results_config_path = expected_cache_location / _SURVIVOR_CACHE_CONFIGURATION_PATH
 
     survivor_cache = SurvivorCache()
@@ -180,7 +171,7 @@ def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
     survivor_test_stage_args fixture changes, then the hash in the expected_cache_id variable will need to be updated.
     """
     # Arrange
-    expected_cache_id = "survivor_od_cache_4cf267d67853e467cc87e816cccc1acb5e02ddfef62eef7e6ae9c0e145181b81"
+    expected_cache_id = "survivor_ic_cache_70c161afc2c54c87d6a51419a3ad1770c448b2c95eed89d97f98387b1e42038d"
 
     # Act
     actual_cache_id = test_stage.cache_id
@@ -189,12 +180,10 @@ def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
     assert actual_cache_id == expected_cache_id
 
 
-def test_survivor_collect_report_consumables(
-        test_stage: SurvivorTestStage,
-) -> None:
+def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage) -> None:
     """Test collect_report_consumables."""
     # Arrange
-    expected_deck = "object_detection_survivor"
+    expected_deck = "image_classification_survivor"
     expected_layout_name = "TwoImageTextNoHeader"
     expected_content_left = Text(
         content=
@@ -204,8 +193,8 @@ def test_survivor_collect_report_consumables(
         "• On the Bubble: Models score differently.\n\n"
         "• Ideally, a dataset would be primarily On the Bubble, so all data is helping distinguish between model "
         "performance.\n\n"
-        "• This dataset had 16.7% Easy, 50.0% Hard, and "
-        "33.3% On the Bubble data.",
+        "• This dataset had 66.7% Easy, 33.3% Hard, and "
+        "0.0% On the Bubble data.",
         fontsize=22
     )
     expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/survivor_result_visualization.png"
@@ -244,7 +233,7 @@ def test_survivor_test_stage_collect_metrics(
 ) -> None:
     """Test collect_metrics."""
     # Arrange
-    expected_output = {"Low_Val_Data": 1.0 - (1 / 3)}
+    expected_output = {"Low_Val_Data": 1.0}
 
     test_stage.run()
 
@@ -255,7 +244,9 @@ def test_survivor_test_stage_collect_metrics(
     assert actual_output == expected_output
 
 
-def test_survivor_test_stage_collect_metrics_error(test_stage: SurvivorTestStage) -> None:
+def test_survivor_test_stage_collect_metrics_error(
+        test_stage: SurvivorTestStage,
+) -> None:
     """Test collect_metrics error when run not called."""
     # No Arrange
 
@@ -295,8 +286,7 @@ def test_missing_cache_image_error(tmp_path: Path) -> None:
     cache = SurvivorCache()
 
     # Act and Assert
-    with pytest.warns(UserWarning,
-                      match=f"Survivor cache path {tmp_path} doesn't contain a cached result visualization!"):
+    with pytest.warns(UserWarning, match=f"Survivor cache path {tmp_path} doesn't contain a cached result visualization!"):
         cache.read_cache(str(tmp_path))
 
 

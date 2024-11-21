@@ -27,7 +27,7 @@ dependencies:
   # Required pip deps
   - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
   - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
-  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.0
+  - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.1
   # Optional pip deps
   - yolov5>=7.0.0                       # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
   - urllib3<2.1                         # necessary pin, pkg needed for parity with pyproject.toml's yolov5 / botocore issues.

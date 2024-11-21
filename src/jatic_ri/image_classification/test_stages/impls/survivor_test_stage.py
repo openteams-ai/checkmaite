@@ -1,4 +1,4 @@
-"""File for Object Detection Survivor test stage."""
+"""File for Image Classification Survivor test stage."""
 
 import copy
 import json
@@ -7,7 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Optional, Union
 
-import maite.protocols.object_detection as od
+import maite.protocols.image_classification as ic
 import numpy as np
 import pyspark.sql.functions as sf
 from gradient import Text
@@ -37,9 +37,9 @@ PER_DATUM_METRIC_KEY = "per_datum"
 
 class SurvivorTestStage(
     TestStage[tuple[DataFrame, Path]],
-    MultiModelPlugin[od.Model],
-    SingleDatasetPlugin[od.Dataset],
-    MetricPlugin[od.Metric],
+    MultiModelPlugin[ic.Model],
+    SingleDatasetPlugin[ic.Dataset],
+    MetricPlugin[ic.Metric],
 ):
     """Survivor Test Stage Object.
 
@@ -60,16 +60,16 @@ class SurvivorTestStage(
             [0]: The SurvivorResults.raw_output_df dataframe.
             [1]: A Path to a PNG with a histogram of the number of images per Survivor category: Easy, Hard, and
                 On the Bubble.
-        metric (od.Metric): The MAITE-wrapped metric object that should be fed the model inference results
+        metric (ic.Metric): The MAITE-wrapped metric object that should be fed the model inference results
             for metric calculation.
-        dataset (od.Dataset): The MAITE-wrapped dataset object on which the models should run inference and
+        dataset (ic.Dataset): The MAITE-wrapped dataset object on which the models should run inference and
             produce results.
-        models (dict[str, od.Model]): The dictionary of model names to their MAITE-wrapped model objects
+        models (dict[str, ic.Model]): The dictionary of model names to their MAITE-wrapped model objects
             whose inference should be used when running Survivor.
     """
 
-    _deck: str = "object_detection_survivor"
-    _task: str = "od"
+    _deck: str = "image_classification_survivor"
+    _task: str = "ic"
 
     def __init__(
         self,
@@ -132,7 +132,6 @@ class SurvivorTestStage(
                     metric=self.metric,
                     return_preds=True,
                 )
-
                 model_metrics_per_datum.append(results[self.metric_id].numpy())
 
                 # Reset the metric for the next evaluate() call so results don't bleed together.

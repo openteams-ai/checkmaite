@@ -1,4 +1,4 @@
-"""Module for Survivor panel app."""
+"""Module for Object Detection Survivor panel app."""
 
 import re
 from typing import Any, Union

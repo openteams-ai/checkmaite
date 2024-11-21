@@ -1,14 +1,4 @@
-# COPYRIGHTS AND PERMISSIONS:
-# Copyright 2024 MORSECORP, Inc. All rights reserved.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-"""RealLabel test stage."""
+"""Object Detection RealLabel test stage."""
 
 import copy
 import json
@@ -22,6 +12,7 @@ from typing import Any, Optional, Union
 import maite.protocols.object_detection as od
 import pyspark.sql.functions as sf
 import pyspark.sql.types as st
+from gradient import Text
 from maite.workflows import evaluate
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
@@ -168,6 +159,9 @@ class RealLabelTestStage(
             and produce results.
     """
 
+    _deck: str = "object_detection_reallabel"
+    _task: str = "od"
+
     def __init__(
         self,
         config: Union[Config, dict[str, Any]],
@@ -193,19 +187,12 @@ class RealLabelTestStage(
 
         super().__init__()
 
-    def validate_input_present(self) -> None:
-        """Validates that the requisite inputs have been provided: models, metric, and dataset."""
-        if not getattr(self, "dataset", None):
-            raise RuntimeError("Dataset not set! Please use `load_dataset()` function to set the dataset.")
-        if not getattr(self, "models", None):
-            raise RuntimeError("Models not set! Please use `load_models()` function to load the models.")
-
     def _generate_cache_config(self) -> None:
         """Examines the RealLabel config, the MAITE-models, and MAITE-dataset to update self._cache_configuration.
 
         Also updates the cache configuration of this instance's RealLabelCache().
         """
-        self.validate_input_present()
+        self.validate_plugins()
 
         sorted_model_ids = list(self.models.keys())
         sorted_model_ids.sort()
@@ -227,7 +214,7 @@ class RealLabelTestStage(
             self._generate_cache_config()
         config_hash_string = sha256(json.dumps(self._cache_configuration).encode("utf-8")).hexdigest()
 
-        return f"reallabel_cache_{config_hash_string}"
+        return f"reallabel_{self._task}_cache_{config_hash_string}"
 
     def __run_metrics(self) -> dict[str, list]:  # pragma: no cover
         """Generate metrics from maite models."""
@@ -263,7 +250,7 @@ class RealLabelTestStage(
 
     def _run(self) -> tuple[DataFrame, Path]:
         """Run RealLabel test stage."""
-        self.validate_input_present()
+        self.validate_plugins()
 
         if not hasattr(self.dataset, "_dataset_path"):
             raise AttributeError(
@@ -335,11 +322,6 @@ class RealLabelTestStage(
 
     def collect_metrics(self) -> dict[str, float]:
         """Collect metrics on total number of Re-labels found."""
-        if self.outputs is None:
-            raise RuntimeError(
-                "Test stage `run()` function must be called before `collect_metrics()`.",
-            )
-
         results_df, _ = self.outputs
         num_false_positives = results_df.where(
             sf.col("reallabel_type") == "Likely Wrong",
@@ -354,11 +336,6 @@ class RealLabelTestStage(
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables."""
-        if self.outputs is None:
-            raise RuntimeError(
-                "Test stage `run()` function must be called before `collect_report_consumables()`.",
-            )
-
         results_df, results_img = self.outputs
 
         # Find RealLabel statistics
@@ -374,19 +351,22 @@ class RealLabelTestStage(
 
         return [
             {
-                "deck": "object_detection_dataset_evaluation",
+                "deck": self._deck,
                 "layout_name": "TwoImageTextNoHeader",
                 "layout_arguments": {
                     "title": "RealLabel Label Breakdown",
-                    "content_left": '{"fontsize": 22}'
-                    f"**Description**\n"
-                    f"* RealLabel aids re-labeling efforts by using model ensembling to determine if a label is a:\n"
-                    f"* True Positive Label: probably correct label.\n"
-                    f"* False Positive Label: potentially incorrect label.\n"
-                    f"* False Negative Label: potentially missing label.\n"
-                    f"* In an example subset of the data, RealLabel has found {num_true_positives} True Positive, "
-                    f"{num_false_positives} False Positive, and {num_false_negatives} False Negative labels.\n"
-                    f"Displayed is an example of a True Positive label.",
+                    "content_left": Text(
+                        content=f"**Description**\n"
+                        f"• RealLabel aids re-labeling efforts by using model ensembling to "
+                        f"determine if a label is a:\n"
+                        f"• True Positive Label: probably correct label.\n"
+                        f"• False Positive Label: potentially incorrect label.\n"
+                        f"• False Negative Label: potentially missing label.\n"
+                        f"• In an example subset of the data, RealLabel has found {num_true_positives} True Positive, "
+                        f"{num_false_positives} False Positive, and {num_false_negatives} False Negative labels.\n"
+                        f"Displayed is an example of a True Positive label.",
+                        fontsize=22,
+                    ),
                     "content_right": results_img,
                 },
             },

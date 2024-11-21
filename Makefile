@@ -23,6 +23,7 @@ reset: clean init
 #: run all formatting
 format:
 	poetry run pre-commit run --all-files --verbose
+	poetry run pyright src/
 
 .PHONY: test
 #: Run tests with current python
