@@ -7,7 +7,7 @@ import json
 from hashlib import sha256
 from typing import Any
 
-import maite.protocols.object_detection as od
+import maite.protocols.image_classification as ic
 from nrtk.interfaces.perturb_image import PerturbImage
 
 # NRTK imports
@@ -22,22 +22,22 @@ from jatic_ri.image_classification.augmentation import JATICClassificationAugmen
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 
 
-class NRTKTestStage(NRTKTestStageBase[od.Dataset, od.Model, od.Metric]):
+class NRTKTestStage(NRTKTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     """
     NRTK Test Stage to perform augmentation on images in a dataset based
-    on a given factory configuration.
+    on a given factory configuration.`
     """
 
     factory: PerturbImageFactory
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__(args)
-        self._deck = "object_detection_dataset_evaluation"
-        self._task = "object_detection"
+        self._deck = "image_classification_dataset_evaluation"
+        self._task = "image_classification"
         self.factory = from_config_dict(args["perturber_factory"], PerturbImageFactory.get_impls())
         self.factory_hash: str = sha256(json.dumps(args["perturber_factory"]).encode("utf-8")).hexdigest()
 
     def _augmentation_wrapper(
         self, perturber: PerturbImage
     ) -> JATICDetectionAugmentation | JATICClassificationAugmentation:
-        return JATICDetectionAugmentation(perturber)
+        return JATICClassificationAugmentation(perturber)

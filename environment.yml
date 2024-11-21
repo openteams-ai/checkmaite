@@ -12,8 +12,8 @@ dependencies:
 - heart-library>=0.4.3
 - maite>=0.6.0                          # required by SDP
 - nrtk>=0.15.1
-- pybsm>=0.8.0                          # optional dep for nrtk, required here
-- xaitk-jatic>=0.4.2
+- pybsm >=0.8.0                         # optional dep for nrtk, required here
+- xaitk-jatic>=0.2.0
 
 # External tools
 - panel>=1.4.5                          # arbitrary pin
