@@ -1,13 +1,3 @@
-# COPYRIGHTS AND PERMISSIONS:
-# Copyright 2024 MORSECORP, Inc. All rights reserved.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
 """Test RealLabelTestStage."""
 import contextlib
 import json
@@ -16,12 +6,15 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pyspark.sql.functions as sf
 import pytest
 from maite.protocols import object_detection as od
 from reallabel import ColumnNameConfig
 from matplotlib.testing.compare import compare_images
+from gradient import Text
 
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     Config,
     RealLabelTestStage,
@@ -40,9 +33,14 @@ from tests.testing_utilities.example_maite_objects import (  # noqa: E501
     YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
 )
 
+# This file is the expected output of RealLabel if using all the information found in the survivor_test_stage_args
+# fixture, and if any of the data, model, metric, or RealLabelConfig information used by that fixture changes,
+# then this file will need to be updated
 EXPECTED_REALLABEL_IMAGE = Path(os.path.abspath(__file__)).parent / "reallabel_survivor_shared_data" / "expected_reallabel_output.png"
 
 CACHE_DIR = Path(os.path.abspath(__file__)).parent / ".tscache"
+_DICT_CONFIG = "dict_config"
+_REALLABEL_CONFIG = "config"
 
 
 @pytest.fixture(scope="session")
@@ -88,18 +86,22 @@ def reallabel_test_stage_args() -> dict[str, Any]:
     }
 
     return {
-        "config": config,
+        _REALLABEL_CONFIG: config,
         "dataset": detection_dataset,
         "models": model_dict,
-        "dict_config": dict_config,
+        _DICT_CONFIG: dict_config,
     }
 
 
-@pytest.fixture
-def test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
-    """Default fully initialized test_stage object"""
+@pytest.fixture(name="test_stage")
+def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
+    """Create a RealLabelTestStage object and load in all required args.
+
+    Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
+    string input to `request.param` (set through indirect parametrization of `test_stage`).
+    """
     # Create and yield test_stage
-    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", "config")])
+    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
     test_stage.load_models(models=reallabel_test_stage_args["models"])
     test_stage.load_dataset(
         dataset=reallabel_test_stage_args["dataset"],
@@ -121,7 +123,7 @@ def test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) 
 
 @pytest.mark.parametrize(
     "test_stage",
-    ["config", "dict_config"],
+    [_REALLABEL_CONFIG, _DICT_CONFIG],
     ids=["Using RealLabelConfig", "Using dict config"],
     indirect=True,
 )
@@ -173,7 +175,7 @@ def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
     This will also need to be updated upon the resolution of the issue that requires Aggregated Confidence to
     """
     # Arrange
-    expected_cache_id = "reallabel_cache_51d92b0b198aae1e49ea669370b70d3caf05e8ac3d7eb1242ee35f8ad341661a"
+    expected_cache_id = "reallabel_od_cache_51d92b0b198aae1e49ea669370b70d3caf05e8ac3d7eb1242ee35f8ad341661a"
 
     # Act
     actual_cache_id = test_stage.cache_id
@@ -187,18 +189,19 @@ def test_reallabel_test_stage_collect_report_consumables(
 ) -> None:
     """Test collect_report_consumables with cached data enabled."""
     # Arrange
-    expected_deck = "object_detection_dataset_evaluation"
+    expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
-    expected_content_left = (
-        '{"fontsize": 22}'
+    expected_content_left = Text(
+        content=
         "**Description**\n"
-        "* RealLabel aids re-labeling efforts by using model ensembling to determine if a label is a:\n"
-        "* True Positive Label: probably correct label.\n"
-        "* False Positive Label: potentially incorrect label.\n"
-        "* False Negative Label: potentially missing label.\n"
-        "* In an example subset of the data, RealLabel has found 4 True Positive, "
+        "• RealLabel aids re-labeling efforts by using model ensembling to determine if a label is a:\n"
+        "• True Positive Label: probably correct label.\n"
+        "• False Positive Label: potentially incorrect label.\n"
+        "• False Negative Label: potentially missing label.\n"
+        "• In an example subset of the data, RealLabel has found 4 True Positive, "
         "2 False Positive, and 2 False Negative labels.\n"
-        "Displayed is an example of a True Positive label."
+        "Displayed is an example of a True Positive label.",
+        fontsize=22
     )
     expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/{_REALLABEL_CACHE_IMAGE_PATH}"
     expected_title = "RealLabel Label Breakdown"
@@ -217,7 +220,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
     assert (
-        output_consumables["layout_arguments"]["content_left"] == expected_content_left
+        output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
     )
     assert (
         output_consumables["layout_arguments"]["content_right"].as_posix()
@@ -232,7 +235,7 @@ def test_reallabel_test_stage_collect_report_consumables_error(
     # No Arrange
 
     # Act and Assert
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_report_consumables()
 
 
@@ -259,7 +262,7 @@ def test_reallabel_test_stage_collect_metrics_error(
     # No Arrange
 
     # Act and Assert
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_metrics()
 
 
@@ -268,12 +271,48 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
     # Arrange
     test_stage_1 = RealLabelTestStage(reallabel_test_stage_args["config"])
     test_stage_2 = RealLabelTestStage(reallabel_test_stage_args["config"])
-    test_stage_2.load_dataset(reallabel_test_stage_args["dataset"], "test-id")
+    test_stage_2.load_models(reallabel_test_stage_args["models"])
 
     # Act and Assert
-    with pytest.raises(RuntimeError, match=r"Dataset not set!.*"):
+    with pytest.raises(RIValidationError, match=r"'models' not set! Please use `load_models\(\)` function"):
         test_stage_1.run(use_cache=False)
 
-    # Act and Assert
-    with pytest.raises(RuntimeError, match=r"Models not set!.*"):
+    with pytest.raises(RIValidationError, match=r"'dataset' not set! Please use `load_dataset\(\)` function"):
         test_stage_2.run(use_cache=False)
+
+
+def test_missing_cache_image_error(tmp_path: Path) -> None:
+    """Test error is raised when there is data in the cache but no image."""
+    # Arrange
+    test_df = pd.DataFrame({"group_winner_box_coords": []})
+    test_df.to_csv(tmp_path / "reallabel_standard_results.csv")
+    cache = RealLabelCache()
+
+    # Act and Assert
+    with pytest.warns(UserWarning, match=f"RealLabel cache path {tmp_path} doesn't contain a cached result visualization!"):
+        cache.read_cache(str(tmp_path))
+
+
+def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_path) -> None:
+    """Test cache miss dir is deleted and resets if it already exists."""
+    # Arrange
+    test_stage.cache_base_path = tmp_path
+    output = tmp_path / "reallabel_cache_miss_outputs"
+    output.mkdir()
+    file = output / "test_file.txt"
+    file.touch()
+
+    # Act
+    test_stage._run()
+
+    # Assert
+    assert output.exists()
+    assert not file.exists()
+
+
+def test_run_error_when_not_ic_dataset(test_stage: RealLabelTestStage) -> None:
+    """Test error is raised when dataset doesn't have required attributes."""
+    test_stage.load_dataset(dataset=[None], dataset_id="empty_dataset")  # type: ignore
+
+    with pytest.raises(AttributeError, match="need a _dataset_path attribute in the Dataset object"):
+        test_stage._run()

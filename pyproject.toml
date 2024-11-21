@@ -35,7 +35,7 @@ maite = {version = ">=0.6.0"}                     # required by SDP
 nrtk = {version = ">=0.15.1", extras = ["headless"]}
 pybsm = ">=0.8.0"                                 # optional dep for nrtk, required here
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
-survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.0"}
+survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
 xaitk-jatic = {version = ">=0.4.2", extras = ["docker"]}  # docker extra required for panel apps
 # external deps
 matplotlib = ">=3.4.0"      # arbitrary, required by panel

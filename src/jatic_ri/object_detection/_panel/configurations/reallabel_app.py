@@ -1,4 +1,4 @@
-"""Module for RealLabel panel app."""
+"""Module for Object Detection RealLabel panel app."""
 
 from typing import Any
 
