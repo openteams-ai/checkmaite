@@ -1,8 +1,13 @@
-"""heart_app"""
+"""heart_app
+
+Run with `--ci` flag to save the app as html instead of serving it.
+"""
 
 # Python generic imports
 from __future__ import annotations
 
+import os
+import sys
 from typing import Any
 
 import matplotlib as mpl
@@ -11,6 +16,7 @@ import matplotlib.pyplot as plt
 # Panel app imports
 import panel as pn
 import param
+from bokeh.resources import INLINE
 
 # local imports
 from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
@@ -247,4 +253,12 @@ class HeartApp(BaseApp):
 
 if __name__ == "__main__":  # pragma: no cover
     sd: HeartApp = HeartApp()
-    pn.serve(sd.panel(), host="127.0.0.1", port=5008)
+    if len(sys.argv) > 1 and sys.argv[1] == "--ci":
+        os.makedirs("artifacts", exist_ok=True)
+        sd.panel().save(os.path.join("artifacts", "heart_app.html"), resources=INLINE)
+    elif len(sys.argv) > 1:
+        msg = f"Got unexpected flag: {sys.argv[1]}"
+        sys.stderr(msg)
+        sys.exit(1)
+    else:
+        pn.serve(sd.panel(), host="127.0.0.1", port=5008)

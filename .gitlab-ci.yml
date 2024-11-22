@@ -83,6 +83,11 @@ test:
   script:
     - git lfs pull
     - poetry install --with dev
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml --cov-fail-under=90
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
