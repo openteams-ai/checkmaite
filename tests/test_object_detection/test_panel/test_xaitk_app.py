@@ -22,7 +22,7 @@ def test_run_export() -> None:
     assert all(k in test_stage for k in ("TYPE", "CONFIG"))
 
     # Check if name, saliency_generator and id2label exists
-    assert all(k in test_stage["CONFIG"] for k in ("name", "saliency_generator", "id2label"))
+    assert all(k in test_stage["CONFIG"] for k in ("name", "saliency_generator"))
 
     # Assert export config type
     assert test_stage["TYPE"] == "XAITKTestStage"
@@ -48,7 +48,6 @@ def test_run_export() -> None:
     # Check output to XAITKTestStage
     xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
     assert xaitk_test_stage.stage_name == test_stage["CONFIG"]["name"]
-    assert xaitk_test_stage.id2label == test_stage["CONFIG"]["id2label"]
 
 
 def test_saliency_generation() -> None:

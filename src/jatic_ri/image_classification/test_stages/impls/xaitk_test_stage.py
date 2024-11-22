@@ -8,30 +8,28 @@ import os
 from hashlib import sha256
 from typing import Any
 
-import maite.protocols.object_detection as od
+import maite.protocols.image_classification as ic
 
-# 3rd Party Imports
+# 3rd party imports
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Rectangle  # type: ignore
 from PIL import Image  # type: ignore
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict
-from xaitk_jatic.utils.sal_on_dets import sal_on_dets
+from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 
 # XAITK imports
-from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
-
-from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
+from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 # Import TestStage
+from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
 from jatic_ri.util.cache import NumpyEncoder
 
 
-class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
+class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
     """
-    XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
+    XAITKTestStage will generate saliency maps for each model target across all images in the dataset.
 
 
     Attributes:
@@ -39,14 +37,14 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                                                                 generate saliency maps.
     """
 
-    sal_generator: GenerateObjectDetectorBlackboxSaliency
-    _task: str = "od"
+    sal_generator: GenerateImageClassifierBlackboxSaliency
+    _task: str = "ic"
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__(args)
         self.sal_generator = from_config_dict(
             args["saliency_generator"],
-            GenerateObjectDetectorBlackboxSaliency.get_impls(),
+            GenerateImageClassifierBlackboxSaliency.get_impls(),
         )
         self.sal_generator_hash: str = sha256(
             json.dumps(args["saliency_generator"]).encode("utf-8"),
@@ -55,12 +53,12 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
     def _run(self) -> dict[str, Any]:
         """Run the test stage, and store any outputs of the saliency
         generation in test stage"""
-        img_sal_maps, _ = sal_on_dets(
-            dataset=self.dataset,
-            sal_generator=self.sal_generator,
-            detector=self.model,
-            id_to_name=self.model.index2label,  # type: ignore
-        )
+
+        classifier = JATICImageClassifier(classifier=self.model, id_to_name=self.model.index2label)  # type: ignore
+
+        img_sal_maps = [
+            self.sal_generator(np.asarray(ref_img).transpose(1, 2, 0), classifier) for ref_img, _, _ in self.dataset
+        ]
 
         return {"saliency_map_" + str(i): NumpyEncoder().default(sal_map) for i, sal_map in enumerate(img_sal_maps)}
 
@@ -68,30 +66,28 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
         """Access the in-depth data needed by Gradient to produce a report
         generated in the run method or in the load_cached_results method.
         Each slide will have a short text description of the model used,
-        the image id, the prediction, the ground truth, and the saliency
-        map for target class."""
+        the prediction, the ground truth, and the saliency map for the
+        detection. The saliency map image will have the detection bounding
+        box shown in red."""
 
         gradient_slides = []
         output_values = list(self.outputs.values())
 
         for dataset_idx in range(len(self.dataset)):
-            ref_img, dets, _ = self.dataset[dataset_idx]
+            ref_img, targets, _ = self.dataset[dataset_idx]
             sub_dir = os.path.join(os.path.splitext(self.cache_path)[0], f"img_{dataset_idx}")
 
             os.makedirs(sub_dir, exist_ok=True)
-            labels = np.asarray(dets.labels)
-            bboxes = np.asarray(dets.boxes)
-            scores = np.asarray(dets.scores)
-            sal_maps = output_values[dataset_idx]
-            for sal_idx, bbox in enumerate(bboxes):
-                sal_map = sal_maps[sal_idx]
-                ref_img_np = np.asarray(ref_img)
-                if ref_img_np.shape[0] == 1:
-                    gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
-                else:
-                    gray_img = np.asarray(Image.fromarray(ref_img_np).convert("L"))
+            ref_img = np.asarray(ref_img)
+            if ref_img.shape[0] == 1:
+                gray_img = np.asarray(Image.fromarray(ref_img[0]).convert("L"))
+            else:
+                gray_img = np.asarray(Image.fromarray(ref_img).convert("L"))
 
-                sal_map_path = os.path.join(sub_dir, f"det_{sal_idx}.png")
+            gt_label = self.model.index2label[int(np.argmax(targets))]  # type: ignore
+            sal_maps = output_values[dataset_idx]
+            for sal_idx, sal_map in enumerate(sal_maps):
+                sal_map_path = os.path.join(sub_dir, f"class_{self.model.index2label[sal_idx]}.png")  # type: ignore
 
                 fig = plt.figure()
                 plt.axis("off")
@@ -99,16 +95,6 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                 plt.xticks(())
                 plt.yticks(())
 
-                plt.gca().add_patch(
-                    Rectangle(
-                        (bbox[0], bbox[1]),
-                        bbox[2] - bbox[0],
-                        bbox[3] - bbox[1],
-                        linewidth=1,
-                        edgecolor="r",
-                        facecolor="none",
-                    ),
-                )
                 plt.imshow(sal_map, cmap="jet", alpha=0.3)
                 plt.colorbar()
                 plt.savefig(sal_map_path, bbox_inches="tight")
@@ -116,14 +102,15 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
 
                 gradient_slides.append(
                     {
-                        "deck": "object_detection_dataset_evaluation",
+                        "deck": "image_classification_model_evaluation",
                         "layout_name": "OneImageText",
                         "layout_arguments": {
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                             "text": (
-                                f"Model: {self.model_id}\nImage: {dataset_idx}\n"
-                                f"GT: {self.model.index2label[int(labels[sal_idx])]}\n"  # type: ignore
-                                f"Pred: {self.model.index2label[int(np.argmax(scores))]}"  # type: ignore
+                                f"Model: {self.model_id}\n"
+                                f"Image: {dataset_idx}\n"
+                                f"GT: {gt_label}\n"
+                                f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
                             ),
                             "image_path": sal_map_path,
                         },

@@ -2,7 +2,7 @@
 
 import tempfile
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Hashable
 
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
@@ -67,6 +67,8 @@ def dummy_xaitk_model() -> od.Model:
     """Creates and returns a dummy maite-compliant model"""
 
     class DummyModel:
+        index2label: dict[str, Hashable] = {0: "dummy_0", 1: "dummy_1", 2: "dummy_2", 3: "dummy_3", 4: "dummy_4"}
+
         def __call__(self, input_batch: Sequence[ArrayLike]) -> Sequence[od.ObjectDetectionTarget]:
             return [DummyXAITKObjectDetectionTarget() for _ in input_batch]
 
@@ -178,8 +180,11 @@ def dummy_model_ic() -> ic.Model:
     """Creates and returns a dummy maite-compliant model"""
 
     class DummyModel:
+
+        index2label: dict[str, Hashable] = {0: "dummy_0", 1: "dummy_1"}
+
         def __call__(self, input_batch: Sequence[ArrayLike]) -> Sequence[Any]:
-            self.targets = RNG.random(len(input_batch))
+            self.targets = RNG.random((len(input_batch), 2))
 
             return self.targets
 
