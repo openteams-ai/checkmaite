@@ -1,11 +1,15 @@
 """
 This module contains the XAITKApp class, which is an implementation of BaseApp.
 It is able to configure and create multiple XAITKTestStage classes for consumption.
+
+Run with `--ci` flag to save the app as html instead of serving it.
 """
 
 # Python generic imports
 from __future__ import annotations
 
+import os
+import sys
 from collections.abc import Hashable, Iterable
 from dataclasses import dataclass
 
@@ -17,6 +21,7 @@ import numpy as np
 import panel as pn
 import param
 import torch
+from bokeh.resources import INLINE
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from PIL import Image
@@ -432,5 +437,14 @@ class XaitkApp(BaseApp):
         )
 
 
-sd = XaitkApp()
-sd.panel().servable()
+if __name__ == "__main__":
+    sd: XaitkApp = XaitkApp()
+    if len(sys.argv) > 1 and sys.argv[1] == "--ci":
+        os.makedirs("artifacts", exist_ok=True)
+        sd.panel().save(os.path.join("artifacts", "xaitk_app.html"), resources=INLINE)
+    elif len(sys.argv) > 1:
+        msg = f"Got unexpected flag: {sys.argv[1]}"
+        sys.stderr(msg)
+        sys.exit(1)
+    else:
+        pn.serve(sd.panel(), host="127.0.0.1", port=5008)

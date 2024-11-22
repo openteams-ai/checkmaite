@@ -1,10 +1,15 @@
 """
 This module contains the NRTKApp class, which is an implemntation of BaseApp.
 It is able to configure and create NRTKTestStages for consumption
+
+Run with `--ci` flag to save the app as html instead of serving it.
 """
 
 # Python generic imports
 from __future__ import annotations
+
+import os
+import sys
 
 import matplotlib.pyplot as plt
 
@@ -14,6 +19,7 @@ import numpy as np
 # Panel app imports
 import panel as pn
 import param
+from bokeh.resources import INLINE
 
 # NRTK imports
 from nrtk.impls.perturb_image.pybsm.scenario import PybsmScenario
@@ -599,4 +605,12 @@ class NRTKApp(BaseApp):
 
 if __name__ == "__main__":  # pragma: no cover
     sd: NRTKApp = NRTKApp()
-    pn.serve(sd.panel(), host="127.0.0.1", port=5008)
+    if len(sys.argv) > 1 and sys.argv[1] == "--ci":
+        os.makedirs("artifacts", exist_ok=True)
+        sd.panel().save(os.path.join("artifacts", "nrtk_app.html"), resources=INLINE)
+    elif len(sys.argv) > 1:
+        msg = f"Got unexpected flag: {sys.argv[1]}"
+        sys.stderr(msg)
+        sys.exit(1)
+    else:
+        pn.serve(sd.panel(), host="127.0.0.1", port=5008)
