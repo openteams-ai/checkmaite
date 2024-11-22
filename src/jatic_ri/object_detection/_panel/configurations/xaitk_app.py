@@ -66,7 +66,8 @@ class HuggingFaceDetector:
         self.model.eval()
         self.model.to(device)
 
-    def id2label(self) -> dict[int, Hashable]:
+    @property
+    def index2label(self) -> dict[int, Hashable]:
         """Class id to label mapping"""
         return self.model.config.id2label
 
@@ -127,12 +128,12 @@ class XaitkApp(BaseApp):
         )
         self.detector = JATICDetector(
             detector=self.jatic_detector,
-            id_to_name=self.jatic_detector.id2label(),
+            id_to_name=self.jatic_detector.index2label,
             img_batch_size=5,
         )
         # id2label mapping should be used from model protocol
         # metadata after relevant updates to protocols are added
-        self.id2label = self.jatic_detector.id2label()
+        self.id2label = self.jatic_detector.index2label
         self.pad_perc = 0.4
 
         self.config_upload = pn.widgets.FileInput(accept=".json")  # declare here since its used in pn.depends
@@ -197,7 +198,6 @@ class XaitkApp(BaseApp):
                 "CONFIG": {
                     "name": f"saliency_{self.__class__.__name__}_{idx}",
                     "saliency_generator": to_config_dict(saliency_generator),
-                    "id2label": self.id2label,
                 },
             }
 
