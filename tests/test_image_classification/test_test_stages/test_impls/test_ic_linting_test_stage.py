@@ -1,6 +1,8 @@
 """Test Image Classification Linting Test Stage"""
 
 from unittest.mock import MagicMock
+import os
+from pathlib import Path
 import pytest
 
 from gradient.templates_and_layouts.create_deck import create_deck
@@ -43,7 +45,7 @@ def test_ic_linting_with_cached_values(dummy_dataset_ic, tmp_path) -> None:
     assert all(output1[i].keys() == output2[i].keys() for i in range(len(output1)))
 
 
-def test_ic_linting_create_deck(dummy_dataset_ic, tmp_path) -> None:
+def test_ic_linting_create_deck(dummy_dataset_ic, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetLintingTestStage()
     test.cache_base_path = tmp_path
@@ -51,5 +53,5 @@ def test_ic_linting_create_deck(dummy_dataset_ic, tmp_path) -> None:
     test.run()
 
     slides = test.collect_report_consumables()
-    create_deck(slides, path=tmp_path, deck_name="TestLintingDeck")
-    assert (tmp_path / "TestLintingDeck.pptx").exists()
+    filename = create_deck(slides, path=Path(artifact_dir), deck_name="TestLintingDeck")
+    assert filename.exists()

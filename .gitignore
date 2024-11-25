@@ -168,5 +168,7 @@ cython_debug/
 
 # default test stage cache dir
 .tscache/
+# output directory for ci artifacts
+artifacts/
 # bin directory
 bin/

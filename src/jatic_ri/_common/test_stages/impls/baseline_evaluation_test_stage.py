@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from maite.workflows import evaluate
@@ -124,9 +125,14 @@ class BaselineEvaluationBase(
         image_path = save_figure_to_tempfile(fig)
 
         text = ""
-        text += f"**Model**: {self.model_id} \n\n"
-        text += f"**Dataset**: {self.dataset_id} \n\n"
-        text += f"**{metric_key}**: {self.outputs[metric_key]}"
+        text += f"*Model*: {self.model_id} \n\n"
+        text += f"*Dataset*: {self.dataset_id} \n\n"
+        text += f"*{metric_key}*: {self.outputs[metric_key]}"
+
+        # non-styling related underscores are not permitted by gradient
+        # this doesn't account for underscores that have already been escaped!
+        # and removes even the styling related underscores :/
+        text = text.replace("_", r"\_")
 
         return [
             {
@@ -135,7 +141,7 @@ class BaselineEvaluationBase(
                 "layout_arguments": {
                     "title": "Basic Evaluation with MAITE",
                     "text": text,
-                    "image_path": image_path,
+                    "image_path": Path(image_path),
                 },
             },
         ]

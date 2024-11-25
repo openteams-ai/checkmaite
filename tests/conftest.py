@@ -3,6 +3,8 @@
 import tempfile
 from collections.abc import Sequence
 from typing import Any, Hashable
+from pathlib import Path
+import os
 
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
@@ -25,6 +27,11 @@ RNG = np.random.default_rng(seed=42)
 
 # Set the test_stage default cache root to temp path
 jatic_ri.DEFAULT_CACHE_ROOT = tempfile.gettempdir()
+
+@pytest.fixture
+def artifact_dir(tmpdir):
+    # use env var if available, otherwise use tmpdir under the repo root
+    return Path(os.environ.get('ARTIFACT_DIR', tmpdir))
 
 
 class DummyObjectDetectionTarget(od.ObjectDetectionTarget):
