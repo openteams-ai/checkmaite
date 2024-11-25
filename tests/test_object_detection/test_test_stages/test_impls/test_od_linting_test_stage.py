@@ -1,6 +1,7 @@
 """Test Object Detection Linting Test Stage"""
 
 from unittest.mock import MagicMock
+import os
 import pytest
 
 from gradient.templates_and_layouts.create_deck import create_deck
@@ -44,7 +45,7 @@ def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> No
 
 
 @pytest.mark.parametrize("offset_box", [True, False])
-def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path) -> None:
+def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetLintingTestStage()
     test.cache_base_path = tmp_path
@@ -52,5 +53,5 @@ def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path) 
     test.run()
 
     slides = test.collect_report_consumables()
-    create_deck(slides, path=tmp_path, deck_name="TestLintingDeck")
-    assert (tmp_path / "TestLintingDeck.pptx").exists()
+    filename = create_deck(slides, artifact_dir, 'TestLintingDeck')
+    assert filename.exists()

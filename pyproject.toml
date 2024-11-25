@@ -86,7 +86,7 @@ exclude = [
 # Ruff rules - https://docs.astral.sh/ruff/rules/
 [tool.ruff]
 exclude = [
-  "*env*",
+  "environment*",
   "tests",
 ]
 

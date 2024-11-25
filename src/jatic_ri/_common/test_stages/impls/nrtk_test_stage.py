@@ -82,6 +82,7 @@ class NRTKTestStageBase(
             self.metric_id: lowest_perturb_score,
         }
         df_perturbation = pd.DataFrame.from_dict(final_dict)
+        df_perturbation["line_id"] = "item_response_curve"
 
         return [
             {
@@ -90,7 +91,7 @@ class NRTKTestStageBase(
                 "layout_arguments": {
                     "title": self.name,
                     "data": df_perturbation,
-                    "line_col": "item_response_curve",
+                    "line_col": "line_id",
                     "x_data_col": self.factory.theta_key,
                     "y_data_col": self.metric_id,
                     "perturbation_type": self.factory.get_config()["perturber"],

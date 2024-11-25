@@ -43,7 +43,7 @@ class TestDatasetShift:
         Tests error thrown if _deck not overwritten
     """
 
-    def test_run_and_report(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
+    def test_run_and_report(self, dummy_shift_test_stage, dummy_dataset_od, artifact_dir) -> None:
         """Tests end-to-end integration of dummy data when loading, running, and collecting"""
 
         dev_dataset = dummy_dataset_od
@@ -69,7 +69,11 @@ class TestDatasetShift:
             for slide in report:
                 assert required_key in slide
 
-    def test_create_cache(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
+        filename = create_deck(report, artifact_dir, 'shift')
+        assert filename.exists()        
+
+
+    def test_create_data(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
         """Test that the cache file is written after the run method is called without data modifications"""
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
@@ -328,7 +332,7 @@ class TestOOD:
         assert all(result_df["Threshold"] == [0.75, 0.25])
 
 
-def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path) -> None:
+def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the shift gradient slides"""
     teststage: DatasetShiftTestStageBase = dummy_shift_test_stage()
     teststage.load_datasets(None, "VOC1", None, "VOC2")  # type: ignore -> Only needs a dataset_id
@@ -364,4 +368,5 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path) -> None:
     teststage.outputs = dummy_output
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()
-    create_deck(slides, path=tmp_path / "DatasetShiftDeck.pptx", deck_name="DatasetShiftDeck")
+    filename = create_deck(slides, path=artifact_dir, deck_name="shift")
+    assert filename.exists()

@@ -1,6 +1,8 @@
 """Test NRTKTestStage"""
+import os
 
 # 3rd party imports
+from gradient.templates_and_layouts.create_deck import create_deck
 import pandas as pd
 import pytest
 
@@ -8,6 +10,7 @@ import pytest
 from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import (
     NRTKTestStage,
 )
+
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -25,7 +28,7 @@ ARGS = {
 
 
 @pytest.mark.parametrize("use_cache", [True, False])
-def test_nrtk_test_stage(use_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
+def test_nrtk_test_stage(use_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od, artifact_dir) -> None:
     """Test NRTKTestStage implementation"""
 
     test = NRTKTestStage(ARGS)
@@ -48,3 +51,7 @@ def test_nrtk_test_stage(use_cache, dummy_model_od, dummy_dataset_od, dummy_metr
     assert example_args["layout_arguments"]["y_data_col"] == test.metric_id
     assert example_args["layout_arguments"]["perturbation_type"] == test.factory.get_config()["perturber"]
     assert example_args["layout_arguments"]["model"] == test.model_id
+
+    slides = test.collect_report_consumables()
+    filename = create_deck(slides, artifact_dir, 'nrtk')
+    assert filename.exists()

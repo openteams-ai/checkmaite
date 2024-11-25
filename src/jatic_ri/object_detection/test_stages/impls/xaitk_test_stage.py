@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 from hashlib import sha256
+from pathlib import Path
 from typing import Any
 
 import maite.protocols.object_detection as od
@@ -91,7 +92,7 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                 else:
                     gray_img = np.asarray(Image.fromarray(ref_img_np).convert("L"))
 
-                sal_map_path = os.path.join(sub_dir, f"det_{sal_idx}.png")
+                sal_map_path = Path(sub_dir).joinpath(f"det_{sal_idx}.png")
 
                 fig = plt.figure()
                 plt.axis("off")
@@ -114,20 +115,20 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                 plt.savefig(sal_map_path, bbox_inches="tight")
                 plt.close(fig)
 
-                gradient_slides.append(
-                    {
-                        "deck": "object_detection_dataset_evaluation",
-                        "layout_name": "OneImageText",
-                        "layout_arguments": {
-                            "title": f"**XAITK Saliency Map**: {sal_idx} \n",
-                            "text": (
-                                f"Model: {self.model_id}\nImage: {dataset_idx}\n"
-                                f"GT: {self.model.index2label[int(labels[sal_idx])]}\n"  # type: ignore
-                                f"Pred: {self.model.index2label[int(np.argmax(scores))]}"  # type: ignore
-                            ),
-                            "image_path": sal_map_path,
-                        },
+                content = {
+                    "deck": "object_detection_dataset_evaluation",
+                    "layout_name": "OneImageText",
+                    "layout_arguments": {
+                        "title": f"**XAITK Saliency Map**: {sal_idx} \n",
+                        "text": (
+                            f"Model: {self.model_id}\nImage: {dataset_idx}\n"
+                            f"GT: {self.model.index2label[int(labels[sal_idx])]}\n"  # type: ignore
+                            f"Pred: {self.model.index2label[int(np.argmax(scores))]}"  # type: ignore
+                        ),
+                        "image_path": sal_map_path,
                     },
-                )
+                }
+                content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
+                gradient_slides.append(content)
 
         return gradient_slides

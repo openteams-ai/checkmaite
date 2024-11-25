@@ -1,6 +1,7 @@
 """Test Dataset Bias Analysis"""
 
 import json
+import os
 import pytest
 import pandas as pd
 
@@ -49,7 +50,7 @@ class TestBiasUtilityFunctions:
     """Test private helper functions used by Bias"""
 
     @pytest.mark.parametrize("with_table", [True, False])
-    def test_create_text_data_slide(self, with_table: bool):
+    def test_create_text_data_slide(self, with_table: bool, artifact_dir):
         """Tests TextData arguments are correctly populated with and without a DataFrame"""
         table = pd.DataFrame({"dummy": [0]}) if with_table else None
         result_template = create_text_data_slide(
@@ -68,7 +69,8 @@ class TestBiasUtilityFunctions:
         assert isinstance(layout_args["text_column_body"], list)
         assert ("data_column_table" in layout_args) == with_table
 
-        create_deck([result_template], path=Path("artifacts"), deck_name=f"test_create_text_data_slide_table={str(with_table)}")
+        filename = create_deck([result_template], path=Path(artifact_dir), deck_name=f"test_create_text_data_slide_table={str(with_table)}")
+        assert filename.exists()
 
 
 class TestDatasetBiasRun:
@@ -144,7 +146,7 @@ class TestBiasCache:
 class TestBiasCollectReportConsumables:
     """Tests the individual report_consumables methods for every Bias metric, as well as the combined collect_report_consumables"""
 
-    def test_report_balance(self, dummy_dataset_od, balance_outputs):
+    def test_report_balance(self, dummy_dataset_od, balance_outputs, artifact_dir):
         """Test balance specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
@@ -157,9 +159,10 @@ class TestBiasCollectReportConsumables:
         assert f"0 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
 
-        create_deck([slide], path=Path("artifacts"), deck_name="test_report_balance")
+        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_balance")
+        assert filename.exists()
 
-    def test_report_coverage(self, dummy_dataset_od, coverage_outputs: dict[str, Any], tmpdir):
+    def test_report_coverage(self, dummy_dataset_od, coverage_outputs: dict[str, Any], tmpdir, artifact_dir):
         """Test the coverage specific gradient output"""
         
         test_stage = DatasetBiasTestStage()
@@ -196,9 +199,10 @@ class TestBiasCollectReportConsumables:
 
         assert not (folder / Path(f"coverage_example_3.png")).exists()  # Only top 3 images should be saved
 
-        create_deck([slide], path=Path("artifacts"), deck_name="test_report_coverage")
+        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage")
+        assert filename.exists()
 
-    def test_report_coverage_low_samples(self, dummy_dataset_od, coverage_outputs: dict[str, Any], tmpdir):
+    def test_report_coverage_low_samples(self, dummy_dataset_od, coverage_outputs: dict[str, Any], tmpdir, artifact_dir):
         """
         In the rare cases there are less uncovered indices than gradient images,
         test that the gradient args for the remaining image path spots do not get filled with a path
@@ -234,9 +238,10 @@ class TestBiasCollectReportConsumables:
             assert not img_path.exists()  # Check if image was saved
             assert col not in layout_args
         
-        create_deck([slide], path=Path("artifacts"), deck_name="test_report_coverage_low_samples")
+        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage_low_samples")
+        assert filename.exists()
 
-    def test_report_diversity(self, dummy_dataset_od, diversity_outputs):
+    def test_report_diversity(self, dummy_dataset_od, diversity_outputs, artifact_dir):
         """Test diversity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
@@ -249,9 +254,10 @@ class TestBiasCollectReportConsumables:
         assert "2 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* Ensure balanced representation of all classes for all metadata" 
 
-        create_deck([slide], path=Path("artifacts"), deck_name="test_report_diversity")
+        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_diversity")
+        assert filename.exists()
 
-    def test_report_parity(self, dummy_dataset_od, parity_outputs):
+    def test_report_parity(self, dummy_dataset_od, parity_outputs, artifact_dir):
         """Test parity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
@@ -264,7 +270,8 @@ class TestBiasCollectReportConsumables:
         assert "0 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
 
-        create_deck([slide], path=Path("artifacts"), deck_name="test_report_parity")
+        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_parity")
+        assert filename.exists()
 
     def test_bias_gradient_pptx(
             self,
@@ -272,7 +279,8 @@ class TestBiasCollectReportConsumables:
             coverage_outputs,
             balance_outputs,
             diversity_outputs,
-            parity_outputs
+            parity_outputs,
+            artifact_dir
         ) -> None:
         """Test all gradient slide kwargs collected together"""
 
@@ -287,4 +295,6 @@ class TestBiasCollectReportConsumables:
         }
 
         slides: list[dict[str, Any]] = test_stage.collect_report_consumables()
-        create_deck(slides, path=Path("artifacts"), deck_name="test_bias_gradient_pptx")
+
+        filename = create_deck(slides, path=Path(artifact_dir), deck_name="test_bias_gradient_pptx")
+        assert filename.exists()

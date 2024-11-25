@@ -85,7 +85,7 @@ class TestFeasibilityTestStage:
         assert test_stage.cache_id == "feasibility_Dataset1_Model1_0.5.json"
 
 
-def test_feasibility_gradient_pptx(tmp_path) -> None:
+def test_feasibility_gradient_pptx(artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     teststage: DatasetFeasibilityTestStage = DatasetFeasibilityTestStage()
     teststage.load_dataset(None, "VOC")  # type: ignore -> Only needs a dataset_id
@@ -93,5 +93,5 @@ def test_feasibility_gradient_pptx(tmp_path) -> None:
     teststage.threshold = 0.5
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()
-    create_deck(slides, path=tmp_path, deck_name="DatasetFeasibilityDeck")
-    assert (tmp_path / "DatasetFeasibilityDeck.pptx").exists()
+    filename = create_deck(slides, path=artifact_dir, deck_name="feasibility")
+    assert filename.exists()

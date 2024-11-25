@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from gradient.templates_and_layouts.create_deck import create_deck
 import pandas as pd
 import pyspark.sql.functions as sf
 import pytest
@@ -186,6 +187,7 @@ def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
 
 def test_reallabel_test_stage_collect_report_consumables(
     test_stage: RealLabelTestStage,
+    artifact_dir,
 ) -> None:
     """Test collect_report_consumables with cached data enabled."""
     # Arrange
@@ -213,7 +215,8 @@ def test_reallabel_test_stage_collect_report_consumables(
     test_stage.run(use_cache=True)
 
     # Act
-    output_consumables = test_stage.collect_report_consumables()[0]
+    slides = test_stage.collect_report_consumables()
+    output_consumables = slides[0]
 
     # Assert
     assert output_consumables["deck"] == expected_deck
@@ -226,6 +229,9 @@ def test_reallabel_test_stage_collect_report_consumables(
         output_consumables["layout_arguments"]["content_right"].as_posix()
         == expected_content_right
     )
+
+    filename = create_deck(slides, artifact_dir, 'reallabel')
+    assert filename.exists()
 
 
 def test_reallabel_test_stage_collect_report_consumables_error(

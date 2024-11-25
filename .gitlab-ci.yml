@@ -40,6 +40,7 @@ stages:
   variables:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/poetry"
+    ARTIFACT_DIR: "artifacts"  # must match test.artifacts.path below
   cache:
     key: $CI_COMMIT_REF_SLUG
     paths:

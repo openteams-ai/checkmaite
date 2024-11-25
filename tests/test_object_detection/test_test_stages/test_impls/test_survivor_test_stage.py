@@ -12,6 +12,7 @@ from maite.protocols import object_detection as od
 from pyspark.sql import functions as sf
 from survivor.config import ScoreConversionType
 from matplotlib.testing.compare import compare_images
+from gradient.templates_and_layouts.create_deck import create_deck
 from gradient import Text
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
@@ -190,7 +191,8 @@ def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
 
 
 def test_survivor_collect_report_consumables(
-        test_stage: SurvivorTestStage,
+    test_stage: SurvivorTestStage,
+    artifact_dir,
 ) -> None:
     """Test collect_report_consumables."""
     # Arrange
@@ -218,7 +220,8 @@ def test_survivor_collect_report_consumables(
     test_stage.run(use_cache=True)
 
     # Act
-    output_consumables = test_stage.collect_report_consumables()[0]
+    slide_content = test_stage.collect_report_consumables()
+    output_consumables = slide_content[0]
 
     # Assert
     assert output_consumables["deck"] == expected_deck
@@ -227,6 +230,8 @@ def test_survivor_collect_report_consumables(
     assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
     assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
 
+    filename = create_deck(slide_content, artifact_dir, 'survivor')
+    assert filename.exists()
 
 def test_survivor_test_stage_collect_report_consumables_error(
         test_stage: SurvivorTestStage,
