@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from hashlib import sha256
 from pathlib import Path
@@ -84,6 +85,9 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
             bboxes = np.asarray(dets.boxes)
             scores = np.asarray(dets.scores)
             sal_maps = output_values[dataset_idx]
+            if len(sal_maps) == 0:
+                logging.warning(f"No detections found for image id {dataset_idx}")
+                continue
             for sal_idx, bbox in enumerate(bboxes):
                 sal_map = sal_maps[sal_idx]
                 ref_img_np = np.asarray(ref_img)
