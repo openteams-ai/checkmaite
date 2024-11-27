@@ -40,7 +40,7 @@ class DummyObjectDetectionTarget(od.ObjectDetectionTarget):
     @property
     def boxes(self) -> ArrayLike:
         return torch.ones(size=(5, 4))
-    
+
     @property
     def labels(self) -> ArrayLike:
         return torch.arange(0, 5)
@@ -55,7 +55,7 @@ class DummyXAITKObjectDetectionTarget(DummyObjectDetectionTarget):
 
     @property
     def scores(self) -> ArrayLike:
-        return torch.zeros(size=(5, ))
+        return torch.zeros(size=(5,))
 
 
 @pytest.fixture
@@ -85,13 +85,14 @@ def dummy_xaitk_model() -> od.Model:
 @pytest.fixture
 def dummy_linting_dataset_od():
     """Creates and returns a dummy maite-compliant dataset"""
-    def _dummy_linting_dataset_od(offset_box: bool = True) -> od.Dataset:
 
+    def _dummy_linting_dataset_od(offset_box: bool = True) -> od.Dataset:
         class LintingObjectDetectionTarget:
             def __init__(self, ind: int):
                 self.ind = ind
 
             """Linting OD Target"""
+
             @property
             def boxes(self) -> ArrayLike:
                 boxes = torch.tensor([4, 4, 24, 24]).tile(5, 1)
@@ -99,7 +100,7 @@ def dummy_linting_dataset_od():
                     boxes[0][0:2] = 5
                     boxes[0][2:4] = 16
                 return boxes
-            
+
             @property
             def labels(self) -> ArrayLike:
                 return torch.arange(0, 5)
@@ -115,7 +116,7 @@ def dummy_linting_dataset_od():
             images[10] = images[0]  # add duplicate
             images[15] = 0.0  # add outliers
             images[16] = 1.0  # add outliers
-            images[20] = images[2]*0.99  # add near duplicate
+            images[20] = images[2] * 0.99  # add near duplicate
 
             def __len__(self) -> int:
                 return len(self.images)
@@ -124,8 +125,26 @@ def dummy_linting_dataset_od():
                 return self.images[ind], LintingObjectDetectionTarget(ind), {"dummy": torch.ones((5,))}
 
         return DummyDataset()
+
     return _dummy_linting_dataset_od
 
+
+@pytest.fixture
+def dummy_dataset_od_with_target_metadata() -> od.Dataset:
+    """Creates and returns a dummy maite-compliant dataset"""
+
+    class DummyDataset:
+        """Dataset with 10 1x16x16 CHW images"""
+
+        images = torch.ones(size=(10, 1, 16, 16))
+
+        def __len__(self) -> int:
+            return len(self.images)
+
+        def __getitem__(self, ind: int):
+            return self.images[ind], DummyObjectDetectionTarget(), {"dummy": 0, "target": [0, 1, 2, 3, 4]}
+
+    return DummyDataset()
 
 @pytest.fixture
 def dummy_dataset_od() -> od.Dataset:
@@ -168,7 +187,7 @@ def dummy_metric_od() -> od.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
-        _return_key = 'metric_1'
+        _return_key = "metric_1"
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
@@ -225,7 +244,7 @@ def dummy_metric_ic() -> ic.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
-        _return_key = 'metric_1'
+        _return_key = "metric_1"
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
@@ -253,7 +272,8 @@ def model_od_yolov5() -> od.Model:
 def dataset_od_fwow() -> od.Dataset:
     """FWOW detection dataset using USA summer for OD"""
     return FMOWDetectionDataset(
-        USA_SUMMER_DATA_IMAGERY_DIR, USA_SUMMER_DATA_METADATA_FILE_PATH,
+        USA_SUMMER_DATA_IMAGERY_DIR,
+        USA_SUMMER_DATA_METADATA_FILE_PATH,
     )
 
 
@@ -262,16 +282,18 @@ def metric_od_map() -> od.Metric:
     """mAP 50 metric for OD"""
     return create_maite_wrapped_metric("mAP_50")
 
+
 @pytest.fixture
 def threshold_od() -> float:
     """threshold for OD, realistic value to be paired with metric_od_map"""
     return 0.3
 
+
 @pytest.fixture
 def metric_results() -> dict:
     """metric results dictionary"""
     return {
-        'map50': 0.12,
-        'airports': 0.43,
-        'elephants': 0.56,
-        }
+        "map50": 0.12,
+        "airports": 0.43,
+        "elephants": 0.56,
+    }
