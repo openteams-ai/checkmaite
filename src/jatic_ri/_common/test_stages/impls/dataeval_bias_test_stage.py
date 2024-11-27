@@ -8,16 +8,12 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from dataeval.metrics.bias import balance, coverage, diversity, parity
-from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.text_table_images import TextTableImages
-from maite.protocols import ArrayLike
 from numpy.typing import NDArray
-from PIL import Image
 
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
-from jatic_ri.util.slide_deck import create_text_data_slide
+from jatic_ri.util.slide_deck import create_text_data_slide, create_text_table_data_slide
 
 
 class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TDataset]):
@@ -53,15 +49,6 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             os.mkdir(folder)
         return folder
 
-    def save_image(self, image: ArrayLike, path: str) -> Path:
-        """Saves an image at image_folder / path as RGB image"""
-
-        full_path = self.image_folder / Path(path)
-        image_pil = Image.fromarray(image, mode="RGB")  # type: ignore
-        image_pil.save(full_path)
-
-        return full_path
-
     @abstractmethod
     def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], dict[str, NDArray[Any]]]:
         """Aggregate dataset into images, labels and metadata_factors"""
@@ -71,14 +58,38 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
 
         images, labels, metadata = self._get_images_labels_factors()
 
+        # Getting the output for balance and diversity to plot the results
+        bal_out = balance(labels, metadata)
+        div_out = diversity(labels, metadata)
+
+        bal_dict = bal_out.dict()
+        div_dict = div_out.dict()
+
+        # Saving the figure in the results dict to pull out later
+        bal_img_path = str(self.image_folder / "balance_heatmap.png")
+        bal_fig = bal_out.plot()
+        bal_fig.savefig(bal_img_path, format="png")
+        div_img_path = str(self.image_folder / "diversity_heatmap.png")
+        div_fig = div_out.plot()
+        div_fig.savefig(div_img_path, format="png")
+
+        bal_dict["image"] = bal_img_path
+        div_dict["image"] = div_img_path
+
         result_dict = {
-            self.BALANCE_KEY: balance(labels, metadata).dict(),
-            self.DIVERSITY_KEY: diversity(labels, metadata).dict(),
+            self.BALANCE_KEY: bal_dict,
+            self.DIVERSITY_KEY: div_dict,
             self.PARITY_KEY: parity(labels, metadata).dict(),
         }
         try:  # In the case where images are non-homogenous, skip running coverage
             images = np.array(images)
-            result_dict.update({self.COVERAGE_KEY: coverage(images, k=5).dict()})
+            cov_out = coverage(images, k=5)
+            cov_dict = cov_out.dict()
+            cov_img_path = str(self.image_folder / "coverage_plot.png")
+            cov_fig = cov_out.plot(images)
+            cov_fig.savefig(cov_img_path)
+            cov_dict["image"] = cov_img_path
+            result_dict.update({self.COVERAGE_KEY: cov_dict})
         except ValueError:
             pass
 
@@ -102,20 +113,25 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         ]
 
     def _report_coverage(self, outputs: dict[str, Any]) -> dict[str, Any]:
+        """Format coverage results for Gradient consumption"""
         # Gradient specific kwargs
         title = f"Dataset: {self.dataset_id} | Category Bias"
         heading = "Metric: Coverage"
-        image_caption = "Examples"
 
         # Calculate results from coverage outputs
         indices = outputs["indices"]
         total_length = len(self.dataset)
         uncovered_count = len(indices)
-        uncovered_percent = round(uncovered_count / total_length, 3)
+        uncovered_percent = round(uncovered_count / total_length, 1)
 
+        action_str = (
+            "Increase respresentation of rare but relevant samples in areas of poor coverage"
+            if uncovered_count > 0
+            else "No action required"
+        )
         text = [
             "**Result:**",
-            f"{uncovered_percent*100}% uncovered images in dataset",
+            f"Coverage: {uncovered_percent*100}% uncovered images in dataset",
             "**Tests for:**",
             "* Adequate sampling of data",
             "**Risks**:",
@@ -123,59 +139,29 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             "* Lack of robustness",
             "* Poor generalization",
             "**Actions:**",
-            "* Increase respresentation of rare but relevant samples in areas of poor coverage",
+            f"* {action_str}",
         ]
-
-        content = [Text(t, fontsize=16) for t in text]
 
         cov_df = pd.DataFrame(
             {
                 "Poor Coverage": [f"{uncovered_count} of {total_length} ({uncovered_percent*100}%)"],
-                "Threshold": [round(outputs["critical_value"], 3)],
+                "Threshold": [round(outputs["critical_value"], 2)],
             },
         )
-
-        # Collect uncovered examples
-        top_k = 3
-        highest_uncovered_indices = np.argsort(indices)[:top_k]
-        image_paths = []
-
-        # Save top_k images to cache for gradient deck to reference
-        for i, index in enumerate(highest_uncovered_indices):
-            path = self.save_image(np.array(self.dataset[index][0]), path=f"coverage_example_{i}.png")
-            image_paths.append(path)
-
-        # Create gradient template argument dictionary
-        layout_args = {
-            TextTableImages.ArgKeys.TITLE.value: title,
-            # Text arguments
-            TextTableImages.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-            TextTableImages.ArgKeys.TEXT_COLUMN_BODY.value: content,
-            TextTableImages.ArgKeys.TEXT_COLUMN_HALF.value: True,
-            TextTableImages.ArgKeys.IMAGE_CAPTION.value: image_caption,
-            # DataFrame arguments
-            TextTableImages.ArgKeys.DATA_COLUMN_TABLE.value: cov_df,
-        }
-
-        # Selectively assign argkeys based on the number of image paths at a specific column
-        # Can be removed when template is updated to TextData
-        column_args = (
-            str(TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_1.value),
-            str(TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_2.value),
-            str(TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_3.value),
-        )
-
-        image_path_args = dict(zip(column_args, image_paths))
-        layout_args.update(image_path_args)
+        image_path = Path(outputs["image"])
 
         # Gradient slide creation
-        return {
-            "deck": "object_detection_dataset_evaluation",
-            "layout_name": "TextTableImages",
-            "layout_arguments": layout_args,
-        }
+        return create_text_table_data_slide(
+            deck=self._deck,
+            title=title,
+            heading=heading,
+            text=text,
+            table=cov_df,
+            image_path=image_path,
+        )
 
     def _report_balance(self, outputs: dict[str, Any]) -> dict[str, Any]:
+        """Format balance results for Gradient consumption"""
         title = f"Dataset: {self.dataset_id} | Category Bias"
         heading = "Metric: Balance"
 
@@ -197,14 +183,18 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
+        image_path = Path(outputs["image"])
+
         return create_text_data_slide(
             deck=self._deck,
             title=title,
             heading=heading,
             text=text,
+            image_path=image_path,
         )
 
     def _report_diversity(self, outputs: dict[str, Any]) -> dict[str, Any]:
+        """Format diversity results for Gradient consumption"""
         title = f"Dataset: {self.dataset_id} | Category Bias"
         heading = "Metric: Diversity"
 
@@ -224,25 +214,29 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
+        image_path = Path(outputs["image"])
+
         return create_text_data_slide(
             deck=self._deck,
             title=title,
             heading=heading,
             text=text,
+            image_path=image_path,
         )
 
     def _report_parity(self, outputs: dict[str, Any]) -> dict[str, Any]:
+        """Format parity results for Gradient consumption"""
         title = f"Dataset: {self.dataset_id} | Category Bias"
         heading = "Metric: Parity"
 
-        # metadata_factors = np.array(outputs["score"])
-        metadata_chisquares = np.round(np.array(outputs["score"]), 3)
-        metadata_pvalues = np.array(outputs["p_value"])
+        metadata_factors = np.array(outputs["metadata_names"])
+        metadata_chisquares = np.round(np.array(outputs["score"]), 2)
+        metadata_pvalues = np.round(np.array(outputs["p_value"]), 3)
         rollup = np.sum(metadata_pvalues < 0.05)
 
         metadata_parity_table = pd.DataFrame(
             {
-                # "Metadata Factor": metadata_factors, # Currently does not return factor list
+                "Metadata Factor": metadata_factors,
                 "Chi-Square": metadata_chisquares,
                 "P-value": metadata_pvalues,
             },
@@ -263,5 +257,9 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         ]
 
         return create_text_data_slide(
-            deck=self._deck, title=title, heading=heading, text=text, table=metadata_parity_table
+            deck=self._deck,
+            title=title,
+            heading=heading,
+            text=text,
+            table=metadata_parity_table,
         )
