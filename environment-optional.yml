@@ -52,3 +52,4 @@ dependencies:
 - pyright>=1.1.320                      # arbitrary pin
 # docs
 - mkdocs>=1.6.1                         # arbitrary pin
+- mkdocs-jupyter>=0.25                  # arbitrary pin
