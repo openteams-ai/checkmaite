@@ -1,4 +1,5 @@
 """Test RealLabelTestStage."""
+
 import contextlib
 import json
 import os
@@ -10,34 +11,30 @@ from gradient.templates_and_layouts.create_deck import create_deck
 import pandas as pd
 import pyspark.sql.functions as sf
 import pytest
-from maite.protocols import object_detection as od
-from reallabel import ColumnNameConfig
-from matplotlib.testing.compare import compare_images
 from gradient import Text
+from matplotlib.testing.compare import compare_images
+from reallabel import ColumnNameConfig
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
-    Config,
-    RealLabelTestStage,
-    RealLabelCache,
     _REALLABEL_CACHE_CONFIGURATION_PATH,
     _REALLABEL_CACHE_CSV_PATH,
     _REALLABEL_CACHE_IMAGE_PATH,
+    Config,
+    RealLabelCache,
+    RealLabelTestStage,
 )
-
-from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
-from tests.testing_utilities.example_maite_objects import (  # noqa: E501
-    FMOWDetectionDataset,
-    USA_SUMMER_DATA_IMAGERY_DIR,
-    USA_SUMMER_DATA_METADATA_FILE_PATH,
-    Yolov5sModel,
-    YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
+from tests.testing_utilities.testing_utilities import (
+    assert_spark_dataframes_equal,
+    minimal_maite_object_detection_dataset_and_model,
 )
 
 # This file is the expected output of RealLabel if using all the information found in the survivor_test_stage_args
 # fixture, and if any of the data, model, metric, or RealLabelConfig information used by that fixture changes,
 # then this file will need to be updated
-EXPECTED_REALLABEL_IMAGE = Path(os.path.abspath(__file__)).parent / "reallabel_survivor_shared_data" / "expected_reallabel_output.png"
+EXPECTED_REALLABEL_IMAGE = (
+    Path(os.path.abspath(__file__)).parent / "reallabel_survivor_shared_data" / "expected_reallabel_output.png"
+)
 
 CACHE_DIR = Path(os.path.abspath(__file__)).parent / ".tscache"
 _DICT_CONFIG = "dict_config"
@@ -47,18 +44,10 @@ _REALLABEL_CONFIG = "config"
 @pytest.fixture(scope="session")
 def reallabel_test_stage_args() -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
-    yolov5s_all_v1_dev_model: od.Model = Yolov5sModel(
-        model_path=str(YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH),
-        transforms=None,
-        device="cpu",
-    )
-    model_dict = {
-        "yolov5s_all_v1_dev_model": yolov5s_all_v1_dev_model,
-    }
-    detection_dataset: od.Dataset = FMOWDetectionDataset(
-        USA_SUMMER_DATA_IMAGERY_DIR,
-        USA_SUMMER_DATA_METADATA_FILE_PATH,
-    )
+
+    # a single image with groundtruth along with two models with identical predictions
+    reallabel_test_stage_dataset, model = minimal_maite_object_detection_dataset_and_model(dataset_length=1)
+    reallabel_test_stage_models = {"model_1": model, "model_2": model}
 
     config = Config(
         deduplication_algorithm="wbf",
@@ -88,8 +77,8 @@ def reallabel_test_stage_args() -> dict[str, Any]:
 
     return {
         _REALLABEL_CONFIG: config,
-        "dataset": detection_dataset,
-        "models": model_dict,
+        "dataset": reallabel_test_stage_dataset,
+        "models": reallabel_test_stage_models,
         _DICT_CONFIG: dict_config,
     }
 
@@ -101,8 +90,11 @@ def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRe
     Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
     string input to `request.param` (set through indirect parametrization of `test_stage`).
     """
+
     # Create and yield test_stage
-    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
+    test_stage = RealLabelTestStage(
+        config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)]
+    )
     test_stage.load_models(models=reallabel_test_stage_args["models"])
     test_stage.load_dataset(
         dataset=reallabel_test_stage_args["dataset"],
@@ -147,19 +139,17 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None
     # Compare the read-from-cache dataframe against the actual dataframe returned from `run()`. Minor issues in type
     # conversion but can't really be helped :/
     assert expected_results_df_path.exists()
-    actual_returned_results_df = test_stage.outputs[0].withColumn("classification", sf.col("classification").cast("integer"))
+    actual_returned_results_df = test_stage.outputs[0].withColumn(
+        "classification", sf.col("classification").cast("integer")
+    )
     assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
 
     # Compare the read-from-cache image against the actual image returned from `run()`
     assert expected_results_png_path.exists()
-    compare_images(
-        str(test_stage.outputs[1]), str(actual_cached_image), 0.001
-    )
+    compare_images(str(test_stage.outputs[1]), str(actual_cached_image), 0.001)
 
     # Further compare the image against what we expect the image to look like from a snapshot
-    compare_images(
-        str(test_stage.outputs[1]), str(EXPECTED_REALLABEL_IMAGE), 0.001
-    )
+    compare_images(str(test_stage.outputs[1]), str(EXPECTED_REALLABEL_IMAGE), 0.001)
 
     # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
     assert expected_results_config_path.exists()
@@ -176,7 +166,7 @@ def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
     This will also need to be updated upon the resolution of the issue that requires Aggregated Confidence to
     """
     # Arrange
-    expected_cache_id = "reallabel_od_cache_51d92b0b198aae1e49ea669370b70d3caf05e8ac3d7eb1242ee35f8ad341661a"
+    expected_cache_id = "reallabel_od_cache_bd5db062294686177bb33d9f2ab32f47b9e68ebdd4b4fb4e5b949f6fdd03552c"
 
     # Act
     actual_cache_id = test_stage.cache_id
@@ -194,16 +184,15 @@ def test_reallabel_test_stage_collect_report_consumables(
     expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
     expected_content_left = Text(
-        content=
-        "**Description**\n"
+        content="**Description**\n"
         "• RealLabel aids re-labeling efforts by using model ensembling to determine if a label is a:\n"
         "• True Positive Label: probably correct label.\n"
         "• False Positive Label: potentially incorrect label.\n"
         "• False Negative Label: potentially missing label.\n"
-        "• In an example subset of the data, RealLabel has found 4 True Positive, "
-        "2 False Positive, and 2 False Negative labels.\n"
+        "• In an example subset of the data, RealLabel has found 1 True Positive, "
+        "2 False Positive, and 1 False Negative labels.\n"
         "Displayed is an example of a True Positive label.",
-        fontsize=22
+        fontsize=22,
     )
     expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/{_REALLABEL_CACHE_IMAGE_PATH}"
     expected_title = "RealLabel Label Breakdown"
@@ -222,13 +211,8 @@ def test_reallabel_test_stage_collect_report_consumables(
     assert output_consumables["deck"] == expected_deck
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
-    assert (
-        output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
-    )
-    assert (
-        output_consumables["layout_arguments"]["content_right"].as_posix()
-        == expected_content_right
-    )
+    assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
+    assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
 
     filename = create_deck(slides, artifact_dir, 'reallabel')
     assert filename.exists()
@@ -250,7 +234,7 @@ def test_reallabel_test_stage_collect_metrics_cached_data(
 ) -> None:
     """Test collect_metrics."""
     # Arrange
-    expected_output = {"NUM_Re-Label": 4}
+    expected_output = {"NUM_Re-Label": 3}
 
     test_stage.run()
 
@@ -295,7 +279,9 @@ def test_missing_cache_image_error(tmp_path: Path) -> None:
     cache = RealLabelCache()
 
     # Act and Assert
-    with pytest.warns(UserWarning, match=f"RealLabel cache path {tmp_path} doesn't contain a cached result visualization!"):
+    with pytest.warns(
+        UserWarning, match=f"RealLabel cache path {tmp_path} doesn't contain a cached result visualization!"
+    ):
         cache.read_cache(str(tmp_path))
 
 
