@@ -6,6 +6,12 @@ nav:  # navigation links on sidebar
   - Community:
     - Development Strategies: community/development.md
     - Contributing: community/contributing.md
+  - Examples:
+    - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
+  - Object Detection:
+    - Models: object-detection/models.md
 theme: readthedocs
 markdown_extensions:
   - admonition  # enables callout boxes
+plugins:
+    - mkdocs-jupyter
