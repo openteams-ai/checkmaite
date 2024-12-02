@@ -1,22 +1,27 @@
-""" Test XAITKApp"""
+""" Test OD XAITKApp"""
 
 import panel as pn
+import json
 
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency import GenerateObjectDetectorBlackboxSaliency
 
-from jatic_ri.object_detection._panel.configurations.xaitk_app import XaitkApp
+from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp
 from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKTestStage
 
 
 def test_run_export() -> None:
-    """Test calling the XaitkApp's _run_export method"""
-    xaitk_app = XaitkApp()
+    """Test calling the XAITKApp's _run_export method"""
+    xaitk_app = XAITKApp()
+    # run through visualization
+    # it can't be viewed this way, but it will allow us to catch some errors
+    xaitk_app.panel()
+
     xaitk_app.export_button.clicks = 1
 
     assert xaitk_app.status_text == "Configuration saved"
-    assert "XaitkApp_0" in xaitk_app.output_test_stages
-    test_stage = xaitk_app.output_test_stages["XaitkApp_0"]
+    assert "XAITKApp_0" in xaitk_app.output_test_stages
+    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
 
     # Check if TYPE and CONFIG keys exist
     assert all(k in test_stage for k in ("TYPE", "CONFIG"))
@@ -46,6 +51,7 @@ def test_run_export() -> None:
     )
 
     # Check output to XAITKTestStage
+    json.dumps(xaitk_app.output_test_stages)
     xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
     assert xaitk_test_stage.stage_name == test_stage["CONFIG"]["name"]
 
@@ -55,42 +61,13 @@ def test_saliency_generation() -> None:
     Test saliency_gen_button_callback that generates
     the saliency map for the given sample image.
     """
-    xaitk_app = XaitkApp()
+    xaitk_app = XAITKApp()
+    # run through visualization
+    # it can't be viewed this way, but it will allow us to catch some errors
+    xaitk_app.panel()
 
-    def _add_saliency_gen_config_widget() -> pn.Column:
-        return pn.Column(
-            pn.widgets.IntInput(
-                name="Number of Masks",
-                value=50,
-                start=50,
-                end=1200,
-                step=50,
-                stylesheets=[xaitk_app.widget_stylesheet],
-            ),
-            pn.widgets.Select(
-                name="Occlusion Grid Size",
-                options=["(7,7)", "(5,5)", "(10,10)"],
-                stylesheets=[xaitk_app.widget_stylesheet],
-            ),
-            pn.pane.Markdown(
-                f"""
-                <style>
-                * {{
-                    color: {xaitk_app.color_light_gray};
-                }}
-                </style>
-                [Documentation for XAITK Saliency Generation]
-                (https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation)
-                """,
-            ),
-        )
-    xaitk_app.saliency_widget = [
-        pn.Card(
-            _add_saliency_gen_config_widget(),
-            title="Saliency Generation Parameters",
-            header_color=xaitk_app.color_light_gray,
-            width=xaitk_app.left_column_width,
-        )
-    ]
+    # reduce number of masks to 1 to save computation time
+    xaitk_app.saliency_widget[0].objects[0].objects[0].value = 1
+
     xaitk_app.saliency_gen_button.clicks = 1
     assert xaitk_app.status_text == "Saliency generation test completed"

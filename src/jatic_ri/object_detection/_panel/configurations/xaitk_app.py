@@ -38,7 +38,7 @@ from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import RandomGr
 
 # local imports
 from jatic_ri import PACKAGE_DIR
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.xaitk_app_common import BaseXAITKApp
 
 mpl.use("agg")
 
@@ -47,7 +47,6 @@ pn.extension("jsoneditor")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
 TEST_IMAGE = IMAGE_DIR / "XAITK_Visdrone_example_img.jpg"
-XAITK_LOGO = IMAGE_DIR / "XAITK_logo.png"
 
 
 @dataclass
@@ -114,14 +113,12 @@ class HuggingFaceDetector:
         return predictions
 
 
-class XaitkApp(BaseApp):
-    """App for building XAITKTestStages"""
+class XAITKApp(BaseXAITKApp):
+    """App for building XAITKTestStages for object detection"""
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")
     title_font_size = param.Integer(default=24)
     status_text = param.String("Waiting for detection image input...")
-
-    default_xaitk_params = param.Dict({})
 
     def __init__(self, **params: dict[str, object]) -> None:
         #   model initialization
@@ -141,46 +138,27 @@ class XaitkApp(BaseApp):
         self.id2label = self.jatic_detector.index2label
         self.pad_perc = 0.4
 
-        self.config_upload = pn.widgets.FileInput(accept=".json")  # declare here since its used in pn.depends
+        self.md_text = """
+                The sample saliency generation uses the [DETR-Resnet50](https://huggingface.co/facebook/detr-resnet-50)
+                model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
+                The default saliency configuration in this app takes about
+                3 minutes to run on a server instance with a dual-core CPU
+                and 8GB RAM. To generate optimal saliency maps, kindly
+                refer to the documentation:
+                https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation
+                """
 
         super().__init__(**params)
-        self.config_upload.stylesheets = [self.widget_stylesheet]
 
         self.test_img = TEST_IMAGE
-        self.select_detection_widget = pn.widgets.Select(
+        self.select_widget = pn.widgets.Select(
             name="Choose Detection (from top-10 detections)",
             options=self.get_top_10_detections(),
             stylesheets=[self.widget_stylesheet],
         )
-        self.saliency_gen_button = pn.widgets.Button(
-            name="Test Saliency Map Generation Settings",
-            button_type="primary",
-            stylesheets=[self.button_stylesheet],
-            align="end",
-        )
         self.saliency_gen_button.on_click(self.saliency_gen_button_callback)
 
-        self.original_plot = pn.pane.Matplotlib(
-            self.create_sal_plot(img=None, sal_array=None), tight=True, visible=False
-        )
-        self.augmented_plot = pn.pane.Matplotlib(
-            self.create_sal_plot(img=None, sal_array=None), tight=True, visible=False
-        )
-
-        self.left_column_width = 410
-        self.right_column_width = 610
-        self.page_width = self.left_column_width + self.right_column_width
-        self.saliency_widget = [
-            pn.Card(
-                self.add_saliency_gen_config_widget(),
-                title="Saliency Generation Parameters",
-                header_color=self.color_light_gray,
-                width=self.left_column_width,
-            ),
-        ]
-
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(bboxes=None), tight=True)
-        self.widget_values = []
 
     def _run_export(self) -> None:
         """This function runs when `export_button` is clicked"""
@@ -205,56 +183,6 @@ class XaitkApp(BaseApp):
                     "saliency_generator": to_config_dict(saliency_generator),
                 },
             }
-
-    def add_saliency_gen_config_widget(self) -> pn.Column:
-        """Saliency Generation config widget"""
-        return pn.Column(
-            pn.widgets.IntInput(
-                name="Number of Masks",
-                value=50,
-                start=50,
-                end=1200,
-                step=50,
-                stylesheets=[self.widget_stylesheet],
-            ),
-            pn.widgets.Select(
-                name="Occlusion Grid Size",
-                options=["(7,7)", "(5,5)", "(10,10)"],
-                stylesheets=[self.widget_stylesheet],
-            ),
-            pn.pane.Markdown(
-                f"""
-                <style>
-                * {{
-                    color: {self.color_light_gray};
-                }}
-                </style>
-                The sample saliency generation uses the [DETR-Resnet50](https://huggingface.co/facebook/detr-resnet-50)
-                model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
-                The default saliency configuration in this app takes about
-                3 minutes to run on a server instance with a dual-core CPU
-                and 8GB RAM. To generate optimal saliency maps, kindly
-                refer to the documentation:
-                https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation
-                """,
-            ),
-        )
-
-    def create_sal_plot(self, img: PilImg | None, sal_array: np.ndarray | None) -> Figure:
-        """Return matplotlib figure of the original sample image"""
-        img_array = np.asarray(img) if img is not None else np.zeros((5, 5))
-        fig, ax = plt.subplots(figsize=(2, 2))
-        if sal_array is not None:
-            ax.imshow(img_array, alpha=0.7, cmap="gray")
-            ax.imshow(sal_array, alpha=0.3, cmap="jet")
-            ax.set_title("Saliency Map", fontdict={"fontsize": 6})
-        else:
-            ax.imshow(img_array)
-            ax.set_title("Example Detection", fontdict={"fontsize": 6})
-        ax.axis("off")
-        plt.tight_layout()
-        plt.close()
-        return fig
 
     def dets_to_mats_output(
         self, dets: Iterable[Iterable[tuple[AxisAlignedBoundingBox, dict[Hashable, float]]]]
@@ -322,7 +250,7 @@ class XaitkApp(BaseApp):
         saliency_generator.fill = fill
 
         dets = list(self.detector([img]))[0]
-        det = list(dets)[int(self.select_detection_widget.value)]
+        det = list(dets)[int(self.select_widget.value)]
         bboxes, scores = self.dets_to_mats_output([det])
         sal_maps = saliency_generator(img, bboxes, scores, self.detector)
 
@@ -336,6 +264,7 @@ class XaitkApp(BaseApp):
         img = np.asarray(Image.open(self.test_img))
         gray_img = np.asarray(Image.open(self.test_img).convert("L"))
 
+        self.status_text = "Generating saliency maps..."
         sal_maps, bboxes = self.generate_saliency(img)
         self.status_text = "Saliency maps created"
 
@@ -351,33 +280,22 @@ class XaitkApp(BaseApp):
         img_crop = Image.fromarray(img[y1 : (y2 + 1), x1 : (x2 + 1)])
         grayscale_img_crop = Image.fromarray(gray_img[y1 : (y2 + 1), x1 : (x2 + 1)])
         sal_crop = sal_map[y1 : (y2 + 1), x1 : (x2 + 1)]
-        self.original_plot.object = self.create_sal_plot(img=img_crop, sal_array=None)
+        self.original_plot.object = self.create_det_plot(img=img_crop)
         self.original_plot.visible = True
         self.augmented_plot.object = self.create_sal_plot(img=grayscale_img_crop, sal_array=sal_crop)
         self.augmented_plot.visible = True
         self.status_text = "Saliency generation test completed"
 
-    def collect_widget_values(self) -> dict:
-        """Collect all the values on the current widgets"""
-        saliency_params = self.saliency_widget[0].objects[0].objects
-
-        return {
-            "num_masks": saliency_params[0].value,
-            "grid_size": tuple(int(el) for el in saliency_params[1].value[1:-1].split(",")),
-        }
-
-    def view_plots(self) -> pn.Row:
-        """View of the plots"""
-        return pn.Row(self.original_plot, self.augmented_plot)
-
-    def view_logo(self) -> pn.pane.Image:
-        """View XAITK logo"""
-        return pn.pane.Image(
-            str(XAITK_LOGO),
-            width=140,
-            styles={"display": "block", "float": "right", "background-color": "rgba(255, 255, 255, 1.0)"},
-            stylesheets=[self.text_color_styling],
-        )
+    def create_det_plot(self, img: PilImg | None) -> Figure:
+        """Return matplotlib figure of the detction from the original sample image"""
+        img_array = np.asarray(img) if img is not None else np.zeros((5, 5))
+        fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
+        ax.imshow(img_array)
+        ax.set_title("Example Detection", fontdict={"fontsize": 6})
+        ax.axis("off")
+        plt.tight_layout()
+        plt.close()
+        return fig
 
     def create_sample_image(self, bboxes: np.ndarray | None, include_dets: bool = False) -> Figure:
         """View Sample Input Image"""
@@ -397,48 +315,9 @@ class XaitkApp(BaseApp):
         """Update Matplotlib Image/Plot"""
         self.sample_image.object = self.create_sample_image(include_dets=True, bboxes=bboxes)
 
-    def panel(self) -> pn.Column:
-        """High level view of the full app"""
-        return pn.Column(
-            pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
-            pn.Row(
-                self.saliency_widget[0],
-                pn.Column(
-                    pn.pane.Markdown(
-                        f"""
-                            <style>
-                            * {{
-                                color: {self.color_light_gray};
-                            }}
-                            </style>
-                            <h2> Choose Sample Detection
-                        """
-                    ),
-                    self.select_detection_widget,
-                    self.sample_image,
-                    pn.pane.Markdown(
-                        f"""
-                            <style>
-                            * {{
-                                color: {self.color_light_gray};
-                            }}
-                            </style>
-                            <h2> Saliency Generation Output
-                        """
-                    ),
-                    self.view_plots,
-                ),
-            ),
-            pn.layout.Divider(),
-            pn.Row(pn.layout.HSpacer(), self.saliency_gen_button, self.export_button),
-            self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_dark_blue},
-        )
-
 
 if __name__ == "__main__":
-    sd: XaitkApp = XaitkApp()
+    sd: XAITKApp = XAITKApp()
     if len(sys.argv) > 1 and sys.argv[1] == "--ci":
         os.makedirs("artifacts", exist_ok=True)
         sd.panel().save(os.path.join("artifacts", "xaitk_app.html"), resources=INLINE)
