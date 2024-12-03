@@ -8,8 +8,11 @@ nav:  # navigation links on sidebar
     - Contributing: community/contributing.md
   - Examples:
     - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
+    - Image Classification Dataset Wrapper: examples/image_classification_dataset_wrapper.ipynb
   - Object Detection:
     - Models: object-detection/models.md
+  - Image Classification:
+    - Datasets: image-classification/datasets.md
 theme: readthedocs
 markdown_extensions:
   - admonition  # enables callout boxes

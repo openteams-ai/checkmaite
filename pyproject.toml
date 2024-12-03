@@ -43,6 +43,7 @@ more-itertools = ">=10.0"   # arbitrary, used by linting test stage
 opencv-python-headless = {version = ">=4.9.0.80"} # necessary pin, required by nrtk usage here
 panel = ">=1.4.5"                                 # arbitrary pin
 zstandard = "^0.23.0"       # arbitrary, used for zip compression of json
+Pillow = ">=11.0.0"         # arbitrary
 
 # development dependencies
 [tool.poetry.group.dev]
