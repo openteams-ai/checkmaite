@@ -1,0 +1,81 @@
+import json
+
+import numpy as np
+import pytest
+import torch
+from PIL import Image
+
+from jatic_ri._common.models import (
+    InvalidInputBatchShapeError,
+    InvalidModelNameError,
+)
+from jatic_ri.image_classification.models import TorchvisionICModel
+
+
+@pytest.mark.parametrize('model_name', ['alexnet', 'resnext50_32x4d'])
+def test_integration_dataset(model_name: str):
+    """
+    Integration test to validate the torchvision wrapper on a sample image from COCO dataset.
+
+    This test runs an end-to-end check ensuring that the wrapper can successfully load a model,
+    process the input data, and make predictions on real-world data.
+    """
+    # PIL is HWC, MAITE expects CHW
+    img = Image.open("tests/testing_utilities/example_data/coco_dataset/000000087038.jpg")
+    img_chw = [np.transpose(np.array(img), (2, 0, 1))]
+
+    torchvision_wrapper = TorchvisionICModel(model_name=model_name, device="cpu")
+    prediction = torchvision_wrapper(input_batch=img_chw)
+    assert len(prediction) == 1
+    assert prediction[0].shape == (1000,)
+    assert torchvision_wrapper.name == model_name
+    # It's a bicycle, but close enough, there's many other objects in the image
+    assert torchvision_wrapper.index2label[prediction[0].argmax().item()] == 'unicycle'
+
+def test_valid_user_weights_load(tmpdir):
+    """
+    Test that can load user-supplied weights.
+
+    We download a pre-trained model from torchvision, save it to disk
+    as a pickle and then confirm that it can be loaded correctly.
+    """
+
+    # download
+    model_wrapper = TorchvisionICModel(model_name="alexnet")
+
+    config_path = tmpdir / "config.json"
+    pickle_path = tmpdir / "my_pickle.pt"
+
+    # save metadata and state_dict to disk
+    with open(config_path, "w") as f:
+        json.dump({"index2label": model_wrapper.index2label}, f)
+    _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
+
+    # reload from disk and confirm equality with original model
+    model_wrapper_2 = TorchvisionICModel(
+        model_name="alexnet", weights_path=pickle_path, config_path=config_path
+    )
+
+    assert model_wrapper.index2label == model_wrapper_2.index2label
+
+    # check that scores from random prediction from both models identical
+    # maybe overkill, but useful smoke-test
+    random_img = np.random.random(size=(3, 100, 100))
+    assert (
+        model_wrapper(input_batch=[random_img])[0]
+        == model_wrapper_2(input_batch=[random_img])[0]
+    ).all()
+
+
+def test_invalid_model_name():
+    """Test that initializing with an invalid model name raises InvalidModelNameError."""
+    with pytest.raises(InvalidModelNameError):
+        TorchvisionICModel(model_name="invalid_model", device="cpu")
+
+
+def test_call_invalid_shape():
+    """Test that calling the model with an invalid shape raises InvalidInputBatchShape."""
+    model = TorchvisionICModel(model_name="alexnet", device="cpu")
+    invalid_batch = torch.randn(1, 224, 224, 3)  # HWC, but we need CHW
+    with pytest.raises(InvalidInputBatchShapeError):
+        model(input_batch=invalid_batch)
