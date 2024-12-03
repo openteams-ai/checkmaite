@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 # Local imports
-from jatic_ri.image_classification.test_stages.impls.ntrk_test_stage import (
+from jatic_ri.image_classification.test_stages.impls.nrtk_test_stage import (
     NRTKTestStage,
 )
 
