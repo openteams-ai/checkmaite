@@ -17,7 +17,7 @@ import param
 from bokeh.resources import INLINE
 
 from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
-from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage
+from jatic_ri.image_classification.test_stages.impls.nrtk_test_stage import NRTKTestStage
 
 
 class NRTKApp(NRTKBaseApp):
