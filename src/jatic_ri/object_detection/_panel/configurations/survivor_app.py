@@ -54,13 +54,11 @@ class SurvivorApp(BaseApp):
         just_number = re.compile(r"^\d+$")
         list_of_numbers = re.compile(r"^(\d+(\.\d*)?,(\s)?)*(\d+(\.\d*)?)$")
         self.status_text = "Waiting for input..."
-        self.export_button.disabled = False
         if just_number.match(self.bins):
             self._bins = int(self.bins)
         elif list_of_numbers.match(self.bins):
             self._bins = [float(bin_edge) for bin_edge in self.bins.split(",")]
         else:
-            self.export_button.disabled = True
             self.status_text = "Invalid Bins argument"
 
     def _run_export(self) -> None:
@@ -143,7 +141,6 @@ class SurvivorApp(BaseApp):
                 description="Edges of the bins to sort model metrics into. "
                 "Should all be within metric range i.e (0-1), (1-100)",
             )
-        self.export_button.disabled = False
         self.status_text = "Waiting for input..."
         # if rounded is selected, display the round precision widget
         if self.similarity_strategy == "Rounded":
@@ -161,7 +158,6 @@ class SurvivorApp(BaseApp):
         return pn.Column(
             self.settings_pane,
             self.similarity_option_pane,
-            pn.Row(pn.layout.HSpacer(), self.export_button),
             self.view_status_bar,
             width=self.page_width,
             styles={"background": self.color_dark_blue},
