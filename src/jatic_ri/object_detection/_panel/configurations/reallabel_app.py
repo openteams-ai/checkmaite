@@ -135,7 +135,6 @@ class RealLabelApp(BaseApp):
         """High level panel app"""
         return pn.Column(
             self.settings_pane,
-            pn.Row(pn.layout.HSpacer(), self.export_button),
             self.view_status_bar,
             width=self.page_width,
             styles={"background": self.color_dark_blue},

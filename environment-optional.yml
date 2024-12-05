@@ -16,6 +16,7 @@ dependencies:
 - xaitk-jatic>=0.2.0
 
 # External tools
+- holoviews>=1.20.0                     # arbitrary pin, required for panel pipelines
 - panel>=1.4.5                          # arbitrary pin
 - pillow>=11.0.0                        # arbitrary pin
 - pyspark>=3.5.3                        # arbitrary pin

@@ -30,7 +30,7 @@ def test_panel() -> None:
     # Arrange
     app = RealLabelApp()
     exp_styles = {"background": app.color_dark_blue}
-    exp_types = [pn.param.ParamMethod, pn.Row, pn.param.ParamMethod]
+    exp_types = [pn.param.ParamMethod, pn.param.ParamMethod]
 
     # Act
     result = app.panel()

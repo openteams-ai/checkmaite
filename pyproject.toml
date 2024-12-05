@@ -38,12 +38,13 @@ reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
 xaitk-jatic = {version = ">=0.4.2", extras = ["docker"]}  # docker extra required for panel apps
 # external deps
+holoviews = ">=1.20.0"      # arbitrary pin, required for panel pipelines
 matplotlib = ">=3.4.0"      # arbitrary, required by panel
 more-itertools = ">=10.0"   # arbitrary, used by linting test stage
 opencv-python-headless = {version = ">=4.9.0.80"} # necessary pin, required by nrtk usage here
+Pillow = ">=11.0.0"         # arbitrary
 panel = ">=1.4.5"                                 # arbitrary pin
 zstandard = "^0.23.0"       # arbitrary, used for zip compression of json
-Pillow = ">=11.0.0"         # arbitrary
 
 # development dependencies
 [tool.poetry.group.dev]

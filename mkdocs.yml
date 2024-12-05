@@ -8,6 +8,7 @@ nav:  # navigation links on sidebar
     - Contributing: community/contributing.md
   - Examples:
     - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
+    - Dataset Analysis Configuration: examples/dataset_evaluation_configuration.ipynb
     - Image Classification Dataset Wrapper: examples/image_classification_dataset_wrapper.ipynb
   - Object Detection:
     - Models: object-detection/models.md
