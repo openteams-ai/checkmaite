@@ -94,7 +94,7 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                 if ref_img_np.shape[0] == 1:
                     gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
                 else:
-                    gray_img = np.asarray(Image.fromarray(ref_img_np).convert("L"))
+                    gray_img = np.asarray(Image.fromarray(ref_img_np.transpose(1, 2, 0)).convert("L"))
 
                 sal_map_path = Path(sub_dir).joinpath(f"det_{sal_idx}.png")
 

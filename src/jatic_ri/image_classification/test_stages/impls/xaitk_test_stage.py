@@ -82,7 +82,7 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
             if ref_img.shape[0] == 1:
                 gray_img = np.asarray(Image.fromarray(ref_img[0]).convert("L"))
             else:
-                gray_img = np.asarray(Image.fromarray(ref_img).convert("L"))
+                gray_img = np.asarray(Image.fromarray(ref_img.transpose(1, 2, 0)).convert("L"))
 
             gt_label = self.model.index2label[int(np.argmax(targets))]  # type: ignore
             sal_maps = output_values[dataset_idx]
