@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any, Literal, TypedDict
 
 import torch
 import yaml
@@ -16,8 +17,7 @@ from torchvision.datasets import CocoDetection
 from torchvision.ops.boxes import box_convert
 from torchvision.transforms.functional import pil_to_tensor
 
-if TYPE_CHECKING:
-    from pathlib import Path
+SUPPORTED_DATASET_TYPES = ["CocoDetectionDataset"]
 
 
 @dataclass
@@ -206,3 +206,28 @@ class YoloDetectionDataset(Dataset):
 
         metadata = {}
         return img_pt, DetectionTarget(boxes, labels, scores), metadata
+
+
+class DatasetSpecification(TypedDict):
+    """Dataset metadata required for loading datasets via the RI wrappers"""
+
+    # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    dataset_type: Literal["CocoDetectionDataset"]  # type: ignore
+    split_folder: str | None
+    metadata_path: str | None
+
+
+def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDetectionDataset]:
+    """Simplified programmatic loading of datasets from on dictionary of
+    DatasetSpecifications."""
+    loaded = {}
+    for name, dataset_metadata in datasets.items():
+        if dataset_metadata["dataset_type"] == "CocoDetectionDataset":
+            root_path = Path(dataset_metadata["metadata_path"]).parent.resolve()  # type: ignore
+            loaded[name] = CocoDetectionDataset(
+                root=str(root_path),
+                ann_file=str(dataset_metadata["metadata_path"]),
+            )
+        else:
+            raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")
+    return loaded
