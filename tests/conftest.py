@@ -8,6 +8,8 @@ import os
 
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
+from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
+from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
 import numpy as np
 import pytest
 import torch
@@ -22,6 +24,7 @@ from tests.testing_utilities.example_maite_objects import (  # noqa: E501
 )
 
 import jatic_ri
+
 
 RNG = np.random.default_rng(seed=42)
 
@@ -297,3 +300,136 @@ def metric_results() -> dict:
         "airports": 0.43,
         "elephants": 0.56,
     }
+
+
+@pytest.fixture(scope='session')
+def reallabel_config_od():
+    """Default output configuration settings from the reallabel
+    panel app"""
+    # import inside the fixture to improve test startup time
+    from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp as RealLabelAppOD
+    reallabel_app = RealLabelAppOD()
+    reallabel_app._run_export()
+    return reallabel_app.output_test_stages["reallabel_test_stage"]
+
+@pytest.fixture(scope='session')
+def survivor_config_od():
+    """Default output configuration settings from the survivor
+    panel app"""
+    # import inside the fixture to improve test startup time
+    from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp as SurvivorAppOD
+    survivor_app = SurvivorAppOD()
+    survivor_app._run_export()
+    return survivor_app.output_test_stages["survivor_test_stage"]
+
+@pytest.fixture(scope='session')
+def survivor_config_ic():
+    """Default output configuration settings from the survivor
+    panel app"""
+    # import inside the fixture to improve test startup time
+    from jatic_ri.image_classification._panel.configurations.survivor_app import SurvivorApp as SurvivorAppIC
+    survivor_app = SurvivorAppIC()
+    survivor_app._run_export()
+    return survivor_app.output_test_stages["survivor_test_stage"]
+
+@pytest.fixture(scope='session')
+def nrtk_config_od():
+    # import inside the fixture to improve test startup time
+    from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp as NRTKAppOD
+    nrtk_app = NRTKAppOD()
+    nrtk_app.panel()
+    nrtk_app.perturber_select.value = BrightnessPerturber
+    nrtk_app.factory_selector.value = OneStepPerturbImageFactory
+    nrtk_app.theta_key.value = 'factor'
+    nrtk_app.theta_value.value = 10.0
+    nrtk_app.name_input.value = "TestFactory"
+    nrtk_app.add_test_stage_callback(None)
+    nrtk_app._run_export()
+    nrtk_config = nrtk_app.output_test_stages["NRTKApp_0"]
+    nrtk_config['TYPE'] = 'NRTKTestStage'  # temporary fix
+    return nrtk_config
+
+@pytest.fixture(scope='session')
+def nrtk_config_ic():
+    # import inside the fixture to improve test startup time
+    from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKApp as NRTKAppIC
+    nrtk_app = NRTKAppIC()
+    nrtk_app.panel()
+    nrtk_app.perturber_select.value = BrightnessPerturber
+    nrtk_app.factory_selector.value = OneStepPerturbImageFactory
+    nrtk_app.theta_key.value = 'factor'
+    nrtk_app.theta_value.value = 10.0
+    nrtk_app.name_input.value = "TestFactory"
+    nrtk_app.add_test_stage_callback(None)
+    nrtk_app._run_export()
+    nrtk_config = nrtk_app.output_test_stages["NRTKApp_0"]
+    nrtk_config['TYPE'] = 'NRTKTestStage'  # temporary fix
+    return nrtk_config
+
+@pytest.fixture(scope='session')
+def xaitk_config_od():
+    # import inside the fixture to improve test startup time
+    from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp as XAITKAppOD
+    xaitk_app = XAITKAppOD()
+    xaitk_app._run_export()
+    return xaitk_app.output_test_stages["XAITKApp_0"]
+
+@pytest.fixture(scope='session')
+def xaitk_config_ic():
+    # import inside the fixture to improve test startup time
+    from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKApp as XAITKAppIC
+    xaitk_app = XAITKAppIC()
+    xaitk_app._run_export()
+    return xaitk_app.output_test_stages["XAITKApp_0"]
+
+@pytest.fixture(scope='session')
+def feasibility_config_od():
+    return {
+        'TYPE': 'DatasetFeasibilityTestStage',
+    }
+
+@pytest.fixture(scope='session')
+def feasibility_config_ic(feasibility_config_od):
+    return feasibility_config_od
+
+@pytest.fixture(scope='session')
+def bias_config_od():
+    return {
+        'TYPE': 'DatasetBiasTestStage',
+    }
+
+@pytest.fixture(scope='session')
+def bias_config_ic(bias_config_od):
+    return bias_config_od
+
+@pytest.fixture(scope='session')
+def linting_config_od():  
+    return {
+        'TYPE': 'DatasetLintingTestStage',
+    }
+
+@pytest.fixture(scope='session')
+def linting_config_ic(linting_config_od):  
+    return linting_config_od
+
+@pytest.fixture(scope='session')
+def shift_config_od():
+    return {
+        'TYPE': 'DatasetShiftTestStage',
+    }
+
+@pytest.fixture(scope='session')
+def shift_config_ic(shift_config_od):
+    return shift_config_od
+
+@pytest.fixture(scope='session')
+def baseline_eval_config_od():
+    # baseline evaluation (maite) requires no data inside the config
+    return {
+        'TYPE': 'BaselineEvaluationTestStage',
+    }
+
+@pytest.fixture(scope='session')
+def baseline_eval_config_ic(baseline_eval_config_od):
+    # baseline evaluation (maite) requires no data inside the config
+    return baseline_eval_config_od

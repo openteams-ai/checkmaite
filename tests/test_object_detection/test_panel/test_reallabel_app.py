@@ -2,6 +2,11 @@ from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLa
 import panel as pn
 import pytest
 
+from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
+    Config,
+    RealLabelTestStage,
+    )
+
 
 def test_settings_pane() -> None:
     """Test RealLabelApp.settings_pane() returns panel with widgets in correct order and with correct values."""
@@ -89,6 +94,8 @@ def test_run_export(
     # Act
     app._run_export()
     output = app.output_test_stages["reallabel_test_stage"]
+    reallabel_config = Config(**output)
+    stage = RealLabelTestStage(config=reallabel_config)
 
     # Assert
     assert output == exp_output

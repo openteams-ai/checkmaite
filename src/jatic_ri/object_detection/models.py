@@ -1,10 +1,10 @@
-"""models"""
+"""Catalog of model wrappers and other model loading utilities"""
 
 from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
 
 import torch
 from maite.protocols import object_detection as od
@@ -40,6 +40,9 @@ SUPPORTED_TORCHVISION_MODELS = {
     "ssd300_vgg16": "SSD300_VGG16_Weights",
     "ssdlite320_mobilenet_v3_large": "SSDLite320_MobileNet_V3_Large_Weights",
 }
+
+# list of all available model wrappers
+SUPPORTED_MODELS = SUPPORTED_TORCHVISION_MODELS
 
 
 class TorchvisionODModel:
@@ -160,3 +163,47 @@ class TorchvisionODModel:
     def name(self) -> str:
         """Human-readable name for torchvision model"""
         return self._model_name
+
+
+class ModelSpecification(TypedDict):
+    """Model metadata required for loading models via the RI wrappers"""
+
+    # full filepath to model weights file
+    model_weights_path: str
+    # model type, keys map to model wrappers
+    # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    model_type: Literal[
+        "fasterrcnn_resnet50_fpn",
+        "fasterrcnn_resnet50_fpn_v2",
+        "fasterrcnn_mobilenet_v3_large_fpn",
+        "fasterrcnn_mobilenet_v3_large_320_fpn",
+        "maskrcnn_resnet50_fpn_v2",
+        "maskrcnn_resnet50_fpn",
+        "retinanet_resnet50_fpn_v2",
+        "retinanet_resnet50_fpn",
+        "fcos_resnet50_fpn",
+        "keypointrcnn_resnet50_fpn",
+        "ssd300_vgg16",
+        "ssdlite320_mobilenet_v3_large",
+    ]
+
+
+def load_models(
+    models: dict[str, ModelSpecification],
+) -> dict[str, TorchvisionODModel]:  # pragma: no cover
+    """Simplified programmatic loading of models from a dictionary of
+    ModelSpecifications."""
+    loaded = {}
+    for name, meta_dict in models.items():
+        # if this is a torchvision model
+        if meta_dict["model_type"] in SUPPORTED_TORCHVISION_MODELS:
+            wrapper = TorchvisionODModel(
+                model_name=meta_dict["model_type"],
+                weights_path=meta_dict["model_weights_path"],
+            )
+
+            loaded[name] = wrapper
+        else:
+            raise RuntimeError(f"Model type not yet supported {meta_dict['model_type']}")
+
+    return loaded
