@@ -159,3 +159,10 @@ def test_run_export(
 
     # Assert
     assert output == exp_output
+
+def test_roundtrip() -> None:
+    from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
+    app = SurvivorApp()
+    app._run_export()
+    output_config = app.output_test_stages['survivor_test_stage']["CONFIG"]
+    SurvivorTestStage(config=output_config)
