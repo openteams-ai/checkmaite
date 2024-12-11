@@ -28,11 +28,6 @@ from PIL import Image
 from PIL.Image import Image as PilImg
 from smqtk_core.configuration import to_config_dict
 from smqtk_image_io.bbox import AxisAlignedBoundingBox
-from torchvision.transforms.functional import get_image_size  # type: ignore
-from transformers import (
-    AutoImageProcessor,  # type: ignore
-    AutoModelForObjectDetection,  # type: ignore
-)
 from xaitk_jatic.interop.object_detection.model import JATICDetector
 from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import RandomGridStack
 
@@ -62,6 +57,11 @@ class HuggingFaceDetector:
     """MAITE wrapper for HuggingFaceDetector"""
 
     def __init__(self, model_name: str, threshold: float, device: str) -> None:
+        from transformers import (
+            AutoImageProcessor,  # type: ignore
+            AutoModelForObjectDetection,  # type: ignore
+        )
+
         self.image_processor = AutoImageProcessor.from_pretrained(model_name)
         self.model = AutoModelForObjectDetection.from_pretrained(model_name)
         self.threshold = threshold
@@ -77,6 +77,8 @@ class HuggingFaceDetector:
 
     def __call__(self, batch: od.InputBatchType) -> od.TargetBatchType:
         """Callable implementation for HuggingFaceDetector"""
+        from torchvision.transforms.functional import get_image_size  # type: ignore
+
         # tensor bridging
         input_tensor = torch.as_tensor(batch)
         if input_tensor.ndim != 4:

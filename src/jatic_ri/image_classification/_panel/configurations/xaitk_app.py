@@ -22,10 +22,6 @@ from bokeh.resources import INLINE
 from matplotlib.figure import Figure
 from PIL import Image
 from smqtk_core.configuration import to_config_dict
-from transformers import (
-    AutoImageProcessor,  # type: ignore
-    AutoModelForImageClassification,  # type: ignore
-)
 from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise import RISEStack
 
@@ -46,6 +42,11 @@ class HuggingFaceClassifier:
     """MAITE wrapper for HuggingFaceClassifier"""
 
     def __init__(self, model_name: str, device: str) -> None:
+        from transformers import (
+            AutoImageProcessor,  # type: ignore
+            AutoModelForImageClassification,  # type: ignore
+        )
+
         self.image_processor = AutoImageProcessor.from_pretrained(model_name)
         self.model = AutoModelForImageClassification.from_pretrained(model_name)
         self.device = device

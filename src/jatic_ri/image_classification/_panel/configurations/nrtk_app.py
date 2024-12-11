@@ -12,7 +12,6 @@ import os
 import sys
 
 # Panel app imports
-import panel as pn
 import param
 from bokeh.resources import INLINE
 
@@ -46,6 +45,8 @@ class NRTKApp(NRTKBaseApp):
 
 
 if __name__ == "__main__":  # pragma: no cover
+    import panel as pn
+
     sd: NRTKApp = NRTKApp()
     if len(sys.argv) > 1 and sys.argv[1] == "--ci":
         os.makedirs("artifacts", exist_ok=True)

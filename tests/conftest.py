@@ -1,5 +1,3 @@
-"""Test baseline evalutation"""
-
 import tempfile
 from collections.abc import Sequence
 from typing import Any, Hashable
@@ -12,16 +10,9 @@ from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImag
 from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
 import numpy as np
 import pytest
+
 import torch
 from maite.protocols import ArrayLike
-from tests.testing_utilities.example_maite_objects import (  # noqa: E501
-    create_maite_wrapped_metric,
-    FMOWDetectionDataset,
-    USA_SUMMER_DATA_IMAGERY_DIR,
-    USA_SUMMER_DATA_METADATA_FILE_PATH,
-    Yolov5sModel,
-    YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH,
-)
 
 import jatic_ri
 
@@ -261,34 +252,10 @@ def dummy_metric_ic() -> ic.Metric:
     return DummyMetric()
 
 
-@pytest.fixture
-def model_od_yolov5() -> od.Model:
-    """Yolov5s USA All seasons V1 model for OD"""
-    return Yolov5sModel(
-        model_path=str(YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH),
-        transforms=None,
-        device="cpu",
-    )
-
-
-@pytest.fixture
-def dataset_od_fwow() -> od.Dataset:
-    """FWOW detection dataset using USA summer for OD"""
-    return FMOWDetectionDataset(
-        USA_SUMMER_DATA_IMAGERY_DIR,
-        USA_SUMMER_DATA_METADATA_FILE_PATH,
-    )
-
-
-@pytest.fixture
-def metric_od_map() -> od.Metric:
-    """mAP 50 metric for OD"""
-    return create_maite_wrapped_metric("mAP_50")
-
 
 @pytest.fixture
 def threshold_od() -> float:
-    """threshold for OD, realistic value to be paired with metric_od_map"""
+    """Threshold for OD"""
     return 0.3
 
 
