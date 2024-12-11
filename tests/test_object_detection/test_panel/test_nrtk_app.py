@@ -82,7 +82,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     nrtk_app._run_export()
     assert len(nrtk_app.output_test_stages) == 1
     test_stage = nrtk_app.output_test_stages["NRTKApp_0"]
-    assert test_stage["TYPE"] == NRTKTestStage
+    assert test_stage["TYPE"] == 'NRTKTestStage'
     assert test_stage["CONFIG"]["name"] == "natural_robustness_TestFactory"
     assert test_stage["CONFIG"]["perturber_factory"] == factory_json
 

@@ -17,7 +17,6 @@ import param
 from bokeh.resources import INLINE
 
 from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
-from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage
 
 
 class NRTKApp(NRTKBaseApp):
@@ -38,7 +37,7 @@ class NRTKApp(NRTKBaseApp):
         for idx, stage in enumerate(self.test_stages):
             stage_name = stage["name"]
             self.output_test_stages[f"{self.__class__.__name__}_{idx}"] = {
-                "TYPE": NRTKTestStage,
+                "TYPE": "NRTKTestStage",
                 "CONFIG": {
                     "name": f"natural_robustness_{stage_name}",
                     "perturber_factory": stage["factory"],
