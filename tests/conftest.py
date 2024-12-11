@@ -346,7 +346,6 @@ def nrtk_config_od():
     nrtk_app.add_test_stage_callback(None)
     nrtk_app._run_export()
     nrtk_config = nrtk_app.output_test_stages["NRTKApp_0"]
-    nrtk_config['TYPE'] = 'NRTKTestStage'  # temporary fix
     return nrtk_config
 
 @pytest.fixture(scope='session')
@@ -363,7 +362,6 @@ def nrtk_config_ic():
     nrtk_app.add_test_stage_callback(None)
     nrtk_app._run_export()
     nrtk_config = nrtk_app.output_test_stages["NRTKApp_0"]
-    nrtk_config['TYPE'] = 'NRTKTestStage'  # temporary fix
     return nrtk_config
 
 @pytest.fixture(scope='session')
