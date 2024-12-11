@@ -50,6 +50,13 @@ class CocoDetectionDataset(Dataset):
     types `Tensor`, `DetectionTarget`, and `Dict[str, Any]`. These correspond to
     the model input type, model target type, and datum-level metadata, respectively.
 
+    Parameters
+    ----------
+    root: str or Path
+        Root directory of the dataset
+    ann_file: str
+        Full filepath to the annotation file for the dataset
+
     Attributes
     ----------
     classes
@@ -133,6 +140,13 @@ class YoloDetectionDataset(Dataset):
     See https://docs.ultralytics.com/datasets/detect/#ultralytics-yolo-format for
     specification.
 
+    Parameters
+    ----------
+    yaml_dataset: str
+        Full filepath to the yaml file containing dataset metadata
+    ann_dir: str
+        Full path to the root directory containing the annotation folders
+
     Attributes
     ----------
     classes
@@ -212,21 +226,29 @@ class DatasetSpecification(TypedDict):
     """Dataset metadata required for loading datasets via the RI wrappers"""
 
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    dataset_type: Literal["CocoDetectionDataset"]  # type: ignore
-    split_folder: str | None
-    metadata_path: str | None
+    dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset"]  # type: ignore
+    # full path to the metadata file. For Coco datasets, this is the annotation file. For
+    # yolo datasets, this is the yaml file.
+    metadata_path: str | Path
+    # full path to the directory containing either the annotation files for yolo or
+    # the split directory for coco
+    data_dir: str | Path | None
 
 
-def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDetectionDataset]:
+def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDetectionDataset | YoloDetectionDataset]:
     """Simplified programmatic loading of datasets from on dictionary of
     DatasetSpecifications."""
     loaded = {}
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "CocoDetectionDataset":
-            root_path = Path(dataset_metadata["metadata_path"]).parent.resolve()  # type: ignore
             loaded[name] = CocoDetectionDataset(
-                root=str(root_path),
+                root=str(dataset_metadata["data_dir"]),
                 ann_file=str(dataset_metadata["metadata_path"]),
+            )
+        elif dataset_metadata["dataset_type"] == "YoloDetectionDataset":
+            loaded[name] = YoloDetectionDataset(
+                yaml_dataset=str(dataset_metadata["metadata_path"]),
+                ann_dir=str(dataset_metadata["data_dir"]),
             )
         else:
             raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")

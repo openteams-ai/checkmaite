@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from jatic_ri.image_classification.datasets import MissingYoloDataSplitError, YoloClassificationDataset
+from jatic_ri.image_classification.datasets import MissingYoloDataSplitError, YoloClassificationDataset, DatasetSpecification, load_datasets
 
 CLASSES = ["cat", "dog"]
 NUM_IMAGES_PER_CLASS = 3
@@ -67,3 +68,16 @@ def test_missing_data_split(fake_dataset):
         match="The following data split subdirectory does not exist",
     ):
         YoloClassificationDataset(dataset_name="test_dataset", root_dir=fake_dataset, split="train")
+
+
+def test_load_datasets(fake_dataset):
+    split_dir = Path(fake_dataset).resolve().joinpath('test')
+    spec: DatasetSpecification = {
+        'dataset_type': 'YoloClassificationDataset',
+        'data_dir': split_dir,
+    }
+    datasets = {
+        'dataset1': spec,
+    }
+    loaded = load_datasets(datasets=datasets)
+    assert loaded
