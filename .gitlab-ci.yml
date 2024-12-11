@@ -127,15 +127,6 @@ pyright-internal:
     - poetry install --with dev
     - poetry run pyright src/
 
-pyright-external:
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: pyright
-  needs: []
-  script:
-    - poetry install --with dev
-    - poetry run pyright --ignoreexternal --verifytypes jatic_ri
-
 # DOCUMENTATION
 # deploy docs for merge requests
 pages-branch:
