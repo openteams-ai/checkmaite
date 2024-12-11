@@ -18,12 +18,6 @@ import numpy as np
 # Panel app imports
 import panel as pn
 import param
-
-# NRTK imports
-from nrtk.impls.perturb_image.pybsm.scenario import PybsmScenario
-from nrtk.impls.perturb_image.pybsm.sensor import PybsmSensor
-from nrtk.interfaces.perturb_image import PerturbImage
-from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from PIL import Image
 
 # SMQTK imports
@@ -49,6 +43,8 @@ class NRTKBaseApp(BaseApp):
     status_text = param.String("Waiting for input...")
 
     def __init__(self, **params: dict[str, object]) -> None:
+        from nrtk.interfaces.perturb_image import PerturbImage
+
         self.add_button = pn.widgets.Button(
             name="Add Test Stage", button_type="primary"
         )  # declare here since its used in pn.depends
@@ -104,6 +100,8 @@ class NRTKBaseApp(BaseApp):
 
     def add_perturber_config_widget(self) -> pn.Column:
         """Add perturber factory config widget"""
+        from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+
         pert_impl = self.perturber_select.value
 
         factory_options = {}
@@ -411,6 +409,8 @@ class NRTKBaseApp(BaseApp):
 
     def test_perturber_button_callback(self, _event: object) -> None:  # noqa PT019
         """Run final factory and display results"""
+        from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+
         self.status_text = "Perturbing..."
         factory_config = self.build_factory_json()
         if len(factory_config) == 0:
@@ -477,6 +477,9 @@ class NRTKBaseApp(BaseApp):
 
     def build_factory_json(self) -> dict:
         """Collect all the values on the current widgets"""
+        from nrtk.impls.perturb_image.pybsm.scenario import PybsmScenario
+        from nrtk.impls.perturb_image.pybsm.sensor import PybsmSensor
+
         pert_impl = self.perturber_select.value
         factory_impl = self.factory_selector.value
         if factory_impl.__name__ == "CustomPybsmPerturbImageFactory":

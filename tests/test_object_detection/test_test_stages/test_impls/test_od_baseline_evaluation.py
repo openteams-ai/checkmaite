@@ -47,14 +47,3 @@ def test_baseline_evaluation_dummy_od_with_cache(dummy_model_od, dummy_dataset_o
     assert len(output1) == len(output2)
     assert all(len(output1[i]) == len(output2[i]) for i in range(len(output1)))
     assert all(output1[i].keys() == output2[i].keys() for i in range(len(output1)))
-
-def test_baseline_evaluation_od_real(model_od_yolov5, dataset_od_fwow, metric_od_map) -> None:
-    """Test BaselineEvaluation implementation using real data"""
-
-    test = BaselineEvaluation()
-    test.load_model(model=model_od_yolov5, model_id="model_1")
-    test.load_metric(metric=metric_od_map, metric_id="map_50")
-    test.load_threshold(threshold=10)
-    test.load_dataset(dataset=dataset_od_fwow, dataset_id="dataset_1")
-    test.run(use_cache=False)
-    test.collect_report_consumables()

@@ -1,143 +1,29 @@
 """Module containing MAITE-wrapped objects and datasets used during the Increment 5 demo. For use in testing."""
-import copy
+
 import os
 import shutil
 import warnings
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal, Union
-from torchmetrics import Accuracy, F1Score
-from maite.protocols import ArrayLike
-from torchvision.transforms import v2
-from torchvision.models import alexnet, resnext50_32x4d
 
 import numpy as np
 import pandas as pd
 import torch
-import yolov5
-from maite.protocols import object_detection as od
+from maite.protocols import ArrayLike
 from maite.protocols import image_classification as ic
-from maite.protocols.object_detection import TargetBatchType as OD_TargetBatchType
+from maite.protocols import object_detection as od
 from maite.protocols.image_classification import TargetBatchType as IC_TargetBatchType
 from PIL import Image
-from jatic_ri.object_detection.metrics import map50_torch_metric_factory
-from torchvision.transforms.v2 import Resize
 
-to_1280x1280 = Resize((1280, 1280))
 
 EXAMPLE_MODEL_DIR = Path(os.path.abspath(__file__)).parent / "example_models"
 
-YOLOV5S_USA_ALL_SEASONS_V1_MODEL_PATH = EXAMPLE_MODEL_DIR / "yolov5s_USA-All-Seasons_v1.pt"
-YOLOV5S_USA_RUS_ALL_SEASONS_V1_MODEL_PATH = EXAMPLE_MODEL_DIR / "yolov5s_USA-RUS-All-Seasons_v1.pt"
 DEV_RESNEXT_MODEL_PATH = EXAMPLE_MODEL_DIR / "dev_resnext.pt"
 
 EXAMPLE_DATA_DIR = Path(os.path.abspath(__file__)).parent / "example_data"
 USA_SUMMER_DATA_IMAGERY_DIR = EXAMPLE_DATA_DIR / "USA_summer"
 USA_SUMMER_DATA_METADATA_FILE_PATH = EXAMPLE_DATA_DIR / "USA_summer" / "dev_val.csv"
-
-
-@dataclass
-class Yolov5sDetectionTarget:
-    """Yolov5s detection target."""
-
-    boxes: torch.Tensor
-    labels: torch.Tensor
-    scores: torch.Tensor
-
-
-class Yolov5sModel:
-    """Yolov5s model."""
-
-    def __init__(self, model_path: str, transforms: Any, device: str):  # noqa: ANN401
-        if not Path(model_path).exists():
-            raise FileNotFoundError(f"Model file {model_path} does not exist")
-        self.model = yolov5.load(str(model_path))
-        self.transforms = transforms
-        self.device = device
-
-        self.model.eval()
-        self.model.to(device)
-
-    def __call__(self, input_bt: od.InputBatchType) -> Sequence[Yolov5sDetectionTarget]:
-        """Call."""
-        batch = torch.tensor(input_bt)
-        if len(batch.shape) != 4:
-            raise ValueError(f"`input_bt` must have a shape of 4, given {batch.shape}")
-        _, _, orig_img_height, orig_img_width = batch.shape
-        batch = to_1280x1280(batch)
-
-        batch_size, _, _, _ = batch.shape
-
-        # This call is /VERY/ touchy. The return type depends on the parameter type. If
-        # changed to torch.tensor, another tensor will be returned. Keep the parameter
-        # a np.array so a structured prediction object is returned.
-        yolov5_predictions_batch = self.model(
-            [np.array(batch[i]).squeeze() for i in range(batch_size)],
-        )
-
-        predictions_batch = []
-        for predict_datum in yolov5_predictions_batch.xyxy:
-            if len(predict_datum) == 0:
-                boxes_datum = torch.zeros(0, 4)
-                labels_datum = torch.zeros(0, dtype=torch.uint8)
-                scores_datum = torch.zeros(0)
-            else:
-                boxes_datum = torch.zeros(len(predict_datum), 4)
-                labels_datum = torch.zeros(len(predict_datum), dtype=torch.uint8)
-                scores_datum = torch.zeros(len(predict_datum))
-                for i in range(len(predict_datum)):
-                    det_box = predict_datum[i]
-                    if det_box[0].numel() != 0:
-                        boxes_datum[i, :4] = det_box[:4]
-                        labels_datum[i] = det_box[5].int()
-                        scores_datum[i] = det_box[4]
-
-                boxes_datum = self.normalize_bbox_tensor(
-                    boxes_datum,
-                    img_width=orig_img_width,
-                    img_height=orig_img_height,
-                )
-
-            predictions_batch.append(
-                Yolov5sDetectionTarget(
-                    boxes=boxes_datum.detach().cpu(),  # xmin, ymin, xmax, ymax
-                    labels=labels_datum.detach().cpu(),  # class 0, 1..
-                    scores=scores_datum.detach().cpu(),  # confidence
-                ),
-            )
-
-        return predictions_batch
-
-    def normalize_bbox_tensor(self, boxes, *, img_width, img_height) -> torch.Tensor:
-        """Normalize box tensor."""
-        # YOLO model expects images resized to (1280,1280). We must scale the
-        # bounding boxes to match the original image size.
-        x_ratio = img_width / 1280
-        y_ratio = img_height / 1280
-        xmin, ymin, xmax, ymax = (
-            boxes[:, 0] * x_ratio,
-            boxes[:, 1] * y_ratio,
-            boxes[:, 2] * x_ratio,
-            boxes[:, 3] * y_ratio,
-        )
-        return torch.stack([xmin, ymin, xmax, ymax]).T
-
-    @property
-    def name(self) -> str:
-        """Return name of class"""
-        return self.__class__.__name__
-
-
-_img_xformer: Callable[[torch.Tensor], torch.Tensor] = v2.Compose(
-    [
-        v2.ToImage(),
-        v2.ToDtype(torch.uint8, scale=True),
-        v2.CenterCrop(size=[224, 224]),
-        v2.ToDtype(torch.float32, scale=True),
-        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.225, 0.221, 0.212]),
-    ]
-)
 
 
 class ImageClassificationModel:
@@ -147,6 +33,19 @@ class ImageClassificationModel:
         model_path: Union[str, Path],
         device: str,
     ):
+        from torchvision.models import alexnet, resnext50_32x4d
+        from torchvision.transforms import v2
+
+        self._img_xformer: Callable[[torch.Tensor], torch.Tensor] = v2.Compose(
+            [
+                v2.ToImage(),
+                v2.ToDtype(torch.uint8, scale=True),
+                v2.CenterCrop(size=[224, 224]),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.225, 0.221, 0.212]),
+            ]
+        )
+
         model_path = Path(model_path).absolute()
         if not model_path.exists():
             raise FileNotFoundError(f"Model file {model_path} does not exist")
@@ -162,12 +61,8 @@ class ImageClassificationModel:
         elif model_name == "resnext":
             self.model = resnext50_32x4d(num_classes=self.num_classes)
         else:
-            raise ValueError(
-                "Unexpected model_name={model_name}. Expecting resnext or alexnet"
-            )
-        self.model.load_state_dict(
-            torch.load(str(model_path), map_location=map_location)
-        )
+            raise ValueError("Unexpected model_name={model_name}. Expecting resnext or alexnet")
+        self.model.load_state_dict(torch.load(str(model_path), map_location=map_location))
 
         self.device = device
 
@@ -179,7 +74,7 @@ class ImageClassificationModel:
         if len(batch.shape) != 4:
             raise ValueError(f"{batch.shape=}, should be b,c,h,w")
 
-        batch = _img_xformer(batch)
+        batch = self._img_xformer(batch)
         with torch.no_grad():
             logits = self.model(batch.to(self.device))
             probs = torch.nn.functional.softmax(input=logits, dim=1).cpu().detach()
@@ -251,7 +146,6 @@ class FMOWDetectionDataset:
         metadata_filepath: Union[Path, list[Path]],
         img_file_ext="jpeg",
     ):
-
         # if metadata_filepath is a single string, make it into a length-1 list
         if isinstance(metadata_filepath, Path):
             metadata_filepath = [metadata_filepath]
@@ -272,17 +166,13 @@ class FMOWDetectionDataset:
                 )
 
         # read metadata_paths into a pandas dataframe
-        md_dfs: list[pd.DataFrame] = [
-            pd.read_csv(md_path) for md_path in self._metadata_filepaths
-        ]
+        md_dfs: list[pd.DataFrame] = [pd.read_csv(md_path) for md_path in self._metadata_filepaths]
 
         self._metadata_df = pd.concat(md_dfs, copy=False, join="inner")
 
         # check for required keys in _metadata_df
         required_md_keys = ("img_filename", "r0", "r1", "c0", "c1")
-        missing_md_keys = [
-            key for key in required_md_keys if key not in self._metadata_df.columns
-        ]
+        missing_md_keys = [key for key in required_md_keys if key not in self._metadata_df.columns]
         if len(missing_md_keys) > 0:
             required_md_key_str = "\n".join(missing_md_keys)
             raise RuntimeError(
@@ -301,9 +191,7 @@ class FMOWDetectionDataset:
         full_image_filepaths = sorted(  # noqa: C414
             list(self._dataset_path.glob(f"**/*{img_file_ext}")),
         )
-        local_image_paths = [
-            str(p.relative_to(self._dataset_path).parent) for p in full_image_filepaths
-        ]
+        local_image_paths = [str(p.relative_to(self._dataset_path).parent) for p in full_image_filepaths]
         local_filenames = [p.name for p in full_image_filepaths]
 
         # Removing local filenames from dataset that aren't
@@ -312,22 +200,14 @@ class FMOWDetectionDataset:
         # (metafiles may be augmented to negate the need for this step)
         # --------
         full_image_filepaths = [
-            ff
-            for ff, fn in zip(full_image_filepaths, local_filenames)
-            if fn in self._metadata_df.index
+            ff for ff, fn in zip(full_image_filepaths, local_filenames) if fn in self._metadata_df.index
         ]
 
-        local_image_paths = [
-            ip
-            for ip, fn in zip(local_image_paths, local_filenames)
-            if fn in self._metadata_df.index
-        ]
+        local_image_paths = [ip for ip, fn in zip(local_image_paths, local_filenames) if fn in self._metadata_df.index]
 
         data_missing_md = set(local_filenames) - {p.name for p in full_image_filepaths}
 
-        local_filenames = [
-            fn for fn in local_filenames if fn in self._metadata_df.index
-        ]
+        local_filenames = [fn for fn in local_filenames if fn in self._metadata_df.index]
 
         if len(data_missing_md) > 0:
             warnings.warn(
@@ -340,11 +220,7 @@ class FMOWDetectionDataset:
 
         # verify metadata file contains all paths that were found
         # (Note: this may be a redundant check)
-        imgfiles_missing_md = [
-            p.name
-            for p in full_image_filepaths
-            if p.name not in self._metadata_df.index
-        ]
+        imgfiles_missing_md = [p.name for p in full_image_filepaths if p.name not in self._metadata_df.index]
 
         if len(imgfiles_missing_md) > 0:
             max_print_lines = 20
@@ -372,9 +248,7 @@ class FMOWDetectionDataset:
         local_filepath_series = pd.Series(local_image_paths, index=local_filenames)
 
         # (a) remove duplicate indices from local_filepath_series by keeping the first occurrence
-        local_filepath_series_unique = local_filepath_series.loc[
-            ~local_filepath_series.index.duplicated(keep="first")
-        ]
+        local_filepath_series_unique = local_filepath_series.loc[~local_filepath_series.index.duplicated(keep="first")]
         local_filepath_series_unique.name = "local_filepath"
 
         # (b) join the DataFrames on their indices
@@ -415,11 +289,7 @@ class FMOWDetectionDataset:
         bad_img_filepaths: list[Path] = []
         for _, srs in self._metadata_df.iterrows():
             # get original data item
-            image_path = (
-                self._dataset_path
-                / Path(srs["local_filepath"])
-                / Path(srs["img_filename"])
-            )
+            image_path = self._dataset_path / Path(srs["local_filepath"]) / Path(srs["img_filename"])
 
             try:
                 Image.open(image_path)
@@ -429,8 +299,7 @@ class FMOWDetectionDataset:
         # only warn if there were any 'bad' image paths
         if len(bad_img_filepaths) > 0:
             warnings.warn(
-                f"Found {len(bad_img_filepaths)} "
-                "img files from dataset with issues loading from file...",
+                f"Found {len(bad_img_filepaths)} " "img files from dataset with issues loading from file...",
                 stacklevel=2,
             )
 
@@ -463,18 +332,11 @@ class FMOWDetectionDataset:
                 metadatas = [dict(self._metadata_df.loc[image_path.name])]
             else:
                 # multiple matching rows
-                metadatas = [
-                    dict(row)
-                    for _, row in self._metadata_df.loc[image_path.name].iterrows()
-                ]
+                metadatas = [dict(row) for _, row in self._metadata_df.loc[image_path.name].iterrows()]
 
-            bboxes_list: list[torch.Tensor] = (
-                []
-            )  # accumulate bounding x0,y0,x1,y1 bounding
+            bboxes_list: list[torch.Tensor] = []  # accumulate bounding x0,y0,x1,y1 bounding
             # boxes in shape (1,4) to be concatenated afterward
-            labels_list: list[torch.Tensor] = (
-                []
-            )  # accumulate (1,Cl) onehot vectors to be concatenated
+            labels_list: list[torch.Tensor] = []  # accumulate (1,Cl) onehot vectors to be concatenated
             # afterwards
 
             for metadata in metadatas:
@@ -564,7 +426,6 @@ class FMOWClassificationDataset:
         metadata_filepath: Union[Path, list[Path]],
         img_file_ext="jpeg",
     ):
-
         # if metadata_filepath is a single string, make it into a length-1 list
         if isinstance(metadata_filepath, Path):
             metadata_filepath = [metadata_filepath]
@@ -599,9 +460,7 @@ class FMOWClassificationDataset:
                 missing_md_keys.append(key)
         if len(missing_md_keys) > 0:
             required_md_key_str = "\n".join(missing_md_keys)
-            raise RuntimeError(
-                f"Metadata csv is missing the following required key(s):\n {required_md_key_str}"
-            )
+            raise RuntimeError(f"Metadata csv is missing the following required key(s):\n {required_md_key_str}")
 
         self._metadata_df.set_index(
             "img_filename", inplace=True, drop=False
@@ -611,12 +470,8 @@ class FMOWClassificationDataset:
         # add a 'local_filepath' column to dataframe containing the path to
         # each file relative to self._dataset_path
 
-        full_image_filepaths = sorted(
-            list(self._dataset_path.glob(f"**/*{img_file_ext}"))
-        )
-        local_image_paths = [
-            str(p.relative_to(self._dataset_path).parent) for p in full_image_filepaths
-        ]
+        full_image_filepaths = sorted(list(self._dataset_path.glob(f"**/*{img_file_ext}")))
+        local_image_paths = [str(p.relative_to(self._dataset_path).parent) for p in full_image_filepaths]
         local_filenames = [p.name for p in full_image_filepaths]
 
         # Removing local filenames from dataset that aren't
@@ -625,23 +480,13 @@ class FMOWClassificationDataset:
         # (metafiles may be augmented to negate the need for this step)
         # --------
         full_image_filepaths = [
-            ff
-            for ff, fn in zip(full_image_filepaths, local_filenames)
-            if fn in self._metadata_df.index
+            ff for ff, fn in zip(full_image_filepaths, local_filenames) if fn in self._metadata_df.index
         ]
-        local_image_paths = [
-            ip
-            for ip, fn in zip(local_image_paths, local_filenames)
-            if fn in self._metadata_df.index
-        ]
+        local_image_paths = [ip for ip, fn in zip(local_image_paths, local_filenames) if fn in self._metadata_df.index]
 
-        data_missing_md = set(local_filenames) - set(
-            [p.name for p in full_image_filepaths]
-        )
+        data_missing_md = set(local_filenames) - set([p.name for p in full_image_filepaths])
 
-        local_filenames = [
-            fn for fn in local_filenames if fn in self._metadata_df.index
-        ]
+        local_filenames = [fn for fn in local_filenames if fn in self._metadata_df.index]
 
         if len(data_missing_md) > 0:
             warnings.warn(
@@ -671,9 +516,7 @@ class FMOWClassificationDataset:
         # trim metadata to only include files present on disk
         files_not_present = set(self._metadata_df.index.values) - set(local_filenames)
         if len(files_not_present) > 0:
-            Warning(
-                f"There were {len(files_not_present)} in metadata that weren't found on disk"
-            )
+            Warning(f"There were {len(files_not_present)} in metadata that weren't found on disk")
             self._metadata_df = self._metadata_df.loc[
                 local_filenames
             ]  # trim metadata down to what is available locally
@@ -682,25 +525,19 @@ class FMOWClassificationDataset:
         local_filepath_series = pd.Series(local_image_paths, index=local_filenames)
 
         # (a) remove duplicate indices from local_filepath_series by keeping the first occurrence
-        local_filepath_series_unique = local_filepath_series.loc[
-            ~local_filepath_series.index.duplicated(keep="first")
-        ]
+        local_filepath_series_unique = local_filepath_series.loc[~local_filepath_series.index.duplicated(keep="first")]
 
         local_filepath_series_unique.name = "local_filepath"
 
         # (b) join the DataFrames on their indices
-        self._metadata_df = self._metadata_df.join(
-            local_filepath_series_unique, how="left"
-        )
+        self._metadata_df = self._metadata_df.join(local_filepath_series_unique, how="left")
 
         # check that class labels provided by metadata are all elements of
         # the 'labels' class variable:
         # (Confusingly, 'label' is found in metadata file under 'class' heading
         # we avoid 'class' term here for clarity)
         labels_from_md = sorted(list(self._metadata_df["class"].unique()))
-        unexpected_md_labels = set(labels_from_md) - set(
-            FMOWClassificationDataset.labels
-        )
+        unexpected_md_labels = set(labels_from_md) - set(FMOWClassificationDataset.labels)
         if len(unexpected_md_labels) > 0:
             unexpected_label_str = "\n".join(unexpected_md_labels)
             expected_label_str = "\n".join(FMOWClassificationDataset.labels)
@@ -717,9 +554,7 @@ class FMOWClassificationDataset:
         if len(self._bad_img_filepaths) > 0:
             img_names = [fp.name for fp in self._bad_img_filepaths]
             self._metadata_df.drop(index=img_names, inplace=True)
-            print(
-                f"removed {len(self._bad_img_filepaths)} from dataset due to issues loading from disk"
-            )
+            print(f"removed {len(self._bad_img_filepaths)} from dataset due to issues loading from disk")
 
     def _check_dataset_image_loading(self) -> list[Path]:
         """Try to lazily load data from all images in dataset.
@@ -732,11 +567,7 @@ class FMOWClassificationDataset:
         bad_img_filepaths: list[Path] = []
         for _, srs in self._metadata_df.iterrows():
             # get original data item
-            image_path = (
-                    self._dataset_path
-                    / Path(srs["local_filepath"])
-                    / Path(srs["img_filename"])
-            )
+            image_path = self._dataset_path / Path(srs["local_filepath"]) / Path(srs["img_filename"])
 
             try:
                 img = Image.open(image_path)
@@ -745,10 +576,7 @@ class FMOWClassificationDataset:
 
         # only warn if there were any 'bad' image paths
         if len(bad_img_filepaths) > 0:
-            warnings.warn(
-                f"Found {len(bad_img_filepaths)} "
-                "img files from dataset with issues loading from file..."
-            )
+            warnings.warn(f"Found {len(bad_img_filepaths)} " "img files from dataset with issues loading from file...")
 
         # return 'bad' image paths
         return bad_img_filepaths
@@ -760,9 +588,9 @@ class FMOWClassificationDataset:
         if index < len(self):
             # get original data item
             image_path = (
-                    self._dataset_path
-                    / Path(self._metadata_df.iloc[index]["local_filepath"])
-                    / Path(self._metadata_df.iloc[index]["img_filename"])
+                self._dataset_path
+                / Path(self._metadata_df.iloc[index]["local_filepath"])
+                / Path(self._metadata_df.iloc[index]["img_filename"])
             )
 
             image = Image.open(image_path)
@@ -787,9 +615,7 @@ class FMOWClassificationDataset:
                 raise TypeError(f"label expected to be a string value, got value '{label}', type '{type(label)}'")
 
             # return onehot np.ndarray (of shape (NCLASSES,) ) encoding the ground-truth label
-            target = np.eye(len(FMOWClassificationDataset.labels))[
-                FMOWClassificationDataset.label2ind[label]
-            ]
+            target = np.eye(len(FMOWClassificationDataset.labels))[FMOWClassificationDataset.label2ind[label]]
 
         else:
             raise IndexError("Index out of bounds")
@@ -798,6 +624,7 @@ class FMOWClassificationDataset:
 
 
 def create_maite_wrapped_metric(name: Literal["mAP_50"]) -> od.Metric:
+    from jatic_ri.object_detection.metrics import map50_torch_metric_factory
     if name == "mAP_50":
         map50_torch_metric = map50_torch_metric_factory()
         return map50_torch_metric
@@ -813,7 +640,7 @@ class WrappedICMetric:
             [torch.Tensor, torch.Tensor],
             torch.Tensor,
         ],
-        name: str
+        name: str,
     ):
         self._ic_metric = ic_metric
         self._name = name
@@ -840,22 +667,14 @@ class WrappedICMetric:
 
 
 def create_maite_wrapped_ic_metric(name: Literal["accuracy", "f1_score"]) -> ic.Metric:
+    from torchmetrics import Accuracy, F1Score
     if name == "accuracy":
-        tm_metric = Accuracy(
-            task="multiclass",
-            num_classes=12,
-            average="micro"
-        )
+        tm_metric = Accuracy(task="multiclass", num_classes=12, average="micro")
         return WrappedICMetric(tm_metric, name="accuracy")
-    elif name == "f1_score":
-        tm_metric = F1Score(
-            task="multiclass",
-            num_classes=12,
-            average="macro"
-        )
+    if name == "f1_score":
+        tm_metric = F1Score(task="multiclass", num_classes=12, average="macro")
         return WrappedICMetric(tm_metric, name="f1_score")
-    else:
-        raise Exception(f"Unsupported image classification metric: {name}")
+    raise Exception(f"Unsupported image classification metric: {name}")
 
 
 def cleanup_test_residue(img_path: Path, cache_dir: Path) -> None:
