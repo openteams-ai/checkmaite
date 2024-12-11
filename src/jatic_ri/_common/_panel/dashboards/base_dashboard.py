@@ -38,9 +38,6 @@ DATASET_LABEL_MAP = {
     "Coco dataset": "CocoDetectionDataset",
 }
 
-# # map visual wording to SUPPORTED_MODELS
-# MODEL_LABEL_MAP = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS.items()}
-
 
 class BaseDashboard(param.Parameterized):
     """Base Dashboard/Testbed. This class is inherited by the
@@ -413,7 +410,7 @@ class BaseDashboard(param.Parameterized):
         # gather dataset information from the widgets
         dataset_1_meta: DatasetSpecification = {
             "dataset_type": DATASET_LABEL_MAP[self.dataset_1_selector.value],
-            "split_path": self.dataset_1_split_path.value,
+            "data_dir": self.dataset_1_split_path.value,
             "metadata_path": self.dataset_1_metadata_path.value,
         }
 
@@ -427,7 +424,7 @@ class BaseDashboard(param.Parameterized):
 
             dataset_2_meta: DatasetSpecification = {
                 "dataset_type": DATASET_LABEL_MAP[self.dataset_2_selector.value],
-                "split_path": self.dataset_2_split_path.value,
+                "data_dir": self.dataset_2_split_path.value,
                 "metadata_path": self.dataset_2_metadata_path.value,
             }
             dataset_meta["dataset_2"] = dataset_2_meta

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import numpy as np
 from PIL import Image
@@ -124,3 +124,32 @@ class YoloClassificationDataset:
         metadata: DatumMetadata = {"id": self.metadata["id"]}
 
         return img_chw, one_hot_encode, metadata
+
+
+class DatasetSpecification(TypedDict):
+    """Dataset metadata required for loading datasets via the RI wrappers"""
+
+    # Dataset class as a string
+    # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    dataset_type: Literal["YoloClassificationDataset"]  # type: ignore
+    # Full filepath to the data directory to use. For yolo, this is the split dir.
+    # The root directory of images is expected to be the parent of this directory.
+    data_dir: str | Path
+
+
+def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloClassificationDataset]:
+    """Simplified programmatic loading of datasets from on dictionary of
+    DatasetSpecifications."""
+    loaded = {}
+    for name, dataset_metadata in datasets.items():
+        if dataset_metadata["dataset_type"] == "YoloClassificationDataset":
+            split_dir = Path(dataset_metadata["data_dir"]).stem
+            root_path = Path(dataset_metadata["data_dir"]).parent.resolve()  # type: ignore
+            loaded[name] = YoloClassificationDataset(
+                dataset_name=name,
+                root_dir=str(root_path),
+                split=str(split_dir),  # type: ignore
+            )
+        else:
+            raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")
+    return loaded
