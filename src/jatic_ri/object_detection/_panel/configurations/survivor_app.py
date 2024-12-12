@@ -160,6 +160,7 @@ class SurvivorApp(BaseApp):
             self.similarity_option_pane,
             self.view_status_bar,
             width=self.page_width,
+            height=self.page_height,
             styles={"background": self.color_dark_blue},
         )
 

@@ -31,11 +31,21 @@ class BaseApp(param.Parameterized):
     """
 
     page_width: int = param.Integer(800)
+    page_height: int = param.Integer(800)
     title_font_size: int = param.Integer(default=24)
     status_text: str = param.String("Waiting for input...")
     output_test_stages: dict[str, Any] = param.Dict({})
-    task: str = param.String("detection")
+    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
+    summary_text_size: int = param.Integer(default=18)
     export_button: pn.widgets.Button
+
+    ##################################################
+    # Pipeline specific parameters
+    # dictionary for holding all the output configurations
+    # this dictionary is passed between all the stages and
+    # is used in the final stage to generate the json file
+    output_test_stages = param.Dict({})
+    ##################################################
 
     ##################################################
     # individual apps should override these parameters
@@ -124,9 +134,11 @@ select:not([multiple]).bk-input, select:not([size]).bk-input {{
         # for testing and demo purposes only:
         self.output_test_stages[self.__class__.__name__] = {"TYPE": "base app test"}
 
-    @param.output(output_test_stages=param.Dict)
-    def _output(self) -> dict:
-        return self.output_test_stages
+    @param.output(task=param.Selector, output_test_stages=param.Dict)
+    def output(self) -> tuple:
+        """Output handler for passing variables from one pipeline page to another"""
+        self._run_export()
+        return self.task, self.output_test_stages
 
     @param.output(task=param.String)
     def _task(self) -> str:  # pragma: no cover

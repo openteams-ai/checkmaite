@@ -41,7 +41,8 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     assert nrtk_app.status_text != initial_status_text
 
     # test the panel stage output
-    assert nrtk_app.output_test_stages == nrtk_app._output()
+    _, config_output = nrtk_app.output()
+    assert nrtk_app.output_test_stages == config_output
 
     # setup internals used in testing
     nrtk_app.perturber_select.value = perturber_type

@@ -173,7 +173,7 @@ class BaseXAITKApp(BaseApp):
                 ),
             ),
             pn.layout.Divider(),
-            pn.Row(pn.layout.HSpacer(), self.saliency_gen_button, self.export_button),
+            pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
             width=self.page_width,
             styles={"background": self.color_dark_blue},

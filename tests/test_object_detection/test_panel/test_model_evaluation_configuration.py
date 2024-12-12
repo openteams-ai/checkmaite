@@ -1,41 +1,38 @@
-from jatic_ri.object_detection._panel.configurations.dataset_analysis_configuration import DatasetAnalysisConfigApp
+from jatic_ri.object_detection._panel.configurations.model_evaluation_configuration import ModelEvaluationConfigApp
 import panel as pn
 from io import StringIO
 import json
 
-def _reset_da_config_app(app: DatasetAnalysisConfigApp):
-    """reset everything on the DA config app landing page 
+def _reset_me_config_app(app: ModelEvaluationConfigApp):
+    """reset everything on the ME config app landing page 
     to false. This protects these tests against changes to default
     behavior.
     """
     # ensure all the toggles are False
-    app.pipeline._state.bias = False
-    app.pipeline._state.shift = False
-    app.pipeline._state.linting = False
-    app.pipeline._state.feasibility = False
-    app.pipeline._state.show_survivor_config = False
-    app.pipeline._state.show_reallabel_config = False
+    app.pipeline._state.baseline_evaluate = False
+    app.pipeline._state.show_xaitk_config = False
+    app.pipeline._state.show_nrtk_config = False
     # clear output_test_stages
     app.pipeline._state.output_test_stages = {}
 
 
-def test_dataset_analysis_configuration_pipeline():
-    """test DA OD configuration pipeline app for basic 
+def test_model_evaluation_configuration_pipeline():
+    """test ME OD configuration pipeline app for basic 
     instantiation and visualization"""
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp()
+    app = ModelEvaluationConfigApp()
     # trigger visualization (test even though we can't visualize here)
     app.panel()
 
 
-def test_da_config_dynamic_stages_final_only():
+def test_me_config_dynamic_stages_final_only():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task)
 
     # reset the app
-    _reset_da_config_app(app)
+    _reset_me_config_app(app)
 
     # with everything False, the next stage should be "Finalize"
     assert app.pipeline._next_stage == 'Finalize'
@@ -54,16 +51,16 @@ def test_da_config_dynamic_stages_final_only():
     assert content['task'] == task
 
 
-def test_da_config_dynamic_stages_bias_only():
+def test_me_config_dynamic_stages_baseline_evaluate_only():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task)
 
     # reset the app
-    _reset_da_config_app(app)
-    # toggle bias to true
-    app.pipeline._state.bias = True
+    _reset_me_config_app(app)
+    # toggle baseline_evaluate to true
+    app.pipeline._state.baseline_evaluate = True
 
     # with only bias true, the next stage should be "Finalize"
     assert app.pipeline._next_stage == 'Finalize'
@@ -78,27 +75,30 @@ def test_da_config_dynamic_stages_bias_only():
     content = json.loads(string_io_output)
     # should only contain task and bias entries
     assert len(content) == 2
-    assert 'bias' in content.keys()
+    assert 'baseline_evaluate' in content.keys()
 
 
-def test_da_config_dynamic_stages_reallabel_not_survivor():
+def test_me_config_dynamic_stages_nrtk_not_xaitk():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task)
 
     # reset the app
-    _reset_da_config_app(app)
-    # toggle reallabel to true
-    app.pipeline._state.show_reallabel_config = True
+    _reset_me_config_app(app)
+    # toggle nrtk to true
+    app.pipeline._state.show_nrtk_config = True
 
-    # with only reallabel true, the next stage should be reallabel
-    assert app.pipeline._next_stage == 'Configure Reallabel'
+    # with only nrtk true, the next stage should be nrtk
+    assert app.pipeline._next_stage == 'Configure NRTK'
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == 'RealLabelApp'
+    assert app.pipeline._state.__class__.__name__ == 'NRTKApp'
+
+    # nrtk app requires explicitly adding a configuration
+    app.pipeline._state.add_button.clicks += 1
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
@@ -106,29 +106,29 @@ def test_da_config_dynamic_stages_reallabel_not_survivor():
     # click the download button and convert contents back to dict
     string_io_output = app.pipeline._state.writeout_button.callback().read()
     content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
+    # should only contain task and nrtk entries
     assert len(content) == 2
-    assert 'reallabel_test_stage' in content.keys()
+    assert 'NRTKApp_0' in content.keys()
 
 
-def test_da_config_dynamic_stages_survivor_not_reallabel():
+def test_me_config_dynamic_stages_xrtk_not_nrtk():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task)
 
     # reset the app
-    _reset_da_config_app(app)
-    # toggle survivor to true
-    app.pipeline._state.show_survivor_config = True
+    _reset_me_config_app(app)
+    # toggle xaitk to true
+    app.pipeline._state.show_xaitk_config = True
 
-    # with only survivor true, the next stage should be survivor
-    assert app.pipeline._next_stage == 'Configure Survivor'
+    # with only xaitk true, the next stage should be xaitk
+    assert app.pipeline._next_stage == 'Configure XAITK'
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the survivor page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == 'SurvivorApp'
+    # ensure we actually went to the xaitk page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == 'XAITKApp'
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
@@ -136,36 +136,39 @@ def test_da_config_dynamic_stages_survivor_not_reallabel():
     # click the download button and convert contents back to dict
     string_io_output = app.pipeline._state.writeout_button.callback().read()
     content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
+    # should only contain task and xaitk entries
     assert len(content) == 2
-    assert 'survivor_test_stage' in content.keys()
+    assert 'XAITKApp_0' in content.keys()
 
 
-def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
+def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task)
 
     # reset the app
-    _reset_da_config_app(app)
-    # toggle reallabel and survivor to true
-    app.pipeline._state.show_reallabel_config = True
-    app.pipeline._state.show_survivor_config = True
-    app.pipeline._state.linting = True
+    _reset_me_config_app(app)
+    # toggle nrtk and xaitk to true
+    app.pipeline._state.show_nrtk_config = True
+    app.pipeline._state.show_xaitk_config = True
+    app.pipeline._state.baseline_evaluate = True
 
-    # with only bias true, the next stage should be 'reallabel'
-    assert app.pipeline._next_stage == 'Configure Reallabel'
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the reallabel page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == 'RealLabelApp'
+    # with only bias true, the next stage should be 'nrtk'
+    assert app.pipeline._next_stage == 'Configure NRTK'
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the survivor page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == 'SurvivorApp'
+    # ensure we actually went to the nrtk page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == 'NRTKApp'
+
+    # nrtk app requires explicitly adding a configuration
+    app.pipeline._state.add_button.clicks += 1
+
+    # go to next stage
+    app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the xaitk page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == 'XAITKApp'
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
@@ -175,8 +178,8 @@ def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
     # click the download button and convert contents back to dict
     string_io_output = app.pipeline._state.writeout_button.callback().read()
     content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
+
     assert len(content) == 4
-    assert 'reallabel_test_stage' in content.keys()
-    assert 'survivor_test_stage' in content.keys()
-    assert 'linting' in content.keys()
+    assert 'NRTKApp_0' in content.keys()
+    assert 'XAITKApp_0' in content.keys()
+    assert 'baseline_evaluate' in content.keys()

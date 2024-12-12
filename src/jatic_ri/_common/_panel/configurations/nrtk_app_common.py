@@ -41,6 +41,7 @@ class NRTKBaseApp(BaseApp):
     title = param.String(default="Configure Natural Robustness Testing")
     title_font_size = param.Integer(default=24)
     status_text = param.String("Waiting for input...")
+    next_parameter = param.Selector(default="Configure XAITK", objects=["Configure XAITK", "Finalize"])
 
     def __init__(self, **params: dict[str, object]) -> None:
         from nrtk.interfaces.perturb_image import PerturbImage
@@ -581,7 +582,7 @@ class NRTKBaseApp(BaseApp):
                 left_column,
                 right_column,
             ),
-            pn.Row(pn.layout.HSpacer(), self.export_button, self.test_perturber_button),
+            pn.Row(pn.layout.HSpacer(), self.test_perturber_button),
             self.view_status_bar,
             width=self.page_width,
             styles={"background": self.color_dark_blue},

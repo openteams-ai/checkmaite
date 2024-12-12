@@ -8,7 +8,8 @@ nav:  # navigation links on sidebar
     - Contributing: community/contributing.md
   - Examples:
     - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
-    - Dataset Analysis Configuration: examples/dataset_evaluation_configuration.ipynb
+    - Dataset Analysis Configuration: examples/dataset_analysis_configuration.ipynb
+    - Model Evaluation Configuration: examples/model_evaluation_configuration.ipynb
     - Image Classification Dataset Wrapper: examples/image_classification_dataset_wrapper.ipynb
     - XAITK Test Stage: examples/xaitk_test_stage_how_to_guide.ipynb
   - Object Detection:
