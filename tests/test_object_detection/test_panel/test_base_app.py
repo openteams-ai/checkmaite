@@ -22,4 +22,6 @@ def test_base_app_widgets() -> None:
     assert base_app.status_text != initial_status_text
 
     # test the panel stage output
-    assert base_app.output_test_stages == base_app._output()
+    task, config_dict = base_app.output()
+    assert base_app.output_test_stages == config_dict
+    assert base_app.task == task

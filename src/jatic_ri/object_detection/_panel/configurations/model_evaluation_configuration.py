@@ -1,4 +1,4 @@
-"""Dataset Analysis Configuration for Object Detection Panel Application"""
+"""Model Evaluation Configuration for Object Detection Panel Application"""
 
 import argparse
 import json
@@ -9,35 +9,25 @@ import panel as pn
 import param
 
 from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
-from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp
+from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp
+from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp
 
 
 class ConfigurationLandingPage(BaseApp):
-    """Initial landing page for the DA OD configuration app"""
+    """Initial landing page for the ME OD configuration app"""
 
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    title = param.String("Dataset Analysis Configuration")  # this is updated upon instantiation based on the task
+    task = param.Selector(default="object_detection", objects=["object_detection"])
+    title = param.String("Model Evaluation Configuration")  # this is updated upon instantiation based on the task
     description = """
     Select analyses to be included in the configuration. \n Any unselected options will not be included.
     """
 
     # toggles for displaying optional pages
-    show_survivor_config = param.Boolean(default=False)
-    show_reallabel_config = param.Boolean(default=False)
+    show_xaitk_config = param.Boolean(default=False)
+    show_nrtk_config = param.Boolean(default=False)
 
-    # dataeval configuration
-    # bias - parity, coverage, diversity, balance
-    bias = param.Boolean(default=False)
-
-    # shift - Out-of-distributation (AE, VAE) and drift (CMV, MMD, KS)
-    shift = param.Boolean(default=False)
-
-    # linting - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
-    linting = param.Boolean(default=False)
-
-    # feasibility
-    feasibility = param.Boolean(default=False)
+    # run MAITE evaluation workflow
+    baseline_evaluate = param.Boolean(default=False)
 
     # dictionary for holding all the output configurations
     # this dictionary is passed between all the stages and
@@ -45,29 +35,27 @@ class ConfigurationLandingPage(BaseApp):
     output_test_stages = param.Dict({})
 
     # special parameter for dynamically setting the next stage on THIS PAGE
-    next_parameter = param.Selector(
-        default="Configure Reallabel", objects=["Configure Reallabel", "Configure Survivor", "Finalize"]
-    )
+    next_parameter = param.Selector(default="Configure NRTK", objects=["Configure NRTK", "Configure XAITK", "Finalize"])
 
     def __init__(self, **params: dict[str, Any]) -> None:
         super().__init__(**params)
-        self.title = f"Dataset analysis configuration: {self.task.replace('_', ' ').title()}"
+        self.title = f"Model evaluation configuration: {self.task.replace('_', ' ').title()}"
         # make sure that the next stage matches the defaults
         self._update_next_parameter()
 
-    @param.depends("show_reallabel_config", "show_survivor_config", watch=True)
+    @param.depends("show_nrtk_config", "show_xaitk_config", watch=True)
     def _update_next_parameter(self) -> None:
-        """If show_reallabel_config or show_survivor_config is touched, this runs to
+        """If show_nrtk_config or show_xaitk_config is touched, this runs to
         set the next stage."""
-        # reallabel
-        if self.show_reallabel_config:
-            self.next_parameter = "Configure Reallabel"
-        # if not reallabel
+        # nrtk
+        if self.show_nrtk_config:
+            self.next_parameter = "Configure NRTK"
+        # if not nrtk
         else:
-            # if survivor
-            if self.show_survivor_config:
-                self.next_parameter = "Configure Survivor"
-            # not reallabel and not survivor
+            # if xaitk
+            if self.show_xaitk_config:
+                self.next_parameter = "Configure XAITK"
+            # not nrtk and not xaitk
             else:
                 self.next_parameter = "Finalize"
 
@@ -79,47 +67,20 @@ class ConfigurationLandingPage(BaseApp):
         The output that is in the returned tuple become variables in the next stage defined
         by the variable names and types listed in the decorator.
 
-        If the survivor toggle is triggered, set the next stage as `survivor`.
+        If the xaitk toggle is triggered, set the next stage as `xaitk`.
         If not, set the next stage as `Finalize`
         """
         # tell the next stage what it's next stage is going to be
-        followup_next_parameter = "Configure Survivor" if self.show_survivor_config else "Finalize"
+        followup_next_parameter = "Configure XAITK" if self.show_xaitk_config else "Finalize"
 
         self.output_test_stages = {
             "task": self.task,
         }
-        if self.bias:
+        if self.baseline_evaluate:
             self.output_test_stages.update(
                 {
-                    "bias": {
-                        "TYPE": "DatasetBiasTestStage",
-                        "CONFIG": {},
-                    },
-                }
-            )
-        if self.feasibility:
-            self.output_test_stages.update(
-                {
-                    "feasibility": {
-                        "TYPE": "DatasetFeasibilityTestStage",
-                        "CONFIG": {},
-                    },
-                }
-            )
-        if self.shift:
-            self.output_test_stages.update(
-                {
-                    "shift": {
-                        "TYPE": "DatasetShiftTestStage",
-                        "CONFIG": {},
-                    },
-                }
-            )
-        if self.linting:
-            self.output_test_stages.update(
-                {
-                    "linting": {
-                        "TYPE": "DatasetLintingTestStage",
+                    "baseline_evaluate": {
+                        "TYPE": "BaselineEvaluation",
                         "CONFIG": {},
                     },
                 }
@@ -132,28 +93,10 @@ class ConfigurationLandingPage(BaseApp):
         return pn.Row(
             pn.Spacer(width=20),
             pn.WidgetBox(
-                "### Select Dataset Evaluation configurations",
+                "### Select Model Evaluation configurations",
                 pn.widgets.Toggle.from_param(
-                    self.param.linting,
-                    name="Include Linting",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.shift,
-                    name="Include Shift",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.bias,
-                    name="Include Bias",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.feasibility,
-                    name="Include Feasibility",
+                    self.param.baseline_evaluate,
+                    name="Include Baseline Evaluation",
                     button_type="primary",
                     button_style="outline",
                 ),
@@ -162,14 +105,14 @@ class ConfigurationLandingPage(BaseApp):
             pn.WidgetBox(
                 "### Add advanced configuration \n (will be configured on subsequent pages)",
                 pn.widgets.Toggle.from_param(
-                    self.param.show_survivor_config,
-                    name="Configure Survivor",
+                    self.param.show_xaitk_config,
+                    name="Configure XAITK",
                     button_type="primary",
                     button_style="outline",
                 ),
                 pn.widgets.Toggle.from_param(
-                    self.param.show_reallabel_config,
-                    name="Configure Reallabel",
+                    self.param.show_nrtk_config,
+                    name="Configure NRTK",
                     button_type="primary",
                     button_style="outline",
                 ),
@@ -195,11 +138,11 @@ class ConfigurationLandingPage(BaseApp):
 
 
 class FinalPage(BaseApp):
-    """Finalization page for DA OD configuration app. Contains the
+    """Finalization page for ME OD configuration app. Contains the
     button to download results
     """
 
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
+    task = param.Selector(default="object_detection", objects=["object_detection"])
     title = param.String("Dashboard Config Finalization")
 
     # dictionary for holding all the output configurations
@@ -235,8 +178,8 @@ class FinalPage(BaseApp):
         )
 
 
-class DatasetAnalysisConfigApp(BaseApp):
-    """High level constructor for the Dataset Analysis Configuration App
+class ModelEvaluationConfigApp(BaseApp):
+    """High level constructor for the Model Evaluation Configuration App
 
     Creates a Panel Pipeline object from the individual panel apps and
     connects them together for sequential viewing.
@@ -246,13 +189,13 @@ class DatasetAnalysisConfigApp(BaseApp):
 
     To view the app (via notebook):
 
-    >>> from jatic_ri.object_detection._panel.configurations.dataset_analysis_configuration import (
-    ...     DatasetAnalysisConfigApp,
+    >>> from jatic_ri.object_detection._panel.configurations.model_evaluation_configuration import (
+    ...     ModelEvaluationConfigApp,
     ... )
     >>> import panel as pn
     >>> pn.extension()
 
-    >>> app = DatasetAnalysisConfigApp(task="object_detection")
+    >>> app = ModelEvaluationConfigApp(task="object_detection")
     >>> app.panel()
     """
 
@@ -268,8 +211,8 @@ class DatasetAnalysisConfigApp(BaseApp):
                 ConfigurationLandingPage(task=task),
                 next_parameter="next_parameter",
             )
-            self.pipeline.add_stage("Configure Reallabel", RealLabelApp, next_parameter="next_parameter")
-            self.pipeline.add_stage("Configure Survivor", SurvivorApp)
+            self.pipeline.add_stage("Configure NRTK", NRTKApp, next_parameter="next_parameter")
+            self.pipeline.add_stage("Configure XAITK", XAITKApp)
             self.pipeline.add_stage("Finalize", FinalPage)
         else:
             raise RuntimeError(f"Sorry the task type, {task}, has not been coded yet. WOMP WOMP.")
@@ -277,14 +220,14 @@ class DatasetAnalysisConfigApp(BaseApp):
         # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
         self.pipeline.define_graph(
             {
-                "Introduction": ("Configure Reallabel", "Configure Survivor", "Finalize"),
-                "Configure Reallabel": ("Configure Survivor", "Finalize"),
-                "Configure Survivor": "Finalize",
+                "Introduction": ("Configure NRTK", "Configure XAITK", "Finalize"),
+                "Configure NRTK": ("Configure XAITK", "Finalize"),
+                "Configure XAITK": "Finalize",
             }
         )
 
     def panel(self) -> pn.Column:
-        """Visualize the DA OD configuration app"""
+        """Visualize the ME OD configuration app"""
         return pn.Column(
             self.pipeline.stage,
             pn.Row(
@@ -300,9 +243,7 @@ class DatasetAnalysisConfigApp(BaseApp):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--task", "-t", type=str, default="object_detection", choices=["object_detection", "image_classification"]
-    )
+    parser.add_argument("--task", "-t", type=str, default="object_detection", choices=["object_detection"])
     args = parser.parse_args()
-    app = DatasetAnalysisConfigApp(args.task)
+    app = ModelEvaluationConfigApp(args.task)
     pn.panel(app.panel()).servable()

@@ -46,6 +46,10 @@ class RealLabelApp(BaseApp):
     class_agnostic: param.Boolean = param.Boolean(default=True, label="Class Agnostic")
     run_with_ground_truth: param.Boolean = param.Boolean(default=False, label="Run with Ground Truth")
 
+    # special parameter for dynamically setting the next stage
+    # in this case, its set by output from previous stage
+    next_parameter = param.Selector(default="Configure Survivor", objects=["Configure Survivor", "Finalize"])
+
     def __init__(self, **params: dict[str, Any]) -> None:
         super().__init__(**params)
 
@@ -137,6 +141,7 @@ class RealLabelApp(BaseApp):
             self.settings_pane,
             self.view_status_bar,
             width=self.page_width,
+            height=self.page_height,
             styles={"background": self.color_dark_blue},
         )
 
