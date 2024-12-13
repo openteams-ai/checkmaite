@@ -19,6 +19,7 @@ ARGS = {
             "threads": 4,
         },
     },
+    "img_batch_size": 1,
 }
 
 

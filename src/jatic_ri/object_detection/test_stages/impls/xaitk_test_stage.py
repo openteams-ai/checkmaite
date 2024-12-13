@@ -62,6 +62,7 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
             sal_generator=self.sal_generator,
             detector=self.model,
             ids=sorted(self.model.index2label.keys()),  # type: ignore
+            img_batch_size=self.img_batch_size,
         )
 
         return {"saliency_map_" + str(i): NumpyEncoder().default(sal_map) for i, sal_map in enumerate(img_sal_maps)}

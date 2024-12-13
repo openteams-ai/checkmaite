@@ -40,11 +40,13 @@ class XAITKTestStageBase(
     config: dict[str, Any]
     stage_name: str
     sal_generator_hash: str
+    img_batch_size: int
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
         self.config = args
         self.stage_name = args["name"]
+        self.img_batch_size = args["img_batch_size"]
 
     @property
     def cache_id(self) -> str:
