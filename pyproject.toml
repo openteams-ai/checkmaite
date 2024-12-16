@@ -39,7 +39,7 @@ survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.
 xaitk-jatic = {version = ">=0.4.2", extras = ["docker"]}  # docker extra required for panel apps
 # external deps
 holoviews = ">=1.20.0"      # arbitrary pin, required for panel pipelines
-matplotlib = ">=3.4.0"      # arbitrary, required by panel
+matplotlib = ">=3.8.4"      # arbitrary, required by panel
 more-itertools = ">=10.0"   # arbitrary, used by linting test stage
 opencv-python-headless = {version = ">=4.9.0.80"} # necessary pin, required by nrtk usage here
 Pillow = ">=11.0.0"         # arbitrary

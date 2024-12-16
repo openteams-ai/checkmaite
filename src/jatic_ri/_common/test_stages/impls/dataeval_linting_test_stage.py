@@ -275,8 +275,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
             outliers_df[" " * i] = ["", ""]
 
         images: dict[str, list[Path]] = {}
-        fig = plt.figure(figsize=(2, 2), dpi=100)
-        ax = fig.add_axes(111)
+        fig, ax = plt.subplots(figsize=(2, 2), dpi=100)
         ax.set_aspect("equal")
         self.cache_contents_path.mkdir(exist_ok=True)
         for k, targets in issues.items():
