@@ -13,7 +13,7 @@ dependencies:
 - maite>=0.6.0                          # required by SDP
 - nrtk>=0.15.1
 - pybsm <=0.9.0                         # optional dep for nrtk, required here
-- xaitk-jatic>=0.2.0
+- xaitk-jatic>=0.4.3
 
 # External tools
 - holoviews>=1.20.0                     # arbitrary pin, required for panel pipelines

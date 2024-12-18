@@ -132,7 +132,7 @@ class XAITKApp(BaseXAITKApp):
         )
         self.detector = JATICDetector(
             detector=self.jatic_detector,
-            id_to_name=self.jatic_detector.index2label,
+            ids=sorted(self.jatic_detector.index2label.keys()),
             img_batch_size=5,
         )
         # id2label mapping should be used from model protocol
@@ -190,7 +190,7 @@ class XAITKApp(BaseXAITKApp):
         self, dets: Iterable[Iterable[tuple[AxisAlignedBoundingBox, dict[Hashable, float]]]]
     ) -> tuple[np.ndarray, np.ndarray]:
         """Output detection and score matrices"""
-        labels = [self.id2label[idx] for idx in sorted(self.id2label.keys())]
+        labels = sorted(self.id2label.keys())
 
         bboxes = np.empty((0, 4))
         scores = np.empty((0, len(labels)))
@@ -235,7 +235,7 @@ class XAITKApp(BaseXAITKApp):
         for i, det in enumerate(top_10_dets):
             score_dict = det[1]
             cls_name = max(score_dict, key=score_dict.get)
-            dropdown_options.update({f"{i} : {cls_name.title()}_{score_dict[cls_name]:.5f}": indices[i]})
+            dropdown_options.update({f"{i} : {self.id2label[cls_name].title()}_{score_dict[cls_name]:.5f}": indices[i]})
         return dropdown_options
 
     def generate_saliency(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
