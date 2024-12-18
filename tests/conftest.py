@@ -116,7 +116,7 @@ def dummy_linting_dataset_od():
                 return len(self.images)
 
             def __getitem__(self, ind: int):
-                return self.images[ind], LintingObjectDetectionTarget(ind), {"dummy": torch.ones((5,))}
+                return self.images[ind], LintingObjectDetectionTarget(ind), {"id": ind, "dummy": torch.ones((5,))}
 
         return DummyDataset()
 
@@ -136,7 +136,7 @@ def dummy_dataset_od_with_target_metadata() -> od.Dataset:
             return len(self.images)
 
         def __getitem__(self, ind: int):
-            return self.images[ind], DummyObjectDetectionTarget(), {"dummy": 0, "target": [0, 1, 2, 3, 4]}
+            return self.images[ind], DummyObjectDetectionTarget(), {"id": ind, "dummy": 0, "target": [0, 1, 2, 3, 4]}
 
     return DummyDataset()
 
@@ -153,7 +153,7 @@ def dummy_dataset_od() -> od.Dataset:
             return len(self.images)
 
         def __getitem__(self, ind: int):
-            return self.images[ind], DummyObjectDetectionTarget(), {"dummy": 0}
+            return self.images[ind], DummyObjectDetectionTarget(), {"id": ind, "dummy": 0}
 
     return DummyDataset()
 
@@ -171,7 +171,7 @@ def dummy_xaitk_dataset() -> od.Dataset:
             return len(self.images)
 
         def __getitem__(self, ind: int):
-            return self.images[ind], DummyXAITKObjectDetectionTarget(), {"dummy": 0}
+            return self.images[ind], DummyXAITKObjectDetectionTarget(), {"id": ind, "dummy": 0}
 
     return DummyDataset()
 

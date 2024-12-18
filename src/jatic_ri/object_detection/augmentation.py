@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from maite.protocols.object_detection import Augmentation, DatumMetadataBatchType, InputBatchType, TargetBatchType
+from maite.protocols.object_detection import (
+    Augmentation,
+    DatumMetadataBatchType,
+    DatumMetadataType,
+    InputBatchType,
+    TargetBatchType,
+)
 from nrtk.interfaces.perturb_image import PerturbImage
 from numpy.typing import NDArray
 
@@ -46,7 +52,7 @@ class JATICDetectionAugmentation(Augmentation):
         # iterate over (parallel) elements in batch
         aug_imgs: list[NDArray[Any]] = []  # list of individual augmented inputs
         aug_dets: list[JATICDetectionTarget] = []  # list of individual object detection targets
-        aug_metadata: list[dict[str, Any]] = []  # list of individual image-level metadata
+        aug_metadata: list[DatumMetadataType] = []  # list of individual image-level metadata
 
         for img, ann, md in zip(imgs, anns, metadata):
             # Perform augmentation

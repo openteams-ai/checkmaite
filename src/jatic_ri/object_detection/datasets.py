@@ -6,12 +6,12 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Literal, TypedDict
 
 import torch
 import yaml
 from maite.protocols import ArrayLike
-from maite.protocols.object_detection import Dataset
+from maite.protocols.object_detection import Dataset, DatumMetadataType
 from PIL import Image
 from torchvision.datasets import CocoDetection
 from torchvision.ops.boxes import box_convert
@@ -86,17 +86,13 @@ class CocoDetectionDataset(Dataset):
         self._classes = {i: x["name"] for i, x in enumerate(content["categories"])}
         self._n_classes = len(self._classes)
         self._images = content["images"]
-
-    @property
-    def classes(self) -> dict[int, str]:
-        """Map ids to labels."""
-        return self._classes
+        self.metadata: DatumMetadataType = {"id": "coco", "index2label": self._classes}
 
     def __len__(self) -> int:
         """Return length of dataset."""
         return len(self.dataset)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, dict[str, Any]]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
         """Get `index`-th element from dataset."""
         try:
             # get original data item
@@ -176,17 +172,13 @@ class YoloDetectionDataset(Dataset):
         self._images = sorted(os.listdir(content["train"]))
         self._ann_dir = ann_dir
         self._annotations = sorted(os.listdir(ann_dir))
-
-    @property
-    def classes(self) -> dict[int, str]:
-        """Map ids to labels."""
-        return self._classes
+        self.metadata = {"id": "yolo", "index2label": self._classes}
 
     def __len__(self) -> int:
         """Return length of dataset."""
         return len(self._images)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, dict[str, Any]]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
         """Get `index`-th element from dataset."""
         try:
             image = self._images[index]
@@ -218,7 +210,7 @@ class YoloDetectionDataset(Dataset):
             scores[i] = 1
         labels = torch.as_tensor([self._id_to_int[label] for label in labels])
 
-        metadata = {}
+        metadata: DatumMetadataType = {"id": index}
         return img_pt, DetectionTarget(boxes, labels, scores), metadata
 
 

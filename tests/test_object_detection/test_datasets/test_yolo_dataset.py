@@ -17,6 +17,6 @@ def test_yolo_dataset():
     assert element[1].labels.ndim == 1
     assert element[1].scores.ndim == 1
     assert element[1].scores.shape == (14,)
-    assert element[2] == {}
-    assert yolo_dataset.classes[0] == 'person'
-    assert yolo_dataset.classes[1] == 'bicycle'
+    assert element[2] == {'id': 0}
+    assert yolo_dataset.metadata['index2label'][0] == 'person'
+    assert yolo_dataset.metadata['index2label'][1] == 'bicycle'

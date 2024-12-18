@@ -1,12 +1,27 @@
 """augmentation"""
 
+from __future__ import annotations
+
 import copy
+from typing import Any
 
 import numpy as np
-from maite.protocols.image_classification import Augmentation, DatumMetadataBatchType, InputBatchType, TargetBatchType
+from maite.protocols.image_classification import (
+    Augmentation,
+    DatumMetadataBatchType,
+    DatumMetadataType,
+    InputBatchType,
+    TargetBatchType,
+)
 from nrtk.interfaces.perturb_image import PerturbImage
 
 CLASSIFICATION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatchType]
+
+
+class JaticAugmentationMetadata(DatumMetadataType):
+    """DatumMetadataType with extra key."""
+
+    nrtk_perturber: dict[str, Any]
 
 
 class JATICClassificationAugmentation(Augmentation):
@@ -46,8 +61,7 @@ class JATICClassificationAugmentation(Augmentation):
                 aug_img = np.transpose(aug_img, (2, 0, 1))  # Need to transpose it back
             aug_imgs.append(aug_img)
 
-            m_aug = copy.deepcopy(md)
-            m_aug.update({"nrtk::perturber": self.augment.get_config()})
+            m_aug = JaticAugmentationMetadata(id=md["id"], nrtk_perturber=self.augment.get_config())
             aug_metadata.append(m_aug)
             aug_dets.append(ann)
 
