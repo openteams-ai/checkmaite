@@ -27,7 +27,7 @@ from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise import RISEStac
 
 # local imports
 from jatic_ri import PACKAGE_DIR
-from jatic_ri._common._panel.xaitk_app_common import BaseXAITKApp
+from jatic_ri._common._panel.configurations.xaitk_app_common import BaseXAITKApp
 
 mpl.use("agg")
 
@@ -140,6 +140,7 @@ class XAITKApp(BaseXAITKApp):
                 "CONFIG": {
                     "name": f"saliency_{self.__class__.__name__}_{idx}",
                     "saliency_generator": to_config_dict(saliency_generator),
+                    "img_batch_size": widget_value["img_batch_size"],
                 },
             }
 

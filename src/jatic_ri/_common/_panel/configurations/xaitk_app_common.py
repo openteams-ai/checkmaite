@@ -106,6 +106,13 @@ class BaseXAITKApp(BaseApp):
                 options=["(7,7)", "(5,5)", "(10,10)"],
                 stylesheets=[self.widget_stylesheet],
             ),
+            pn.widgets.IntInput(
+                name="Image Batch Size",
+                value=1,
+                start=1,
+                step=1,
+                stylesheets=[self.widget_stylesheet],
+            ),
             pn.pane.Markdown(
                 f"""
                 <style>
@@ -125,6 +132,7 @@ class BaseXAITKApp(BaseApp):
         return {
             "num_masks": saliency_params[0].value,
             "grid_size": tuple(int(el) for el in saliency_params[1].value[1:-1].split(",")),
+            "img_batch_size": saliency_params[2].value,
         }
 
     def view_plots(self) -> pn.Row:
