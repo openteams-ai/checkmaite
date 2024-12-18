@@ -93,7 +93,7 @@ class XAITKApp(BaseXAITKApp):
         )
         self.classifier = JATICImageClassifier(
             classifier=self.jatic_classifier,
-            id_to_name=self.jatic_classifier.index2label,
+            ids=sorted(self.jatic_classifier.index2label),
         )
         # id2label mapping should be used from model protocol
         # metadata after relevant updates to protocols are added
