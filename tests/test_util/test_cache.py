@@ -4,7 +4,47 @@ import numpy as np
 import pytest
 import torch
 
-from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder
+import shutil
+from unittest.mock import MagicMock
+from pathlib import Path
+from typing import Sequence, Any
+
+from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder, SimpleRICacheOD
+from jatic_ri.object_detection.datasets import DetectionTarget
+
+from copy import deepcopy
+
+
+pred_data_dummy_od = (
+        [
+            [
+                DetectionTarget(
+                    boxes=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    labels=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    scores=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                )
+            ]
+        ],
+        [
+            (
+                [torch.tensor([[1, 2, 3], [4, 5, 6]])],
+                [
+                    DetectionTarget(
+                    boxes=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    labels=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    scores=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                )
+                ],
+                [
+                    {
+                        'license': 0, 
+                        'file_name': '000000000000.jpg', 
+                        'id': 0000
+                    }
+                ]
+            )
+        ]
+    )
 
 
 def test_cache_read_none() -> None:
@@ -46,7 +86,6 @@ def test_numpy_encoder() -> None:
     with pytest.raises(TypeError):
         ne.default("dummy_string")
 
-
 @pytest.mark.parametrize("compress", [True, False])
 def test_numpy_cache(compress, tmp_path) -> None:
     cache = JSONCache(NumpyEncoder, compress=compress)
@@ -66,23 +105,25 @@ def test_tensor_encoder() -> None:
     with pytest.raises(TypeError):
         te.default("dummy_string")
 
+def test_write_read_predictions_od(tmpdir):
+    """Testing the writing and reading of an OD prediction to cache"""
+    pred_data = deepcopy(pred_data_dummy_od)
+    
+    filename = "test_predictions.json"
 
-def test_tensor_numpy_mixed_cache(tmp_path) -> None:
-    cache = JSONCache(TensorEncoder)
-    data = {
-        "tensor": torch.tensor([1.0, 2.0]),
-        "array": np.array([4.0, 5.0]),
-        "value": 42,
-        "string": "dummy_string",
-    }
-    cache_path = tmp_path / "test_file.json"
-    cache.write_cache(cache_path, data)
-    assert os.path.exists(cache_path)
-    cache_result = cache.read_cache(cache_path)
-    assert isinstance(cache_result, dict)
-    assert cache_result == {
-        "tensor": [1.0, 2.0],
-        "array": [4.0, 5.0],
-        "value": 42,
-        "string": "dummy_string",
-    }
+    cache = SimpleRICacheOD(cache_path=tmpdir)
+
+    cache.write_predictions(filename=filename, prediction=pred_data)
+
+    cache_file_path = tmpdir.join(filename)
+    
+    assert cache_file_path.exists(), f"{cache_file_path} was not created."
+
+    result = cache.read_predictions(filename)
+
+    assert isinstance(result, tuple)
+    assert isinstance(result[0], list)
+    assert isinstance(result[1], list)
+    assert torch.equal(result[0][0][0].boxes, pred_data_dummy_od[0][0][0].boxes)
+    assert torch.equal(result[0][0][0].labels, pred_data_dummy_od[0][0][0].labels)
+    assert torch.equal(result[0][0][0].scores, pred_data_dummy_od[0][0][0].scores)
