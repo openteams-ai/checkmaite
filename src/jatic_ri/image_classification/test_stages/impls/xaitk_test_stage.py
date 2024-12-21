@@ -59,7 +59,6 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
             ids=sorted(self.model.index2label.keys()),  # type: ignore
             img_batch_size=self.img_batch_size,
         )
-
         img_sal_maps = [
             self.sal_generator(np.asarray(ref_img).transpose(1, 2, 0), classifier) for ref_img, _, _ in self.dataset
         ]
