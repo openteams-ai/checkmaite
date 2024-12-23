@@ -190,6 +190,7 @@ class ModelSpecification(TypedDict):
 
 def load_models(
     models: dict[str, ModelSpecification],
+    **kwargs: Any,  # noqa: ANN401
 ) -> dict[str, TorchvisionODModel]:  # pragma: no cover
     """Simplified programmatic loading of models from a dictionary of
     ModelSpecifications."""
@@ -200,6 +201,7 @@ def load_models(
             wrapper = TorchvisionODModel(
                 model_name=meta_dict["model_type"],
                 weights_path=meta_dict["model_weights_path"],
+                **kwargs,
             )
 
             loaded[name] = wrapper

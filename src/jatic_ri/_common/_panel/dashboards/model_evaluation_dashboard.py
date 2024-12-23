@@ -29,7 +29,7 @@ class ModelEvaluationDashboard(BaseDashboard):
 
         # ensure we don't visualize dataset_2
         self.dataset_2_visible = False
-        # ensure we don't visualize multiple models (no add model button)
+        # ensure we only visualize one model and don't allow removing that model
         self.multi_model_visible = False
 
     def _run_button_callback(self, event) -> None:  # noqa: ANN001, ARG002 # pragma: no cover

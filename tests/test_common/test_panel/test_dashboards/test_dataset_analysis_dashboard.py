@@ -11,6 +11,7 @@ def test_dataset_analysis_dashboard():
     """Test instantiation of DA dashboard and some of the functions.
     Does not run full end to end to avoid heavy compute. Instead, 
     some of the functionality is tested directly.
+    This only tests using OD, but the IC tests would not be functionally different
     """
 
     app = DatasetAnalysisDashboard(

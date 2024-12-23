@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
 
 import torch
 from maite.protocols import image_classification as ic
@@ -29,6 +29,9 @@ SUPPORTED_TORCHVISION_MODELS = {
     "alexnet": "AlexNet_Weights",
     "resnext50_32x4d": "ResNeXt50_32X4D_Weights",
 }
+
+# list of all available model wrappers
+SUPPORTED_MODELS = SUPPORTED_TORCHVISION_MODELS
 
 
 class TorchvisionICModel:
@@ -134,3 +137,39 @@ class TorchvisionICModel:
     def name(self) -> str:
         """Human-readable name for torchvision model"""
         return self._model_name
+
+
+class ModelSpecification(TypedDict):
+    """Model metadata required for loading models via the RI wrappers"""
+
+    # full filepath to model weights file
+    model_weights_path: str
+    # model type, keys map to model wrappers
+    # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    model_type: Literal[
+        "alexnet",
+        "resnext50_32x4d",
+    ]
+
+
+def load_models(
+    models: dict[str, ModelSpecification],
+    **kwargs: Any,  # noqa: ANN401
+) -> dict[str, TorchvisionICModel]:  # pragma: no cover
+    """Simplified programmatic loading of models from a dictionary of
+    ModelSpecifications."""
+    loaded = {}
+    for name, meta_dict in models.items():
+        # if this is a torchvision model
+        if meta_dict["model_type"] in SUPPORTED_TORCHVISION_MODELS:
+            wrapper = TorchvisionICModel(
+                model_name=meta_dict["model_type"],
+                weights_path=meta_dict["model_weights_path"],
+                **kwargs,
+            )
+
+            loaded[name] = wrapper
+        else:
+            raise RuntimeError(f"Model type not yet supported {meta_dict['model_type']}")
+
+    return loaded

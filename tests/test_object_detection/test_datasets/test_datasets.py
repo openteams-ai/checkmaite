@@ -11,7 +11,7 @@ COCO_ANNOTATION_PATH = 'tests/testing_utilities/example_data/coco_dataset/ann_fi
 
 
 
-def test_load_yolo():
+def test_load_datasets_yolo():
     """test loading a yolo dataset through the programmatic loader"""
     spec: DatasetSpecification = {
         'dataset_type': 'YoloDetectionDataset',
@@ -25,7 +25,7 @@ def test_load_yolo():
     assert 'yolo_dataset1' in loaded
 
 
-def test_load_coco():
+def test_load_datasets_coco():
     """test loading a coco dataset through the programmatic loader"""
     spec: DatasetSpecification = {
         'dataset_type': 'CocoDetectionDataset',

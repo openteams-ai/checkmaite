@@ -60,7 +60,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
         }
 
         new_data["Dataset"] = (
-            "-".join(list(self.loaded_models.keys())).replace(" ", "_")
+            "-".join(list(self.loaded_datasets.keys())).replace(" ", "_")
             if self.dataset_2_visible
             else self.dataset_1_selector.value.replace(" ", "_")
         )
