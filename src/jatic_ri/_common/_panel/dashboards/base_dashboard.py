@@ -1,6 +1,8 @@
 """Base Dashboard for Testbeds
 This dashboard object is subclassed by the ME and DA Dashboards."""
 
+from __future__ import annotations
+
 import importlib
 import json
 import os
@@ -23,7 +25,8 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TwoDatasetPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
-from jatic_ri.object_detection.datasets import DatasetSpecification, load_datasets
+from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_MODELS_IC
+from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
 from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
@@ -34,8 +37,22 @@ pn.extension("tabulator")
 
 # mapping between the visible dataset labels in the UI and
 # the underlying wrapper class
-DATASET_LABEL_MAP = {
+DATASET_LABEL_MAP_OD = {
     "Coco dataset": "CocoDetectionDataset",
+    "Yolo dataset": "YoloDetectionDataset",
+}
+
+DATASET_LABEL_MAP_IC = {
+    "Yolo dataset": "YoloClassificationDataset",
+}
+
+METRICS_LABEL_MAP_OD = {
+    "mAP": map50_torch_metric_factory(),
+}
+
+# TO DO fix this when IC metrics are in
+METRICS_LABEL_MAP_IC = {
+    "mAP": map50_torch_metric_factory(),
 }
 
 
@@ -189,7 +206,9 @@ class BaseDashboard(param.Parameterized):
                 """
         # holder for the model widgets (for dynamic handling of the number of models)
         self.model_widgets = {}
-
+        # ensure we don't visualize multiple models (no add model button).
+        # Must be set before the add_model_button_callback.
+        self.multi_model_visible = False
         # button for adding another model (adds two widgets per model)
         self.add_model = pn.widgets.Button(name="Add model")
         self.add_model.on_click(self.add_model_button_callback)
@@ -202,14 +221,14 @@ class BaseDashboard(param.Parameterized):
         self.run_analysis_button = pn.widgets.Button(name="Run Analysis", button_type="primary", disabled=False)
 
         self.dataset_1_selector = pn.widgets.Select(
-            options=["Select Type", *list(DATASET_LABEL_MAP.keys())],
+            options=["Select Type", *list(self.dataset_label_map.keys())],
             width=self.dropdown_width,
             name="Dataset 1",
             stylesheets=[self.dropdown_stylesheet],
             value="Select Type",
         )
         self.dataset_2_selector = pn.widgets.Select(
-            options=["Select Type", *list(DATASET_LABEL_MAP.keys())],
+            options=["Select Type", *list(self.dataset_label_map.keys())],
             width=self.dropdown_width,
             name="Dataset 2",
             stylesheets=[self.dropdown_stylesheet],
@@ -243,13 +262,18 @@ class BaseDashboard(param.Parameterized):
     @param.depends("task", watch=True)
     def _update_task_related_objects(self, event=None) -> None:  # noqa: ANN001, ARG002
         if self.task == "object_detection":
-            self.metric = "mAP"
-            self.metrics = {"mAP": map50_torch_metric_factory()}
+            self.dataset_label_map = DATASET_LABEL_MAP_OD
+            self.metric = list(METRICS_LABEL_MAP_OD.keys())[0]  # just use the first entry as default
+            self.metrics = METRICS_LABEL_MAP_OD
             self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_OD.items()}
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_OD
 
         elif self.task == "image_classification":
-            raise RuntimeError("IC not yet fully supported")
+            self.dataset_label_map = DATASET_LABEL_MAP_IC
+            self.metric = list(METRICS_LABEL_MAP_IC.keys())[0]  # just use the first entry as default
+            self.metrics = METRICS_LABEL_MAP_IC
+            self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_IC.items()}
+            self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_IC
 
     @pn.depends("config_file.value", watch=True)
     def _update_default_config(self, event=None) -> None:  # noqa: ANN001, ARG002
@@ -258,7 +282,7 @@ class BaseDashboard(param.Parameterized):
         if success:
             self.run_analysis_button.disabled = False
 
-    def _on_model_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
+    def _on_model_type_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
         """Callback listening for changes to all model selector widgets.
         When called, this uses the name of the model selector widget
         to look up the model_weights_path widget and change the value of the placeholder
@@ -277,6 +301,11 @@ class BaseDashboard(param.Parameterized):
             self.model_widgets[event.obj.name]["model_weights_path"].placeholder = "Select file"
             self.model_widgets[event.obj.name]["tooltip"].value = "Select file"
 
+    def _remove_model_widget(self, event) -> None:  # noqa: ANN001
+        del self.model_widgets[event.obj.description]
+        # redraw the model widgets
+        self.redraw_models_trigger += 1
+
     def add_model_button_callback(self, event) -> None:  # noqa: ANN001, ARG002
         """Callback that runs when the add model button is clicked
         When called, this adds a two new widgets for setting a new model
@@ -288,8 +317,9 @@ class BaseDashboard(param.Parameterized):
             width=self.model_dropdown_width,
             stylesheets=[self.dropdown_stylesheet],
         )
+        selector_label = f"Select Model {len(self.model_widgets) + 1} type"
         model_selector = pn.widgets.Select(
-            name=f"Select Model {len(self.model_widgets) + 1} type",
+            name=selector_label,
             options=["Select Model type", *list(self.model_label_map.keys())],
             width=self.model_dropdown_width,
             stylesheets=[self.dropdown_stylesheet],
@@ -300,13 +330,24 @@ class BaseDashboard(param.Parameterized):
         )
         # link a callback method to the model dropdown so that we
         # can change the placeholder text when the model type is changed
-        model_selector.param.watch(self._on_model_change, ["value"], onlychanged=False)
+        model_selector.param.watch(self._on_model_type_change, ["value"], onlychanged=False)
+
+        if self.multi_model_visible:
+            # button for removing model from widget list
+            remove_model_button = pn.widgets.ButtonIcon(
+                icon="circle-x", size="2em", name="Remove model", description=selector_label
+            )
+
+            remove_model_button.param.watch(self._remove_model_widget, ["clicks"])
+        else:
+            remove_model_button = None
 
         # store the set of widgets for this model in a dict for reference later
         self.model_widgets[model_selector.name] = {
             "model_selector": model_selector,
             "model_weights_path": model_weights_path,
             "tooltip": tooltip,
+            "remove_button": remove_model_button,
         }
 
         # redraw the model widgets - this has its own trigger to
@@ -356,7 +397,12 @@ class BaseDashboard(param.Parameterized):
         """
         view = pn.Column()
         for value in self.model_widgets.values():
-            view.append(value["model_selector"])
+            view.append(
+                pn.Row(
+                    value["model_selector"],
+                    value["remove_button"],
+                )
+            )
             view.append(
                 pn.Row(
                     value["model_weights_path"],
@@ -403,13 +449,16 @@ class BaseDashboard(param.Parameterized):
         """Collect dataset metadata from widgets and instantiate
         dataset wrapper objects"""
         # Load dataset(s)
-        if self.dataset_1_selector.value not in DATASET_LABEL_MAP:  # pragma: no cover
+        if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
             self.status_text = "Please select dataset type"
             return False
 
+        module = importlib.import_module(f"jatic_ri.{self.task}.datasets")
+        load_datasets = module.load_datasets
+
         # gather dataset information from the widgets
-        dataset_1_meta: DatasetSpecification = {
-            "dataset_type": DATASET_LABEL_MAP[self.dataset_1_selector.value],
+        dataset_1_meta: DatasetSpecification = {  # noqa: F821
+            "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
             "data_dir": self.dataset_1_split_path.value,
             "metadata_path": self.dataset_1_metadata_path.value,
         }
@@ -418,12 +467,12 @@ class BaseDashboard(param.Parameterized):
 
         # load dataset 2 only if the widget is visualized
         if self.dataset_2_visible:  # pragma: no cover
-            if self.dataset_2_selector.value not in DATASET_LABEL_MAP:
+            if self.dataset_2_selector.value not in self.dataset_label_map:
                 self.status_text = "Please select dataset 2 type"
                 return False
 
-            dataset_2_meta: DatasetSpecification = {
-                "dataset_type": DATASET_LABEL_MAP[self.dataset_2_selector.value],
+            dataset_2_meta: DatasetSpecification = {  # noqa: F821
+                "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
                 "data_dir": self.dataset_2_split_path.value,
                 "metadata_path": self.dataset_2_metadata_path.value,
             }
@@ -469,6 +518,10 @@ class BaseDashboard(param.Parameterized):
                 elif self.task == "image_classification":
                     stage = rehydrate_test_stage_ic(config)
                 self.test_stages[stage_label] = stage
+                # allow multiple models for multi-model test stages
+                if config["TYPE"] == "RealLabelTestStage" or config["TYPE"] == "SurvivorTestStage":
+                    # trigger addition of the "add model" button
+                    self.multi_model_visible = True
 
         self.status_text = "Configuration file loaded"
 
@@ -513,7 +566,7 @@ class BaseDashboard(param.Parameterized):
         """Construct a report filename of the output report based on the UI selections"""
         model_name = "-".join(list(self.loaded_models.keys())).replace(" ", "_")
         dataset_name = (
-            "-".join(list(self.loaded_models.keys())).replace(" ", "_")
+            "-".join(list(self.loaded_datasets.keys())).replace(" ", "_")
             if self.dataset_2_visible
             else self.dataset_1_selector.value.replace(" ", "_")
         )
