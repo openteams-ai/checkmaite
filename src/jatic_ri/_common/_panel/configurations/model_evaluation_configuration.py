@@ -1,6 +1,11 @@
-"""Model Evaluation Configuration for Object Detection Panel Application"""
+"""Model Evaluation Configuration for Object Detection Panel Application
+
+XAITK, NRTK, and Baseline Evaluation (maite) are included for both
+OD and IC tasks.
+"""
 
 import argparse
+import importlib
 import json
 from io import StringIO
 from typing import Any
@@ -8,15 +13,13 @@ from typing import Any
 import panel as pn
 import param
 
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
-from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp
-from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
 class ConfigurationLandingPage(BaseApp):
-    """Initial landing page for the ME OD configuration app"""
+    """Initial landing page for the ME configuration app"""
 
-    task = param.Selector(default="object_detection", objects=["object_detection"])
+    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
     title = param.String("Model Evaluation Configuration")  # this is updated upon instantiation based on the task
     description = """
     Select analyses to be included in the configuration. \n Any unselected options will not be included.
@@ -142,7 +145,7 @@ class FinalPage(BaseApp):
     button to download results
     """
 
-    task = param.Selector(default="object_detection", objects=["object_detection"])
+    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
     title = param.String("Dashboard Config Finalization")
 
     # dictionary for holding all the output configurations
@@ -185,11 +188,10 @@ class ModelEvaluationConfigApp(BaseApp):
     connects them together for sequential viewing.
 
     There are two task modes for this app - 'object_detection' and 'image_classification'.
-    The 'image_classification' mode is TBD.
 
     To view the app (via notebook):
 
-    >>> from jatic_ri.object_detection._panel.configurations.model_evaluation_configuration import (
+    >>> from jatic_ri._common._panel.configurations.model_evaluation_configuration import (
     ...     ModelEvaluationConfigApp,
     ... )
     >>> import panel as pn
@@ -199,23 +201,26 @@ class ModelEvaluationConfigApp(BaseApp):
     >>> app.panel()
     """
 
-    def __init__(self, task: str = "object_detection", **params: dict[str, object]) -> None:
+    def __init__(self, **params: dict[str, object]) -> None:
         super().__init__(**params)
 
         # setup panel pipeline by adding individual apps and connecting them together
         self.pipeline = pn.pipeline.Pipeline(inherit_params=False, debug=True)
 
-        if task == "object_detection":
-            self.pipeline.add_stage(
-                "Introduction",
-                ConfigurationLandingPage(task=task),
-                next_parameter="next_parameter",
-            )
-            self.pipeline.add_stage("Configure NRTK", NRTKApp, next_parameter="next_parameter")
-            self.pipeline.add_stage("Configure XAITK", XAITKApp)
-            self.pipeline.add_stage("Finalize", FinalPage)
-        else:
-            raise RuntimeError(f"Sorry the task type, {task}, has not been coded yet. WOMP WOMP.")
+        nrtk_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.nrtk_app")
+        NRTKApp = nrtk_app_module.NRTKApp  # noqa: N806 (this really is a class, not a variable)
+
+        xaitk_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.xaitk_app")
+        XAITKApp = xaitk_app_module.XAITKApp  # noqa: N806 (this really is a class, not a variable)
+
+        self.pipeline.add_stage(
+            "Introduction",
+            ConfigurationLandingPage(task=self.task),
+            next_parameter="next_parameter",
+        )
+        self.pipeline.add_stage("Configure NRTK", NRTKApp, next_parameter="next_parameter")
+        self.pipeline.add_stage("Configure XAITK", XAITKApp)
+        self.pipeline.add_stage("Finalize", FinalPage)
 
         # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
         self.pipeline.define_graph(
@@ -227,7 +232,7 @@ class ModelEvaluationConfigApp(BaseApp):
         )
 
     def panel(self) -> pn.Column:
-        """Visualize the ME OD configuration app"""
+        """Visualize the ME configuration app"""
         return pn.Column(
             self.pipeline.stage,
             pn.Row(

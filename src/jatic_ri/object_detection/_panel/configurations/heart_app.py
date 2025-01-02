@@ -19,7 +19,7 @@ import param
 from bokeh.resources import INLINE
 
 # local imports
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 mpl.use("agg")
 pn.extension("tabulator")

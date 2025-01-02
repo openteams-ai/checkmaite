@@ -12,7 +12,7 @@ import panel as pn
 import param
 from bokeh.resources import INLINE
 
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
 class SurvivorApp(BaseApp):

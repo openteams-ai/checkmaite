@@ -1,7 +1,17 @@
-from jatic_ri.object_detection._panel.configurations.model_evaluation_configuration import ModelEvaluationConfigApp
-import panel as pn
+"""Test suite for Model Evaluation Configuration app.
+
+The differences between the object detection and image classification tasks 
+is limited to the importing of the xaitk and nrtk individual apps. For this 
+reason, IC is only tested in the case where all apps are included. 
+"""
 from io import StringIO
 import json
+
+import panel as pn
+import pytest
+
+from jatic_ri._common._panel.configurations.model_evaluation_configuration import ModelEvaluationConfigApp
+
 
 def _reset_me_config_app(app: ModelEvaluationConfigApp):
     """reset everything on the ME config app landing page 
@@ -141,9 +151,9 @@ def test_me_config_dynamic_stages_xrtk_not_nrtk():
     assert 'XAITKApp_0' in content.keys()
 
 
-def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline():
-    """Test the dynamic nature of the pipeline"""
-    task = 'object_detection'
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline(task):
+    """Test the dynamic nature of the pipeline for both OD and IC"""
     # instantiate the pipeline
     app = ModelEvaluationConfigApp(task=task)
 

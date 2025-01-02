@@ -1,12 +1,22 @@
-from jatic_ri.object_detection._panel.configurations.dataset_analysis_configuration import DatasetAnalysisConfigApp
-import panel as pn
-from io import StringIO
+"""Tests for the Dataset Analysis Configuration app for both object detection 
+and image classification. 
+
+Object detection includes Reallabel, Survivor, and the Dataeval tools
+Image Classification includes Survivor and the Dataeval tools
+"""
 import json
+
+from io import StringIO
+import panel as pn
+import pytest
+
+from jatic_ri._common._panel.configurations.dataset_analysis_configuration import DatasetAnalysisConfigApp
+
 
 def _reset_da_config_app(app: DatasetAnalysisConfigApp):
     """reset everything on the DA config app landing page 
     to false. This protects these tests against changes to default
-    behavior.
+    behavior. This works for both the IC and OD usecase
     """
     # ensure all the toggles are False
     app.pipeline._state.bias = False
@@ -81,7 +91,7 @@ def test_da_config_dynamic_stages_bias_only():
     assert 'bias' in content.keys()
 
 
-def test_da_config_dynamic_stages_reallabel_not_survivor():
+def test_da_config_dynamic_stages_reallabel_not_survivor_OD():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
     # instantiate the pipeline
@@ -111,9 +121,9 @@ def test_da_config_dynamic_stages_reallabel_not_survivor():
     assert 'reallabel_test_stage' in content.keys()
 
 
-def test_da_config_dynamic_stages_survivor_not_reallabel():
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_da_config_dynamic_stages_survivor_not_reallabel(task):
     """Test the dynamic nature of the pipeline"""
-    task = 'object_detection'
     # instantiate the pipeline
     app = DatasetAnalysisConfigApp(task=task)
 
@@ -180,3 +190,23 @@ def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
     assert 'reallabel_test_stage' in content.keys()
     assert 'survivor_test_stage' in content.keys()
     assert 'linting' in content.keys()
+
+
+def test_da_config_dynamic_stages_ic():
+    """Test the dynamic nature of the pipeline"""
+    task = 'image_classification'
+    # instantiate the pipeline
+    app = DatasetAnalysisConfigApp(task=task)
+    
+    # ensure reallabel is not included
+    assert 'Configure Reallabel' not in app.pipeline._stages
+
+
+def test_da_config_dynamic_stages_od():
+    """Test the dynamic nature of the pipeline"""
+    task = 'object_detection'
+    # instantiate the pipeline
+    app = DatasetAnalysisConfigApp(task=task)
+    
+    # ensure reallabel is not included
+    assert 'Configure Reallabel' in app.pipeline._stages
