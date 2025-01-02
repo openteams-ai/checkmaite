@@ -74,8 +74,8 @@ class BaselineEvaluationBase(
     def _metric_key(self) -> str:
         if self.model is None:
             raise Exception("self.model is None")
-        # Get the human readable _return_key from a wrapped Metric if available, otherwise fallback to the metric_id
-        return getattr(self.metric, "_return_key", self.metric_id)
+        # Get the human readable return_key from a wrapped Metric if available, otherwise fallback to the metric_id
+        return getattr(self.metric, "return_key", self.metric_id)
 
     @property
     def cache_id(self) -> str:
