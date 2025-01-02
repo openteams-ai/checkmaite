@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -32,7 +33,9 @@ from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODEL
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
 from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
 
-pn.extension("tabulator")
+pn.extension("tabulator", "floatpanel")
+
+logger = logging.getLogger()
 
 
 # mapping between the visible dataset labels in the UI and
@@ -63,7 +66,6 @@ class BaseDashboard(param.Parameterized):
 
     title = param.String(default="Object Detection Testing Pipeline")
     title_font_size = param.Integer(default=24)
-    status_text = param.String("Waiting for input...")
     task = param.String(default="object_detection")
 
     # Dictionary for holding test stages
@@ -108,7 +110,7 @@ class BaseDashboard(param.Parameterized):
         self._update_task_related_objects()
         self.color_dark_blue = "#233758"
         self.color_medium_blue = "#7AB8EF"  # varible currently unused
-        self.color_light_blue = "#D6E6F9"  # varible currently unused
+        self.color_light_blue = "#D6E6F9"
         self.color_light_gray = "#e8e4e3"  # light gray
         self.color_black = "#000000"
         self.table_style_headers = {
@@ -258,6 +260,24 @@ class BaseDashboard(param.Parameterized):
             width=self.text_input_width,
             stylesheets=[self.dropdown_stylesheet],
         )
+        # controls for viewing configuration
+        self.view_config_btn = pn.widgets.ButtonIcon(
+            icon="eye",
+            size="2em",
+            description="View loaded config",
+            disabled=False,
+            styles={"color": "black"},
+        )
+        self.view_config_btn.on_click(self._on_view_config_callback)
+        # create invisible container to put floatpanel "in", cannot be completely empty
+        self.config_floatpanel_container = pn.Column(pn.widgets.Checkbox(visible=False))
+
+        self.status_text = pn.widgets.StaticText(
+            name="Status ",
+            value="Upload config to begin",
+            sizing_mode="stretch_width",
+            styles={"color": self.color_light_gray},
+        )
 
     @param.depends("task", watch=True)
     def _update_task_related_objects(self, event=None) -> None:  # noqa: ANN001, ARG002
@@ -277,10 +297,39 @@ class BaseDashboard(param.Parameterized):
 
     @pn.depends("config_file.value", watch=True)
     def _update_default_config(self, event=None) -> None:  # noqa: ANN001, ARG002
+        logger.debug("update default config")
         config = json.loads(self.config_file.value)
         success = self.load_pipeline(config)
         if success:
             self.run_analysis_button.disabled = False
+
+    def _on_view_config_callback(self, event=None) -> None:  # noqa: ANN001, ARG002
+        """Callback that fires when the "view config" button is clicked.
+        This adds a float panel widget to the visualized (otherwise empty) container"""
+        floatpanel = pn.layout.FloatPanel(
+            pn.pane.JSON(self.config_file.value, depth=-1, height=200),
+            name="Loaded configurations",
+            margin=20,
+            contained=False,
+            position="center",
+            config={
+                "headerControls": {
+                    "minimize": "remove",
+                    "maximize": "remove",
+                    "smallify": "remove",
+                },
+                "resizeit": False,
+            },
+            theme=f"{self.color_light_blue} filledLight",
+        )
+        floatpanel.param.watch(self._on_config_panel_close_callback, "status")
+        self.config_floatpanel_container.append(floatpanel)
+
+    def _on_config_panel_close_callback(self, event=None) -> None:  # noqa: ANN001
+        """Callback that fires when floating config viewer panel is closed
+        This removes the float panel from the visualized container."""
+        if event.obj.status == "closed":
+            self.config_floatpanel_container.remove(event.obj)
 
     def _on_model_type_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
         """Callback listening for changes to all model selector widgets.
@@ -369,7 +418,7 @@ class BaseDashboard(param.Parameterized):
             # require a path input
             if widget_dict["model_weights_path"].value:
                 if widget_dict["model_selector"].value not in self.model_label_map:
-                    self.status_text = f"Please select model {model_number} type"
+                    self.status_text.value = f"Please select model {model_number} type"
                     return False
                 model_name = (
                     f"{widget_dict['model_selector'].value}-{Path(widget_dict['model_weights_path'].value).stem}"
@@ -382,7 +431,7 @@ class BaseDashboard(param.Parameterized):
                 }
                 model_dict[model_name] = model_meta
             else:
-                self.status_text = f"Please select model {model_number} path"
+                self.status_text.value = f"Please select model {model_number} path"
                 return False
 
         self.loaded_models = load_models(model_dict)
@@ -450,7 +499,7 @@ class BaseDashboard(param.Parameterized):
         dataset wrapper objects"""
         # Load dataset(s)
         if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
-            self.status_text = "Please select dataset type"
+            self.status_text.value = "Please select dataset type"
             return False
 
         module = importlib.import_module(f"jatic_ri.{self.task}.datasets")
@@ -468,7 +517,7 @@ class BaseDashboard(param.Parameterized):
         # load dataset 2 only if the widget is visualized
         if self.dataset_2_visible:  # pragma: no cover
             if self.dataset_2_selector.value not in self.dataset_label_map:
-                self.status_text = "Please select dataset 2 type"
+                self.status_text.value = "Please select dataset 2 type"
                 return False
 
             dataset_2_meta: DatasetSpecification = {  # noqa: F821
@@ -504,15 +553,18 @@ class BaseDashboard(param.Parameterized):
         -------
         True if successful, False if there were issues.
         """
+        logger.debug("load pipeline")
         if "task" not in configs:
-            self.status_text = "Task must be specified in the provided config."
+            self.status_text.value = "Task must be specified in the provided config."
+            logger.debug("Task must be specified in the provided config.")
             return False
         if configs["task"] != self.task:
-            self.status_text = f"Mismatch between dashboard type, {self.task}, and provided config"
+            self.status_text.value = f"Mismatch between dashboard type, {self.task}, and provided config"
             return False
         for stage_label, config in configs.items():
             if stage_label != "task":
-                self.status_text = f'Loading {config["TYPE"]}'
+                self.status_text.value = f'Loading {config["TYPE"]}'
+                logger.debug(f'Loading {config["TYPE"]}')
                 if self.task == "object_detection":
                     stage = rehydrate_test_stage_od(config)
                 elif self.task == "image_classification":
@@ -523,7 +575,7 @@ class BaseDashboard(param.Parameterized):
                     # trigger addition of the "add model" button
                     self.multi_model_visible = True
 
-        self.status_text = "Configuration file loaded"
+        self.status_text.value = "Configuration file loaded"
 
         return True
 
@@ -531,14 +583,14 @@ class BaseDashboard(param.Parameterized):
         """Loads the inputs to a given test stage based on
         values set in the UI and in the class itself
         """
-        self.status_text = f"Loading inputs for {test_stage.__class__.__name__}"
+        self.status_text.value = f"Loading inputs for {test_stage.__class__.__name__}"
         if isinstance(test_stage, TwoDatasetPlugin):
             test_stage.load_datasets(
                 self.loaded_datasets["dataset_1"], "dataset1", self.loaded_datasets["dataset_2"], "dataset2"
             )
         elif isinstance(test_stage, SingleDatasetPlugin):
             if self.dataset_2_visible:
-                self.status_text = (
+                self.status_text.value = (
                     f"Dataset {self.dataset_2_selector.value} is unused for {test_stage.__class__.__name__}"
                 )
             test_stage.load_dataset(self.loaded_datasets["dataset_1"], "dataset1")
@@ -556,7 +608,7 @@ class BaseDashboard(param.Parameterized):
                 test_stage.load_model(self.loaded_models[list(self.loaded_models.keys())[0]], model_id="model_1")
             else:
                 list(self.loaded_models.keys())[1:]
-                self.status_text = (
+                self.status_text.value = (
                     f"Model(s) {list(self.loaded_models.keys())[1:]} unused for {test_stage.__class__.__name__}"
                 )
         elif isinstance(test_stage, MultiModelPlugin):
@@ -577,7 +629,7 @@ class BaseDashboard(param.Parameterized):
         Common across IC/OD usecases.
         Should be triggered in `_run_button_callback` implementation
         """
-        self.status_text = "Processing. Please wait..."
+        self.status_text.value = "Processing. Please wait..."
 
         slides = []
         for stage in self.test_stages.values():
@@ -592,7 +644,7 @@ class BaseDashboard(param.Parameterized):
         report_title = self._construct_report_filename()
         report = create_deck(slides, report_path, deck_name=report_title)
 
-        self.status_text = f"Report saved to {report}"
+        self.status_text.value = f"Report saved to {report}"
 
         return create_download_link(
             str(report),
@@ -604,6 +656,7 @@ class BaseDashboard(param.Parameterized):
         """View of the app title
         DO NOT OVERWRITE THIS METHOD
         """
+        logger.debug("view title")
         return pn.pane.Markdown(
             f"{self.title}: {self.task.replace('_',' ').title()}",
             styles={"font-size": f"{self.title_font_size}px", "color": f"{self.color_light_gray}"},
@@ -612,22 +665,23 @@ class BaseDashboard(param.Parameterized):
 
     def view_status_bar(self) -> pn.Column:
         """View of status bar"""
+        logger.debug("view status bar")
         return pn.Column(
             pn.layout.Divider(),
-            pn.Row(
-                pn.pane.Markdown("Status:", styles={"color": f"{self.color_light_gray}"}),
-                pn.pane.Markdown(
-                    self.status_text, sizing_mode="stretch_width", styles={"color": f"{self.color_light_gray}"}
-                ),
-            ),
+            self.status_text,
         )
 
     def view_config_input(self) -> pn.Row:
         """View of the configuration file loader"""
+        logger.debug("view config input container")
         return pn.Row(
             pn.layout.Spacer(width=10),
             pn.Card(
-                self.config_file,
+                pn.Row(
+                    self.config_file,
+                    self.view_config_btn,
+                    self.config_floatpanel_container,
+                ),
                 title="Configuration Setup",
                 styles={"background": f"{self.color_light_gray}"},
             ),
@@ -635,6 +689,7 @@ class BaseDashboard(param.Parameterized):
 
     def view_threshold_metric(self) -> pn.Row:
         """View of the threshold and metric input widgets"""
+        logger.debug("view threshold metric")
         return pn.Row(
             pn.widgets.FloatInput.from_param(
                 self.param.threshold,

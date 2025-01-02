@@ -83,7 +83,7 @@ class ConfigurationLandingPage(BaseApp):
             self.output_test_stages.update(
                 {
                     "baseline_evaluate": {
-                        "TYPE": "BaselineEvaluation",
+                        "TYPE": "BaselineEvaluationTestStage",
                         "CONFIG": {},
                     },
                 }

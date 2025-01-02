@@ -1,5 +1,6 @@
 """dataset analysis dashboard"""
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,8 @@ import pandas as pd
 import panel as pn
 
 from jatic_ri._common._panel.dashboards.base_dashboard import BaseDashboard
+
+logger = logging.getLogger()
 
 
 class DatasetAnalysisDashboard(BaseDashboard):
@@ -70,6 +73,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
 
     def panel(self) -> pn.Column:
         """View of entire dashboard"""
+        logger.debug("view high level panel app")
         return pn.Column(
             self.view_title,
             self.view_config_input,
