@@ -72,20 +72,20 @@ def test_basedashboard_multi_model(pipeline_config, request):
 
     # test loading pipeline from config
     assert app.load_pipeline(configs=config)
-    assert "Configuration file loaded" in app.status_text
+    assert "Configuration file loaded" in app.status_text.value
     # the default configs all include multi-model test stages
     assert app.multi_model_visible
 
     # test mismatch of task
     app.task = 'something else'
     assert not app.load_pipeline(configs=config)
-    assert "Mismatch between dashboard type" in app.status_text
+    assert "Mismatch between dashboard type" in app.status_text.value
 
     # test missing task key in config dict
     del config['task']
     success = app.load_pipeline(configs=config)
     assert not success
-    assert "Task must be specified" in app.status_text
+    assert "Task must be specified" in app.status_text.value
 
 
 def test_basedashboard_single_model(nrtk_config_ic):
@@ -109,7 +109,7 @@ def test_basedashboard_single_model(nrtk_config_ic):
 
     # test loading pipeline from config
     assert app.load_pipeline(configs=config)
-    assert "Configuration file loaded" in app.status_text
+    assert "Configuration file loaded" in app.status_text.value
     # the default configs all include multi-model test stages
     assert not app.multi_model_visible
 
