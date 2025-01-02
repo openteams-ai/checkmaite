@@ -1,6 +1,6 @@
 """Test base app"""
 
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
 def test_base_app_widgets() -> None:

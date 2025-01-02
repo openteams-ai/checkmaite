@@ -1,6 +1,11 @@
-"""Dataset Analysis Configuration for Object Detection Panel Application"""
+"""Dataset Analysis Configuration for Object Detection and Image Classification Panel Application
+
+Object detection includes Reallabel, Survivor, and the Dataeval tools
+Image Classification includes Survivor and the Dataeval tools
+"""
 
 import argparse
+import importlib
 import json
 from io import StringIO
 from typing import Any
@@ -8,9 +13,7 @@ from typing import Any
 import panel as pn
 import param
 
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
-from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
 class ConfigurationLandingPage(BaseApp):
@@ -129,6 +132,27 @@ class ConfigurationLandingPage(BaseApp):
 
     def view_optional_configs(self) -> pn.Row:
         """View the toggles configs"""
+        # widget box with config toggles for survivor and maybe reallabel
+        optional_configs_widgetbox = pn.WidgetBox(
+            "### Add advanced configuration \n (will be configured on subsequent pages)",
+            pn.widgets.Toggle.from_param(
+                self.param.show_survivor_config,
+                name="Configure Survivor",
+                button_type="primary",
+                button_style="outline",
+            ),
+            styles={"background": self.color_light_gray},
+        )
+        # add reallabel toggle only for OD
+        if self.task == "object_detection":
+            optional_configs_widgetbox.append(
+                pn.widgets.Toggle.from_param(
+                    self.param.show_reallabel_config,
+                    name="Configure Reallabel",
+                    button_type="primary",
+                    button_style="outline",
+                )
+            )
         return pn.Row(
             pn.Spacer(width=20),
             pn.WidgetBox(
@@ -159,22 +183,7 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 styles={"background": self.color_light_gray},
             ),
-            pn.WidgetBox(
-                "### Add advanced configuration \n (will be configured on subsequent pages)",
-                pn.widgets.Toggle.from_param(
-                    self.param.show_survivor_config,
-                    name="Configure Survivor",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.show_reallabel_config,
-                    name="Configure Reallabel",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                styles={"background": self.color_light_gray},
-            ),
+            optional_configs_widgetbox,
         )
 
     def panel(self) -> pn.Column:
@@ -217,6 +226,7 @@ class FinalPage(BaseApp):
         )
 
     def _get_filestream(self) -> StringIO:
+        """Helper to get configuration as a stringio object for downloading"""
         config = {"task": self.task}
         config.update(self.output_test_stages)
         sio = StringIO()
@@ -242,11 +252,10 @@ class DatasetAnalysisConfigApp(BaseApp):
     connects them together for sequential viewing.
 
     There are two task modes for this app - 'object_detection' and 'image_classification'.
-    The 'image_classification' mode is TBD.
 
     To view the app (via notebook):
 
-    >>> from jatic_ri.object_detection._panel.configurations.dataset_analysis_configuration import (
+    >>> from jatic_ri._common._panel.configurations.dataset_analysis_configuration import (
     ...     DatasetAnalysisConfigApp,
     ... )
     >>> import panel as pn
@@ -256,32 +265,44 @@ class DatasetAnalysisConfigApp(BaseApp):
     >>> app.panel()
     """
 
-    def __init__(self, task: str = "object_detection", **params: dict[str, object]) -> None:
+    def __init__(self, **params: dict[str, object]) -> None:
         super().__init__(**params)
 
         # setup panel pipeline by adding individual apps and connecting them together
         self.pipeline = pn.pipeline.Pipeline(inherit_params=False, debug=True)
 
-        if task == "object_detection":
-            self.pipeline.add_stage(
-                "Introduction",
-                ConfigurationLandingPage(task=task),
-                next_parameter="next_parameter",
-            )
+        self.pipeline.add_stage(
+            "Introduction",
+            ConfigurationLandingPage(task=self.task),
+            next_parameter="next_parameter",
+        )
+
+        survivor_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.survivor_app")
+        SurvivorApp = survivor_app_module.SurvivorApp  # noqa: N806 (this really is a class, not a variable)
+
+        if self.task == "object_detection":
+            # add reallabel test stage only for object_detection
+            reallabel_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.reallabel_app")
+            RealLabelApp = reallabel_app_module.RealLabelApp  # noqa: N806 (this really is a class, not a variable)
             self.pipeline.add_stage("Configure Reallabel", RealLabelApp, next_parameter="next_parameter")
+
+            # add remaining stages
             self.pipeline.add_stage("Configure Survivor", SurvivorApp)
             self.pipeline.add_stage("Finalize", FinalPage)
+            # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
+            self.pipeline.define_graph(
+                {
+                    "Introduction": ("Configure Reallabel", "Configure Survivor", "Finalize"),
+                    "Configure Reallabel": ("Configure Survivor", "Finalize"),
+                    "Configure Survivor": "Finalize",
+                }
+            )
         else:
-            raise RuntimeError(f"Sorry the task type, {task}, has not been coded yet. WOMP WOMP.")
-
-        # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
-        self.pipeline.define_graph(
-            {
-                "Introduction": ("Configure Reallabel", "Configure Survivor", "Finalize"),
-                "Configure Reallabel": ("Configure Survivor", "Finalize"),
-                "Configure Survivor": "Finalize",
-            }
-        )
+            # add remaining stages
+            self.pipeline.add_stage("Configure Survivor", SurvivorApp)
+            self.pipeline.add_stage("Finalize", FinalPage)
+            # NOTE: define_graph is unneccesasry here since the dag is linear and
+            # stages will be added in the order of `.add_stage` above.
 
     def panel(self) -> pn.Column:
         """Visualize the DA OD configuration app"""

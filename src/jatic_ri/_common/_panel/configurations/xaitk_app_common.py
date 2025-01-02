@@ -20,7 +20,7 @@ from PIL.Image import Image as PilImg
 
 # local imports
 from jatic_ri import PACKAGE_DIR
-from jatic_ri.object_detection._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 mpl.use("agg")
 
