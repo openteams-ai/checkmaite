@@ -596,7 +596,7 @@ class BaseDashboard(param.Parameterized):
             test_stage.load_dataset(self.loaded_datasets["dataset_1"], "dataset1")
 
         if isinstance(test_stage, MetricPlugin):
-            test_stage.load_metric(self.metrics[self.metric], "metric")
+            test_stage.load_metric(self.metrics[self.metric], self.metrics[self.metric].return_key)
 
         if isinstance(test_stage, ThresholdPlugin):
             test_stage.load_threshold(self.threshold)

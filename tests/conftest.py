@@ -181,13 +181,13 @@ def dummy_metric_od() -> od.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
-        _return_key = "metric_1"
+        return_key = "fake_metric"
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
 
         def compute(self) -> dict[str, Any]:
-            return {self._return_key: 1.0}
+            return {self.return_key: 1.0}
 
         def reset(self) -> None:
             pass
@@ -238,13 +238,13 @@ def dummy_metric_ic() -> ic.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
-        _return_key = "metric_1"
+        return_key = "metric_1"
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
 
         def compute(self) -> dict[str, Any]:
-            return {self._return_key: 1.0}
+            return {self.return_key: 1.0}
 
         def reset(self) -> None:
             pass
