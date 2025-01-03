@@ -106,6 +106,28 @@ Type checking is performed by `pyright`. The CI must report a type-completeness 
 pyright --ignoreexternal --verifytypes jatic_ri
 ```
 
+## Building the docs
+
+The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. The RI also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
+
+The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
+
+```bash
+mkdocs serve
+```
+
+This will create a live server running on the local machine. Any changes make to the document will be live-reloaded in the local website. 
+
+Alternately, the docs can be built locally as a static site similar to the process in CI by running:
+
+```bash
+mkdocs build --site-dir site
+```
+
+The `site-dir` flag is optional and it defaults to building the site under `/site` in the directory in which you ran the command. 
+
+The RI documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+
 ## Setting minimum package versions
 
 The JATIC Software Development Plan (SDP) requires that all dependencies include a minimum version. 
