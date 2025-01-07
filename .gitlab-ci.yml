@@ -62,7 +62,7 @@ stages:
     - *git_config
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
-    - pip install --user -U poetry
+    - pip install --user -U poetry==1.8.5
     - apt-get update && apt-get install -y openjdk-17-jre
     - poetry config --local virtualenvs.in-project true
     - poetry config --local virtualenvs.prefer-active-python true
