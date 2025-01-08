@@ -13,7 +13,7 @@ import maite.protocols.image_classification as ic
 import numpy as np
 import pandas as pd
 from dataeval.metrics.estimators import BEROutput, ber
-from dataeval.utils.torch import read_dataset
+from dataeval.utils.dataset import read_dataset
 from gradient.templates_and_layouts.generic_layouts.text_data import TextData
 
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, ThresholdPlugin

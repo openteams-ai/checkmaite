@@ -267,7 +267,7 @@ class TestOOD:
         assert "drift" not in results
 
         results = results["ood"]
-        assert list(results) == ["OOD_AE", "OOD_VAEGMM"]
+        assert list(results) == ["OOD_AE"]
 
         # Check run ood generates necessary keys for consumable
         for v in results.values():
@@ -297,17 +297,6 @@ class TestOOD:
                     ],
                 ),
             },
-            "OOD_VAEGMM": {
-                "is_ood": np.array([False, False, False]),
-                "instance_score": np.array([0.0, 0.25, 0.0]),
-                "feature_score": np.array(
-                    [
-                        [0.0, 0.0, 0.0],
-                        [0.0, 0.25, 0.0],
-                        [0.0, 0.0, 0.0],
-                    ],
-                ),
-            },
         }
 
         # Outer gradient kwargs checked by BaseShiftTestStage
@@ -327,9 +316,9 @@ class TestOOD:
 
         result_df = results["data_column_table"]
 
-        assert all(result_df["OOD Count"] == [2, 0])
-        assert all(result_df["OOD Percent"] == [66.7, 0.0])
-        assert all(result_df["Threshold"] == [0.75, 0.25])
+        assert all(result_df["OOD Count"] == [2])
+        assert all(result_df["OOD Percent"] == [66.7])
+        assert all(result_df["Threshold"] == [0.75])
 
 
 def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> None:
@@ -357,7 +346,7 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
             "instance_score": np.array([0.0, 0.5, 1.0]),
             "feature_score": np.array([0.33, 0.67, 1.0]),
         }
-        for k in ("OOD_AE", "OOD_VAE")
+        for k in ("OOD_AE")
     }
 
     dummy_output: dict[str, dict[str, dict[str, Any]]] = {

@@ -11,8 +11,8 @@ import torch
 
 # _run imports
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
-from dataeval.detectors.ood import OOD_AE, OOD_VAEGMM
-from dataeval.utils.tensorflow import create_model
+from dataeval.detectors.ood import OOD_AE
+from dataeval.utils.torch.models import AE
 
 # report_consumable imports
 from gradient.slide_deck.shapes import Text
@@ -109,10 +109,8 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
             "verbose": False,
         }
 
-        detectors = {
-            "OOD_AE": OOD_AE(create_model("AE", input_shape)),
-            "OOD_VAEGMM": OOD_VAEGMM(create_model("VAEGMM", input_shape)),
-        }
+        # Additional detectors may be added in the future
+        detectors = {"OOD_AE": OOD_AE(AE(input_shape))}
 
         for detector in detectors.values():
             detector.fit(images_1, **ood_kwargs)
