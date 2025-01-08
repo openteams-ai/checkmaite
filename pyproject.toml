@@ -26,39 +26,41 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9, <3.12"                           # required by SDP
+python = ">=3.9, <3.12"                                     # required by SDP
+
 # jatic tools
-dataeval = {version = "==0.73.0", extras = ["all"]}
+dataeval = {version = "0.75"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
 heart-library = ">=0.4.3"
-maite = {version = ">=0.6.0"}                     # required by SDP
+maite = {version = ">=0.6.0"}                               # required by SDP
 nrtk = {version = ">=0.15.1", extras = ["headless"]}
-pybsm = "<=0.9.0"                                 # optional dep for nrtk, required here
+pybsm = "<=0.9.0"                                           # optional dep for nrtk, required here
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
-xaitk-jatic = {version = ">=0.4.3", extras = ["docker"]}  # docker extra required for panel apps
+xaitk-jatic = {version = ">=0.4.3", extras = ["docker"]}    # docker extra required for panel apps
+
 # external deps
-holoviews = ">=1.20.0"      # arbitrary pin, required for panel pipelines
-matplotlib = ">=3.8.4"      # arbitrary, required by panel
-more-itertools = ">=10.0"   # arbitrary, used by linting test stage
-opencv-python-headless = {version = ">=4.9.0.80"} # necessary pin, required by nrtk usage here
-Pillow = ">=11.0.0"         # arbitrary
-panel = ">=1.4.5"                                 # arbitrary pin
-zstandard = "^0.23.0"       # arbitrary, used for zip compression of json
+holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
+matplotlib = ">=3.8.4"                                      # arbitrary, required by panel
+more-itertools = ">=10.0"                                   # arbitrary, used by linting test stage
+opencv-python-headless = {version = ">=4.9.0.80"}           # necessary pin, required by nrtk usage here
+Pillow = ">=11.0.0"                                         # arbitrary
+panel = ">=1.4.5"                                           # arbitrary pin
+zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
 
 # development dependencies
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.0.0"                           # arbitrary pin
-pyright = {version = ">=1.1.320", extras = ["nodejs"]}   # arbitrary pin
-pyspark = '>=3.5.3'                              # arbitrary pin
-pytest = ">=8.3.0"                               # necessary pin for compatibility
-pytest-cov = ">=4.0.0"                           # arbitrary pin
-pytest-mock = ">=3.6.1"                         # arbitrary, needed to test heart_app
-torch = ">=2.2.0"                                # necessary pin (at least >=2.2.0 for security)
-torchmetrics = ">=1.4.0"                         # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
+pre-commit = ">=3.0.0"                                      # arbitrary pin
+pyright = {version = ">=1.1.320", extras = ["nodejs"]}      # arbitrary pin
+pyspark = '>=3.5.3'                                         # arbitrary pin
+pytest = ">=8.3.0"                                          # necessary pin for compatibility
+pytest-cov = ">=4.0.0"                                      # arbitrary pin
+pytest-mock = ">=3.6.1"                                     # arbitrary, needed to test heart_app
+torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
+torchmetrics = ">=1.4.0"                                    # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
 
 # documentation dependencies
 [tool.poetry.group.docs]

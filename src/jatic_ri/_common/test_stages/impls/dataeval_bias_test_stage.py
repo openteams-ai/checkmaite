@@ -8,6 +8,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from dataeval.metrics.bias import balance, coverage, diversity, parity
+from dataeval.utils.metadata import Metadata
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
@@ -50,7 +51,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         return folder
 
     @abstractmethod
-    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], dict[str, NDArray[Any]]]:
+    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
         """Aggregate dataset into images, labels and metadata_factors"""
 
     def _run(self) -> dict[str, Any]:
@@ -59,8 +60,8 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         images, labels, metadata = self._get_images_labels_factors()
 
         # Getting the output for balance and diversity to plot the results
-        bal_out = balance(labels, metadata)
-        div_out = diversity(labels, metadata)
+        bal_out = balance(metadata)
+        div_out = diversity(metadata)
 
         bal_dict = bal_out.dict()
         div_dict = div_out.dict()
@@ -79,7 +80,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         result_dict = {
             self.BALANCE_KEY: bal_dict,
             self.DIVERSITY_KEY: div_dict,
-            self.PARITY_KEY: parity(labels, metadata).dict(),
+            self.PARITY_KEY: parity(metadata).dict(),
         }
         try:  # In the case where images are non-homogenous, skip running coverage
             images = np.array(images)

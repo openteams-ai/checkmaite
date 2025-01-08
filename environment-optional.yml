@@ -8,7 +8,7 @@ dependencies:
 # Required deps
 - python>=3.9, <3.12
 # JATIC tools
-- dataeval==0.73.0
+- dataeval==0.75.0
 - heart-library>=0.4.3
 - maite>=0.6.0                          # required by SDP
 - nrtk>=0.15.1
@@ -36,12 +36,8 @@ dependencies:
 - opencv-python-headless>=4.9.0.80      # arbitrary pin, pkg needed for pybsm
 - openjdk=17.0.9                        # necessary pin, pkg needed for pyspark in MORSE RealLabel and Survivor Test Stages.
 - pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)
-- tensorflow>=2.16.0, <2.18             # dataeval[all] equivalent, pin reflected from there
-- tensorflow-datasets>=4.8.3            # dataeval[all] equivalent, pin reflected from there
-- tensorflow-probability>=0.24.0, <0.25 # dataeval[all] equivalent, pin reflected from there
-- tf-keras>=2.16                        # dataeval[all] equivalent, pin reflected from there
 - torchmetrics>=1.4.0                   # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
-- torchvision>=0.17.0                   # dataeval[all] equivalent, pin reflected from there, pkg needed to run tests using example MAITE-wrapped objects.
+- torchvision>=0.17.0                   # necessary pin, pkg needed to run tests using example MAITE-wrapped objects.
 # test
 - pytest>=8.3.0                         # necessary pin for compatibility
 - pytest-cov>=4.0.0                     # arbitrary pin

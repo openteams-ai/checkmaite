@@ -4,7 +4,7 @@ from typing import Any
 
 import maite.protocols.image_classification as ic
 import numpy as np
-from dataeval.utils import merge_metadata
+from dataeval.utils.metadata import Metadata, preprocess
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStageBase
@@ -24,7 +24,7 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset]):
     _deck: str = "image_classification_bias_evaluation"
     _task: str = "ic"
 
-    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], dict[str, NDArray[Any]]]:
+    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
         """Aggregate dataset into images, labels and metadata_factors"""
 
         images: list[NDArray[Any]] = []
@@ -36,5 +36,5 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset]):
             labels.append(np.argmax(d[1]))  # labels are one-hot encoded
             metadatas.append(d[2])
 
-        metadata = {k: np.asarray(v) for k, v in merge_metadata(metadatas, ignore_lists=True).items()}
+        metadata = preprocess(raw_metadata=metadatas, class_labels=labels)
         return images, np.asarray(labels, dtype=np.int_), metadata
