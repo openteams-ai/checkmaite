@@ -116,7 +116,7 @@ def minimal_maite_object_detection_dataset_and_model(dataset_length: int) -> tup
 
             metadata = {"id": f"image-{ind}", "local_filepath": _local_filepath, "img_filename": _img_filename}
 
-            return (_img_shape, ground_truth_factory(), metadata)
+            return (torch.ones(_img_shape, dtype=torch.uint8), ground_truth_factory(), metadata)
 
         def __len__(self) -> int:
             return dataset_length
