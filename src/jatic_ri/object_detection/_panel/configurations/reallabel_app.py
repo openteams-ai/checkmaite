@@ -19,6 +19,11 @@ pn.extension()
 class RealLabelApp(BaseApp):
     """RealLabel panel App. Creates a GUI interface that allows the user to enter and export RealLabelConfig values.
 
+    In this app, Reallabel is not doing any confidence calibration. Instead we tell RealLabel that the "score"
+    column should be treated as pre-calibrated by giving that column name to
+    `RealLabelConfig.calibrated_confidence_column`. This is in alignment with reallabel.MAITERealLabel as it
+    populates MAITE ODT scores into the `score` column by default.
+
     Attributes:
         title (param.String): settings pane title.
         iou_threshold (param.Number): threshold for IoU calculation. Defaults to 0.5.
@@ -79,6 +84,13 @@ class RealLabelApp(BaseApp):
                 "threshold_min_aggregated_confidence_fn": self.likely_missed_min_confidence,
                 "use_thresholds": True,
                 "class_agnostic": self.class_agnostic,
+                "run_confidence_calibration": False,
+                "column_names": {
+                    "unique_identifier_columns": [
+                        "id"
+                    ],  # assumes individual image metadata contains the key "id", which is a maite requirement
+                    "calibrated_confidence_column": "score",  # see note in class doc string
+                },
             },
         }
 

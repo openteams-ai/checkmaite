@@ -2,7 +2,6 @@
 
 import copy
 import json
-import os
 import shutil
 import warnings
 from hashlib import sha256
@@ -10,10 +9,13 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 import maite.protocols.object_detection as od
+import numpy as np
 import pyspark.sql.functions as sf
 import pyspark.sql.types as st
+import torch
 from gradient import Text
 from maite.workflows import evaluate
+from PIL import Image
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
@@ -23,16 +25,6 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     SingleDatasetPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-
-FILENAME_INDEX = "img_filename"
-
-OUTPUT_DIR = Path(os.path.abspath(__file__)).parent / "reallabel_outputs"
-
-# These _METADATA_ constants are the names of the metadata fields that must be present in the MAITE Dataset for
-# RealLabel to be able to retrieve the source images to overlay RealLabel visualization onto.
-_METADATA_IMAGE_FILE_NAME_FIELD = "img_filename"
-_METADATA_IMAGE_PARENT_DIR_FIELD = "local_filepath"
-_REALLABEL_REQUIRED_METADATA_FIELDS = {_METADATA_IMAGE_FILE_NAME_FIELD, _METADATA_IMAGE_PARENT_DIR_FIELD}
 
 # This constant represents the expected location of the RealLabel output directory under the test_stage.cache_base_path
 # directory where the RealLabelTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -229,46 +221,9 @@ class RealLabelTestStage(
             clean_predictions[model] = [x[0] for x in predictions]
         return clean_predictions
 
-    def __create_image_name_map(self, image_df: DataFrame) -> dict:
-        """Create image name map from image_df.
-
-        Args:
-            image_df (DataFrame): Image dataframe, expected to only have one image, possibly spanning multiple rows.
-        """
-        out = {}
-        try:
-            image_row = image_df.first()  # issue 123
-            if image_row is not None:
-                for col in self.config.column_names.unique_identifier_columns:
-                    out[image_row[_METADATA_IMAGE_FILE_NAME_FIELD]] = {col: image_row[col]}
-        except Exception as e:
-            raise ValueError(  # pragma: no cover
-                "Unique Identifier Columns must include `img_filename`",
-            ) from e
-
-        return out
-
     def _run(self) -> tuple[DataFrame, Path]:
         """Run RealLabel test stage."""
         self.validate_plugins()
-
-        if not hasattr(self.dataset, "_dataset_path"):
-            raise AttributeError(
-                "Not great, but we do need a _dataset_path attribute in the Dataset object to know where to retrieve "
-                "raw image data from. The alternative is to try and load data straight from the Dataset, but we can't "
-                "be guaranteed about its shape (i.e, compatible out-of-the-box with PIL.Image.fromarray()).",
-            )
-
-        # Create a spark DataFrame of Datum metadata (always index 2 in the tuple returned by iterating through a
-        # Dataset), then check for required metadata fields.
-        metadata_dicts_list = [datum[2] for datum in self.dataset]
-
-        spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
-        dataset_metadata_df = spark.createDataFrame(metadata_dicts_list)  # type: ignore  # issue 123
-        if not _REALLABEL_REQUIRED_METADATA_FIELDS.issubset(set(dataset_metadata_df.columns)):
-            raise ValueError(
-                f"Dataset metadata does not contain the required fields: {_REALLABEL_REQUIRED_METADATA_FIELDS}",
-            )
 
         # Run metrics
         model_inference_result = self.__run_metrics()
@@ -284,21 +239,8 @@ class RealLabelTestStage(
         # Run RealLabel
         reallabel_results = reallabel.run().results
 
-        # Get the filename of the image in the results that has the most bounding boxes, so it is easily seen in
-        # visualizer. Then retrieve its associated dataset sub-directory from the metadata and create a smaller
-        # version of the full results df that's only for that image. These will then be turned into a RealLabel
-        # visualization saved to a temporary directory that will later be copied into the proper cacheing directory.
-        image_filenames = (
-            reallabel_results.groupBy(_METADATA_IMAGE_FILE_NAME_FIELD).count().orderBy(sf.col("count").desc()).first()
-        )
-        image_filename = image_filenames[_METADATA_IMAGE_FILE_NAME_FIELD] if image_filenames else None  # issue 123:
-        image_parent_dir = dataset_metadata_df.where(sf.col(_METADATA_IMAGE_FILE_NAME_FIELD) == image_filename).first()[
-            _METADATA_IMAGE_PARENT_DIR_FIELD
-        ]
-
-        results_for_visualized_image_df = reallabel_results.where(
-            sf.col(_METADATA_IMAGE_FILE_NAME_FIELD) == image_filename,
-        )
+        if reallabel_results.isEmpty():
+            raise RuntimeError("Reallabel result pyspark df is empty!")
 
         # Clear out the cache miss dir in preparation for our new results.
         cache_miss_output_img_path = (
@@ -308,14 +250,72 @@ class RealLabelTestStage(
             shutil.rmtree(cache_miss_output_img_path.parent)
         cache_miss_output_img_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Create a directory where we can save the tensor image for the image with the most bounding boxes.
+        most_populous_image_temp_dir_path = (
+            Path(self.cache_base_path)
+            / _REALLABEL_CACHE_MISS_OUTPUT_DIR
+            / "directory_for_visualization_input_base_images"
+        )
+        most_populous_image_temp_dir_path.mkdir()
+
+        # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
+        # visualizer and get a dataframe with all rows associated with that image.
+        most_populous_image_uuids_columns_to_values = (
+            reallabel_results.groupBy(self.config.column_names.unique_identifier_columns)
+            .count()
+            .orderBy(sf.col("count").desc())
+            .drop("count")
+            .first()
+            .asDict()  # type: ignore
+        )
+        results_for_most_populous_image_df = reallabel_results.filter(
+            *[sf.col(key) == value for key, value in most_populous_image_uuids_columns_to_values.items()]
+        )
+
+        # Iterate through the dataset until we find the index with the matching UUID. Get the Image tensor from it.
+        most_populous_image_array = None
+        for image_tensor, _, image_metadata in self.dataset:
+            if all(
+                str(image_metadata[key]) == str(value)
+                for key, value in most_populous_image_uuids_columns_to_values.items()
+            ):
+                most_populous_image_array = image_tensor
+        if most_populous_image_array is None:
+            raise ValueError("Where's the image?!")
+
+        # Since we aren't guaranteed an actual file name metadata field (not all datasets have them),
+        # make a new file name with the raw UUID values
+        most_populous_image_file_name = (
+            "_".join(value for value in most_populous_image_uuids_columns_to_values.values()) + ".jpeg"
+        )
+        # Ensure we have a mapping of this portmanteau file name to the actual UUID values that
+        # will be found in the dataframe.
+        most_populous_image_name_to_uuid_value_map = {
+            most_populous_image_file_name: most_populous_image_uuids_columns_to_values
+        }
+
+        # Save the image to the temporary directory (workaround for potentially not knowing the original datapath)
+        most_populous_image_final_path = most_populous_image_temp_dir_path / most_populous_image_file_name
+
+        # PIL stores as HWC, but MAITE and the RI requires CHW
+        if isinstance(most_populous_image_array, torch.Tensor):
+            most_populous_image_numpy = most_populous_image_array.permute((1, 2, 0)).numpy()
+        elif isinstance(most_populous_image_array, np.ndarray):
+            most_populous_image_numpy = most_populous_image_array.transpose((1, 2, 0))
+        else:
+            raise RuntimeError(
+                f"Reallabel Test Stage Error: image array type not understood ({type(most_populous_image_array)})"
+            )
+
+        Image.fromarray(most_populous_image_numpy).save(most_populous_image_final_path)
+
+        # Plot the RealLabel results
         plot_reallabel_results(
-            image_location=self.dataset._dataset_path  # noqa: SLF001  # type: ignore  # issue 123
-            / image_parent_dir
-            / image_filename,
-            reallabel_results_df=results_for_visualized_image_df,
+            image_location=most_populous_image_final_path,
+            reallabel_results_df=results_for_most_populous_image_df,
             output_location=cache_miss_output_img_path,
             reallabel_config=self.config,
-            image_name_map=self.__create_image_name_map(results_for_visualized_image_df),
+            image_name_map=most_populous_image_name_to_uuid_value_map,
         )
 
         return reallabel_results, cache_miss_output_img_path

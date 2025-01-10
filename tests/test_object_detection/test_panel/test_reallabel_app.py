@@ -88,6 +88,11 @@ def test_run_export(
             "threshold_min_aggregated_confidence_fn": exp_confidence_thresholds[0],
             "class_agnostic": exp_class_agnostic,
             "use_thresholds": True,
+            "run_confidence_calibration": False,
+            "column_names": {
+                "calibrated_confidence_column": "score",
+                "unique_identifier_columns": ["id"],
+            },
         }
     }
 

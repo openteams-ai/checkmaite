@@ -52,7 +52,7 @@ def reallabel_test_stage_args() -> dict[str, Any]:
     config = Config(
         deduplication_algorithm="wbf",
         column_names=ColumnNameConfig(
-            unique_identifier_columns=["img_filename"],
+            unique_identifier_columns=["id"],
             calibrated_confidence_column="score",
         ),
         run_confidence_calibration=False,
@@ -65,7 +65,7 @@ def reallabel_test_stage_args() -> dict[str, Any]:
     dict_config = {
         "deduplication_algorithm": "wbf",
         "column_names": ColumnNameConfig(
-            unique_identifier_columns=["img_filename"],
+            unique_identifier_columns=["id"],
             calibrated_confidence_column="score",
         ),
         "run_confidence_calibration": False,
@@ -166,7 +166,7 @@ def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
     This will also need to be updated upon the resolution of the issue that requires Aggregated Confidence to
     """
     # Arrange
-    expected_cache_id = "reallabel_od_cache_bd5db062294686177bb33d9f2ab32f47b9e68ebdd4b4fb4e5b949f6fdd03552c"
+    expected_cache_id = "reallabel_od_cache_2f8620de3f6a9b5979efa876f0c1e10c07b8827902f0c292ced3d050c15ab874"
 
     # Act
     actual_cache_id = test_stage.cache_id
@@ -300,11 +300,3 @@ def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_path) -> None
     # Assert
     assert output.exists()
     assert not file.exists()
-
-
-def test_run_error_when_not_ic_dataset(test_stage: RealLabelTestStage) -> None:
-    """Test error is raised when dataset doesn't have required attributes."""
-    test_stage.load_dataset(dataset=[None], dataset_id="empty_dataset")  # type: ignore
-
-    with pytest.raises(AttributeError, match="need a _dataset_path attribute in the Dataset object"):
-        test_stage._run()
