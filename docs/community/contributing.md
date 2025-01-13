@@ -137,3 +137,29 @@ time consuming. For this reason, we ask that miminums be set (in compliance with
 that they be comment tagged as either "necessary" (you are aware of an incompatibility with the
 previous version) or "arbitrary" (you set this version artitrarily and it may be lowered if
 an issue with cross-compatibility arises). 
+
+
+## Maintaining and using the conda lock file
+
+The RI contains a conda-lock file for linux-64 which is intended to be a stable conda environment for the 
+latest version of the RI. 
+
+The lockfile contains placeholders for private Gitlab username and tokens. 
+In CI, these are replaced with valid tokens. To use this file locally, you will need to replace 
+`gitlab-ci-token` with your Gitlab username and `${PRIVATE_TOKEN}` with your Personal Access Token (PAT). 
+
+Once that is done, you can build a conda environment from the lockfile called `my-locked-env`, by running
+
+```
+conda-lock install -n my-locked-env
+```
+
+To update the lockfile, you'll first need to update the `environment-optional.yml` by replacing 
+`gitlab-ci-token` with your Gitlab username and `${PRIVATE_TOKEN}` with your Personal Access Token (PAT). Then create the lockfile with:
+
+```
+conda-lock -f environment-optional.yml -p linux-64
+```
+
+Before committing this file to the repository, you will need to scrub your personal username and PAT
+from the file and replace them (as above) with `gitlab-ci-token` and `${PRIVATE_TOKEN}`.
