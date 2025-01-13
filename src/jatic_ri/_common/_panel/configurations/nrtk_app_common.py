@@ -145,8 +145,13 @@ class NRTKBaseApp(BaseApp):
         pert_impl = self.perturber_select.value
         factory_impl = self.factory_selector.value
 
+        theta_keys_options = list(pert_impl.get_default_config().keys())
+        # remove 'rng' options as it is invalid in skimage (v0.25.0)
+        # (https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/178)
+        theta_keys_options.remove("rng") if "rng" in theta_keys_options else None
+
         if factory_impl.__name__ == "StepPerturbImageFactory":
-            self.theta_key = pn.widgets.Select(name="Theta Key", options=list(pert_impl.get_default_config().keys()))
+            self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
             self.start.stylesheets = [self.widget_stylesheet]
@@ -159,7 +164,7 @@ class NRTKBaseApp(BaseApp):
 
             return pn.Column(self.theta_key, self.start, self.stop, self.step, self.to_int)
         if factory_impl.__name__ == "LinSpacePerturbImageFactory":
-            self.theta_key = pn.widgets.Select(name="Theta Key", options=list(pert_impl.get_default_config().keys()))
+            self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
             self.start.stylesheets = [self.widget_stylesheet]
@@ -170,7 +175,7 @@ class NRTKBaseApp(BaseApp):
 
             return pn.Column(self.theta_key, self.start, self.stop, self.step)
         if factory_impl.__name__ == "OneStepPerturbImageFactory":
-            self.theta_key = pn.widgets.Select(name="Theta Key", options=list(pert_impl.get_default_config().keys()))
+            self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.widget_stylesheet]
             self.theta_value = pn.widgets.FloatInput(name="Theta Value", value=0.0)
             self.theta_value.stylesheets = [self.widget_stylesheet]
