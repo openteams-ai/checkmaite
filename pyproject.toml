@@ -31,14 +31,13 @@ python = ">=3.9, <3.12"                                     # required by SDP
 # jatic tools
 dataeval = {version = "0.75"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
-heart-library = ">=0.4.3"
-maite = {version = ">=0.6.0"}                               # required by SDP
-nrtk = {version = ">=0.15.1", extras = ["headless"]}
-pybsm = "<=0.9.0"                                           # optional dep for nrtk, required here
+heart-library = "==0.4.4"
+maite = {version = "==0.6.0"}                     # required by SDP
+nrtk = {version = "==0.15.1", extras = ["headless"]}
+pybsm = "==0.8.0"                                 # optional dep for nrtk, required here
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
-xaitk-jatic = {version = ">=0.4.3", extras = ["docker"]}    # docker extra required for panel apps
-
+xaitk-jatic = {version = "==0.4.3", extras = ["docker"]}  # docker extra required for panel apps
 # external deps
 holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
 matplotlib = ">=3.8.4"                                      # arbitrary, required by panel

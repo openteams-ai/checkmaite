@@ -8,12 +8,12 @@ dependencies:
 # Required deps
 - python>=3.9, <3.12
 # JATIC tools
-- dataeval==0.75.0
-- heart-library>=0.4.3
-- maite>=0.6.0                          # required by SDP
-- nrtk>=0.15.1
-- pybsm <=0.9.0                         # optional dep for nrtk, required here
-- xaitk-jatic>=0.4.3
+- dataeval=0.75.0                       # pinned for demo 
+- heart-library=0.4.4                   # pinned for demo
+- maite=0.6.0                           # pinned for demo
+- nrtk=0.15.1                           # pinned for demo
+- pybsm=0.8.0                           # pinned for demo, optional dep for nrtk, required here
+- xaitk-jatic=0.4.3                     # pinned for demo
 
 # External tools
 - holoviews>=1.20.0                     # arbitrary pin, required for panel pipelines
