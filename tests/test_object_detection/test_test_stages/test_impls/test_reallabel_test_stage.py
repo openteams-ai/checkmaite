@@ -11,6 +11,7 @@ from gradient.templates_and_layouts.create_deck import create_deck
 import pandas as pd
 import pyspark.sql.functions as sf
 import pytest
+import maite.protocols.object_detection as od
 from gradient import Text
 from matplotlib.testing.compare import compare_images
 from reallabel import ColumnNameConfig
@@ -24,9 +25,9 @@ from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     RealLabelCache,
     RealLabelTestStage,
 )
+from tests.fake_od_classes import FakeODDataset, FakeODModel
 from tests.testing_utilities.testing_utilities import (
     assert_spark_dataframes_equal,
-    minimal_maite_object_detection_dataset_and_model,
 )
 
 # This file is the expected output of RealLabel if using all the information found in the survivor_test_stage_args
@@ -42,12 +43,12 @@ _REALLABEL_CONFIG = "config"
 
 
 @pytest.fixture(scope="session")
-def reallabel_test_stage_args() -> dict[str, Any]:
+def reallabel_test_stage_args(fake_od_dataset_reallabel_only: FakeODDataset, fake_od_model_default: FakeODModel) -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
 
     # a single image with groundtruth along with two models with identical predictions
-    reallabel_test_stage_dataset, model = minimal_maite_object_detection_dataset_and_model(dataset_length=1)
-    reallabel_test_stage_models = {"model_1": model, "model_2": model}
+    reallabel_test_stage_dataset: od.Dataset = fake_od_dataset_reallabel_only
+    reallabel_test_stage_models: dict[str,od.Model] = {"model_1": fake_od_model_default, "model_2": fake_od_model_default}
 
     config = Config(
         deduplication_algorithm="wbf",
