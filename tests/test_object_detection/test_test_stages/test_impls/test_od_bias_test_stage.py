@@ -115,6 +115,28 @@ class TestODDatasetBiasRun:
         output = test_stage.collect_report_consumables()
         assert len(output) == 3
 
+    def test_coco(self):
+        from jatic_ri.object_detection.datasets import CocoDetectionDataset
+        from jatic_ri import PACKAGE_DIR
+        from os import path
+        import tests
+
+        coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
+            path.dirname(tests.__file__),
+            ('testing_utilities/example_data/coco_resized_val2017'),
+        )
+        coco_dataset = CocoDetectionDataset(
+            root=str(coco_dataset_dir),
+            ann_file=str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')),
+        )
+
+        stage = DatasetBiasTestStage()
+
+        stage.load_dataset(dataset=coco_dataset, dataset_id='asd')
+                            
+        stage.run(use_cache=False)
+        pass  # no explosions
+
 
 class TestODBiasCache:
     """Tests the Bias Cache attribute correctly writes, saves, and reads cached runs"""

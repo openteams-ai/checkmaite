@@ -82,17 +82,20 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             self.DIVERSITY_KEY: div_dict,
             self.PARITY_KEY: parity(metadata).dict(),
         }
+
         try:  # In the case where images are non-homogenous, skip running coverage
             images = np.array(images)
-            cov_out = coverage(images, k=5)
-            cov_dict = cov_out.dict()
-            cov_img_path = str(self.image_folder / "coverage_plot.png")
-            cov_fig = cov_out.plot(images)
-            cov_fig.savefig(cov_img_path)
-            cov_dict["image"] = cov_img_path
-            result_dict.update({self.COVERAGE_KEY: cov_dict})
         except ValueError:
-            pass
+            return result_dict
+
+        faux_embeddings = images.reshape(images.shape[0], -1)
+        cov_out = coverage(faux_embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
+        cov_dict = cov_out.dict()
+        cov_img_path = str(self.image_folder / "coverage_plot.png")
+        cov_fig = cov_out.plot(images)
+        cov_fig.savefig(cov_img_path)
+        cov_dict["image"] = cov_img_path
+        result_dict.update({self.COVERAGE_KEY: cov_dict})
 
         return result_dict
 

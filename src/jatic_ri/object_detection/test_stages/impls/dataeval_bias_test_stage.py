@@ -28,13 +28,13 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset]):
         """Aggregate dataset into images, labels and metadata_factors"""
 
         images: list[NDArray[Any]] = []
-        labels: list[NDArray[np.int_]] = []
+        labels: list[int] = []
         metadatas: list[dict[str, Any]] = []
 
         for d in self.dataset:
             images.append(np.asarray(d[0]))
             np_labels = np.asarray(d[1].labels, dtype=np.int_)
-            labels.append(np_labels)
+            labels.extend(np_labels.tolist())
             # we need to flatten/homogenize the metadata into a format for bias functionality
             # where dictionary has no nested dictionaries, and the value for each key is a list
             # of length N, where N is the number of labels/targets
@@ -45,8 +45,6 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset]):
                 flattened = {k: [v] * len(np_labels) for k, v in flattened.items()}
             metadatas.append(flattened)
 
-        flat_labels = np.asarray(labels).flatten()
+        metadata = preprocess(raw_metadata=metadatas, class_labels=labels)
 
-        metadata = preprocess(raw_metadata=metadatas, class_labels=flat_labels)
-
-        return images, flat_labels, metadata
+        return images, np.array(labels, dtype=np.int_), metadata
