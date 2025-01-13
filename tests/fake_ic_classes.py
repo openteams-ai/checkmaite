@@ -106,8 +106,8 @@ class FakeICModel(ic.Model):
 
 class FakeICDataset(ic.Dataset):
     """
-    This MAITE-compliant fake IC dataset can be instantiated with any MAITE-compliant representations of (1)images, (2) corresponding class ground truths, and
-    (3) corresponding metadata for an image classification dataset. 
+    This MAITE-compliant fake IC dataset can be instantiated with any MAITE-compliant representations of sequences of (1)images, (2) corresponding class 
+    ground truths, and (3) corresponding metadata.
 
     IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI Team (in GitLab) before implementing a custom instance of
     this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to

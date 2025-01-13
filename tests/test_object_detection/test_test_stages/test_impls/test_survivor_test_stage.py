@@ -25,9 +25,9 @@ from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import (
     SurvivorConfig,
     SurvivorTestStage,
 )
+from tests.fake_od_classes import FakeODDataset, FakeODModel
 from tests.testing_utilities.testing_utilities import (
-    assert_spark_dataframes_equal,
-    minimal_maite_object_detection_dataset_and_model,
+    assert_spark_dataframes_equal
 )
 
 # This file is the expected output of Survivor if using all the information found in the survivor_test_stage_args
@@ -125,7 +125,7 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
 
 
 @pytest.fixture(scope="session")
-def survivor_test_stage_args() -> dict[str, Any]:
+def survivor_test_stage_args(fake_od_dataset_default: FakeODDataset, fake_od_model_default: FakeODModel) -> dict[str, Any]:
     """
     Default arguments for RealLabelTestStage.
     
@@ -135,9 +135,9 @@ def survivor_test_stage_args() -> dict[str, Any]:
     """
 
     # choice of 6 arbitrary, but allows simple divide between easy, hard and otb images (2, 2 and 2)
-    survivor_test_stage_dataset, model = minimal_maite_object_detection_dataset_and_model(dataset_length=6)
+    survivor_test_stage_dataset: od.Dataset = fake_od_dataset_default
     # at least 2 models are required for model disagreement to make sense
-    survivor_test_stage_models = {"model_1": model, "model_2": model}
+    survivor_test_stage_models: dict[str, od.Model] = {"model_1": fake_od_model_default, "model_2": fake_od_model_default}
     
     fake_survivor_metric = survivor_metric_factory(dataset_length=len(survivor_test_stage_dataset),
     total_models=len(survivor_test_stage_models))
