@@ -55,3 +55,25 @@ def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path, 
     slides = test.collect_report_consumables()
     filename = create_deck(slides, artifact_dir, 'TestLintingDeck')
     assert filename.exists()
+
+def test_coco():
+    from jatic_ri.object_detection.datasets import CocoDetectionDataset
+    from jatic_ri import PACKAGE_DIR
+    from os import path
+    import tests
+
+    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
+        path.dirname(tests.__file__),
+        ('testing_utilities/example_data/coco_resized_val2017'),
+    )
+    coco_dataset = CocoDetectionDataset(
+        root=str(coco_dataset_dir),
+        ann_file=str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')),
+    )
+
+    stage = DatasetLintingTestStage()
+
+    stage.load_dataset(dataset=coco_dataset, dataset_id='asd')
+                        
+    stage.run(use_cache=False)
+    pass  # no explosions
