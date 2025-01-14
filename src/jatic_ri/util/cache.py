@@ -5,7 +5,7 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from os import getcwd, makedirs, path, remove
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar, Union
 
 import numpy as np
 import torch
@@ -17,6 +17,9 @@ from jatic_ri.object_detection.datasets import DetectionTarget
 
 TData = TypeVar("TData", dict, list)
 TMetric = TypeVar("TMetric", bound=Metric)
+
+TMetricResultKeyValue = Union[torch.Tensor, float]
+TMetricResultCache = dict[Any, TMetricResultKeyValue]
 
 
 class JSONCache(Cache[TData]):
@@ -95,16 +98,15 @@ class RICache(ABC):
         """Writes a prediction to the cache"""
         pass
 
-    # Leave commented out for evaluate method.
-    # @abstractmethod
-    # def read_metric(self) -> TMetric:
-    #     """Reads a metric from the cache"""
-    #     pass
+    @abstractmethod
+    def read_metric(self, filename: str) -> Union[TMetricResultCache, None]:
+        """Reads a metric from the cache"""
+        pass
 
-    # @abstractmethod
-    # def write_metric(self, metric: TMetric) -> None:
-    #     """Writes a metric to the cache"""
-    #     pass
+    @abstractmethod
+    def write_metric(self, filename: str, metric_results: TMetricResultCache) -> None:
+        """Writes a metric to the cache"""
+        pass
 
     @abstractmethod
     def clear_cache(self) -> None:
@@ -113,20 +115,57 @@ class RICache(ABC):
 
 
 class SimpleRICacheOD(RICache):
-    """Wrapper for RICache that sets up the Cache directory."""
+    """
+    A wrapper for the RICache class that sets up a cache directory and provides methods for reading
+    and writing prediction and metric data to/from the cache using JSON format.
 
-    def __init__(self, cache_path: str = "") -> None:
-        if cache_path is None:
-            cache_path = getcwd()
+    This is designed for Object Detection in particular.
+
+    Parameters
+    ----------
+    json_cache:
+        an attribute on this class that is hardcoded to JSONCache with a TensorEncorder and compression enabled.
+        It controls the underlying read/write of the cache data.
+    cache_root_dir:
+        this dictates the root path where all of the folders for the cache files will be created.
+    """
+
+    def __init__(self, cache_root_dir: str = "") -> None:
+        """
+        Initializes the SimpleRICacheOD instance, setting up the cache directory and the JSON cache.
+
+        Parameters
+        ----------
+        cache_root_dir : str, optional
+            The directory where the cache files will be stored. If not provided, the current working
+            directory will be used. Default is "" (empty string).
+        """
+        if cache_root_dir is None or cache_root_dir == "":
+            cache_root_dir = getcwd()
         self.json_cache = JSONCache(encoder=TensorEncoder, compress=True)
-        self.cache_path = cache_path
-        makedirs(path.dirname(cache_path), exist_ok=True)
+        self.cache_root_dir = cache_root_dir
+        makedirs(path.dirname(cache_root_dir), exist_ok=True)
 
     def read_predictions(
         self, filename: str
     ) -> Optional[tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]]]:
-        """Reads from the cache using the internal JSONCache"""
-        cachefile = path.join(self.cache_path, filename)
+        """
+        Reads prediction data from the cache using JSONCache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the cache file containing the prediction data.
+
+        Returns
+        -------
+        tuple or None
+            A tuple containing two sequences:
+            - A sequence of lists of `DetectionTarget` objects.
+            - A sequence of tuples containing metadata information.
+            Returns None if the cache read is unsuccessful.
+        """
+        cachefile = path.join(self.cache_root_dir, filename)
         cache_hit = self.json_cache.read_cache(cachefile)
         if cache_hit:
             return self.read_prediction_serializer(cache_hit)
@@ -137,21 +176,61 @@ class SimpleRICacheOD(RICache):
         filename: str,
         prediction: tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]],
     ) -> None:
-        """Writes to the cache using the internal JSONCache"""
+        """
+        Writes prediction data to the cache using JSONCache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the cache file where the prediction data will be written.
+
+        prediction : tuple
+            A tuple containing two sequences:
+            - A sequence of lists of `DetectionTarget` objects.
+            - A sequence of tuples containing metadata information.
+        """
         pred_data = self.write_prediction_serializer(prediction)
-        cachefile = path.join(self.cache_path, filename)
+        cachefile = path.join(self.cache_root_dir, filename)
         self.json_cache.write_cache(cachefile, pred_data)
 
-    # Leave commented out for evaluate method.
-    # def read_metric(
-    #     self,
-    # ) -> TMetric:
-    #     """Reads a metric from the cache"""
-    #     pass  # Not implemented in this MR
+    def read_metric(self, filename: str) -> Union[TMetricResultCache, None]:
+        """
+        Reads metric data from the cache.
 
-    # def write_metric(self, metric: TMetric) -> None:
-    #     """Writes a metric to the cache"""
-    #     pass  # Not implemented in this MR
+        Parameters
+        ----------
+        filename : str
+            The name of the cache file containing the metric results.
+
+        Returns
+        -------
+        Cached Metric result or None
+        """
+
+        cachefile = path.join(self.cache_root_dir, filename)
+        cache_hit = self.json_cache.read_cache(cachefile)
+        if cache_hit:
+            return {
+                key: torch.tensor(value) if isinstance(value, (int, float)) else value
+                for key, value in cache_hit.items()
+            }
+        return cache_hit
+
+    def write_metric(self, filename: str, metric_results: TMetricResultCache) -> None:
+        """
+        Writes metric results to the JSONcache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the cache file where the metric data will be written.
+
+        metric_results : TMetricResultCache
+            The metric data to be written to the cache.
+        """
+
+        cachefile = path.join(self.cache_root_dir, filename)
+        self.json_cache.write_cache(cachefile, metric_results)
 
     def write_prediction_serializer(
         self,
@@ -160,7 +239,23 @@ class SimpleRICacheOD(RICache):
             Sequence[tuple[Any, Any, Any]],
         ],
     ) -> tuple[Sequence[list[dict[str, Any]]], Sequence[tuple[list[Any], list[Any], list[Any]]]]:
-        """Serialize a compute prediction output to be compatible with JSON."""
+        """
+        Serializes a prediction output to be compatible with JSON format.
+
+        Parameters
+        ----------
+        pred_and_data : tuple
+            A tuple containing two sequences:
+            - A sequence of lists of `DetectionTarget` objects.
+            - A sequence of tuples containing metadata information.
+
+        Returns
+        -------
+        tuple
+            A tuple containing two sequences:
+            - A sequence of lists of dictionaries representing serialized `DetectionTarget` objects.
+            - A sequence of tuples containing metadata, where the detection data is serialized.
+        """
 
         preds = pred_and_data[0]
         data = pred_and_data[1]
@@ -186,7 +281,23 @@ class SimpleRICacheOD(RICache):
         Sequence[list[DetectionTarget]],
         Sequence[tuple[Any, Any, Any]],
     ]:
-        """Given a prediction in cache, restore it's tensor and detection target types."""
+        """
+        Restores prediction data from its serialized JSON representation.
+
+        Parameters
+        ----------
+        pred_data_cache : tuple
+            A tuple containing two sequences:
+            - A sequence of lists of dictionaries representing serialized `DetectionTarget` objects.
+            - A sequence of tuples containing metadata, where the detection data is serialized.
+
+        Returns
+        -------
+        tuple
+            A tuple containing two sequences:
+            - A sequence of lists of `DetectionTarget` objects.
+            - A sequence of tuples containing metadata information.
+        """
         preds = pred_data_cache[0]
         data = pred_data_cache[1]
 
@@ -219,8 +330,17 @@ class SimpleRICacheOD(RICache):
         return (detection_pred, detection_data)
 
     def clear_cache(self) -> None:
-        """Clears the cache dir"""
-        json_files = glob.glob(path.join(self.cache_path, "*.json"))
+        """
+        Clears the cache directory by removing all JSON cache files.
+
+        This method deletes all `.json` files in the cache directory to free up space.
+
+        Raises
+        ------
+        OSError
+            If the cache files cannot be deleted, an OSError is raised with a description of the failure.
+        """
+        json_files = glob.glob(path.join(self.cache_root_dir, "*.json"))
         # Instead of catching exceptions within the loop, check the file before attempting removal
         try:
             for json_file in json_files:

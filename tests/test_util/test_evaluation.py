@@ -8,6 +8,16 @@ from typing import Any, Sequence, List, Tuple
 import pytest
 from unittest.mock import MagicMock
 import torch
+# from copy import deepcopy
+
+# This is utilized from the od mock model operated on the od mock dataset. 
+mock_pred_detection_object = DetectionTarget(
+                                    boxes=torch.ones((5, 4)),
+                                    labels=torch.tensor([0, 1, 2, 3, 4]),
+                                    scores=torch.zeros((5, 5)),
+    )
+# This is utilized from the od mock dataset values in conftest.py. 
+mock_image_data = torch.ones((1, 16, 16))
 
 TInput = str  
 TTarget = str
@@ -115,7 +125,7 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
     dataset_id="dummy1"
 
     dataloader = SimpleDataLoader(dataset, 2)
-    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_path=tmpdir))
+    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
 
     pred, data = evaluationtool.compute_predictions(
         model=model,
@@ -126,38 +136,89 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
         batch_size=2
     )
 
-    mock_pred_detection_object = DetectionTarget(
-                                    boxes=torch.tensor([[1., 1., 1., 1.],
-                                                        [1., 1., 1., 1.],
-                                                        [1., 1., 1., 1.],
-                                                        [1., 1., 1., 1.],
-                                                        [1., 1., 1., 1.]]),
-                                    labels=torch.tensor([0, 1, 2, 3, 4]),
-                                    scores=torch.tensor([[0., 0., 0., 0., 0.],
-                                                        [0., 0., 0., 0., 0.],
-                                                        [0., 0., 0., 0., 0.],
-                                                        [0., 0., 0., 0., 0.],
-                                                        [0., 0., 0., 0., 0.]]),
+    # First, this test goes through the detection object that was found by the model.
+    # There is only one to consider in this test.
+    detection_object = pred[0][0]
+    
+    # Assert that the bounding box tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.boxes, mock_pred_detection_object.boxes)
+    # Assert that the blabel tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.labels, mock_pred_detection_object.labels)
+    # Assert that the score tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.scores, mock_pred_detection_object.scores)
+
+    # Next, we test the data that was returned in batch format to test if it matches our original input.
+    # Assert that the image data returned to the user match the expected values.
+    assert torch.equal(data[0][0][0], mock_image_data)
+
+def test_metric_compute(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdir) -> None:
+    metric_expected = {"fake_metric": 1.0}
+    metric = dummy_metric_od
+    model=dummy_model_od
+    model_id="dummy1"
+    dataset=dummy_dataset_od
+    dataset_id="dummy1"
+
+    dataloader = SimpleDataLoader(dataset, 2)
+    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
+
+    pred, data = evaluationtool.compute_predictions(
+        model=model,
+        model_id=model_id,
+        dataset=dataset,
+        dataset_id=dataset_id,
+        dataloader=dataloader,
+        batch_size=2
     )
-    mock_data = torch.tensor(
-        [[[1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-         [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]]]
+    metric = evaluationtool.compute_metric(
+        metric=metric,
+        filename="na",
+        prediction=pred,
+        data=data
     )
-    assert torch.equal(pred[0][0].boxes, mock_pred_detection_object.boxes)
-    assert torch.equal(pred[0][0].labels, mock_pred_detection_object.labels)
-    assert torch.equal(pred[0][0].scores, mock_pred_detection_object.scores)
-    assert torch.equal(data[0][0][0], mock_data)
+    # Assert that the dummy metric utilizes it's compute function.
+    assert metric == metric_expected
+
+def test_evaluation(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdir):
+    metric_results_expected = {"fake_metric": 1.0}
+    metric = dummy_metric_od
+    metric_id="fake_metric"
+    model=dummy_model_od
+    model_id="dummy1"
+    dataset=dummy_dataset_od
+    dataset_id="dummy1"
+
+    dataloader = SimpleDataLoader(dataset, 2)
+    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
+
+    result = evaluationtool.evaluate(
+        model=model,
+        model_id=model_id,
+        dataset=dataset,
+        dataset_id=dataset_id,
+        dataloader=dataloader,
+        metric=metric,
+        metric_id=metric_id,
+        batch_size=2
+    )
+
+    # The metric results are the first part of the evaluate response.
+    metric_result_value= result[0]
+    # The second object is a tuple containing all of the prediction data used to compute the metric results.
+    # The model's prediction is the first portion.
+    pred= result[1]
+    # Further more, we want to focus on the detection object inside the prediction.
+    detection_object = pred[0][0]
+    # The batch of image data used to produce the prediction is the second portion.
+    data= result[2]
+
+    # Assert that the metric results computed match the results expected.
+    assert metric_result_value == metric_results_expected
+    # Assert that the bounding box tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.boxes, mock_pred_detection_object.boxes)
+    # Assert that the blabel tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.labels, mock_pred_detection_object.labels)
+    # Assert that the score tensors of the computed prediction match the expected values.
+    assert torch.equal(detection_object.scores, mock_pred_detection_object.scores)
+    # Assert that the image data returned to the user match the expected values.
+    assert torch.equal(data[0][0][0], mock_image_data)

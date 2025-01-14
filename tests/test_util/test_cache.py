@@ -12,8 +12,7 @@ from typing import Sequence, Any
 from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder, SimpleRICacheOD
 from jatic_ri.object_detection.datasets import DetectionTarget
 
-from copy import deepcopy
-
+metric_results_expected = {"fake_metric": torch.tensor(1.0)}
 
 pred_data_dummy_od = (
         [
@@ -107,23 +106,56 @@ def test_tensor_encoder() -> None:
 
 def test_write_read_predictions_od(tmpdir):
     """Testing the writing and reading of an OD prediction to cache"""
-    pred_data = deepcopy(pred_data_dummy_od)
     
     filename = "test_predictions.json"
 
-    cache = SimpleRICacheOD(cache_path=tmpdir)
+    cache = SimpleRICacheOD(cache_root_dir=tmpdir)
 
-    cache.write_predictions(filename=filename, prediction=pred_data)
+    cache.write_predictions(filename=filename, prediction=pred_data_dummy_od)
 
     cache_file_path = tmpdir.join(filename)
     
+    # Asserts that the cache write triggered correctly.
     assert cache_file_path.exists(), f"{cache_file_path} was not created."
 
     result = cache.read_predictions(filename)
 
+    # The result is a detection object for one image. 
+    # Given the complext return structure, this tests that the return types are the correct instances.
+    prediction = result[0]
+    data = result[1]
     assert isinstance(result, tuple)
-    assert isinstance(result[0], list)
-    assert isinstance(result[1], list)
-    assert torch.equal(result[0][0][0].boxes, pred_data_dummy_od[0][0][0].boxes)
-    assert torch.equal(result[0][0][0].labels, pred_data_dummy_od[0][0][0].labels)
-    assert torch.equal(result[0][0][0].scores, pred_data_dummy_od[0][0][0].scores)
+    assert isinstance(prediction, list)
+    assert isinstance(data, list)
+
+    # This test focuses on the prediction object.
+    # The prediction object is a list of detection objects.
+    # There is only one image, so one set of detection objects to test.
+    detection_object = prediction[0][0]
+    # Asserts that the bounding boxes have been retrieved an encoded correctly.
+    assert torch.equal(detection_object.boxes, pred_data_dummy_od[0][0][0].boxes)
+    # Asserts that the labels have been retrieved an encoded correctly.
+    assert torch.equal(detection_object.labels, pred_data_dummy_od[0][0][0].labels)
+    # Asserts that the scores have been retrieved an encoded correctly.
+    assert torch.equal(detection_object.scores, pred_data_dummy_od[0][0][0].scores)
+
+def test_write_read_metric_result_od(tmpdir):
+    """Testing the writing and reading of an OD prediction to cache"""
+    
+    filename = "test_metric_result.json"
+
+    cache = SimpleRICacheOD(cache_root_dir=tmpdir)
+
+    cache.write_metric(filename=filename, metric_results=metric_results_expected)
+
+    cache_file_path = tmpdir.join(filename)
+    
+    # Asserts that the cache write was triggered correctly.
+    assert cache_file_path.exists(), f"{cache_file_path} was not created."
+
+    result = cache.read_metric(filename)
+
+    # Asserts that the metric result has been retrieved in the correct format. 
+    assert isinstance(result, dict)
+    # Asserts that the metric result has been encoded in the correct format.
+    assert torch.equal(result['fake_metric'], metric_results_expected['fake_metric'])
