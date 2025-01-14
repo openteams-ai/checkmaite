@@ -6,7 +6,6 @@ from typing import Any, Generic, TypeVar, Union
 from maite._internals.protocols import image_classification as ic
 from maite._internals.protocols import object_detection as od
 from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
-from maite._internals.utils import add_progress_bar
 from typing_extensions import TypeAlias
 
 from jatic_ri.util.cache import RICache
@@ -32,14 +31,47 @@ Cache_Option: TypeAlias = Union[TRICache, None]
 
 
 class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
-    """Simple dataloader from maite in case none is provided. Deterministic dataloader."""
+    """
+    A simple, deterministic data loader that batches data from a given dataset.
+
+    This data loader takes a dataset and splits it into batches of a given size. It ensures deterministic
+    batching, meaning the order and size of batches are consistent.
+    """
 
     def __init__(self, dataset: Dataset[TInput, TTarget, TMetadata], batch_size: int) -> None:
+        """
+        Initializes the data loader with the provided dataset and batch size.
+
+        Parameters
+        ----------
+        dataset : Dataset[TInput, TTarget, TMetadata]
+            The dataset from which data will be loaded, containing input, target, and metadata.
+
+        batch_size : int
+            The number of examples per batch.
+        """
         self.dataset = dataset
         self.batch_size = batch_size
 
     def __iter__(self) -> Iterator[tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]]:
-        """Iterate over first batch_size examples from dataset, collate them, and yield result."""
+        """
+        Iterates over the dataset in batches, collates the data into input, target, and metadata batches,
+        and yields them.
+
+        This method divides the dataset into batches of size `batch_size` (or smaller for the last batch),
+        collates each batch, and yields a tuple containing:
+        - input data batch (Sequence[TInput]),
+        - target data batch (Sequence[TTarget]),
+        - metadata batch (Sequence[TMetadata]).
+
+        Returns
+        -------
+        iterator of tuple
+            An iterator that yields batches, where each batch is a tuple containing:
+            - input_batch (Sequence[TInput]): A batch of input data.
+            - target_batch (Sequence[TTarget]): A batch of target data.
+            - metadata_batch (Sequence[TMetadata]): A batch of metadata.
+        """
         total_batches = (len(self.dataset) + self.batch_size - 1) // self.batch_size
         for batch_no in range(total_batches):
             batch_data_as_singles = [
@@ -57,10 +89,23 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
         batch_data_as_singles: Iterable[tuple[TInput, TTarget, TMetadata]],
     ) -> tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]:
         """
-        Describe how to create a tuple of
-        (InputBatchType, TargetBatchType, DatumMetadataBatchType)
-        from an iterator of tuples of
-        (InputType, TargetType, DatumMetadataType)
+        Collates a batch of data from an iterable of individual data points into three separate batches:
+        input data, target data, and metadata.
+
+        Parameters
+        ----------
+        batch_data_as_singles : iterable of tuple
+            An iterable of tuples, where each tuple contains an individual data point in the format
+            (input_datum, target_datum, metadata_datum). Each datum is of type TInput, TTarget, and
+            TMetadata, respectively.
+
+        Returns
+        -------
+        tuple of sequences
+            A tuple containing three sequences:
+            - input_batch (Sequence[TInput]): A batch of input data.
+            - target_batch (Sequence[TTarget]): A batch of target data.
+            - metadata_batch (Sequence[TMetadata]): A batch of metadata associated with the data.
         """
         input_batch: list[TInput] = []
         target_batch: list[TTarget] = []
@@ -73,10 +118,71 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
 
 
 class EvaluationTool:
-    """Class for Finding Cache from Maite objects."""
+    """
+    A class for evaluating machine learning models on datasets using specified metrics.
+    The class handles model, dataset, and metrics, including caching mechanisms
+    for predictions and metric results.
+
+    Methods
+    -------
+    compute_metric
+        Processes a metric over predictions and batched data, using caching if available.
+
+    compute_predictions
+        Generates predictions using a specified model and dataset,
+        checking for cached results before computing predictions.
+
+    evaluate
+        Evaluates a model on a dataset using a specified metric.
+        Utilizes compute_prediction and compute_metric and their caching mechanisms.
+    """
 
     def __init__(self, ri_cache: Cache_Option[Any] = None) -> None:
         self.ri_cache = ri_cache
+
+    def compute_metric(
+        self,
+        metric: TMetric,
+        filename: str,
+        prediction: Sequence[SomeTargetBatchType],
+        data: Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
+    ) -> dict[str, Any]:
+        """
+        Compute a specified metric over predictions and batched data.
+
+        Parameters
+        ----------
+        metric : TMetric
+            The metric object to be computed. This can be a custom metric function or an identifier
+            for a predefined metric.
+        cache_id : str
+            A unique identifier for caching purposes. in this case a file name.
+            Used to store or retrieve intermediate results.
+        prediction : sequence of list of dicts
+            A sequence of prediction data, where each element is a list of dictionaries representing
+            predicted values.
+        data : sequence of tuples
+            A sequence of tuples containing three elements:
+                - A list of ground truth values.
+                - A list of any additional values associated with each data point.
+                - A list containing metadata.
+
+        Returns
+        -------
+        result : dict
+            A dictionary where keys are metric identifiers or names, and values are the computed
+            metric values for the predictions and data.
+        """
+        if self.ri_cache:
+            cache = self.ri_cache.read_metric(filename)
+            if cache is not None:
+                return cache
+        for i, pred in enumerate(prediction):
+            metric.update(pred, data[i][1])
+        metric_results = metric.compute()
+        if self.ri_cache:
+            self.ri_cache.write_metric(filename, metric_results)
+        return metric_results
 
     def compute_predictions(
         self,
@@ -84,13 +190,41 @@ class EvaluationTool:
         model_id: str,
         dataset: Dataset[Any, Any, Any],
         dataset_id: str,
-        dataloader: TDataloader,
+        dataloader: TDataloader = None,
         batch_size: int = 1,
     ) -> tuple[
-        Sequence[SomeTargetBatchType],
-        Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
+        Sequence[SomeTargetBatchType], Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
     ]:
-        """A prediction tool that checks cache with the ID's before running evaluate. If cache hits, return cache."""
+        """
+        Prediction tool that checks cache with the provided ID before running evaluation.
+        If cache is available (hit), returns the cached results.
+
+        Parameters
+        ----------
+        model : TModel
+            The model to be used for generating predictions.
+        model_id : str
+            A unique identifier for the model.
+        dataset : Dataset
+            The dataset to generate predictions on.
+        dataset_id : str
+            A unique identifier for the dataset.
+        dataloader (Optional) : TDataloader
+            A dataloader that facilitates batch processing of the dataset.
+        batch_size : int
+            The batch size to be used for prediction. Default is 1, meaning predictions will be
+            generated one sample at a time.
+
+        Returns
+        -------
+        predictions : tuple of sequence
+            A tuple containing two sequences:
+            - The first sequence is a list of dictionaries representing predicted values for each data point.
+            - The second sequence contains tuples with three elements:
+            - A list of ground truth values.
+            - A list of additional associated values for each data point.
+            - A list of metadata.
+        """
         cache_file = f"{model_id}_{dataset_id}_{batch_size}.json"
         if self.ri_cache:
             cache = self.ri_cache.read_predictions(cache_file)
@@ -103,7 +237,7 @@ class EvaluationTool:
         preds_batches = []
         data_batches = []
 
-        for input_datum_batch, target_datum_batch, metadata_batch in add_progress_bar(dataloader):
+        for input_datum_batch, target_datum_batch, metadata_batch in dataloader:
             preds_batch = model(input_datum_batch)
             preds_batches.append(preds_batch)
             data_batches.append((input_datum_batch, target_datum_batch, metadata_batch))
@@ -112,3 +246,76 @@ class EvaluationTool:
         if self.ri_cache:
             self.ri_cache.write_predictions(cache_file, results)
         return results
+
+    def evaluate(
+        self,
+        model: TModel,
+        model_id: str,
+        dataset: Dataset[Any, Any, Any],
+        dataset_id: str,
+        metric: TMetric,
+        metric_id: str,
+        batch_size: int = 1,
+        dataloader: TDataloader = None,
+    ) -> tuple[
+        dict[str, Any],
+        Sequence[SomeTargetBatchType],
+        Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
+    ]:
+        """
+        Evaluates the model on the given dataset using the specified metric.
+        The function checks for the availability of the model, dataset, and metric,
+        and performs the evaluation to compute the metric values.
+
+        Parameters
+        ----------
+        model : TModel
+            The model to be evaluated.
+        model_id : str
+            A unique identifier for the model.
+        dataset : Dataset
+            The dataset to evaluate the model on.
+        dataset_id : str
+            A unique identifier for the dataset, used for managing or caching the dataset.
+        dataloader (Optional): TDataloader
+            A dataloader used to batch and load the dataset, enabling efficient evaluation of the model.
+        metric : TMetric
+            The metric function or identifier used to evaluate the model's performance on the dataset.
+        metric_id : str
+            A unique identifier for the metric, used for managing or caching the metric computation.
+        batch_size : int, optional
+            The batch size to be used for evaluation. Default is 1, meaning the evaluation is performed one
+            sample at a time.
+
+        Returns
+        -------
+        result : tuple
+            A tuple containing:
+            - A dictionary where keys are metric identifiers and values are the computed metric values.
+            - A tuple with two sequences:
+                - The first sequence is a list of dictionaries representing predicted values for each data point.
+                - The second sequence contains tuples with three elements:
+                    - A list of ground truth values.
+                    - A list of additional associated values for each data point.
+                    - A list of metadata.
+        """
+
+        cache_file_metric = f"{model_id}_{dataset_id}_{metric_id}_{batch_size}.json"
+
+        if dataloader is None:
+            dataloader = SimpleDataLoader(dataset=dataset, batch_size=batch_size)
+
+        prediction, data = self.compute_predictions(
+            model=model,
+            model_id=model_id,
+            dataset=dataset,
+            dataset_id=dataset_id,
+            dataloader=dataloader,
+            batch_size=batch_size,
+        )
+
+        metric_results = self.compute_metric(
+            metric=metric, filename=cache_file_metric, prediction=prediction, data=data
+        )
+
+        return (metric_results, prediction, data)
