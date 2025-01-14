@@ -26,8 +26,8 @@ class DatasetLintingTestStage(DatasetLintingTestStageBase[od.Dataset]):
 
     def _run_stats(self) -> tuple[HashStatsOutput, DatasetStatsOutput]:
         """Run stats for specific dataset type"""
-        hashes = hashstats((d[0] for d in self.dataset), (d[1].boxes for d in self.dataset))
-        stats = datasetstats((d[0] for d in self.dataset), (d[1].boxes for d in self.dataset))
+        hashes = hashstats((d[0] for d in self.dataset), (np.array(d[1].boxes, dtype=np.int_) for d in self.dataset))
+        stats = datasetstats((d[0] for d in self.dataset), (np.array(d[1].boxes, dtype=np.int_) for d in self.dataset))
         return hashes, stats
 
     def _get_image_label_box(self, index: int, target: int | None) -> tuple[NDArray[Any], str, NDArray[np.int_]]:
