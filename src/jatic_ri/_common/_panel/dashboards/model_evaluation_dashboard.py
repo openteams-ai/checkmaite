@@ -1,11 +1,14 @@
 """Model Evaluation Object Detection Dashboard"""
 
+import logging
 from typing import Any
 
 import pandas as pd
 import panel as pn
 
 from jatic_ri._common._panel.dashboards.base_dashboard import BaseDashboard
+
+logger = logging.getLogger()
 
 
 class ModelEvaluationDashboard(BaseDashboard):
@@ -46,6 +49,7 @@ class ModelEvaluationDashboard(BaseDashboard):
         success = self.load_models_from_widgets()
         # if there was an issue loading, stop execution but don't error
         if not success:
+            logger.error("Models failed to load from widget info")
             return
 
         model_names = "-".join(list(self.loaded_models.keys())).replace(" ", "_")
@@ -55,6 +59,15 @@ class ModelEvaluationDashboard(BaseDashboard):
         success = self.load_datasets_from_widgets()
         # if there was an issue loading, stop execution but don't error
         if not success:
+            logger.error("Datasets failed to load from widget info")
+            return
+
+        # =========================
+        # Load metric
+        success = self.load_metric_from_widget()
+        # if there was an issue loading, stop execution but don't error
+        if not success:
+            logger.error("Metric failed to load from widget info")
             return
 
         # =========================
@@ -67,7 +80,7 @@ class ModelEvaluationDashboard(BaseDashboard):
         new_data = {
             "Model(s)": model_names,
             "Dataset": self.dataset_1_selector.value,
-            "Metric": self.metric,
+            "Metric": self.metric_selector.value,
             "Threshold": self.threshold,
             "Gradient Report": report_link,
         }

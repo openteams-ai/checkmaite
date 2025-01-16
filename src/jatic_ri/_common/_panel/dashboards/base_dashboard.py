@@ -28,7 +28,6 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
 from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_MODELS_IC
 from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
-from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
 from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
@@ -50,12 +49,12 @@ DATASET_LABEL_MAP_IC = {
 }
 
 METRICS_LABEL_MAP_OD = {
-    "mAP": map50_torch_metric_factory(),
+    "mAP": "map50_torch_metric_factory",
 }
 
-# TO DO fix this when IC metrics are in
 METRICS_LABEL_MAP_IC = {
-    "mAP": map50_torch_metric_factory(),
+    "Accuracy": "accuracy_multiclass_torch_metric_factory",
+    "F1 Score": "f1score_multiclass_torch_metric_factory",
 }
 
 
@@ -83,11 +82,6 @@ class BaseDashboard(param.Parameterized):
     # boolean for viewing dataset 2 widgets
     dataset_2_visible = param.Boolean(default=False)
 
-    # Selectors for the metric
-    # kept as separate objects here to retain access to the display name
-    metric = param.Selector(objects=["mAP"])
-    metrics = param.Dict(default={"mAP": map50_torch_metric_factory()})
-
     # Input for the target threshold
     threshold = param.Number(default=0.5)
 
@@ -107,7 +101,6 @@ class BaseDashboard(param.Parameterized):
         super().__init__(**params)
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-        self._update_task_related_objects()
         self.color_dark_blue = "#233758"
         self.color_medium_blue = "#7AB8EF"  # varible currently unused
         self.color_light_blue = "#D6E6F9"
@@ -206,6 +199,13 @@ class BaseDashboard(param.Parameterized):
                     height: {self.dropdown_height}; /* widget height */
                 }}
                 """
+        # metric dropdown widget, options populated in _update_task_related_objects()
+        self.metric_selector = pn.widgets.Select(
+            name="Metric",
+            width=self.dropdown_width,
+            stylesheets=[self.dropdown_stylesheet],
+        )
+        self._update_task_related_objects()
         # holder for the model widgets (for dynamic handling of the number of models)
         self.model_widgets = {}
         # ensure we don't visualize multiple models (no add model button).
@@ -283,15 +283,17 @@ class BaseDashboard(param.Parameterized):
     def _update_task_related_objects(self, event=None) -> None:  # noqa: ANN001, ARG002
         if self.task == "object_detection":
             self.dataset_label_map = DATASET_LABEL_MAP_OD
-            self.metric = list(METRICS_LABEL_MAP_OD.keys())[0]  # just use the first entry as default
-            self.metrics = METRICS_LABEL_MAP_OD
+            self.metric_selector.options = list(METRICS_LABEL_MAP_OD.keys())
+            self.metric_selector.value = list(METRICS_LABEL_MAP_OD.keys())[0]
+            self.metric_label_map = METRICS_LABEL_MAP_OD
             self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_OD.items()}
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_OD
 
         elif self.task == "image_classification":
             self.dataset_label_map = DATASET_LABEL_MAP_IC
-            self.metric = list(METRICS_LABEL_MAP_IC.keys())[0]  # just use the first entry as default
-            self.metrics = METRICS_LABEL_MAP_IC
+            self.metric_selector.options = list(METRICS_LABEL_MAP_IC.keys())
+            self.metric_selector.value = list(METRICS_LABEL_MAP_IC.keys())[0]
+            self.metric_label_map = METRICS_LABEL_MAP_IC
             self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_IC.items()}
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_IC
 
@@ -532,6 +534,30 @@ class BaseDashboard(param.Parameterized):
 
         return True
 
+    def load_metric_from_widget(self) -> bool:
+        """Collect input from widget and instantiate metric object, set the result
+        into `self.loaded_metric`.
+
+        WARNING: This needs information about the dataset for IC usecases (number
+        of classes). Therefore, it must be run after the datasets are loaded.
+        """
+        metrics_module = importlib.import_module(f"jatic_ri.{self.task}.metrics")
+        metric_class_name = self.metric_label_map[self.metric_selector.value]
+        if self.task == "object_detection":
+            kwargs = {}
+        elif self.task == "image_classification":
+            # NOTE: we have to make the assumption here that the same metric can be applied to both datasets.
+            # This might come back to bite us.
+            kwargs = {"num_classes": len(self.loaded_datasets["dataset_1"].metadata["index2label"])}
+        else:
+            raise RuntimeError(f"Task type {self.task} not supported.")
+
+        metric_function = getattr(metrics_module, metric_class_name)
+
+        self.loaded_metric = metric_function(**kwargs)
+
+        return True
+
     def load_pipeline(self, configs: dict) -> None:
         """Instantiate test stage objects based on configurations
 
@@ -596,7 +622,7 @@ class BaseDashboard(param.Parameterized):
             test_stage.load_dataset(self.loaded_datasets["dataset_1"], "dataset1")
 
         if isinstance(test_stage, MetricPlugin):
-            test_stage.load_metric(self.metrics[self.metric], self.metrics[self.metric].return_key)
+            test_stage.load_metric(self.loaded_metric, self.loaded_metric.return_key)
 
         if isinstance(test_stage, ThresholdPlugin):
             test_stage.load_threshold(self.threshold)
@@ -622,7 +648,7 @@ class BaseDashboard(param.Parameterized):
             if self.dataset_2_visible
             else self.dataset_1_selector.value.replace(" ", "_")
         )
-        return f"{model_name}_{dataset_name}_{self.metric.replace(' ','_')}_{self.threshold}_report"
+        return f"{model_name}_{dataset_name}_{self.metric_selector.value.replace(' ','_')}_{self.threshold}_report"
 
     def _run_all_tests(self) -> str:  # pragma: no cover
         """Run all the tests on all the stages and return a link to the resulting report.
@@ -701,9 +727,7 @@ class BaseDashboard(param.Parameterized):
                 width=self.dropdown_width,
                 stylesheets=[self.dropdown_stylesheet],
             ),
-            pn.widgets.Select.from_param(
-                self.param.metric, width=self.dropdown_width, stylesheets=[self.dropdown_stylesheet]
-            ),
+            self.metric_selector,
             pn.Column(
                 "Use Cache",
                 pn.widgets.Switch.from_param(self.param.use_cache, name=""),
