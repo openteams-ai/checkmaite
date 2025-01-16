@@ -143,8 +143,33 @@ class ConfigurationLandingPage(BaseApp):
             ),
             styles={"background": self.color_light_gray},
         )
-        # add reallabel toggle only for OD
+
+        simple_toggle_configs = pn.WidgetBox(
+            "### Select Dataset Evaluation configurations",
+            pn.widgets.Toggle.from_param(
+                self.param.linting,
+                name="Include Linting",
+                button_type="primary",
+                button_style="outline",
+            ),
+            pn.widgets.Toggle.from_param(
+                self.param.shift,
+                name="Include Shift",
+                button_type="primary",
+                button_style="outline",
+            ),
+            pn.widgets.Toggle.from_param(
+                self.param.bias,
+                name="Include Bias",
+                button_type="primary",
+                button_style="outline",
+            ),
+            styles={"background": self.color_light_gray},
+        )
+
+        # add configs unique to OD or IC
         if self.task == "object_detection":
+            # add reallabel toggle only for OD
             optional_configs_widgetbox.append(
                 pn.widgets.Toggle.from_param(
                     self.param.show_reallabel_config,
@@ -153,36 +178,19 @@ class ConfigurationLandingPage(BaseApp):
                     button_style="outline",
                 )
             )
-        return pn.Row(
-            pn.Spacer(width=20),
-            pn.WidgetBox(
-                "### Select Dataset Evaluation configurations",
-                pn.widgets.Toggle.from_param(
-                    self.param.linting,
-                    name="Include Linting",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.shift,
-                    name="Include Shift",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.bias,
-                    name="Include Bias",
-                    button_type="primary",
-                    button_style="outline",
-                ),
+        elif self.task == "image_classification":
+            # only IC feasibility is compatible with RI (issue #181)
+            simple_toggle_configs.append(
                 pn.widgets.Toggle.from_param(
                     self.param.feasibility,
                     name="Include Feasibility",
                     button_type="primary",
                     button_style="outline",
                 ),
-                styles={"background": self.color_light_gray},
-            ),
+            )
+        return pn.Row(
+            pn.Spacer(width=20),
+            simple_toggle_configs,
             optional_configs_widgetbox,
         )
 
