@@ -59,19 +59,17 @@ def survivor_test_stage_args() -> dict[str, Any]:
     map_metric: ic.Metric = create_maite_wrapped_ic_metric("accuracy")
 
     config = SurvivorConfig(
-        unique_identifier_columns=["image_id"],
         metric_column="accuracy",
         otb_threshold=0.9,
-        difficulty_threshold=0.5,
+        easy_hard_threshold=0.5,
         conversion_type=ScoreConversionType.ROUNDED,
         conversion_args={"decimals_to_round": 2},
     )
 
     dict_config = {
-        "unique_identifier_columns": ["image_id"],
         "metric_column": "accuracy",
         "otb_threshold": 0.9,
-        "difficulty_threshold": 0.5,
+        "easy_hard_threshold": 0.5,
         "conversion_type": ScoreConversionType.ROUNDED,
         "conversion_args": {"decimals_to_round": 2},
     }

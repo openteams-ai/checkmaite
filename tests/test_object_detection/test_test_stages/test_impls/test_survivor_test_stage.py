@@ -14,7 +14,7 @@ from gradient import Text
 from maite.protocols import object_detection as od
 from matplotlib.testing.compare import compare_images
 from gradient.templates_and_layouts.create_deck import create_deck
-from survivor.config import ScoreConversionType
+from survivor.enums import ScoreConversionType
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
     _SURVIVOR_CACHE_CONFIGURATION_PATH,
@@ -143,19 +143,17 @@ def survivor_test_stage_args(fake_od_dataset_default: FakeODDataset, fake_od_mod
     total_models=len(survivor_test_stage_models))
 
     config = SurvivorConfig(
-        unique_identifier_columns=["image_id"],
         metric_column="fake_survivor_metric",
         otb_threshold=0.9,
-        difficulty_threshold=0.5,
+        easy_hard_threshold=0.5,
         conversion_type=ScoreConversionType.ROUNDED,
         conversion_args={"decimals_to_round": 2},
     )
 
     dict_config = {
-        "unique_identifier_columns": ["image_id"],
         "metric_column": "fake_survivor_metric",
         "otb_threshold": 0.9,
-        "difficulty_threshold": 0.5,
+        "easy_hard_threshold": 0.5,
         "conversion_type": ScoreConversionType.ROUNDED,
         "conversion_args": {"decimals_to_round": 2},
     }

@@ -141,15 +141,14 @@ def test_run_export(
     app.bins = bins
     app.round_precision = 9
     app.otb_threshold = 0.7
-    app.difficulty_threshold = 0.9
+    app.easy_hard_threshold = 0.9
     exp_output = {
         "TYPE": "SurvivorTestStage",
         "CONFIG": {
                       "metric_column": "metric",
-                      "unique_identifier_columns": ["image_id"],
                       "conversion_type": exp_conversion_type,
                       "otb_threshold": app.otb_threshold,
-                      "easy_hard_threshold": app.difficulty_threshold,
+                      "easy_hard_threshold": app.easy_hard_threshold,
                   } | exp_conversion_args
     }
 

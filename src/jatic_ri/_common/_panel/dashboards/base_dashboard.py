@@ -567,7 +567,6 @@ class BaseDashboard(param.Parameterized):
             'survivor': {
                 'TYPE': 'SurvivorTestStage',
                 'CONFIG': {'metric_column': 'metric',
-                    'unique_identifier_columns': ['image_id'],
                     'conversion_type': 'original',
                     'otb_threshold': 0.5,
                     'easy_hard_threshold': 0.5

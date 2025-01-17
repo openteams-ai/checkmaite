@@ -21,7 +21,7 @@ class SurvivorApp(BaseApp):
     Attributes:
         title (param.String): Settings pane title.
         otb_threshold (param.Number): Threshold for on the bubble data. Defaults to 0.5.
-        difficulty_threshold (param.Number): Threshold for easy/hard data. Defaults to 0.5.
+        easy_hard_threshold (param.Number): Threshold for easy/hard data. Defaults to 0.5.
         similarity_strategy (param.ObjectSelector): The behavior to convert the scores (currently in data scoring).
             Default: "Exact"
         round_precision (param.Integer): Precision for rounding. Defaults to 2.
@@ -31,7 +31,7 @@ class SurvivorApp(BaseApp):
     title: param.String = param.String(default="Survivor - Evaluate the impact of images on T&E results")
 
     otb_threshold: param.Number = param.Number(default=0.5, bounds=(0, 1.0), label="On The Bubble Threshold")
-    difficulty_threshold: param.Number = param.Number(default=0.5, label="Difficulty Threshold")
+    easy_hard_threshold: param.Number = param.Number(default=0.5, label="Easy/Hard Threshold")
     similarity_strategy: param.ObjectSelector = param.ObjectSelector(
         objects=["Exact", "Rounded", "Binned"],
         default="Exact",
@@ -87,10 +87,9 @@ class SurvivorApp(BaseApp):
 
         config = {
             "metric_column": "metric",
-            "unique_identifier_columns": ["image_id"],
             "conversion_type": conversion_type_mapping[self.similarity_strategy],
             "otb_threshold": self.otb_threshold,
-            "easy_hard_threshold": self.difficulty_threshold,
+            "easy_hard_threshold": self.easy_hard_threshold,
         }
         if conversion_args:
             config.update({"conversion_args": conversion_args})
@@ -109,7 +108,7 @@ class SurvivorApp(BaseApp):
                 format="0.00",
             ),
             pn.widgets.FloatInput.from_param(
-                self.param.difficulty_threshold,
+                self.param.easy_hard_threshold,
                 width=self.widget_width,
                 stylesheets=[self.widget_stylesheet, self.info_button_style],
                 description="Threshold of model score for data to be considered 'Easy' or 'Hard'.",
