@@ -23,6 +23,7 @@ from matplotlib.figure import Figure
 from PIL import Image
 from smqtk_core.configuration import to_config_dict
 from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
+from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.mc_rise import MCRISEStack
 from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise import RISEStack
 
 # local imports
@@ -99,15 +100,14 @@ class XAITKApp(BaseXAITKApp):
         # metadata after relevant updates to protocols are added
         self.id2label = self.jatic_classifier.index2label
 
-        self.md_text = """
-                The sample saliency generation uses the [in21k](https://huggingface.co/aaraki/vit-base-patch16-224-in21k-finetuned-cifar10)
-                model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
-                To generate optimal saliency maps, kindly
-                refer to the documentation:
-                https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation
-                """
+        self.stack_select = pn.widgets.Select(
+            name="Choose generator",
+            options=["MC-RISE", "RISE"],
+        )
 
         super().__init__(**params)
+
+        self.stack_select.link(self.stack_select, callbacks={"value": self.stack_select_callback})
 
         self.test_img = TEST_IMAGE
         self.select_widget = pn.widgets.Select(
@@ -116,24 +116,100 @@ class XAITKApp(BaseXAITKApp):
             stylesheets=[self.widget_stylesheet],
         )
         self.saliency_gen_button.on_click(self.saliency_gen_button_callback)
+        self.stack_select.stylesheets = [self.widget_stylesheet]
 
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(), tight=True)
+
+    def stack_select_callback(self, target: object, _event: object) -> None:  # noqa ARG001
+        self.saliency_widget = [
+            pn.Card(
+                self.add_saliency_gen_config_widget(),
+                title="Saliency Generation Parameters",
+                header_color=self.color_gray_900,
+                width=self.left_column_width,
+            )
+        ]
+
+    def add_saliency_gen_config_widget(self) -> pn.Column:
+        """Saliency Generation config widget"""
+
+        generator_type = self.stack_select.value
+        basic_component = pn.Column(
+            pn.widgets.IntInput(
+                name="Number of Masks",
+                value=50,
+                start=50,
+                end=1200,
+                step=50,
+                stylesheets=[self.widget_stylesheet],
+            ),
+            pn.widgets.Select(
+                name="Occlusion Grid Size",
+                options=["(7,7)", "(5,5)", "(10,10)"],
+                stylesheets=[self.widget_stylesheet],
+            ),
+            pn.widgets.IntInput(
+                name="Image Batch Size",
+                value=1,
+                start=1,
+                step=1,
+                stylesheets=[self.widget_stylesheet],
+            ),
+        )
+        if generator_type == "MC-RISE":
+            basic_component.append(
+                pn.widgets.LiteralInput(
+                    name="Fill Colors",
+                    value=[[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255], [0, 0, 0]],
+                    type=list,
+                    stylesheets=[self.widget_stylesheet],
+                )
+            )
+        basic_component.append(
+            pn.pane.Markdown(
+                f"""
+                    <style>
+                    * {{
+                        color: {self.color_gray_900};
+                    }}
+                    </style>
+                    The sample saliency generation uses the [in21k](https://huggingface.co/aaraki/vit-base-patch16-224-in21k-finetuned-cifar10)
+                    model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
+                    To generate optimal saliency maps, kindly
+                    refer to the documentation:
+                    https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation
+                """
+            )
+        )
+
+        return basic_component
 
     def _run_export(self) -> None:
         """This function runs when `export_button` is clicked"""
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
+        generator_type = self.stack_select.value
 
         for idx, widget_value in enumerate(self.widget_values):
-            saliency_generator = RISEStack(
-                n=widget_value["num_masks"],
-                s=widget_value["grid_size"][0],
-                p1=0.7,
-                threads=8,
-                seed=42,
-            )
-            fill = [95, 96, 93]
-            saliency_generator.fill = fill
+            if generator_type == "MC-RISE":
+                saliency_generator = MCRISEStack(
+                    n=widget_value["num_masks"],
+                    s=widget_value["grid_size"][0],
+                    p1=0.7,
+                    fill_colors=list(widget_value["fill_colors"]),
+                    threads=8,
+                    seed=42,
+                )
+            elif generator_type == "RISE":
+                saliency_generator = RISEStack(
+                    n=widget_value["num_masks"],
+                    s=widget_value["grid_size"][0],
+                    p1=0.7,
+                    threads=8,
+                    seed=42,
+                )
+                fill = [95, 96, 93]
+                saliency_generator.fill = fill
 
             self.output_test_stages[f"{self.__class__.__name__}_{idx}"] = {
                 "TYPE": "XAITKTestStage",
@@ -152,18 +228,46 @@ class XAITKApp(BaseXAITKApp):
         """Return str of saliency plot title"""
         return f"Saliency Map (class: {self.id2label[self.select_widget.value]})"
 
+    def collect_widget_values(self) -> dict:
+        """Collect all the values on the current widgets"""
+        saliency_params = self.saliency_widget[0].objects[0].objects
+        generator_type = self.stack_select.value
+
+        values = {
+            "num_masks": saliency_params[0].value,
+            "grid_size": tuple(int(el) for el in saliency_params[1].value[1:-1].split(",")),
+            "img_batch_size": saliency_params[2].value,
+        }
+
+        if generator_type == "MC-RISE":
+            values["fill_colors"] = saliency_params[3].value
+
+        return values
+
     def generate_saliency(self, img: np.ndarray) -> np.ndarray:
         """Method to generate saliency maps for a given saliency algorithm and classification model"""
         widget_value = self.collect_widget_values()
-        saliency_generator = RISEStack(
-            n=widget_value["num_masks"],
-            s=widget_value["grid_size"][0],
-            p1=0.7,
-            threads=8,
-            seed=42,
-        )
-        fill = [95, 96, 93]
-        saliency_generator.fill = fill
+        generator_type = self.stack_select.value
+
+        if generator_type == "MC-RISE":
+            saliency_generator = MCRISEStack(
+                n=widget_value["num_masks"],
+                s=widget_value["grid_size"][0],
+                p1=0.7,
+                fill_colors=list(widget_value["fill_colors"]),
+                threads=8,
+                seed=42,
+            )
+        elif generator_type == "RISE":
+            saliency_generator = RISEStack(
+                n=widget_value["num_masks"],
+                s=widget_value["grid_size"][0],
+                p1=0.7,
+                threads=8,
+                seed=42,
+            )
+            fill = [95, 96, 93]
+            saliency_generator.fill = fill
 
         return saliency_generator(np.asarray(img), self.classifier)
 
@@ -172,17 +276,45 @@ class XAITKApp(BaseXAITKApp):
         Callback for saliency_gen_button.
         Generate saliency and display results
         """
+        self.augmented_plot.visible = False
         img = np.asarray(Image.open(self.test_img))
         gray_img = np.asarray(Image.open(self.test_img).convert("L"))
+        generator_type = self.stack_select.value
 
         self.status_text = "Generating saliency maps..."
         sal_maps = self.generate_saliency(img)
         self.status_text = "Saliency maps created"
 
-        sal_map = sal_maps[self.select_widget.value]
-        self.augmented_plot.object = self.create_sal_plot(img=gray_img, sal_array=sal_map)
+        if generator_type == "MC-RISE":
+            sal_map = sal_maps[:, self.select_widget.value, :, :]
+            multiple_maps = pn.Column()
+            widget_value = self.collect_widget_values()
+            for color_map, fill_color in zip(sal_map, widget_value["fill_colors"]):
+                multiple_maps.append(
+                    pn.pane.Matplotlib(
+                        self.create_sal_plot_mc_rise(img=gray_img, sal_array=color_map, title=fill_color), tight=True
+                    )
+                )
+            self.augmented_plot = multiple_maps
+        else:
+            sal_map = sal_maps[self.select_widget.value]
+            self.augmented_plot = pn.pane.Matplotlib(
+                self.create_sal_plot(img=gray_img, sal_array=sal_map), tight=True, visible=False
+            )
         self.augmented_plot.visible = True
         self.status_text = "Saliency generation test completed"
+
+    def create_sal_plot_mc_rise(self, img: np.ndarray, sal_array: np.ndarray, title: str) -> Figure:
+        """Return matplotlib figure of the original sample image with a saliency map"""
+        img_array = np.asarray(img)
+        fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
+        ax.imshow(img_array, alpha=0.7, cmap="gray")
+        ax.imshow(sal_array, alpha=0.3, cmap="jet")
+        ax.set_title(f"{self.get_sal_plot_title()}  {title}", fontdict={"fontsize": 6})
+        ax.axis("off")
+        plt.tight_layout()
+        plt.close()
+        return fig
 
     def create_sample_image(self) -> Figure:
         """View Sample Input Image"""
@@ -198,6 +330,50 @@ class XAITKApp(BaseXAITKApp):
     def update_plot(self) -> None:
         """Update Matplotlib Image/Plot"""
         self.sample_image.object = self.create_sample_image()
+
+    @pn.depends("stack_select.value")
+    def view_generator_params(self) -> pn.Column:
+        """Generator params helper"""
+        return pn.Column(self.stack_select, self.saliency_widget[0])
+
+    def panel(self) -> pn.Column:
+        """High level view of the full app"""
+        return pn.Column(
+            pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
+            pn.Row(
+                self.view_generator_params,
+                pn.Column(
+                    pn.pane.Markdown(
+                        f"""
+                            <style>
+                            * {{
+                                color: {self.color_gray_900};
+                            }}
+                            </style>
+                            <h2> Choose Sample Detection
+                        """
+                    ),
+                    self.select_widget,
+                    self.sample_image,
+                    pn.pane.Markdown(
+                        f"""
+                            <style>
+                            * {{
+                                color: {self.color_gray_900};
+                            }}
+                            </style>
+                            <h2> Saliency Generation Output
+                        """
+                    ),
+                    self.view_plots,
+                ),
+            ),
+            pn.layout.Divider(),
+            pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
+            self.view_status_bar,
+            width=self.page_width,
+            styles={"background": self.color_main_bg},
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover
