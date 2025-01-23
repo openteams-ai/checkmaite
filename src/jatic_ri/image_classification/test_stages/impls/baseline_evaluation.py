@@ -16,11 +16,11 @@ class BaselineEvaluation(BaselineEvaluationBase[ic.Model, ic.Dataset, ic.Metric]
         cache: Optional[Cache[TData]] = None
         cache_base_path: str = ".tscache"
         use_cache: bool = False
-        model: od.Model
+        model: ic.Model
         model_id: str
-        dataset: od.Dataset
+        dataset: ic.Dataset
         dataset_id: str
-        metric: od.Metric
+        metric: ic.Metric
         metric_id: str
         threshold: float
     """

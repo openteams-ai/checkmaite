@@ -76,6 +76,7 @@ exclude_dirs = [
 
 [tool.pyright]
 reportMissingImports = "warning"
+reportUnnecessaryTypeIgnoreComment = "error"
 include = [
     "src",
     "tests",

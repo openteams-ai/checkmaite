@@ -13,7 +13,7 @@ import maite.protocols.image_classification as ic
 # 3rd party imports
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image  # type: ignore
+from PIL import Image
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict

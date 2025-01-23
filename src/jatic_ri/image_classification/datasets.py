@@ -131,7 +131,7 @@ class DatasetSpecification(TypedDict):
 
     # Dataset class as a string
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    dataset_type: Literal["YoloClassificationDataset"]  # type: ignore
+    dataset_type: Literal["YoloClassificationDataset"]
     # Full filepath to the data directory to use. For yolo, this is the split dir.
     # The root directory of images is expected to be the parent of this directory.
     data_dir: str | Path
@@ -144,7 +144,7 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloCl
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "YoloClassificationDataset":
             split_dir = Path(dataset_metadata["data_dir"]).stem
-            root_path = Path(dataset_metadata["data_dir"]).parent.resolve()  # type: ignore
+            root_path = Path(dataset_metadata["data_dir"]).parent.resolve()
             loaded[name] = YoloClassificationDataset(
                 dataset_name=name,
                 root_dir=str(root_path),
