@@ -324,7 +324,7 @@ class TestOOD:
 def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the shift gradient slides"""
     teststage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-    teststage.load_datasets(None, "VOC1", None, "VOC2")  # type: ignore -> Only needs a dataset_id
+    teststage.load_datasets(None, "VOC1", None, "VOC2")
 
     dummy_drift: dict[str, dict[str, Any]] = {
         k: {

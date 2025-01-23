@@ -190,7 +190,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
                                 facecolor="none",
                             )
                             ax.add_patch(rect)
-                    fig.savefig(str(filepath), pad_inches=0.0)  # type: ignore - matplotlib
+                    fig.savefig(str(filepath), pad_inches=0.0)
                 near_dp_kwargs[IMAGE_ARGKEYS[i][j]] = filepath
 
         plt.close(fig)
@@ -300,7 +300,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
                             facecolor="none",
                         )
                         ax.add_patch(rect)
-                    fig.savefig(str(filepath), pad_inches=0.0)  # type: ignore - matplotlib
+                    fig.savefig(str(filepath), pad_inches=0.0)
         plt.close(fig)
 
         image_kwargs = {

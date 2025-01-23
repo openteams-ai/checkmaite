@@ -15,8 +15,8 @@ import maite.protocols.object_detection as od
 # 3rd Party Imports
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Rectangle  # type: ignore
-from PIL import Image  # type: ignore
+from matplotlib.patches import Rectangle
+from PIL import Image
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict

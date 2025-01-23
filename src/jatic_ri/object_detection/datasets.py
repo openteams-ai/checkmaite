@@ -218,7 +218,7 @@ class DatasetSpecification(TypedDict):
     """Dataset metadata required for loading datasets via the RI wrappers"""
 
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset"]  # type: ignore
+    dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset"]
     # full path to the metadata file. For Coco datasets, this is the annotation file. For
     # yolo datasets, this is the yaml file.
     metadata_path: str | Path

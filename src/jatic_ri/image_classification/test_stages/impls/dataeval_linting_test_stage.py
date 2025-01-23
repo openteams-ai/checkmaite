@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import maite.protocols.image_classification as od
+import maite.protocols.image_classification as ic
 import numpy as np
 from dataeval.interop import as_numpy
 from dataeval.metrics.stats import DatasetStatsOutput, HashStatsOutput, datasetstats, hashstats
@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 from jatic_ri._common.test_stages.impls.dataeval_linting_test_stage import DatasetLintingTestStageBase
 
 
-class DatasetLintingTestStage(DatasetLintingTestStageBase[od.Dataset]):
+class DatasetLintingTestStage(DatasetLintingTestStageBase[ic.Dataset]):
     """
     Dataset Linting TestStage implementation.
 

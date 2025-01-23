@@ -95,7 +95,7 @@ def get_index2label_from_model_config(
 
 
 def get_default_index2label(torchvision_weights_constructor: Any) -> dict[int, str]:  # noqa: ANN401
-    default = torchvision_weights_constructor.DEFAULT  # type: ignore[attr-defined]
+    default = torchvision_weights_constructor.DEFAULT
     return dict(enumerate(default.meta["categories"]))
 
 
@@ -106,7 +106,7 @@ def maybe_download_weights(
     **kwargs: Any,  # noqa: ANN401
 ) -> nn.Module:
     # if weights not already in cache, they are downloaded here
-    default = torchvision_weights_constructor.DEFAULT  # type: ignore[attr-defined]
+    default = torchvision_weights_constructor.DEFAULT
     return model(weights=default, **kwargs).to(device)
 
 

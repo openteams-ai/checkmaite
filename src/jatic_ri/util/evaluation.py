@@ -23,8 +23,6 @@ TInput = TypeVar("TInput", bound=SomeInputType)
 TTarget = TypeVar("TTarget", bound=SomeTargetType)
 TMetadata = TypeVar("TMetadata", bound=SomeMetadataType)
 TDataset = TypeVar("TDataset", bound=Dataset)
-TMetric = TypeVar("TMetric", bound=Metric)
-TModel = TypeVar("TModel", bound=Model)
 
 TRICache = TypeVar("TRICache", bound=RICache)
 Cache_Option: TypeAlias = Union[TRICache, None]
@@ -142,7 +140,7 @@ class EvaluationTool:
 
     def compute_metric(
         self,
-        metric: TMetric,
+        metric: Metric,
         filename: str,
         prediction: Sequence[SomeTargetBatchType],
         data: Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
@@ -152,7 +150,7 @@ class EvaluationTool:
 
         Parameters
         ----------
-        metric : TMetric
+        metric : Metric
             The metric object to be computed. This can be a custom metric function or an identifier
             for a predefined metric.
         cache_id : str
@@ -186,7 +184,7 @@ class EvaluationTool:
 
     def compute_predictions(
         self,
-        model: TModel,
+        model: Model,
         model_id: str,
         dataset: Dataset[Any, Any, Any],
         dataset_id: str,
@@ -201,7 +199,7 @@ class EvaluationTool:
 
         Parameters
         ----------
-        model : TModel
+        model : Model
             The model to be used for generating predictions.
         model_id : str
             A unique identifier for the model.
@@ -249,11 +247,11 @@ class EvaluationTool:
 
     def evaluate(
         self,
-        model: TModel,
+        model: Model,
         model_id: str,
         dataset: Dataset[Any, Any, Any],
         dataset_id: str,
-        metric: TMetric,
+        metric: Metric,
         metric_id: str,
         batch_size: int = 1,
         dataloader: TDataloader = None,
@@ -269,7 +267,7 @@ class EvaluationTool:
 
         Parameters
         ----------
-        model : TModel
+        model : Model
             The model to be evaluated.
         model_id : str
             A unique identifier for the model.
@@ -279,7 +277,7 @@ class EvaluationTool:
             A unique identifier for the dataset, used for managing or caching the dataset.
         dataloader (Optional): TDataloader
             A dataloader used to batch and load the dataset, enabling efficient evaluation of the model.
-        metric : TMetric
+        metric : Metric
             The metric function or identifier used to evaluate the model's performance on the dataset.
         metric_id : str
             A unique identifier for the metric, used for managing or caching the metric computation.
