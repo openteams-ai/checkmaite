@@ -101,7 +101,7 @@ class BaseDashboard(param.Parameterized):
         super().__init__(**params)
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-        self.color_dark_blue = "#233758"
+        self.color_dark_blue = "#001BD"  # blue-900
         self.color_medium_blue = "#7AB8EF"  # varible currently unused
         self.color_light_blue = "#D6E6F9"
         self.color_light_gray = "#e8e4e3"  # light gray
