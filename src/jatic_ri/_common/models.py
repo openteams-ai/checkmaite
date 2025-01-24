@@ -13,61 +13,13 @@ if TYPE_CHECKING:
     from torch import nn
 
 
-class TorchvisionWrapperError(Exception):
-    """Base class for catching errors in torchvision wrapper"""
-
-    pass
-
-
-class InvalidModelNameError(TorchvisionWrapperError):
-    """Model not currently supported by jatic_ri torchvision wrapper."""
-
-    pass
-
-
-class TorchvisionImportError(TorchvisionWrapperError):
-    """Error when importing torchvision model."""
-
-    pass
-
-
-class MissingConfigFileError(TorchvisionWrapperError):
-    """No config file supplied for user-supplied weights."""
-
-    pass
-
-
-class MissingIndex2LabelKeyError(TorchvisionWrapperError):
-    """The config file supplied for user-supplied weights is missing an index2label key."""
-
-    pass
-
-
-class InvalidIndex2LabelError(TorchvisionWrapperError):
-    """The index2label mapping has not been provided correctly."""
-
-    pass
-
-
-class StateDictLoadError(TorchvisionWrapperError):
-    """Error when trying to load a user-supplied state dict."""
-
-    pass
-
-
-class InvalidInputBatchShapeError(TorchvisionWrapperError):
-    """Input data is not in CHW format required by MAITE."""
-
-    pass
-
-
 def load_torchvision_constructor(model_name: str, supported_torchvision_models: dict[str, str]) -> object:
     try:
         return getattr(
             importlib.import_module("torchvision.models.detection"), supported_torchvision_models[model_name]
         )
     except Exception as e:
-        raise TorchvisionImportError(
+        raise ImportError(
             f"There was an error importing {supported_torchvision_models[model_name]} from torchvision.models.detection"
         ) from e
 
@@ -84,14 +36,12 @@ def get_index2label_from_model_config(
     config_path: str, model_config: dict[str, Any], index2label_key: str
 ) -> dict[int, str]:
     if index2label_key not in model_config:
-        raise MissingIndex2LabelKeyError(f"The config_file at {config_path} is missing a {index2label_key} key.")
+        raise FileNotFoundError(f"The config_file at {config_path} is missing a {index2label_key} key.")
     if isinstance(model_config[index2label_key], list):
         return dict(enumerate(model_config[index2label_key]))
     if isinstance(model_config[index2label_key], dict):
         return {int(key): val for key, val in model_config[index2label_key].items()}
-    raise InvalidIndex2LabelError(
-        f"index2label should be provided as a dict or list, not {type(model_config[index2label_key])}"
-    )
+    raise TypeError(f"index2label should be provided as a dict or list, not {type(model_config[index2label_key])}")
 
 
 def get_default_index2label(torchvision_weights_constructor: Any) -> dict[int, str]:  # noqa: ANN401
@@ -114,14 +64,14 @@ def validate_input_batch(input_batch: Sequence[ArrayLike]) -> None:
     total_channels, orig_img_height, orig_img_width = np.asarray(input_batch[0]).shape
     # channels can be used as a proxy to confirm CHW-ordering
     if not (1 <= total_channels <= 4):
-        raise InvalidInputBatchShapeError(
+        raise ValueError(
             f"Input data must follow CHW-ordering, current shape: {total_channels, orig_img_height, orig_img_width}"
         )
     for val in input_batch:
         # required to convert to array to appease type-checker...
         npy_array = np.asarray(val)  # creates view, not copy
         if npy_array.shape != (total_channels, orig_img_height, orig_img_width):
-            raise InvalidInputBatchShapeError(
+            raise ValueError(
                 f"All input images currently required to have identical shape, {npy_array.shape} "
                 f"not equal to {(total_channels, orig_img_height, orig_img_width)}. Please "
                 "contact the RI-team if your use-case requires unevenly shaped images."

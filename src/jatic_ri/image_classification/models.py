@@ -10,10 +10,6 @@ import torch
 from maite.protocols import image_classification as ic
 
 from jatic_ri._common.models import (
-    InvalidModelNameError,
-    MissingConfigFileError,
-    StateDictLoadError,
-    TorchvisionImportError,
     get_default_index2label,
     get_index2label_from_model_config,
     maybe_download_weights,
@@ -76,7 +72,7 @@ class TorchvisionICModel:
             `torchvision` for more details.
         """
         if model_name not in SUPPORTED_TORCHVISION_MODELS:
-            raise InvalidModelNameError(f"Model {model_name} is not currently supported by jatic_ri.")
+            raise ValueError(f"Model {model_name} is not currently supported by jatic_ri.")
         self._model_name = model_name
 
         try:
@@ -85,7 +81,7 @@ class TorchvisionICModel:
                 importlib.import_module("torchvision.models"), SUPPORTED_TORCHVISION_MODELS[model_name]
             )
         except Exception as e:
-            raise TorchvisionImportError(f"There was an error importing {model_name} from torchvision.") from e
+            raise ImportError(f"There was an error importing {model_name} from torchvision.") from e
 
         self.device: str = set_device(device)
 
@@ -99,7 +95,7 @@ class TorchvisionICModel:
                 with open(config_path) as f:
                     model_config = json.load(f)
             except FileNotFoundError:
-                raise MissingConfigFileError(f"Configuration file not found at path: {config_path}") from None
+                raise FileNotFoundError(f"Configuration file not found at path: {config_path}") from None
 
             self.index2label = get_index2label_from_model_config(config_path, model_config, index2label_key)
             num_classes = model_config.get("num_classes", len(self.index2label))
@@ -112,7 +108,7 @@ class TorchvisionICModel:
                 state_dict = torch.load(weights_path, map_location=torch.device(self.device), weights_only=True)
                 self.model.load_state_dict(state_dict)
             except Exception as e:
-                raise StateDictLoadError(f"Error loading data from state_dict from {weights_path}") from e
+                raise RuntimeError(f"Error loading data from state_dict from {weights_path}") from e
         else:  # we are loading torchvision pre-trained weights into model
             self.index2label = get_default_index2label(torchvision_weights_constructor)
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
