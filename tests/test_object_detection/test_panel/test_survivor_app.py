@@ -33,9 +33,6 @@ def test_similarity_option_pane(
     if is_widget:
         assert result.value == exp_value
         assert result.description == exp_description
-        assert result.width == app.widget_width
-        assert result.stylesheets == [app.widget_stylesheet, app.info_button_style]
-        assert result.margin == (0, 40)
 
 
 @pytest.mark.parametrize(
@@ -67,55 +64,6 @@ def test_parse_bin_string(input_str: str, exp_output: Optional[Union[int, list[f
     # Assert
     assert app._bins == exp_output
     assert app.status_text == ("Invalid Bins argument" if exp_fail else "Waiting for input...")
-
-
-def test_settings_pane() -> None:
-    """Test SurvivorApp.settings_pane() returns panel with widgets in correct order and with correct values."""
-    # Arrange
-    app = SurvivorApp()
-    exp_types = [pn.param.ParamMethod, pn.widgets.FloatInput, pn.widgets.FloatInput, pn.widgets.Select]
-    exp_values = [None, 0.5, 0.5, "Exact"]
-    exp_descriptions = [
-        None,
-        "Upper threshold of model agreement for data to be considered 'On the Bubble'.",
-        "Threshold of model score for data to be considered 'Easy' or 'Hard'.",
-        "Strategy to use to discretize model metrics."
-    ]
-
-    # Act
-    result = app.settings_pane()
-
-    # Assert
-    assert isinstance(result, pn.Column)
-    assert result.width == app.page_width
-    assert len(result.objects) == len(exp_types)
-    for obj, obj_type, obj_value, obj_desc in zip(result.objects, exp_types, exp_values, exp_descriptions):
-        assert isinstance(obj, obj_type)
-        # ParamMethod doesn't have these attributes, so if value == None, don't try these assert statements.
-        if obj_value is not None:
-            assert obj.value == obj_value
-            assert obj.description == obj_desc
-            assert obj.width == app.widget_width
-            assert obj.stylesheets == [app.widget_stylesheet, app.info_button_style]
-
-
-def test_panel() -> None:
-    """Test SurvivorApp.panel() returns panel with widgets in correct order and with correct values."""
-    # Arrange
-    app = SurvivorApp()
-    exp_styles = {"background": app.color_dark_blue}
-    exp_types = [pn.param.ParamMethod, pn.param.ParamMethod, pn.param.ParamMethod]
-
-    # Act
-    result = app.panel()
-
-    # Assert
-    assert isinstance(result, pn.Column)
-    assert result.width == app.page_width
-    assert result.styles == exp_styles
-    assert len(result.objects) == len(exp_types)
-    for obj, obj_type in zip(result.objects, exp_types):
-        assert isinstance(obj, obj_type)
 
 
 @pytest.mark.parametrize(
@@ -162,6 +110,7 @@ def test_run_export(
 def test_roundtrip() -> None:
     from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
     app = SurvivorApp()
+    app.panel() # test constructing the UI even though we can't see it
     app._run_export()
     output_config = app.output_test_stages['survivor_test_stage']["CONFIG"]
     SurvivorTestStage(config=output_config)

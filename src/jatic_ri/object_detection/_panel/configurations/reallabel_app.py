@@ -101,35 +101,41 @@ class RealLabelApp(BaseApp):
             pn.widgets.FloatInput.from_param(
                 self.param.iou_threshold,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="Intersection over union threshold to use for NMS deduplication algorithm.",
             ),
             pn.Row(
                 pn.widgets.StaticText(
                     value=self.param.class_agnostic.label,
-                    stylesheets=[self.text_color_styling],
+                    styles=self.style_text_body1,
                 ),
                 pn.widgets.TooltipIcon(
                     value="Whether to consider inference classes in the RealLabel run",
-                    stylesheets=[self.text_color_styling, self.info_button_style],
+                    styles=self.style_text_body1,
                 ),
             ),
-            pn.widgets.Switch.from_param(self.param.class_agnostic),
+            pn.widgets.Switch.from_param(
+                self.param.class_agnostic,
+                stylesheets=[self.css_switch],
+            ),
             pn.Row(
                 pn.widgets.StaticText(
                     value=self.param.run_with_ground_truth.label,
-                    stylesheets=[self.text_color_styling],
+                    styles=self.style_text_body1,
                 ),
                 pn.widgets.TooltipIcon(
                     value="Whether to use ground truth as part of the RealLabel run",
-                    stylesheets=[self.text_color_styling, self.info_button_style],
+                    styles=self.style_text_body1,
                 ),
             ),
-            pn.widgets.Switch.from_param(self.param.run_with_ground_truth),
+            pn.widgets.Switch.from_param(
+                self.param.run_with_ground_truth,
+                stylesheets=[self.css_switch],
+            ),
             pn.widgets.FloatInput.from_param(
                 self.param.likely_missed_min_confidence,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="The aggregated confidence value above which a model ensemble ground truth "
                 "disagreement will be interpreted as a potentially missing label.",
                 step=0.01,
@@ -138,7 +144,7 @@ class RealLabelApp(BaseApp):
             pn.widgets.FloatInput.from_param(
                 self.param.likely_wrong_max_confidence,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="The aggregated confidence value below which a model ensemble ground truth "
                 "disagreement will be interpreted as a likely either extraneous or incorrect.",
                 step=0.01,
@@ -150,11 +156,11 @@ class RealLabelApp(BaseApp):
     def panel(self) -> pn.Column:
         """High level panel app"""
         return pn.Column(
+            self.view_header,
             self.settings_pane,
             self.view_status_bar,
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            width=self.app_width,
+            styles={"background": self.color_main_bg},
         )
 
 

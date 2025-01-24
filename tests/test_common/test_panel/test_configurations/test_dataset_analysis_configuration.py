@@ -19,10 +19,10 @@ def _reset_da_config_app(app: DatasetAnalysisConfigApp):
     behavior. This works for both the IC and OD usecase
     """
     # ensure all the toggles are False
-    app.pipeline._state.bias = False
-    app.pipeline._state.shift = False
-    app.pipeline._state.linting = False
-    app.pipeline._state.feasibility = False
+    app.pipeline._state.bias.value = False
+    app.pipeline._state.shift.value = False
+    app.pipeline._state.linting.value = False
+    app.pipeline._state.feasibility.value = False
     app.pipeline._state.show_survivor_config = False
     app.pipeline._state.show_reallabel_config = False
     # clear output_test_stages
@@ -73,7 +73,7 @@ def test_da_config_dynamic_stages_bias_only():
     # reset the app
     _reset_da_config_app(app)
     # toggle bias to true
-    app.pipeline._state.bias = True
+    app.pipeline._state.bias.value = True
 
     # with only bias true, the next stage should be "Finalize"
     assert app.pipeline._next_stage == 'Finalize'
@@ -162,7 +162,7 @@ def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
     # toggle reallabel and survivor to true
     app.pipeline._state.show_reallabel_config = True
     app.pipeline._state.show_survivor_config = True
-    app.pipeline._state.linting = True
+    app.pipeline._state.linting.value = True
 
     # with only bias true, the next stage should be 'reallabel'
     assert app.pipeline._next_stage == 'Configure Reallabel'

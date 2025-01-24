@@ -16,31 +16,30 @@ import param
 from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
+def _center_vertically(panel_object: pn.viewable) -> pn.Column:
+    return pn.Column(
+        pn.VSpacer(),
+        panel_object,
+        pn.VSpacer(),
+    )
+
+
+def _center_horizontally(panel_object: pn.viewable) -> pn.Column:
+    return pn.Row(
+        pn.HSpacer(),
+        panel_object,
+        pn.HSpacer(),
+    )
+
+
 class ConfigurationLandingPage(BaseApp):
     """Initial landing page for the DA OD configuration app"""
 
     task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    title = param.String("Dataset Analysis Configuration")  # this is updated upon instantiation based on the task
-    description = """
-    Select analyses to be included in the configuration. \n Any unselected options will not be included.
-    """
 
     # toggles for displaying optional pages
     show_survivor_config = param.Boolean(default=False)
     show_reallabel_config = param.Boolean(default=False)
-
-    # dataeval configuration
-    # bias - parity, coverage, diversity, balance
-    bias = param.Boolean(default=False)
-
-    # shift - Out-of-distributation (AE, VAE) and drift (CMV, MMD, KS)
-    shift = param.Boolean(default=False)
-
-    # linting - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
-    linting = param.Boolean(default=False)
-
-    # feasibility
-    feasibility = param.Boolean(default=False)
 
     # dictionary for holding all the output configurations
     # this dictionary is passed between all the stages and
@@ -57,6 +56,16 @@ class ConfigurationLandingPage(BaseApp):
         self.title = f"Dataset analysis configuration: {self.task.replace('_', ' ').title()}"
         # make sure that the next stage matches the defaults
         self._update_next_parameter()
+
+        # dataeval configuration
+        # bias - parity, coverage, diversity, balance
+        self.bias = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        # shift - Out-of-distributation (AE, VAE) and drift (CMV, MMD, KS)
+        self.shift = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        # linting - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
+        self.linting = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        # feasibility
+        self.feasibility = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
 
     @param.depends("show_reallabel_config", "show_survivor_config", watch=True)
     def _update_next_parameter(self) -> None:
@@ -91,7 +100,7 @@ class ConfigurationLandingPage(BaseApp):
         self.output_test_stages = {
             "task": self.task,
         }
-        if self.bias:
+        if self.bias.value:
             self.output_test_stages.update(
                 {
                     "bias": {
@@ -100,7 +109,7 @@ class ConfigurationLandingPage(BaseApp):
                     },
                 }
             )
-        if self.feasibility:
+        if self.feasibility.value:
             self.output_test_stages.update(
                 {
                     "feasibility": {
@@ -109,7 +118,7 @@ class ConfigurationLandingPage(BaseApp):
                     },
                 }
             )
-        if self.shift:
+        if self.shift.value:
             self.output_test_stages.update(
                 {
                     "shift": {
@@ -118,7 +127,7 @@ class ConfigurationLandingPage(BaseApp):
                     },
                 }
             )
-        if self.linting:
+        if self.linting.value:
             self.output_test_stages.update(
                 {
                     "linting": {
@@ -130,84 +139,195 @@ class ConfigurationLandingPage(BaseApp):
 
         return followup_next_parameter, self.task, self.output_test_stages
 
-    def view_optional_configs(self) -> pn.Row:
-        """View the toggles configs"""
-        # widget box with config toggles for survivor and maybe reallabel
-        optional_configs_widgetbox = pn.WidgetBox(
-            "### Add advanced configuration \n (will be configured on subsequent pages)",
-            pn.widgets.Toggle.from_param(
-                self.param.show_survivor_config,
-                name="Configure Survivor",
-                button_type="primary",
-                button_style="outline",
+    def _generate_checkbox_subsection(
+        self, checkbox: pn.widgets.Checkbox, label: str, description: str, section_height: int = 62
+    ) -> pn.Row:
+        """Construct a viewable object for the checkbox subsections.
+        NOTE: Section height default is set at 62 for single line descriptions. This is a
+        departure from the figma spec. Resolving this will require additional css work.
+        """
+
+        return pn.Row(
+            pn.Spacer(width=24),
+            pn.Row(
+                pn.Column(
+                    pn.Spacer(height=5),
+                    checkbox,
+                ),
+                pn.Column(
+                    pn.Spacer(height=4),
+                    pn.pane.Markdown(
+                        label,
+                        styles=self.style_text_subtitle,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                    pn.pane.Markdown(
+                        description,
+                        styles=self.style_text_body2,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                ),
+                width=649,
+                height=section_height,  # style guide departure to account for line height
+                styles=self.style_border,
             ),
-            styles={"background": self.color_light_gray},
         )
 
-        simple_toggle_configs = pn.WidgetBox(
-            "### Select Dataset Evaluation configurations",
-            pn.widgets.Toggle.from_param(
-                self.param.linting,
-                name="Include Linting",
-                button_type="primary",
-                button_style="outline",
+    def view_core_analysis_tools(self) -> pn.Column:
+        """ "view of the core analysis row of the app"""
+        tool_viewable = pn.Column(
+            pn.Spacer(height=24),
+            self._generate_checkbox_subsection(self.linting, "Linting", "Identify potential image quality issues."),
+            pn.Spacer(height=12),
+            self._generate_checkbox_subsection(
+                self.shift, "Shift", "Estimate the dataset drift and out-of-distribution fraction."
             ),
-            pn.widgets.Toggle.from_param(
-                self.param.shift,
-                name="Include Shift",
-                button_type="primary",
-                button_style="outline",
-            ),
-            pn.widgets.Toggle.from_param(
-                self.param.bias,
-                name="Include Bias",
-                button_type="primary",
-                button_style="outline",
-            ),
-            styles={"background": self.color_light_gray},
+            pn.Spacer(height=12),
+            self._generate_checkbox_subsection(self.bias, "Bias", "Measure sampling bias and correlation."),
+            pn.Spacer(height=24),
+            styles={
+                "background-color": self.color_white,
+                "border-color": self.color_border,
+                "border-width": "thin",
+                "border-style": "solid",
+                "border-radius": "8px",
+            },
+            width=697,
         )
-
-        # add configs unique to OD or IC
-        if self.task == "object_detection":
-            # add reallabel toggle only for OD
-            optional_configs_widgetbox.append(
-                pn.widgets.Toggle.from_param(
-                    self.param.show_reallabel_config,
-                    name="Configure Reallabel",
-                    button_type="primary",
-                    button_style="outline",
-                )
-            )
-        elif self.task == "image_classification":
-            # only IC feasibility is compatible with RI (issue #181)
-            simple_toggle_configs.append(
-                pn.widgets.Toggle.from_param(
-                    self.param.feasibility,
-                    name="Include Feasibility",
-                    button_type="primary",
-                    button_style="outline",
+        if self.task == "image_classification":
+            tool_viewable.insert(4, pn.Spacer(height=12))
+            tool_viewable.insert(
+                5,
+                self._generate_checkbox_subsection(
+                    self.feasibility, "Feasibility", "Estimate asymptotic model performance."
                 ),
             )
-        return pn.Row(
-            pn.Spacer(width=20),
-            simple_toggle_configs,
-            optional_configs_widgetbox,
+        return tool_viewable
+
+    def view_configurable_tools(self) -> pn.Column:
+        """View of the configurable tools row of the app"""
+        survivor_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.show_survivor_config,
+            name="",
+            stylesheets=[self.css_checkbox],
         )
+        tool_viewable = pn.Column(
+            pn.Spacer(height=24),
+            self._generate_checkbox_subsection(
+                survivor_checkbox,
+                "Survivor",
+                "Identify pieces of data (e.g. images with ground truth labels) in an evaluation dataset "
+                "that are most valuable for ranking models.",
+                section_height=76,
+            ),
+            pn.Spacer(height=12),
+            pn.Spacer(height=24),
+            styles={
+                "background-color": self.color_white,
+                "border-color": self.color_border,
+                "border-width": "thin",
+                "border-style": "solid",
+                "border-radius": "8px",
+            },
+            width=697,
+        )
+        if self.task == "object_detection":
+            reallabel_checkbox = pn.widgets.Checkbox.from_param(
+                self.param.show_reallabel_config,
+                name="",
+                stylesheets=[self.css_checkbox],
+            )
+            tool_viewable.insert(
+                3,
+                self._generate_checkbox_subsection(
+                    reallabel_checkbox,
+                    "Reallabel",
+                    "Identify potentially missing and erroneous ground truth labels in object-detection datasets.",
+                ),
+            )
+        return tool_viewable
 
     def panel(self) -> pn.Column:
         """Visualize the landing page"""
-        return pn.Column(
-            self.view_title(),
+
+        title_row = pn.Column(
             pn.pane.Markdown(
-                self.description,
-                styles={"font-size": f"{self.summary_text_size}px", "color": f"{self.color_light_gray}"},
-                stylesheets=[self.widget_stylesheet],
+                self.task.replace("_", " ").title(),
+                styles=self.style_text_body2,
+                stylesheets=[self.css_paragraph],
             ),
-            self.view_optional_configs,
-            pn.Spacer(height=20),
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            pn.pane.Markdown(
+                "Dataset Analysis Configuration",
+                styles=self.style_text_h2,
+                stylesheets=[self.css_paragraph],
+            ),
+            pn.pane.Markdown(
+                "Setup your dataset analysis configuration to include tools from various JATIC "
+                "products. Once complete, you will be able to download the configuration file to "
+                "test your models and datasets",
+                styles=self.style_text_body2,
+                stylesheets=[self.css_paragraph],
+            ),
+        )
+
+        core_analysis_row = pn.Row(
+            pn.Column(
+                pn.pane.Markdown(
+                    "Core analysis tools",
+                    styles=self.style_text_h3,
+                    stylesheets=[self.css_paragraph],
+                ),
+                pn.pane.Markdown(
+                    "Select from a set of JATIC analysis tools designed to assess the quality, "
+                    "consistency, and structure of your dataset. These tools require no additional "
+                    "configuration.",
+                    styles=self.style_text_body2,
+                    stylesheets=[self.css_paragraph],
+                    width=395,
+                ),
+            ),
+            pn.Spacer(width=124),
+            self.view_core_analysis_tools,
+        )
+
+        configurable_row = pn.Row(
+            pn.Column(
+                pn.pane.Markdown(
+                    "Configurable analysis tools",
+                    styles=self.style_text_h3,
+                    stylesheets=[self.css_paragraph],
+                ),
+                pn.pane.Markdown(
+                    "Explore these configurable JATIC analysis tools that address unique dataset "
+                    "challenges. These will be configured on the following pages.",
+                    styles=self.style_text_body2,
+                    stylesheets=[self.css_paragraph],
+                    width=395,
+                ),
+            ),
+            pn.Spacer(width=124),
+            self.view_configurable_tools,
+        )
+
+        return pn.Column(
+            self.view_header,
+            pn.Row(
+                pn.Spacer(width=12),
+                pn.Column(
+                    title_row,
+                    pn.Spacer(height=24),
+                    self.horizontal_line(),
+                    pn.Spacer(height=24),
+                    core_analysis_row,
+                    pn.Spacer(height=24),
+                    self.horizontal_line(),
+                    pn.Spacer(height=24),
+                    configurable_row,
+                ),
+                pn.Spacer(width=24),
+            ),
+            styles={"background": self.color_main_bg},
+            width=self.app_width,
         )
 
 
@@ -229,8 +349,7 @@ class FinalPage(BaseApp):
         self.writeout_button = pn.widgets.FileDownload(
             filename="config.json",
             callback=self._get_filestream,
-            name="Download the dashboard config",
-            styles={"font-size": f"{self.summary_text_size}px", "color": f"{self.color_light_gray}"},
+            stylesheets=[self.css_button],
         )
 
     def _get_filestream(self) -> StringIO:
@@ -244,12 +363,46 @@ class FinalPage(BaseApp):
 
     def panel(self) -> pn.Column:
         """Visualize the Final page"""
+
         return pn.Column(
-            self.view_title(),
-            pn.Row(self.writeout_button, width=self.page_width, stylesheets=[self.widget_stylesheet]),
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            self.view_header,
+            _center_vertically(
+                pn.Row(
+                    _center_horizontally(
+                        pn.Column(
+                            _center_horizontally(
+                                pn.pane.Markdown(
+                                    "Success!",
+                                    styles=self.style_text_h1,
+                                )
+                            ),
+                            pn.Column(
+                                _center_horizontally(
+                                    pn.widgets.ButtonIcon(
+                                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
+                                    )
+                                ),
+                                _center_horizontally(
+                                    pn.pane.Markdown(
+                                        "You're all set! Download your .json file below to",
+                                        stylesheets=[self.css_paragraph],
+                                    )
+                                ),
+                                _center_horizontally(
+                                    pn.pane.Markdown(
+                                        "continue your evaluation pipeline.", stylesheets=[self.css_paragraph]
+                                    )
+                                ),
+                                _center_horizontally(self.writeout_button),
+                                styles={**self.style_border, "padding": "15px"},
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            styles={"background-color": self.color_main_bg},
+            width=self.app_width,
+            height=400,
         )
 
 
@@ -322,8 +475,10 @@ class DatasetAnalysisConfigApp(BaseApp):
                     self.pipeline.prev_button,
                     self.pipeline.next_button,
                 ),
+                pn.Spacer(width=48),
             ),
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
+            width=self.app_width,
         )
 
 

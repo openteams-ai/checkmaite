@@ -103,14 +103,14 @@ class SurvivorApp(BaseApp):
             pn.widgets.FloatInput.from_param(
                 self.param.otb_threshold,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="Upper threshold of model agreement for data to be considered 'On the Bubble'.",
                 format="0.00",
             ),
             pn.widgets.FloatInput.from_param(
                 self.param.easy_hard_threshold,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="Threshold of model score for data to be considered 'Easy' or 'Hard'.",
                 format="0.00",
             ),
@@ -118,7 +118,7 @@ class SurvivorApp(BaseApp):
                 self.param.similarity_strategy,
                 name="Similarity Strategy",
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 description="Strategy to use to discretize model metrics.",
             ),
             width=self.page_width,
@@ -135,7 +135,7 @@ class SurvivorApp(BaseApp):
             return pn.widgets.TextInput.from_param(
                 self.param.bins,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 margin=(0, 40),  # (vert, horiz) margins for visual offset,
                 description="Edges of the bins to sort model metrics into. "
                 "Should all be within metric range i.e (0-1), (1-100)",
@@ -146,7 +146,7 @@ class SurvivorApp(BaseApp):
             return pn.widgets.IntInput.from_param(
                 self.param.round_precision,
                 width=self.widget_width,
-                stylesheets=[self.widget_stylesheet, self.info_button_style],
+                styles=self.style_text_body1,
                 margin=(0, 40),  # (vert, horiz) margins for visual offset
                 description="Number of decimal places to round model metrics to.",
             )
@@ -155,12 +155,12 @@ class SurvivorApp(BaseApp):
     def panel(self) -> pn.Column:
         """High level panel app"""
         return pn.Column(
+            self.view_header,
             self.settings_pane,
             self.similarity_option_pane,
             self.view_status_bar,
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            width=self.app_width,
+            styles={"background": self.color_main_bg},
         )
 
 
