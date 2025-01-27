@@ -6,11 +6,6 @@ import pytest
 import torch
 from PIL import Image
 
-from jatic_ri._common.models import (
-    InvalidInputBatchShapeError,
-    InvalidModelNameError,
-    MissingConfigFileError,
-)
 from jatic_ri.object_detection.models import TorchvisionODModel
 
 def test_integration_coco_dataset():
@@ -89,12 +84,12 @@ def test_valid_user_weights_load(tmpdir):
 
 
 def test_missing_config(tmpdir):
-    """Test that initializing with an invalid model name raises InvalidModelNameError."""
+    """Test that initializing with an invalid model name raises ValueError."""
     model_wrapper = TorchvisionODModel(model_name="ssdlite320_mobilenet_v3_large")
     config_path = tmpdir / "config.json"
     pickle_path = tmpdir / "my_pickle.pt"
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
-    with pytest.raises(MissingConfigFileError):
+    with pytest.raises(FileNotFoundError):
         _ = TorchvisionODModel(
             model_name="ssdlite320_mobilenet_v3_large", weights_path=pickle_path, config_path=config_path
         )
@@ -108,14 +103,14 @@ def test_valid_model_initialization():
 
 
 def test_invalid_model_name():
-    """Test that initializing with an invalid model name raises InvalidModelNameError."""
-    with pytest.raises(InvalidModelNameError):
+    """Test that initializing with an invalid model name raises ValueError."""
+    with pytest.raises(ValueError):
         TorchvisionODModel(model_name="invalid_model", device="cpu")
 
 
 def test_call_invalid_shape():
-    """Test that calling the model with an invalid shape raises InvalidInputBatchShape."""
+    """Test that calling the model with an invalid shape raises ValueError."""
     model = TorchvisionODModel(model_name="ssdlite320_mobilenet_v3_large", device="cpu")
     invalid_batch = torch.randn(1, 224, 224, 3)  # HWC, but we need CHW
-    with pytest.raises(InvalidInputBatchShapeError):
+    with pytest.raises(ValueError):
         model(input_batch=invalid_batch)

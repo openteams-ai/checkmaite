@@ -5,10 +5,6 @@ import pytest
 import torch
 from PIL import Image
 
-from jatic_ri._common.models import (
-    InvalidInputBatchShapeError,
-    InvalidModelNameError,
-)
 from jatic_ri.image_classification.models import TorchvisionICModel
 
 
@@ -68,14 +64,14 @@ def test_valid_user_weights_load(tmpdir):
 
 
 def test_invalid_model_name():
-    """Test that initializing with an invalid model name raises InvalidModelNameError."""
-    with pytest.raises(InvalidModelNameError):
+    """Test that initializing with an invalid model name raises ValueError."""
+    with pytest.raises(ValueError):
         TorchvisionICModel(model_name="invalid_model", device="cpu")
 
 
 def test_call_invalid_shape():
-    """Test that calling the model with an invalid shape raises InvalidInputBatchShape."""
+    """Test that calling the model with an invalid shape raises ValueError."""
     model = TorchvisionICModel(model_name="alexnet", device="cpu")
     invalid_batch = torch.randn(1, 224, 224, 3)  # HWC, but we need CHW
-    with pytest.raises(InvalidInputBatchShapeError):
+    with pytest.raises(ValueError):
         model(input_batch=invalid_batch)
