@@ -57,10 +57,10 @@ class YoloClassificationDataset:
     ) -> None:
         """
         Args:
-            dataset_name (str): Identifier for dataset that will be stored in dataset metadata. Name should
+            dataset_name: Identifier for dataset that will be stored in dataset metadata. Name should
                 be chosen to help users quickly identify what the dataset contains and/or how it was created.
-            root_dir (str): Root directory of the dataset.
-            split (str, optional): Dataset split to use (e.g., "train", "test", "validation"). Defaults to "test".
+            root_dir: Root directory of the dataset.
+            split: Dataset split to use (e.g., "train", "test", "validation"). Defaults to "test".
         """
 
         try:
@@ -83,10 +83,10 @@ class YoloClassificationDataset:
         Get the filepaths for images in a YOLO classification dataset structure.
 
         Args:
-            dataset_split (str): Path to the dataset split directory e.g. "<dataset_root>/test"
+            dataset_split: Path to the dataset split directory e.g. "<dataset_root>/test"
 
         Returns:
-            list[str]: List of filepaths relative to dataset_split for all images in dataset
+            List of filepaths relative to dataset_split for all images in dataset
         """
         filepaths = []
         for class_dir in Path(dataset_split).iterdir():

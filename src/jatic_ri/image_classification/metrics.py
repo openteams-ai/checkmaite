@@ -92,8 +92,8 @@ def accuracy_multiclass_torch_metric_factory(
     Factory for create a MAITE-compliant wrapper of the multiclass Accuracy TorchMetric.
 
         Parameters:
-            num_classes (int): Number of classes (e.g. Dog, Cat, Fish...) in the IC task.
-            average (str): Type of average to be taken (see below).
+            num_classes: Number of classes (e.g. Dog, Cat, Fish...) in the IC task.
+            average: Type of average to be taken (see below).
 
         In short, 'micro' averages in the context of Accuracy refers to the simple calculation of
         "number of correct classifications over total attempts", while both 'macro' and 'weighted'
@@ -117,8 +117,8 @@ def f1score_multiclass_torch_metric_factory(
     Factory for create a MAITE-compliant wrapper of the multiclass F1Score TorchMetric.
 
         Parameters:
-            num_classes (int): Number of classes (e.g. Dog, Cat, Fish...) in the IC task.
-            average (str): Type of average to be taken (see below).
+            num_classes: Number of classes (e.g. Dog, Cat, Fish...) in the IC task.
+            average: Type of average to be taken (see below).
 
         Average type 'macro' in the context of F1Score refers to the calculating the per-class
         F1 score statistics rather than averaging their results.  As F1 score is already a derivation of

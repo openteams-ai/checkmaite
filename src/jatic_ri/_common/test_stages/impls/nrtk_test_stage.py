@@ -40,11 +40,11 @@ class NRTKTestStageBase(
     on a given factory configuration.`
 
     Attributes:
-        config (dict[str, Any]):The configuration dictionary that will be used to create
+        config: The configuration dictionary that will be used to create
                                 PerturbImageFactory object.
-        stage_name (str): The name of the test stage.
-        factory_hash (str): A unique hash identifying the perturbation factory configuration.
-        factory (PerturbImageFactory):The perturbation factory used to generate PerturbImage
+        stage_name: The name of the test stage.
+        factory_hash: A unique hash identifying the perturbation factory configuration.
+        factory: The perturbation factory used to generate PerturbImage
                                       augmentations.
 
     """

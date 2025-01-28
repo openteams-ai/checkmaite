@@ -63,13 +63,13 @@ class TorchvisionICModel:
     ) -> None:
         """
         Args:
-            model_name (str): Name of torchvision model to instantiate.
-            device (Optional[str]): Device to use (e.g., 'cpu', 'cuda').
-            weights_path (Optional[str]): Path to pickle file with pretrained weights.
-            config_path (str): Path to config file with metadata for pretrained weights.
-            index2label_key (str): Config key for mapping from class labels to output categories.
-            **kwargs (Any): Additional parameters passed to `torchvision` base class. See
-            `torchvision` for more details.
+            model_name: Name of torchvision model to instantiate.
+            device: Device to use (e.g., 'cpu', 'cuda').
+            weights_path: Path to pickle file with pretrained weights.
+            config_path: Path to config file with metadata for pretrained weights.
+            index2label_key: Config key for mapping from class labels to output categories.
+            **kwargs: Additional parameters passed to `torchvision` base class. See
+              `torchvision` for more details.
         """
         if model_name not in SUPPORTED_TORCHVISION_MODELS:
             raise ValueError(f"Model {model_name} is not currently supported by jatic_ri.")

@@ -123,12 +123,12 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
 
         Parameters
         ----------
-        outputs : dict[str, Any]
+        outputs:
             Drift method output classes of MMD, KS, and CVM as dictionaries
 
         Returns
         -------
-        list[dict[str, Any]]
+        dict
             Single `TextData` slide containing drift text and corresponding dataframe
         """
         any_drift = any(d["is_drift"] for d in outputs.values())
@@ -179,12 +179,12 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
 
         Parameters
         ----------
-        outputs : dict[str, Any]
+        outputs:
             The out of distribution specific results containing "is_ood", "instance_scores", and "feature_scores"
 
         Returns
         -------
-        list[dict[str, Any]]
+        dict
             Single `TextData` slide containing OOD text and corresponding dataframe
         """
 

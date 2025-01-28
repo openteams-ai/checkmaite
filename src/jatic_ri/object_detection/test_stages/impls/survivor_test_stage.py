@@ -78,7 +78,7 @@ class SurvivorTestStage(
         """Create instance of SurvivorTestStage
 
         Args:
-            config (Union[SurvivorConfig, dict[str, Any]]): config for survivor run.
+            config: config for survivor run.
         """
         self.config: SurvivorConfig = SurvivorConfig(**config) if isinstance(config, dict) else config
         self.cache = SurvivorCache()
