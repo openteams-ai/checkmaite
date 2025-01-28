@@ -136,7 +136,7 @@ class SimpleRICacheOD(RICache):
 
         Parameters
         ----------
-        cache_root_dir : str, optional
+        cache_root_dir:
             The directory where the cache files will be stored. If not provided, the current working
             directory will be used. Default is "" (empty string).
         """

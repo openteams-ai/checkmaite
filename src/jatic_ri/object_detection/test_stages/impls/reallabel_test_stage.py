@@ -50,7 +50,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
     and the png image with the most bounding boxes updated to include ReallLabel results visualized on top.
 
     Attributes:
-        cache_configuration (dict[str, Any]): A dictionary of information relating to the configuration of the
+        cache_configuration: A dictionary of information relating to the configuration of the
             RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
             json file will be added to the cache with the configuration information.
     """
@@ -63,10 +63,10 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
         """Read in cache from cache_path.
 
         Args:
-            cache_path (str): path to RealLabel results cache
+            cache_path: path to RealLabel results cache
 
         Returns:
-            tuple (DataFrame, Path):
+            tuple:
                 [0]: The cached RealLabel results as a pyspark dataframe
                 [1]: The path to the cached RealLabel result image.
         """
@@ -99,8 +99,8 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
         """Write the given RealLabel result data to cache.
 
         Args:
-            cache_path (str): path to cache
-            data tuple(DataFrame, Path): data to write to cache consists of two elements:
+            cache_path: path to cache
+            data: data to write to cache consists of two elements:
                 [0]: The DataFrame of RealLabel results.
                 [1]: The path to the image to cache.
         """
@@ -138,16 +138,16 @@ class RealLabelTestStage(
     results needed if they are not present in the cache before running RealLabel itself.
 
     Attributes:
-        config (Config): The RealLabel Config object that should be used when running Reallabel.
-        cache (RealLabelCache): The RealLabelCache object used to read from and write to cache locations.
-        outputs (Optional[tuple[DataFrame, Path]]): A tuple of RealLabel results with the layout:
+        config: The RealLabel Config object that should be used when running Reallabel.
+        cache: The RealLabelCache object used to read from and write to cache locations.
+        outputs: A tuple of RealLabel results with the layout:
             [0]: The RealLabelResults.results dataframe.
             [1]: A Path to the visualization of the RealLabelResults on the image with the most bounding boxes.
                 NOTE: The use of "the image with the most bounding boxes" is pretty arbitrary and just chosen
                       to show something interesting. Potentially configurable.
-        models (dict[str, od.Model]): The dictionary of model names to their MAITE-wrapped model objects whose
+        models: The dictionary of model names to their MAITE-wrapped model objects whose
             inference should be used when running RealLabel.
-        dataset (od.Dataset): The MAITE-wrapped dataset object on which the models should run inference
+        dataset: The MAITE-wrapped dataset object on which the models should run inference
             and produce results.
     """
 

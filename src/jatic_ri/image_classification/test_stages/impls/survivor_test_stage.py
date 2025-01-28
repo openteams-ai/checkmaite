@@ -54,17 +54,17 @@ class SurvivorTestStage(
     metric results needed if they are not present in the cache before running Survivor itself.
 
     Attributes:
-        config (SurvivorConfig): The Survivor Config object that should be used when running Survivor.
-        cache (SurvivorCache): The SurvivorCache object used to read from and write to cache locations.
-        outputs (Optional[tuple[DataFrame, Path]]): A tuple of Survivor results with the layout:
+        config: The Survivor Config object that should be used when running Survivor.
+        cache: The SurvivorCache object used to read from and write to cache locations.
+        outputs: A tuple of Survivor results with the layout:
             [0]: The SurvivorResults.raw_output_df dataframe.
             [1]: A Path to a PNG with a histogram of the number of images per Survivor category: Easy, Hard, and
                 On the Bubble.
-        metric (ic.Metric): The MAITE-wrapped metric object that should be fed the model inference results
+        metric: The MAITE-wrapped metric object that should be fed the model inference results
             for metric calculation.
-        dataset (ic.Dataset): The MAITE-wrapped dataset object on which the models should run inference and
+        dataset: The MAITE-wrapped dataset object on which the models should run inference and
             produce results.
-        models (dict[str, ic.Model]): The dictionary of model names to their MAITE-wrapped model objects
+        models: The dictionary of model names to their MAITE-wrapped model objects
             whose inference should be used when running Survivor.
     """
 
@@ -78,7 +78,7 @@ class SurvivorTestStage(
         """Create instance of SurvivorTestStage
 
         Args:
-            config (Union[SurvivorConfig, dict[str, Any]]): config for survivor run.
+            config: config for survivor run.
         """
         self.config: SurvivorConfig = SurvivorConfig(**config) if isinstance(config, dict) else config
         self.cache = SurvivorCache()

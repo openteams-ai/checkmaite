@@ -23,7 +23,7 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
     csv, and a png image with a histogram of the number of images per Survivor category, Easy, On the Bubble, and Hard.
 
     Attributes:
-        cache_configuration (dict[str, Any]): A dictionary of information relating to the configuration of the
+        cache_configuration: A dictionary of information relating to the configuration of the
             RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
             json file will be added to the cache with the configuration information.
     """
@@ -33,10 +33,10 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
         Initialize the SurvivorCache.
 
         Args:
-            cache_configuration (dict[str, Any]): A dictionary of information relating to the configuration of the
+            cache_configuration: A dictionary of information relating to the configuration of the
                 RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
                 json file will be added to the cache with the configuration information.
-            test_stage (str): The name of the test stage."""
+            test_stage: The name of the test stage."""
 
         self.cache_configuration: Optional[dict[str, Any]] = cache_configuration
         test_stage = test_stage + "_" if test_stage != "" else test_stage
@@ -48,10 +48,10 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
         """Read in cache from cache_path
 
         Args:
-            cache_path (str): path to Survivor results cache
+            cache_path: path to Survivor results cache
 
         Returns:
-            tuple (DataFrame, Path):
+            tuple
                 [0]: The cached Survivor results as a pyspark dataframe
                 [1]: The path to the cached Survivor result image.
         """
@@ -90,8 +90,8 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
         """Write given data to cache.
 
         Args:
-            cache_path (str): path to cache
-            data (TData): data to write to cache consists of two elements in a tuple:
+            cache_path: path to cache
+            data: data to write to cache consists of two elements in a tuple:
                 [0]: The DataFrame of RealLabel results.
                 [1]: The path to the image to cache.
         """

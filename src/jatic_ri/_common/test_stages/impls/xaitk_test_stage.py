@@ -29,11 +29,11 @@ class XAITKTestStageBase(
     XAITK Test Stage that takes in the necessary arguements to demo saliency map generation.
 
     Attributes:
-        config (dict[str, Any]):The configuration dictionary that will be used to create
+        config: The configuration dictionary that will be used to create
                                 saliency map generator object.
-        stage_name (str): The name of the test stage.
-        sal_generator_hash (str): A unique hash identifying the saliency map generator configuration.
-        id2label (dict[int, Hashable]): A mapping of id to label for the dataset (will be moved in future)
+        stage_name: The name of the test stage.
+        sal_generator_hash: A unique hash identifying the saliency map generator configuration.
+        img_batch_size: Number of images per batch.
 
     """
 
