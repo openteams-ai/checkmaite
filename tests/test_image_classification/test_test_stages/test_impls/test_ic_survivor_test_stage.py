@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from maite.protocols import image_classification as ic
 from pyspark.sql import functions as sf
-from survivor.config import ScoreConversionType
+from survivor.enums import ScoreConversionType
 from matplotlib.testing.compare import compare_images
 from gradient import Text
 
@@ -24,16 +24,18 @@ from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
     _SURVIVOR_CACHE_CONFIGURATION_PATH,
 )
 
+from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
 from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
-from tests.testing_utilities.example_maite_objects import (  # noqa: E501
-    USA_SUMMER_DATA_IMAGERY_DIR,
-    USA_SUMMER_DATA_METADATA_FILE_PATH, ImageClassificationModel, FMOWClassificationDataset,
-    create_maite_wrapped_ic_metric, DEV_RESNEXT_MODEL_PATH,
-)
 
 # This file is the expected output of Survivor if using all the information found in the survivor_test_stage_args
 # fixture, and if any of the data, model, metric, or SurvivorConfig information used by that fixture changes,
 # then this file will need to be updated
+
+# KNOWN ISSUES:
+# (1) Per the comment above, the expected survivor image file SHOULD need updating given fixtures have changed.  However, 
+# the tests still passed.  RI issue #232 is tracking
+# (2) Higher fidelity tests (i.e. Survivor-relevant variance in the faked model/dataset/metric) are being solutioned - RI issue #229
+
 EXPECTED_SURVIVOR_IMAGE = Path(
     os.path.abspath(__file__)).parent / "test_data" / "expected_survivor_result_visualization.png"
 
@@ -43,34 +45,28 @@ _SURVIVOR_CONFIG = "config"
 
 
 @pytest.fixture(scope="session")
-def survivor_test_stage_args() -> dict[str, Any]:
+def survivor_test_stage_args(fake_ic_model_default: FakeICModel, fake_ic_dataset_default: FakeICDataset, fake_ic_metric_default: FakeICMetric) -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
-    resnext_model: ic.Model = ImageClassificationModel(
-        model_name="resnext",
-        model_path=str(DEV_RESNEXT_MODEL_PATH),
-        device="cpu",
-    )
-    model_dict = {
-        "resnext": resnext_model,
+    fake_model: ic.Model = fake_ic_model_default
+    model_dict: dict[str, FakeICModel] = {
+        "fake_model": fake_model,
     }
-    detection_dataset: ic.Dataset = FMOWClassificationDataset(
-        USA_SUMMER_DATA_IMAGERY_DIR, USA_SUMMER_DATA_METADATA_FILE_PATH,
-    )
-    map_metric: ic.Metric = create_maite_wrapped_ic_metric("accuracy")
+    detection_dataset: ic.Dataset = fake_ic_dataset_default
+    map_metric: ic.Metric = fake_ic_metric_default
 
     config = SurvivorConfig(
-        metric_column="accuracy",
+        metric_column="fake_metric",
         otb_threshold=0.9,
         easy_hard_threshold=0.5,
-        conversion_type=ScoreConversionType.ROUNDED,
+        conversion_type=ScoreConversionType.ROUNDED.value,
         conversion_args={"decimals_to_round": 2},
     )
 
     dict_config = {
-        "metric_column": "accuracy",
+        "metric_column": "fake_metric",
         "otb_threshold": 0.9,
         "easy_hard_threshold": 0.5,
-        "conversion_type": ScoreConversionType.ROUNDED,
+        "conversion_type": ScoreConversionType.ROUNDED.value,
         "conversion_args": {"decimals_to_round": 2},
     }
 
@@ -84,7 +80,7 @@ def survivor_test_stage_args() -> dict[str, Any]:
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest) -> SurvivorTestStage:
+def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest):
     """Create a SurvivorTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
@@ -120,7 +116,7 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
     indirect=True,
 )
 def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
-    """Test RealLabelTestStage generates a cache object that can be read correctly."""
+    """Test SurvivorTestStage generates a cache object that can be read correctly."""
     # Arrange
     expected_cache_location = Path(test_stage.cache_base_path) / test_stage.cache_id
     expected_results_df_path = expected_cache_location / "survivor_standard_results.csv"
@@ -143,7 +139,8 @@ def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
     # Compare the read-from-cache dataframe against the actual dataframe returned from `run()`. Minor issues in type
     # conversion but can't really be helped :/
     assert expected_results_df_path.exists()
-    actual_returned_results_df = test_stage.outputs[0].withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
+    # 'timestamp' column was part of the USA_SUMMER_DATASET in initial tests, but does not exist in our default FakeODDataset
+    actual_returned_results_df = test_stage.outputs[0] #.withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
     assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
 
     # Compare the read-from-cache image against the actual image returned from `run()`
@@ -169,7 +166,7 @@ def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
     survivor_test_stage_args fixture changes, then the hash in the expected_cache_id variable will need to be updated.
     """
     # Arrange
-    expected_cache_id = "survivor_ic_cache_70c161afc2c54c87d6a51419a3ad1770c448b2c95eed89d97f98387b1e42038d"
+    expected_cache_id = "survivor_ic_cache_b446f28ba3a4e506fcb68c5c691e92784cf805b411177b87235b189a0f7349e3"
 
     # Act
     actual_cache_id = test_stage.cache_id
@@ -191,7 +188,7 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage) -> N
         "• On the Bubble: Models score differently.\n\n"
         "• Ideally, a dataset would be primarily On the Bubble, so all data is helping distinguish between model "
         "performance.\n\n"
-        "• This dataset had 66.7% Easy, 33.3% Hard, and "
+        "• This dataset had 0.0% Easy, 100.0% Hard, and "
         "0.0% On the Bubble data.",
         fontsize=22
     )
