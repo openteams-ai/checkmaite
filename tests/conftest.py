@@ -13,7 +13,7 @@ import pytest
 
 import torch
 from maite.protocols import ArrayLike
-from tests.fake_ic_classes import FakeICDataset, FakeICModel
+from tests.fake_ic_classes import FakeICDataset, FakeICModel, FakeICMetric
 from tests.fake_od_classes import FakeODDataset, FakeODMetric, FakeODModel
 
 import jatic_ri
@@ -426,6 +426,19 @@ def fake_ic_model_default() -> FakeICModel:
     data for different scenarios.
     """
     return FakeICModel()
+
+@pytest.fixture(scope='session')
+def fake_ic_metric_default() -> FakeICMetric:
+    """
+    Fixture for getting the default Fake Image Classification metric with behaviors as described in /tests/fake_ic_classes.py
+
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI team (in GitLab)
+    before implementing a custom instance of this class.  As much as possible, we would like to have as many test
+    cases as possible use the default attributes/fixture, so expanding the defaults to cover additional scenarios 
+    is likely preferable to creating different fake data for different scenarios.
+    """
+    return FakeICMetric()
+
 
 @pytest.fixture(scope='session')
 def fake_od_dataset_default() -> FakeODDataset:

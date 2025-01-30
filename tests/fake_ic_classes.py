@@ -49,6 +49,14 @@ DEFAULT_IC_DATASET_TARGETS: Sequence[Tensor] = [
     Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.])
 ]
 
+# each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
+DEFAULT_IC_METRIC_RESPONSE: dict[str,Any] = {
+        "fake_metric":   Tensor([0.12]),
+        "fake_metric_1": Tensor([0.43]),
+        "fake_metric_2": Tensor([0.56]),
+    }
+# Take the first ordered key above for use as return_key, the 'primary metric' in RI conventions
+DEFAULT_IC_METRIC_RETURN_KEY: str = list(DEFAULT_IC_METRIC_RESPONSE.keys())[0]
 
 class RestartingIterator(Iterable):
     """This custom iterator will restart (not raise StopIteration) after reaching last item of the iterable."""
@@ -135,4 +143,35 @@ class FakeICDataset(ic.Dataset):
     def __len__(self) -> int:
       return len(self.images)
 
-# Next task... fake metric
+
+class FakeICMetric(ic.Metric):
+    """
+    This MAITE-compliant fake IC metric can be instantiatiated with a canned response to its compute() method.  By default, it will return
+    the value of constant DEFAULT_IC_METRIC_RESPONSE to any invocation of compute().
+    
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI Team (in GitLab) before implementing a custom instance of
+    this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
+    cover additional scenarios is likely preferable to creating different fake data for different scenarios.
+
+    Attributes:
+        calculated_metrics (dict[str,Any]): A FakeICMetric instantiated with a value here will return that value whenever compute() is called on the object.
+        Conventions (/docs/conventions.md) require each value in the returned dict of compute() must (1) be safely cast to a float, and (2) possess 
+        <value>.numpy() method. This is not required  in MAITE as of verison 0.6.1.    
+        return_key (str): The Metric class will have an attribute called return_key which describes the top-level performance metric.
+    
+    NOTE: Worth considering whether we should update this "metric" with some computationally trivial behavior that would make 'call' more than a stub.
+    For example, it could just count the number of calls to update() it has received.
+    """
+    def __init__(self, calculated_metrics: dict[str,Any] = DEFAULT_IC_METRIC_RESPONSE, return_key: str = DEFAULT_IC_METRIC_RETURN_KEY):
+        self.calculated_metrics: dict[str, Any] = calculated_metrics
+        self.return_key: str = return_key
+    
+    def update(self, preds: ic.TargetBatchType, targets: ic.TargetBatchType) -> None:
+       pass
+    
+    def compute(self) -> dict[str, Any]:
+       # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
+       return self.calculated_metrics
+    
+    def reset(self) -> None:
+        pass

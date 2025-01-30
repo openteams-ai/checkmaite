@@ -77,13 +77,15 @@ DEFAULT_OD_MODEL_PREDICTIONS: Sequence[od.ObjectDetectionTarget] = [
         )
 ]
 
-
-DEFAULT_OD_METRIC_RETURN_KEY: str = "fake_metric"
+# each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
 DEFAULT_OD_METRIC_RESPONSE: dict[str,Any] = {
-        "fake_metric": 0.12,
-        "fake_metric_1": 0.43,
-        "fake_metric_2": 0.56,
+        "fake_metric":   torch.Tensor([0.12]),
+        "fake_metric_1": torch.Tensor([0.43]),
+        "fake_metric_2": torch.Tensor([0.56]),
     }
+# Take the first ordered key above for use as return_key, the 'primary metric' in RI conventions
+DEFAULT_OD_METRIC_RETURN_KEY: str = list(DEFAULT_OD_METRIC_RESPONSE.keys())[0]
+
         
 class FakeODModel(od.Model):
     """This MAITE-compliant fake (stub) OD model can be instantiated with canned responses to its __call__ function for testing.
@@ -148,7 +150,7 @@ class FakeODDataset(od.Dataset):
 class FakeODMetric(od.Metric):
     """
     This MAITE-compliant fake OD metric can be instantiatiated with a canned response to its compute() method.  By default, it will return
-    the value of constant DEFAULT_OD_METRIC_RESPONSE to any compute call().
+    the value of constant DEFAULT_OD_METRIC_RESPONSE to any invocation of compute().
     
     IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI Team (in GitLab) before implementing a custom instance of
     this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
@@ -156,9 +158,15 @@ class FakeODMetric(od.Metric):
 
     Attributes:
         calculated_metrics (dict[str,Any]): A FakeODMetric instantiated with a value here will return that value whenever compute() is called on the object.
+        Conventions (/docs/conventions.md) require each value in the returned dict of compute() must (1) be safely cast to a float, and (2) possess 
+        <value>.numpy() method. This is not required  in MAITE as of verison 0.6.1.    
+        return_key (str): The Metric class will have an attribute called return_key which describes the top-level performance metric.
 
     NOTE: Worth considering whether we should update this "metric" with some computationally trivial behavior that would make 'call' more than a stub.
     For example, it could just count the number of calls to update() it has received.
+
+    NOTE: Conventions (/docs/conventions.md) require each value in the returned dict of compupte() must (1) be safely cast to a float, and (2) possess
+    <value>.numpy() method. That is stricter than MAITE.  Should we define our own type?
     """
     def __init__(self, calculated_metrics: dict[str,Any] = DEFAULT_OD_METRIC_RESPONSE, return_key: str = DEFAULT_OD_METRIC_RETURN_KEY):
         self.calculated_metrics: dict[str, Any] = calculated_metrics
@@ -168,6 +176,7 @@ class FakeODMetric(od.Metric):
        pass
     
     def compute(self) -> dict[str, Any]:
+       # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
        return self.calculated_metrics
     
     def reset(self) -> None:
