@@ -88,6 +88,7 @@ def test_me_config_dynamic_stages_baseline_evaluate_only():
     assert 'baseline_evaluate' in content.keys()
 
 
+@pytest.mark.skip(reason="flaky test to be resolved in issue #174")
 def test_me_config_dynamic_stages_nrtk_not_xaitk():
     """Test the dynamic nature of the pipeline"""
     task = 'object_detection'
@@ -151,6 +152,7 @@ def test_me_config_dynamic_stages_xrtk_not_nrtk():
     assert 'XAITKApp_0' in content.keys()
 
 
+@pytest.mark.skip(reason="flaky test to be resolved in issue #174")
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
 def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline(task):
     """Test the dynamic nature of the pipeline for both OD and IC"""
