@@ -46,6 +46,10 @@ opencv-python-headless = {version = ">=4.9.0.80"}           # necessary pin, req
 Pillow = ">=11.0.0"                                         # arbitrary
 panel = ">=1.4.5"                                           # arbitrary pin
 zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
+torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
+torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
+torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
+
 
 # development dependencies
 [tool.poetry.group.dev]
@@ -58,8 +62,6 @@ pyspark = '>=3.5.3'                                         # arbitrary pin
 pytest = ">=8.3.0"                                          # necessary pin for compatibility
 pytest-cov = ">=4.0.0"                                      # arbitrary pin
 pytest-mock = ">=3.6.1"                                     # arbitrary, needed to test heart_app
-torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
-torchmetrics = ">=1.4.0"                                    # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
 
 # documentation dependencies
 [tool.poetry.group.docs]
