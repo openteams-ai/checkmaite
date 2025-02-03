@@ -23,6 +23,8 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset]):
 
     _deck: str = "object_detection_bias_evaluation"
     _task: str = "od"
+    # Coco dataset loader includes these by default as metadata, excluded here as not useful to analysis
+    _metadata_to_exclude: list[str] = ["id", "file_name"]
 
     def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
         """Aggregate dataset into images, labels and metadata_factors"""
@@ -45,6 +47,6 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset]):
                 flattened = {k: [v] * len(np_labels) for k, v in flattened.items()}
             metadatas.append(flattened)
 
-        metadata = preprocess(raw_metadata=metadatas, class_labels=labels)
+        metadata = preprocess(raw_metadata=metadatas, class_labels=labels, exclude=self._metadata_to_exclude)
 
         return images, np.array(labels, dtype=np.int_), metadata
