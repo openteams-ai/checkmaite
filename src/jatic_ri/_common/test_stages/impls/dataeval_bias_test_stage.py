@@ -46,8 +46,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         # Remove .json from cache file, create cache_id folder, save images
         # Used by all report functions. Run ensures self.cache_path exists
         folder = Path(os.path.splitext(self.cache_path)[0])
-        if not os.path.exists(folder):  # pragma: no cover
-            os.mkdir(folder)
+        folder.mkdir(parents=True, exist_ok=True)
         return folder
 
     @abstractmethod
