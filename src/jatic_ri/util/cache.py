@@ -10,16 +10,37 @@ from typing import Any, Optional, TypeVar, Union
 import numpy as np
 import torch
 import zstandard as zstd
-from maite._internals.protocols.generic import Metric
+from maite.protocols import ArrayLike
+from typing_extensions import TypeAlias
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 from jatic_ri.object_detection.datasets import DetectionTarget
 
 TData = TypeVar("TData", dict, list)
-TMetric = TypeVar("TMetric", bound=Metric)
 
-TMetricResultKeyValue = Union[torch.Tensor, float]
-TMetricResultCache = dict[Any, TMetricResultKeyValue]
+# RI conventions state each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
+# We have recommended future MAITE release defines a protocol for these criteria
+TMetricResult = dict[str, Any]
+
+# Supported target types
+# For IC, the ArrayLike is typically a (Cl,) vector, one-hot encoded for multi-class, single-label ground truth.
+# For OD, the structure of DetectionTarget boxes, labels, and scores is documented elsewhere.
+TTargetType = TypeVar("TTargetType", bound=Union[ArrayLike, DetectionTarget])
+
+# The data structure generally passed around by MAITE's predict tools.  This is a simplification of the type
+# system built-out in maite._internals.protocols that can be applied to type hints for only this use case.
+CacheablePredsAndData: TypeAlias = tuple[  # One tuple containing...
+    Sequence[  # first, Sequences of batches where...
+        Sequence[TTargetType]
+    ],  # each batch is a Sequence of predictions, and...
+    Sequence[  # second, Sequences of batches where...
+        tuple[  # each batch is a "data tuple" containing corresponding three more sequences...
+            Sequence[ArrayLike],  # (1) Inputs: images in ArrayLike shape (C, H, W),
+            Sequence[TTargetType],  # (2) Targets: ground truths, and
+            Sequence[dict[str, Any]],  # (3) datum-wise Metadata.
+        ]
+    ],
+]
 
 
 class JSONCache(Cache[TData]):
@@ -83,9 +104,7 @@ class RICache(ABC):
     """Abstract Class for using cache for evaluation and prediction"""
 
     @abstractmethod
-    def read_predictions(
-        self, filename: str
-    ) -> Optional[tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]]]:
+    def read_predictions(self, filename: str) -> Optional[CacheablePredsAndData]:
         """Reads a prediction from the cache"""
         pass
 
@@ -93,18 +112,18 @@ class RICache(ABC):
     def write_predictions(
         self,
         filename: str,
-        prediction: tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]],
+        prediction: CacheablePredsAndData,
     ) -> None:
         """Writes a prediction to the cache"""
         pass
 
     @abstractmethod
-    def read_metric(self, filename: str) -> Union[TMetricResultCache, None]:
+    def read_metric(self, filename: str) -> Optional[TMetricResult]:
         """Reads a metric from the cache"""
         pass
 
     @abstractmethod
-    def write_metric(self, filename: str, metric_results: TMetricResultCache) -> None:
+    def write_metric(self, filename: str, metric_results: TMetricResult) -> None:
         """Writes a metric to the cache"""
         pass
 
@@ -114,25 +133,30 @@ class RICache(ABC):
         pass
 
 
-class SimpleRICacheOD(RICache):
+class SimpleRICacheJSON(RICache):
     """
-    A wrapper for the RICache class that sets up a cache directory and provides methods for reading
+    An abstract wrapper for the RICache class that sets up a cache directory and provides methods for reading
     and writing prediction and metric data to/from the cache using JSON format.
 
-    This is designed for Object Detection in particular.
+    Each task type (e.g. Image Classification, Object Detection) structures predictions/targets differently and
+    therefore needs a custom implementation of the JSON serializer.  So in the base JSON serializer class, the
+    methods for read_prediction_serializer and write_prediction_serializer are still abstract.
+
+    JSON represents data in 'arrays' and 'objects', and from this representation the type(s) of the source Python
+    objects cannot necessarily be inferred.  For example, `SimpleRICacheOD` and `SimpleRICacheIC` can accept and
+    serialize any ArrayLike, but has chosen to deserialize as torch.Tensor.
 
     Parameters
     ----------
-    json_cache:
-        an attribute on this class that is hardcoded to JSONCache with a TensorEncorder and compression enabled.
-        It controls the underlying read/write of the cache data.
     cache_root_dir:
         this dictates the root path where all of the folders for the cache files will be created.
+    compress_json : bool = True
+        Determines whether the JSON stored on disk will be compressed (and therefore, not human-readable).
     """
 
-    def __init__(self, cache_root_dir: str = "") -> None:
+    def __init__(self, cache_root_dir: str = "", compress_json: bool = True) -> None:
         """
-        Initializes the SimpleRICacheOD instance, setting up the cache directory and the JSON cache.
+        Initializes the SimpleRICacheJSON instance, setting up the cache directory and the JSON cache.
 
         Parameters
         ----------
@@ -142,13 +166,11 @@ class SimpleRICacheOD(RICache):
         """
         if cache_root_dir is None or cache_root_dir == "":
             cache_root_dir = getcwd()
-        self.json_cache = JSONCache(encoder=TensorEncoder, compress=True)
+        self.json_cache = JSONCache(encoder=TensorEncoder, compress=compress_json)
         self.cache_root_dir = cache_root_dir
         makedirs(path.dirname(cache_root_dir), exist_ok=True)
 
-    def read_predictions(
-        self, filename: str
-    ) -> Optional[tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]]]:
+    def read_predictions(self, filename: str) -> Optional[CacheablePredsAndData]:
         """
         Reads prediction data from the cache using JSONCache.
 
@@ -159,11 +181,9 @@ class SimpleRICacheOD(RICache):
 
         Returns
         -------
-        tuple or None
-            A tuple containing two sequences:
-            - A sequence of lists of `DetectionTarget` objects.
-            - A sequence of tuples containing metadata information.
-            Returns None if the cache read is unsuccessful.
+        CacheablePredsAndData or None
+            A 2-tuple of batches of predictions and targets, or
+            None if the cache read is unsuccessful.
         """
         cachefile = path.join(self.cache_root_dir, filename)
         cache_hit = self.json_cache.read_cache(cachefile)
@@ -174,7 +194,7 @@ class SimpleRICacheOD(RICache):
     def write_predictions(
         self,
         filename: str,
-        prediction: tuple[Sequence[list[DetectionTarget]], Sequence[tuple[Any, Any, Any]]],
+        prediction: CacheablePredsAndData,
     ) -> None:
         """
         Writes prediction data to the cache using JSONCache.
@@ -184,16 +204,14 @@ class SimpleRICacheOD(RICache):
         filename : str
             The name of the cache file where the prediction data will be written.
 
-        prediction : tuple
-            A tuple containing two sequences:
-            - A sequence of lists of `DetectionTarget` objects.
-            - A sequence of tuples containing metadata information.
+        prediction : CacheablePredsAndData
+            A 2-tuple of batches of predictions and targets.
         """
         pred_data = self.write_prediction_serializer(prediction)
         cachefile = path.join(self.cache_root_dir, filename)
         self.json_cache.write_cache(cachefile, pred_data)
 
-    def read_metric(self, filename: str) -> Union[TMetricResultCache, None]:
+    def read_metric(self, filename: str) -> Optional[TMetricResult]:
         """
         Reads metric data from the cache.
 
@@ -216,7 +234,7 @@ class SimpleRICacheOD(RICache):
             }
         return cache_hit
 
-    def write_metric(self, filename: str, metric_results: TMetricResultCache) -> None:
+    def write_metric(self, filename: str, metric_results: TMetricResult) -> None:
         """
         Writes metric results to the JSONcache.
 
@@ -225,40 +243,153 @@ class SimpleRICacheOD(RICache):
         filename : str
             The name of the cache file where the metric data will be written.
 
-        metric_results : TMetricResultCache
+        metric_results : TMetricResult
             The metric data to be written to the cache.
         """
 
         cachefile = path.join(self.cache_root_dir, filename)
         self.json_cache.write_cache(cachefile, metric_results)
 
+    def clear_cache(self) -> None:
+        """
+        Clears the cache directory by removing all JSON cache files.
+
+        This method deletes all `.json` files in the cache directory to free up space.
+
+        Raises
+        ------
+        OSError
+            If the cache files cannot be deleted, an OSError is raised with a description of the failure.
+        """
+        json_files = glob.glob(path.join(self.cache_root_dir, "*.json"))
+        # Instead of catching exceptions within the loop, check the file before attempting removal
+        try:
+            for json_file in json_files:
+                remove(json_file)
+        except OSError as e:
+            raise OSError(f"Failed to clear cache: {e}") from e
+
+    @abstractmethod
+    def write_prediction_serializer(self, pred_and_data: CacheablePredsAndData) -> Union[TData, CacheablePredsAndData]:
+        """Serializes a prediction output to be compatible with JSON format."""
+        pass
+
+    @abstractmethod
+    def read_prediction_serializer(self, pred_data_cache: TData) -> CacheablePredsAndData:
+        """Restores prediction data from its serialized JSON representation."""
+        pass
+
+
+class SimpleRICacheIC(SimpleRICacheJSON):
+    """
+    An implementation of the serialization functions to handle IC data structures.
+
+    Given that we cannot infer the original subtype of a JSON serializtion of an 'ArrayLike', we have chosen
+    to reconsitutue the Python objects as torch.Tensor.  If this is not compatible with an implementer's use case,
+    that user will need to use/create a different `RICache` implementation.
+    """
+
+    def write_prediction_serializer(self, pred_and_data: CacheablePredsAndData) -> CacheablePredsAndData:
+        """
+        Serializes a prediction output to be compatible with JSON format.
+
+        The IC data structure is already JSON-compatible, so this is just a passthrough.
+
+        Parameters
+        ----------
+        pred_data_cache : CacheablePredsAndData
+
+        Returns
+        -------
+        CacheablePredsAndData
+        """
+        return pred_and_data
+
+    def read_prediction_serializer(
+        self,
+        pred_data_cache: TData,  # A list of lists
+    ) -> CacheablePredsAndData:
+        """
+        Restores prediction data from its serialized JSON representation.
+
+        Parameters
+        ----------
+        pred_data_cache : the response of json.loads(), typically a list/dict combination
+            A list containing two items:
+            - Lists of lists (the first list is batching) of lists representing serialized predictions.
+            - Lists (batches) of 3-items lists of Image lists, list Targets, and metadata dictionaries.
+
+        Returns
+        -------
+        CacheablePredsAndData, which is a tuple containing two items:
+            - Batches (sequences) of sequences of predictions, and
+            - Batches (sequences) of a "data" tuple, itself containing three equal length sequences:
+              1) Inputs: images in Tensor (an ArrayLike) of shape (C, H, W)
+              2) Targets: ground truths
+              3) Metadata: dicts of [str,Any]
+        """
+        return (  # a 2-tuple of preds-data
+            # Reconstruct predictions with double list comprehension... a list of batches...
+            [  # Where each batch is a list...
+                [
+                    torch.as_tensor(j) for j in pred_data_cache[0][i]
+                ]  # And each item must be ArrayLike so we cast back from list[float] to Tensor
+                for i in range(len(pred_data_cache[0]))
+            ],
+            # Reconstruct list of data tuple (image_batches, target_batches, metadata_batches)
+            [
+                (
+                    [torch.as_tensor(j) for j in pred_data_cache[1][i][0]],  # Convert image lists back to tensor
+                    [
+                        torch.as_tensor(j) for j in pred_data_cache[1][i][1]
+                    ],  # Convert ground truth target back to tensor
+                    pred_data_cache[1][i][2],  # The metadata should already come back as dicts
+                )
+                for i in range(len(pred_data_cache[1]))
+            ],
+        )
+
+
+class SimpleRICacheOD(SimpleRICacheJSON):
+    """
+    An implementation of the serialization functions to handle OD DetectionTargets.
+
+    Given that we cannot infer the original subtype of a JSON serializtion of an 'ArrayLike', we have chosen
+    to reconsitutue the Python objects as torch.Tensor.  If this is not compatible with an implementer's use case,
+    that user will need to use/create a different `RICache` implementation.
+    """
+
     def write_prediction_serializer(
         self,
-        pred_and_data: tuple[
-            Sequence[list[DetectionTarget]],
-            Sequence[tuple[Any, Any, Any]],
-        ],
-    ) -> tuple[Sequence[list[dict[str, Any]]], Sequence[tuple[list[Any], list[Any], list[Any]]]]:
+        pred_and_data: CacheablePredsAndData,
+    ) -> tuple[list[list[dict[str, Any]]], list[tuple[list[Any], list[Any], list[Any]]]]:
         """
         Serializes a prediction output to be compatible with JSON format.
 
         Parameters
         ----------
-        pred_and_data : tuple
-            A tuple containing two sequences:
-            - A sequence of lists of `DetectionTarget` objects.
-            - A sequence of tuples containing metadata information.
-
+        pred_and_data :
+            CacheablePredsAndData, which is a tuple containing two items:
+            - Batches (sequences) of sequences of predictions, and
+            - Batches (sequences) of a "data" tuple, itself containing three equal length sequences:
+              1) Inputs: images in ArrayLike shape (C, H, W)
+              2) Targets: ground truths
+              3) Metadata: dicts of [str,Any]
         Returns
         -------
-        tuple
-            A tuple containing two sequences:
-            - A sequence of lists of dictionaries representing serialized `DetectionTarget` objects.
-            - A sequence of tuples containing metadata, where the detection data is serialized.
+        tuple :
+            A tuple containing two lists:
+            - One batch list, where each item is a list of OD DetectionTargets represented as dicts
+            - Another batch list, where each item is a tuple containing three lists:
+              1) Inputs: Still in ArrayLike
+              2) Targets: converted to dict representations
+              3) Metadata: dicts of [str,Any]
         """
 
-        preds = pred_and_data[0]
-        data = pred_and_data[1]
+        preds: Sequence[Sequence[DetectionTarget]] = pred_and_data[0]
+        data: Sequence[tuple[Sequence[ArrayLike], Sequence[DetectionTarget], Sequence[dict[str, Any]]]] = pred_and_data[
+            1
+        ]
 
         serial_pred = []
         for pred in preds:
@@ -274,29 +405,26 @@ class SimpleRICacheOD(RICache):
 
     def read_prediction_serializer(
         self,
-        pred_data_cache: tuple[
-            Sequence[list[dict[str, Any]]], Sequence[tuple[list[Any], list[dict[str, Any]], list[Any]]]
-        ],
-    ) -> tuple[
-        Sequence[list[DetectionTarget]],
-        Sequence[tuple[Any, Any, Any]],
-    ]:
+        pred_data_cache: TData,
+    ) -> CacheablePredsAndData:
         """
         Restores prediction data from its serialized JSON representation.
 
         Parameters
         ----------
-        pred_data_cache : tuple
-            A tuple containing two sequences:
-            - A sequence of lists of dictionaries representing serialized `DetectionTarget` objects.
-            - A sequence of tuples containing metadata, where the detection data is serialized.
+        pred_data_cache : the response of json.loads(), typically a list/dict combination
+            A list containing two items:
+            - Lists (batches) of lists of dictionaries representing serialized `DetectionTarget` predictions.
+            - Lists (batches) of 3-items lists of Image lists, DetectionTarget dictionaries, and metadata dictionaries
 
         Returns
         -------
-        tuple
-            A tuple containing two sequences:
-            - A sequence of lists of `DetectionTarget` objects.
-            - A sequence of tuples containing metadata information.
+        CacheablePredsAndData, which is a tuple containing two items:
+            - Batches (sequences) of sequences of predictions, and
+            - Batches (sequences) of a "data" tuple, itself containing three equal length sequences:
+              1) Inputs: images in Tensor (an ArrayLike) of shape (C, H, W)
+              2) Targets: ground truths
+              3) Metadata: dicts of [str,Any]
         """
         preds = pred_data_cache[0]
         data = pred_data_cache[1]
@@ -328,25 +456,6 @@ class SimpleRICacheOD(RICache):
             detection_data.append((tpl_0, tpl_1, tpl[2]))
 
         return (detection_pred, detection_data)
-
-    def clear_cache(self) -> None:
-        """
-        Clears the cache directory by removing all JSON cache files.
-
-        This method deletes all `.json` files in the cache directory to free up space.
-
-        Raises
-        ------
-        OSError
-            If the cache files cannot be deleted, an OSError is raised with a description of the failure.
-        """
-        json_files = glob.glob(path.join(self.cache_root_dir, "*.json"))
-        # Instead of catching exceptions within the loop, check the file before attempting removal
-        try:
-            for json_file in json_files:
-                remove(json_file)
-        except OSError as e:
-            raise OSError(f"Failed to clear cache: {e}") from e
 
 
 # class ParquetCache(Cache[pd.DataFrame]):
