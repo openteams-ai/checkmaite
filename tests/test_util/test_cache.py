@@ -3,14 +3,12 @@ import os
 import numpy as np
 import pytest
 import torch
-
-import shutil
-from unittest.mock import MagicMock
-from pathlib import Path
-from typing import Sequence, Any
-
-from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder, SimpleRICacheOD
+from typing import Sequence
+from maite.protocols import ArrayLike
+from maite.workflows import evaluate
+from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder, SimpleRICacheIC, SimpleRICacheOD
 from jatic_ri.object_detection.datasets import DetectionTarget
+from tests.fake_ic_classes import FakeICDataset, FakeICModel
 
 metric_results_expected = {"fake_metric": torch.tensor(1.0)}
 
@@ -119,7 +117,8 @@ def test_write_read_predictions_od(tmpdir):
     assert cache_file_path.exists(), f"{cache_file_path} was not created."
 
     result = cache.read_predictions(filename)
-
+    
+    assert result is not None
     # The result is a detection object for one image. 
     # Given the complext return structure, this tests that the return types are the correct instances.
     prediction = result[0]
@@ -133,11 +132,11 @@ def test_write_read_predictions_od(tmpdir):
     # There is only one image, so one set of detection objects to test.
     detection_object = prediction[0][0]
     # Asserts that the bounding boxes have been retrieved an encoded correctly.
-    assert torch.equal(detection_object.boxes, pred_data_dummy_od[0][0][0].boxes)
+    assert torch.equal(detection_object.boxes, torch.as_tensor(pred_data_dummy_od[0][0][0].boxes))
     # Asserts that the labels have been retrieved an encoded correctly.
-    assert torch.equal(detection_object.labels, pred_data_dummy_od[0][0][0].labels)
+    assert torch.equal(detection_object.labels, torch.as_tensor(pred_data_dummy_od[0][0][0].labels))
     # Asserts that the scores have been retrieved an encoded correctly.
-    assert torch.equal(detection_object.scores, pred_data_dummy_od[0][0][0].scores)
+    assert torch.equal(detection_object.scores, torch.as_tensor(pred_data_dummy_od[0][0][0].scores))
 
 def test_write_read_metric_result_od(tmpdir):
     """Testing the writing and reading of an OD prediction to cache"""
@@ -159,3 +158,39 @@ def test_write_read_metric_result_od(tmpdir):
     assert isinstance(result, dict)
     # Asserts that the metric result has been encoded in the correct format.
     assert torch.equal(result['fake_metric'], metric_results_expected['fake_metric'])
+
+def test_write_read_predictions_ic(tmpdir, fake_ic_model_default: FakeICModel, fake_ic_dataset_default: FakeICDataset):
+    """Testing the writing and reading of IC predictions to cache"""
+
+    filename = "test_ic_predictions.json"
+    cache = SimpleRICacheIC(cache_root_dir=tmpdir)
+
+    # Using the MAITE evaluate workflow and the default fake IC dataset and model, generate some dummy predictions.
+    _, fake_preds_batches, fake_data_batches = evaluate(
+        model = fake_ic_model_default,
+        dataset=fake_ic_dataset_default,
+        return_preds=True,
+        return_augmented_data=True,
+        batch_size=5)
+    cache.write_predictions(filename=filename, prediction=((fake_preds_batches,fake_data_batches)))
+
+    cache_file_path = tmpdir.join(filename)
+    
+    # Asserts that the cache write triggered correctly.
+    assert cache_file_path.exists(), f"{cache_file_path} was not created."
+
+    result = cache.read_predictions(filename)
+
+    # Confirm cache hit, not None
+    assert isinstance(result, tuple)
+ 
+    cache_preds_batches = result[0]
+    cache_data_batches = result[1]
+    
+    # Check same number of batches.   4 = default dataset len 20 / batch size 5
+    assert len(cache_preds_batches) == len(cache_data_batches) == len(fake_data_batches) == len(fake_preds_batches) == 4
+
+    # Check prediction values equal after extracted from cache
+    for i in range(len(cache_preds_batches)):
+        for j in range(len(cache_preds_batches[i])):
+            assert torch.equal(cache_preds_batches[i][j],fake_preds_batches[i][j])

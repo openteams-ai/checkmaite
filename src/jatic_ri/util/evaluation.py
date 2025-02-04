@@ -219,9 +219,9 @@ class EvaluationTool:
             A tuple containing two sequences:
             - The first sequence is a list of dictionaries representing predicted values for each data point.
             - The second sequence contains tuples with three elements:
-            - A list of ground truth values.
-            - A list of additional associated values for each data point.
-            - A list of metadata.
+              1) A list of inputs
+              2) A list of targets (ground truth) for each input
+              3) A list of metadata
         """
         cache_file = f"{model_id}_{dataset_id}_{batch_size}.json"
         if self.ri_cache:
