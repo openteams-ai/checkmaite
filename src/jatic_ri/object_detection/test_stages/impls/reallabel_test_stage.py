@@ -177,6 +177,8 @@ class RealLabelTestStage(
         # A dictionary of identifying information that will be hashed into an ID
         self._cache_configuration: Optional[dict[str, Any]] = None
 
+        self.cache: Optional[Cache[tuple[DataFrame, Path]]] = RealLabelCache(self._cache_configuration)
+
         super().__init__()
 
     def _generate_cache_config(self) -> None:
