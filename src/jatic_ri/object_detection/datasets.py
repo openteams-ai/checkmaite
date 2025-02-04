@@ -71,6 +71,11 @@ class CocoDetectionDataset(Dataset):
 
     __len__() -> int
         Return the number of data elements in the dataset.
+
+    Notes
+    ------
+    The RI team follows the convention of using the `image` field to store all relevant metadata.
+    If your dataset includes custom metadata fields, ensure they are placed inside the `image` field.
     """
 
     def __init__(self, root: str | Path, ann_file: str) -> None:
