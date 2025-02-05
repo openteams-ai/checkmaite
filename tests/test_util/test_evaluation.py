@@ -1,14 +1,11 @@
-from jatic_ri.util.cache import JSONCache, SimpleRICacheOD
+from jatic_ri.util.cache import SimpleRICacheOD
 from jatic_ri.util.evaluation import EvaluationTool, SimpleDataLoader
-import maite.protocols.object_detection as od
 
 from jatic_ri.object_detection.datasets import DetectionTarget
-from typing import Any, Sequence, List, Tuple
 
 import pytest
 from unittest.mock import MagicMock
 import torch
-# from copy import deepcopy
 
 # This is utilized from the od mock model operated on the od mock dataset. 
 mock_pred_detection_object = DetectionTarget(
@@ -127,7 +124,7 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
     dataloader = SimpleDataLoader(dataset, 2)
     evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
 
-    pred, data = evaluationtool.compute_predictions(
+    pred, data = evaluationtool.predict(
         model=model,
         model_id=model_id,
         dataset=dataset,
@@ -162,7 +159,7 @@ def test_metric_compute(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdi
     dataloader = SimpleDataLoader(dataset, 2)
     evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
 
-    pred, data = evaluationtool.compute_predictions(
+    pred, data = evaluationtool.predict(
         model=model,
         model_id=model_id,
         dataset=dataset,
@@ -199,7 +196,9 @@ def test_evaluation(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdir):
         dataloader=dataloader,
         metric=metric,
         metric_id=metric_id,
-        batch_size=2
+        batch_size=2,
+        return_augmented_data=True,
+        return_preds=True
     )
 
     # The metric results are the first part of the evaluate response.

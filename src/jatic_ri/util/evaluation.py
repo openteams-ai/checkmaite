@@ -1,11 +1,12 @@
 """Evaluation and Prediction tool for Test Stages"""
 
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union
 
 from maite._internals.protocols import image_classification as ic
 from maite._internals.protocols import object_detection as od
 from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
+from maite.errors import InvalidArgument
 from typing_extensions import TypeAlias
 
 from jatic_ri.util.cache import RICache
@@ -126,7 +127,7 @@ class EvaluationTool:
     compute_metric
         Processes a metric over predictions and batched data, using caching if available.
 
-    compute_predictions
+    predict
         Generates predictions using a specified model and dataset,
         checking for cached results before computing predictions.
 
@@ -182,20 +183,27 @@ class EvaluationTool:
             self.ri_cache.write_metric(filename, metric_results)
         return metric_results
 
-    def compute_predictions(
+    def predict(
         self,
         model: Model,
-        model_id: str,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
         dataset: Dataset[Any, Any, Any],
-        dataset_id: str,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
         dataloader: TDataloader = None,
-        batch_size: int = 1,
+        batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
     ) -> tuple[
         Sequence[SomeTargetBatchType], Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
     ]:
         """
         Prediction tool that checks cache with the provided ID before running evaluation.
         If cache is available (hit), returns the cached results.
+
+        Note the "<object>_id" parameters are required because MAITE v0.6.0 does not require the types to contain
+        id metadata.  MAITE v0.7.1 requires Model, Dataset, Metric, Datum, and Augumentation to include a metadata
+        property which has a required string 'id'.  We will deprecate "<object>_id" in favor of <object>.metadata.id
+        when upgrading MAITE.
+
 
         Parameters
         ----------
@@ -212,17 +220,24 @@ class EvaluationTool:
         batch_size : int
             The batch size to be used for prediction. Default is 1, meaning predictions will be
             generated one sample at a time.
-
+        augmentation : None = None
+            NOT IMPLEMENTED: only raise appropriate error if called.
         Returns
         -------
-        predictions : tuple of sequence
+        predictions : tuple
             A tuple containing two sequences:
             - The first sequence is a list of dictionaries representing predicted values for each data point.
             - The second sequence contains tuples with three elements:
-              1) A list of inputs
+              1) A list of inputs (e.g. images)
               2) A list of targets (ground truth) for each input
               3) A list of metadata
         """
+        if augmentation is not None:
+            raise InvalidArgument(
+                "EvaluationTool has not implemented MAITE's augumentation capability. "
+                "Import maite.workflows.evaluate to use augmentations without a caching mechanism."
+            )
+
         cache_file = f"{model_id}_{dataset_id}_{batch_size}.json"
         if self.ri_cache:
             cache = self.ri_cache.read_predictions(cache_file)
@@ -248,22 +263,30 @@ class EvaluationTool:
     def evaluate(
         self,
         model: Model,
-        model_id: str,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
         dataset: Dataset[Any, Any, Any],
-        dataset_id: str,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
         metric: Metric,
-        metric_id: str,
+        metric_id: str,  # Remove after MAITE 0.7.1 upgrade
         batch_size: int = 1,
         dataloader: TDataloader = None,
+        return_augmented_data: bool = False,
+        return_preds: bool = False,
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
     ) -> tuple[
         dict[str, Any],
-        Sequence[SomeTargetBatchType],
-        Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
+        Optional[Sequence[SomeTargetBatchType]],
+        Optional[Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]],
     ]:
         """
         Evaluates the model on the given dataset using the specified metric.
         The function checks for the availability of the model, dataset, and metric,
         and performs the evaluation to compute the metric values.
+
+        Note the "<object>_id" parameters are required because MAITE v0.6.0 does not require the types to contain
+        id metadata.  MAITE v0.7.1 requires Model, Dataset, Metric, Datum, and Augumentation to include a metadata
+        property which has a required string 'id'.  We will deprecate "<object>_id" in favor of <object>.metadata.id
+        when upgrading MAITE.
 
         Parameters
         ----------
@@ -284,26 +307,38 @@ class EvaluationTool:
         batch_size : int, optional
             The batch size to be used for evaluation. Default is 1, meaning the evaluation is performed one
             sample at a time.
+        return_predictions : bool = False
+            Set to True to include predictions in second element of return tuple
+        return_augmented_data : bool = False
+            Set to True to include the batches of data (extracted from the dataset) in the return tuple.
+            Note that "augmented" is a misnomer since EvaluationTool does not support 'augmentation' inputs, but
+            this matches the MAITE evaluate signature.
+        augmentation : None = None
+            NOT IMPLEMENTED: only raise appropriate error if called.
 
         Returns
         -------
         result : tuple
-            A tuple containing:
+            A 3-tuple containing:
             - A dictionary where keys are metric identifiers and values are the computed metric values.
-            - A tuple with two sequences:
-                - The first sequence is a list of dictionaries representing predicted values for each data point.
-                - The second sequence contains tuples with three elements:
-                    - A list of ground truth values.
-                    - A list of additional associated values for each data point.
-                    - A list of metadata.
+            - A Sequence (batches) of list of predictions IF return_preds=true, else None
+            - A Sequence (batches) of tuples IF return_augmented_data=true, else None, containing:
+                - A list of data (e.g. images)
+                - A list of targets (ground truth).
+                - A list of metadata.
         """
+        if augmentation is not None:
+            raise InvalidArgument(
+                "EvaluationTool has not implemented MAITE's augumentation capability. "
+                "Import maite.workflows.evaluate to use augmentations without a caching mechanism."
+            )
 
         cache_file_metric = f"{model_id}_{dataset_id}_{metric_id}_{batch_size}.json"
 
         if dataloader is None:
             dataloader = SimpleDataLoader(dataset=dataset, batch_size=batch_size)
 
-        prediction, data = self.compute_predictions(
+        prediction, data = self.predict(
             model=model,
             model_id=model_id,
             dataset=dataset,
@@ -316,4 +351,4 @@ class EvaluationTool:
             metric=metric, filename=cache_file_metric, prediction=prediction, data=data
         )
 
-        return (metric_results, prediction, data)
+        return (metric_results, prediction if return_preds else None, data if return_augmented_data else None)
