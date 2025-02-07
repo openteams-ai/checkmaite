@@ -16,6 +16,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TModel,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri.util.cache import JSONCache
 
 
 class XAITKTestStageBase(
@@ -47,6 +48,7 @@ class XAITKTestStageBase(
         self.config = args
         self.stage_name = args["name"]
         self.img_batch_size = args["img_batch_size"]
+        self.cache = JSONCache()
 
     @property
     def cache_id(self) -> str:
