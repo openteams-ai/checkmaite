@@ -19,7 +19,7 @@ def _reset_me_config_app(app: ModelEvaluationConfigApp):
     behavior.
     """
     # ensure all the toggles are False
-    app.pipeline._state.baseline_evaluate = False
+    app.pipeline._state.baseline_eval.value = False
     app.pipeline._state.show_xaitk_config = False
     app.pipeline._state.show_nrtk_config = False
     # clear output_test_stages
@@ -70,7 +70,7 @@ def test_me_config_dynamic_stages_baseline_evaluate_only():
     # reset the app
     _reset_me_config_app(app)
     # toggle baseline_evaluate to true
-    app.pipeline._state.baseline_evaluate = True
+    app.pipeline._state.baseline_eval.value = True
 
     # with only bias true, the next stage should be "Finalize"
     assert app.pipeline._next_stage == 'Finalize'
@@ -164,7 +164,7 @@ def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline(task):
     # toggle nrtk and xaitk to true
     app.pipeline._state.show_nrtk_config = True
     app.pipeline._state.show_xaitk_config = True
-    app.pipeline._state.baseline_evaluate = True
+    app.pipeline._state.baseline_eval.value = True
 
     # with only bias true, the next stage should be 'nrtk'
     assert app.pipeline._next_stage == 'Configure NRTK'

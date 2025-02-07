@@ -11,22 +11,15 @@ from jatic_ri._common._panel.dashboards.base_dashboard import BaseDashboard
 logger = logging.getLogger()
 
 
-class ModelEvaluationDashboard(BaseDashboard):
-    """Model Evaluation Dashboard
+class ModelEvaluationTestbed(BaseDashboard):
+    """Model Evaluation Testbed
     A panel app for running ME from configuration files.
     """
 
     def __init__(self, **params: dict[str, Any]) -> None:
         super().__init__(**params)
-        self.title = "Model Evaluation Dashboard"
-        self.tabulator_widths = {
-            "Gradient Report": 200,
-            "Model(s)": 200,
-            "Dataset": 200,
-            "Metric": 200,
-            "Threshold": 200,
-        }
-        self.results_df = pd.DataFrame(columns=list(self.tabulator_widths.keys()))
+        self.title = "Model Evaluation Testbed"
+        self.results_df = pd.DataFrame(columns=["Gradient Report", "Model(s)", "Dataset", "Metric", "Threshold"])
 
         self.run_analysis_button.on_click(self._run_button_callback)
 
@@ -34,6 +27,9 @@ class ModelEvaluationDashboard(BaseDashboard):
         self.dataset_2_visible = False
         # ensure we only visualize one model and don't allow removing that model
         self.multi_model_visible = False
+
+        # ME never needs two datasets
+        self.dataset_1_selector.name = "Dataset type"
 
     def _run_button_callback(self, event) -> None:  # noqa: ANN001, ARG002 # pragma: no cover
         """This function runs when `run_model_button` is clicked
@@ -88,40 +84,131 @@ class ModelEvaluationDashboard(BaseDashboard):
         # add the new run information to the dataframe
         self.results_df = pd.concat([self.results_df, pd.DataFrame(new_data, index=[0])], ignore_index=True)
 
-    def panel(self) -> pn.Column:
-        """View of the entire dashboard"""
-        return pn.Column(
-            self.view_title,
-            self.view_config_input,
-            pn.Column(
-                pn.Row(
-                    self.input_model_pane,
-                    self.view_dataset_1_selectors,
-                ),
-                self.view_threshold_metric,
+    def view_test_subject_row(self) -> pn.Column:
+        """View of the subject under test widgets"""
+
+        section_title = "2. Define Model under test"
+
+        view_model_1 = pn.Column(
+            pn.Row(
+                self.model_widgets["Model 1 type"]["model_selector"],
+                self.model_widgets["Model 1 type"]["remove_button"],
             ),
             pn.Row(
-                pn.layout.Spacer(width=10),
-                pn.WidgetBox(
-                    "### Results",
-                    self.view_df_tabulator,
-                    pn.layout.Spacer(height=10),  # add a little buffer at the bottom of the results area
-                    styles={"background": self.color_light_gray},
-                ),
-                pn.layout.Spacer(width=10),
-                sizing_mode="stretch_width",
+                pn.Spacer(width=self.width_subwidget_offset),
+                self.model_widgets["Model 1 type"]["model_weights_path"],
+                # self.model_widgets["Model 1 type"]["tooltip"],
             ),
-            pn.layout.Spacer(height=50),
-            pn.Row(pn.layout.HSpacer(), self.run_analysis_button, sizing_mode="stretch_width"),
-            self.view_status_bar,
-            styles={"background": self.color_dark_blue},
+        )
+
+        return pn.Column(
+            pn.Spacer(height=20),
+            pn.Row(
+                # the text on the left:
+                pn.Column(
+                    pn.pane.Markdown(
+                        section_title,
+                        styles=self.style_text_h3,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                    pn.Row(
+                        pn.Spacer(width=12),  # padding to align this with title text above
+                        pn.pane.Markdown(
+                            "Select model to analyze.",
+                            styles=self.style_text_body2,
+                            stylesheets=[self.css_paragraph],
+                            width=395,
+                        ),
+                    ),
+                ),
+                pn.Spacer(width=124),  # padding between left and right content
+                pn.Column(
+                    pn.Spacer(height=14),  # padding above white box
+                    # the white box on the right:
+                    pn.Column(
+                        pn.Spacer(height=14),
+                        pn.Row(
+                            pn.Spacer(width=12),
+                            view_model_1,
+                        ),
+                        pn.Spacer(height=18),
+                        styles={
+                            "background": self.color_white,
+                            "border-color": self.color_blue_300,
+                            "border-width": "thin",
+                            "border-style": "solid",
+                            "border-radius": "5px",
+                        },
+                        sizing_mode="stretch_width",
+                    ),
+                    pn.Spacer(height=14),  # padding below white box
+                ),
+                pn.Spacer(width=23),  # padding on the right edge of the app
+            ),
+            pn.Spacer(height=20),  # this controls the padding at the bottom of the whole section
+        )
+
+    def view_input_artifacts_row(self) -> pn.Column:
+        """View of input artifacts row which includes the dataset(s)/model(s)
+        and the evaluation metric
+        """
+        model_widget_section = pn.Column(
+            self.view_model_widget_pairs,
             sizing_mode="stretch_width",
+        )
+
+        # only add the add_model option for multi-model cases
+        if self.multi_model_visible:
+            model_widget_section.append(self.add_model)
+
+        return pn.Column(
+            pn.Spacer(height=20),  # top padding for the overall section
+            pn.Row(
+                # section text on left:
+                pn.Column(
+                    pn.pane.Markdown(
+                        "3. Define test input artifacts",
+                        styles=self.style_text_h3,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                    pn.Row(
+                        pn.Spacer(width=12),  # padding to align this with title text above
+                        pn.pane.Markdown(
+                            "Set metric type and comparison dataset type and location",
+                            styles=self.style_text_body2,
+                            stylesheets=[self.css_paragraph],
+                            width=395,
+                        ),
+                    ),
+                ),
+                pn.Spacer(width=124),
+                # white box on the right:
+                pn.Row(
+                    pn.Spacer(width=12),  # padding on left side of white box
+                    pn.Column(
+                        pn.Spacer(height=18),
+                        self._view_dataset_1_selectors,
+                        self.metric_selector,
+                        pn.Spacer(height=18),
+                    ),
+                    styles={
+                        "background": self.color_white,
+                        "border-color": self.color_blue_300,
+                        "border-width": "thin",
+                        "border-style": "solid",
+                        "border-radius": "5px",
+                    },
+                    sizing_mode="stretch_width",
+                ),
+                pn.Spacer(width=23),
+            ),
+            pn.Spacer(height=20),  # padding at the bottom of the overall section
         )
 
 
 if __name__ == "__main__":  # pragma: no cover
     """Instantiate a deployable version of the app"""
-    app = ModelEvaluationDashboard(
+    app = ModelEvaluationTestbed(
         task="object_detection",
         output_dir=".",
     )

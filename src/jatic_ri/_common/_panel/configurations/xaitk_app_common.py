@@ -62,7 +62,7 @@ class BaseXAITKApp(BaseApp):
             pn.Card(
                 self.add_saliency_gen_config_widget(),
                 title="Saliency Generation Parameters",
-                header_color=self.color_light_gray,
+                header_color=self.color_gray_900,
                 width=self.left_column_width,
             ),
         ]
@@ -117,7 +117,7 @@ class BaseXAITKApp(BaseApp):
                 f"""
                 <style>
                 * {{
-                    color: {self.color_light_gray};
+                    color: {self.color_gray_900};
                 }}
                 </style>
                 {self.md_text}
@@ -151,6 +151,7 @@ class BaseXAITKApp(BaseApp):
     def panel(self) -> pn.Column:
         """High level view of the full app"""
         return pn.Column(
+            self.view_header,
             pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
             pn.Row(
                 self.saliency_widget[0],
@@ -159,7 +160,7 @@ class BaseXAITKApp(BaseApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_light_gray};
+                                color: {self.color_gray_900};
                             }}
                             </style>
                             <h2> Choose Sample Detection
@@ -171,7 +172,7 @@ class BaseXAITKApp(BaseApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_light_gray};
+                                color: {self.color_gray_900};
                             }}
                             </style>
                             <h2> Saliency Generation Output
@@ -184,5 +185,5 @@ class BaseXAITKApp(BaseApp):
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
             width=self.page_width,
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
         )

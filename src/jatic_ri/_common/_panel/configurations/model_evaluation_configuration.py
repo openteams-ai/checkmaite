@@ -14,6 +14,7 @@ import panel as pn
 import param
 
 from jatic_ri._common._panel.configurations.base_app import BaseApp
+from jatic_ri.util.dashboard_utils import _center_horizontally, _center_vertically
 
 
 class ConfigurationLandingPage(BaseApp):
@@ -29,9 +30,6 @@ class ConfigurationLandingPage(BaseApp):
     show_xaitk_config = param.Boolean(default=False)
     show_nrtk_config = param.Boolean(default=False)
 
-    # run MAITE evaluation workflow
-    baseline_evaluate = param.Boolean(default=False)
-
     # dictionary for holding all the output configurations
     # this dictionary is passed between all the stages and
     # is used in the final stage to generate the json file
@@ -45,6 +43,9 @@ class ConfigurationLandingPage(BaseApp):
         self.title = f"Model evaluation configuration: {self.task.replace('_', ' ').title()}"
         # make sure that the next stage matches the defaults
         self._update_next_parameter()
+
+        # checkbox for baseline evaluation (aka run maite workflow)
+        self.baseline_eval = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
 
     @param.depends("show_nrtk_config", "show_xaitk_config", watch=True)
     def _update_next_parameter(self) -> None:
@@ -79,7 +80,7 @@ class ConfigurationLandingPage(BaseApp):
         self.output_test_stages = {
             "task": self.task,
         }
-        if self.baseline_evaluate:
+        if self.baseline_eval.value:
             self.output_test_stages.update(
                 {
                     "baseline_evaluate": {
@@ -91,52 +92,178 @@ class ConfigurationLandingPage(BaseApp):
 
         return followup_next_parameter, self.task, self.output_test_stages
 
-    def view_optional_configs(self) -> pn.Row:
-        """View the toggles configs"""
+    def _generate_checkbox_subsection(
+        self, checkbox: pn.widgets.Checkbox, label: str, description: str, section_height: int = 62
+    ) -> pn.Row:
+        """Construct a viewable object for the checkbox subsections.
+        NOTE: Section height default is set at 62 for single line descriptions. This is a
+        departure from the figma spec. Resolving this will require additional css work.
+        """
+
         return pn.Row(
-            pn.Spacer(width=20),
-            pn.WidgetBox(
-                "### Select Model Evaluation configurations",
-                pn.widgets.Toggle.from_param(
-                    self.param.baseline_evaluate,
-                    name="Include Baseline Evaluation",
-                    button_type="primary",
-                    button_style="outline",
+            pn.Spacer(width=24),
+            pn.Row(
+                pn.Column(
+                    pn.Spacer(height=5),
+                    checkbox,
                 ),
-                styles={"background": self.color_light_gray},
+                pn.Column(
+                    pn.Spacer(height=4),
+                    pn.pane.Markdown(
+                        label,
+                        styles=self.style_text_subtitle,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                    pn.pane.Markdown(
+                        description,
+                        styles=self.style_text_body2,
+                        stylesheets=[self.css_paragraph],
+                    ),
+                ),
+                width=649,
+                height=section_height,  # style guide departure to account for line height
+                styles=self.style_border,
             ),
-            pn.WidgetBox(
-                "### Add advanced configuration \n (will be configured on subsequent pages)",
-                pn.widgets.Toggle.from_param(
-                    self.param.show_xaitk_config,
-                    name="Configure XAITK",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                pn.widgets.Toggle.from_param(
-                    self.param.show_nrtk_config,
-                    name="Configure NRTK",
-                    button_type="primary",
-                    button_style="outline",
-                ),
-                styles={"background": self.color_light_gray},
+        )
+
+    def view_core_analysis_tools(self) -> pn.Column:
+        """ "view of the core analysis row of the app"""
+        return pn.Column(
+            pn.Spacer(height=24),
+            self._generate_checkbox_subsection(
+                self.baseline_eval,
+                "Baseline Evaluation",
+                "Evaluate model performance against a given metric (specified at runtime).",
             ),
+            pn.Spacer(height=24),
+            styles={
+                "background-color": self.color_white,
+                "border-color": self.color_border,
+                "border-width": "thin",
+                "border-style": "solid",
+                "border-radius": "8px",
+            },
+            width=697,
+        )
+
+    def view_configurable_tools(self) -> pn.Column:
+        """View of the configurable tools row of the app"""
+        nrtk_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.show_nrtk_config,
+            name="",
+            stylesheets=[self.css_checkbox],
+        )
+        xaitk_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.show_xaitk_config,
+            name="",
+            stylesheets=[self.css_checkbox],
+        )
+        return pn.Column(
+            pn.Spacer(height=24),
+            self._generate_checkbox_subsection(
+                nrtk_checkbox,
+                "NRTK",
+                "Generate perturbations for evaluating model robustness.",
+                section_height=76,
+            ),
+            pn.Spacer(height=12),
+            self._generate_checkbox_subsection(
+                xaitk_checkbox,
+                "XAITK",
+                "Generate explanations of model predictions.",
+            ),
+            pn.Spacer(height=24),
+            styles={
+                "background-color": self.color_white,
+                "border-color": self.color_border,
+                "border-width": "thin",
+                "border-style": "solid",
+                "border-radius": "8px",
+            },
+            width=697,
         )
 
     def panel(self) -> pn.Column:
         """Visualize the landing page"""
-        return pn.Column(
-            self.view_title(),
+
+        title_row = pn.Column(
             pn.pane.Markdown(
-                self.description,
-                styles={"font-size": f"{self.summary_text_size}px", "color": f"{self.color_light_gray}"},
-                stylesheets=[self.widget_stylesheet],
+                self.task.replace("_", " ").title(),
+                styles=self.style_text_body2,
+                stylesheets=[self.css_paragraph],
             ),
-            self.view_optional_configs,
-            pn.Spacer(height=20),
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            pn.pane.Markdown(
+                "Model Evaluation Configuration",
+                styles=self.style_text_h2,
+                stylesheets=[self.css_paragraph],
+            ),
+            pn.pane.Markdown(
+                "Setup your model evaluation configuration to include tools from various JATIC "
+                "products. Once complete, you will be able to download the configuration file to "
+                "test your models and datasets",
+                styles=self.style_text_body2,
+                stylesheets=[self.css_paragraph],
+            ),
+        )
+
+        core_analysis_row = pn.Row(
+            pn.Column(
+                pn.pane.Markdown(
+                    "Core evaluation tools",
+                    styles=self.style_text_h3,
+                    stylesheets=[self.css_paragraph],
+                ),
+                pn.pane.Markdown(
+                    "Select from a set of JATIC evaluation tools designed to assess the quality "
+                    "of your model. These tools require no additional "
+                    "configuration.",
+                    styles=self.style_text_body2,
+                    stylesheets=[self.css_paragraph],
+                    width=395,
+                ),
+            ),
+            pn.Spacer(width=124),
+            self.view_core_analysis_tools,
+        )
+
+        configurable_row = pn.Row(
+            pn.Column(
+                pn.pane.Markdown(
+                    "Configurable evaluation tools",
+                    styles=self.style_text_h3,
+                    stylesheets=[self.css_paragraph],
+                ),
+                pn.pane.Markdown(
+                    "Explore these configurable JATIC analysis tools that address unique modeling "
+                    "challenges. These will be configured on the following pages.",
+                    styles=self.style_text_body2,
+                    stylesheets=[self.css_paragraph],
+                    width=395,
+                ),
+            ),
+            pn.Spacer(width=124),
+            self.view_configurable_tools,
+        )
+
+        return pn.Column(
+            self.view_header,
+            pn.Row(
+                pn.Spacer(width=12),
+                pn.Column(
+                    title_row,
+                    pn.Spacer(height=24),
+                    self.horizontal_line(),
+                    pn.Spacer(height=24),
+                    core_analysis_row,
+                    pn.Spacer(height=24),
+                    self.horizontal_line(),
+                    pn.Spacer(height=24),
+                    configurable_row,
+                ),
+                pn.Spacer(width=24),
+            ),
+            styles={"background": self.color_main_bg},
+            width=self.app_width,
         )
 
 
@@ -158,8 +285,7 @@ class FinalPage(BaseApp):
         self.writeout_button = pn.widgets.FileDownload(
             filename="config.json",
             callback=self._get_filestream,
-            name="Download the dashboard config",
-            styles={"font-size": f"{self.summary_text_size}px", "color": f"{self.color_light_gray}"},
+            stylesheets=[self.css_button],
         )
 
     def _get_filestream(self) -> StringIO:
@@ -173,11 +299,44 @@ class FinalPage(BaseApp):
     def panel(self) -> pn.Column:
         """Visualize the Final page"""
         return pn.Column(
-            self.view_title(),
-            pn.Row(self.writeout_button, width=self.page_width, stylesheets=[self.widget_stylesheet]),
-            width=self.page_width,
-            height=self.page_height,
-            styles={"background": self.color_dark_blue},
+            self.view_header,
+            _center_vertically(
+                pn.Row(
+                    _center_horizontally(
+                        pn.Column(
+                            _center_horizontally(
+                                pn.pane.Markdown(
+                                    "Success!",
+                                    styles=self.style_text_h1,
+                                )
+                            ),
+                            pn.Column(
+                                _center_horizontally(
+                                    pn.widgets.ButtonIcon(
+                                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
+                                    )
+                                ),
+                                _center_horizontally(
+                                    pn.pane.Markdown(
+                                        "You're all set! Download your .json file below to",
+                                        stylesheets=[self.css_paragraph],
+                                    )
+                                ),
+                                _center_horizontally(
+                                    pn.pane.Markdown(
+                                        "continue your evaluation pipeline.", stylesheets=[self.css_paragraph]
+                                    )
+                                ),
+                                _center_horizontally(self.writeout_button),
+                                styles={**self.style_border, "padding": "15px"},
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            styles={"background-color": self.color_main_bg},
+            width=self.app_width,
+            height=400,
         )
 
 
@@ -242,7 +401,8 @@ class ModelEvaluationConfigApp(BaseApp):
                     self.pipeline.next_button,
                 ),
             ),
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
+            width=self.app_width,
         )
 
 

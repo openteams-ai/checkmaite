@@ -81,7 +81,7 @@ class NRTKBaseApp(BaseApp):
                 pn.Card(
                     self.add_perturber_config_widget(),
                     title="Factory Configuration",
-                    header_color=self.color_light_gray,
+                    header_color=self.color_gray_900,
                 )
             ]
 
@@ -89,7 +89,7 @@ class NRTKBaseApp(BaseApp):
             pn.Card(
                 self.add_perturber_config_widget(),
                 title="Factory Configuration",
-                header_color=self.color_light_gray,
+                header_color=self.color_gray_900,
                 width=self.left_column_width,
             )
         ]
@@ -331,7 +331,7 @@ class NRTKBaseApp(BaseApp):
             self.cn2at1m_provider,
             title="Scenario Parameters",
             collapsed=True,
-            header_color=self.color_light_gray,
+            header_color=self.color_gray_900,
         )
 
         for widget in additional_params.objects:
@@ -360,10 +360,10 @@ class NRTKBaseApp(BaseApp):
             self.qewavelengths_provider,
             title="Sensor Parameters",
             collapsed=True,
-            header_color=self.color_light_gray,
+            header_color=self.color_gray_900,
         )
 
-        additional_params.header_color = self.color_light_gray
+        additional_params.header_color = self.color_gray_900
 
         for widget in additional_params.objects:
             widget.stylesheets = [self.widget_stylesheet]
@@ -386,7 +386,7 @@ class NRTKBaseApp(BaseApp):
                 f"""
             <style>
             * {{
-              color: {self.color_light_gray};
+              color: {self.color_gray_900};
             }}
             </style>
             * Stage Name: {self.name_input.value}
@@ -582,6 +582,7 @@ class NRTKBaseApp(BaseApp):
         )
         right_column = pn.Column(self.view_plots)
         return pn.Column(
+            self.view_header,
             pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
             pn.Row(
                 left_column,
@@ -590,5 +591,5 @@ class NRTKBaseApp(BaseApp):
             pn.Row(pn.layout.HSpacer(), self.test_perturber_button),
             self.view_status_bar,
             width=self.page_width,
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
         )
