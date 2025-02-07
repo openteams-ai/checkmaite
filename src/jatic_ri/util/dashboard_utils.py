@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import panel as pn
+
 from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import (
     BaselineEvaluation as BaselineEvaluationIC,
 )
@@ -159,3 +161,25 @@ def create_download_link(path: str, label: str | None = None, download_filename:
         document.body.removeChild(link);
     ">{label}</a>
     """
+
+
+def _center_vertically(panel_object: pn.viewable.Viewable) -> pn.Column:
+    """Create a panel layout with the given panel object
+    centered vertically inside
+    """
+    return pn.Column(
+        pn.VSpacer(),
+        panel_object,
+        pn.VSpacer(),
+    )
+
+
+def _center_horizontally(panel_object: pn.viewable.Viewable) -> pn.Row:
+    """Create a panel layout with the given panel object
+    centered horizonally inside
+    """
+    return pn.Row(
+        pn.HSpacer(),
+        panel_object,
+        pn.HSpacer(),
+    )

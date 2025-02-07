@@ -14,22 +14,7 @@ import panel as pn
 import param
 
 from jatic_ri._common._panel.configurations.base_app import BaseApp
-
-
-def _center_vertically(panel_object: pn.viewable) -> pn.Column:
-    return pn.Column(
-        pn.VSpacer(),
-        panel_object,
-        pn.VSpacer(),
-    )
-
-
-def _center_horizontally(panel_object: pn.viewable) -> pn.Column:
-    return pn.Row(
-        pn.HSpacer(),
-        panel_object,
-        pn.HSpacer(),
-    )
+from jatic_ri.util.dashboard_utils import _center_horizontally, _center_vertically
 
 
 class ConfigurationLandingPage(BaseApp):
@@ -363,7 +348,6 @@ class FinalPage(BaseApp):
 
     def panel(self) -> pn.Column:
         """Visualize the Final page"""
-
         return pn.Column(
             self.view_header,
             _center_vertically(

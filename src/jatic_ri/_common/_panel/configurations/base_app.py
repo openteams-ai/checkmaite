@@ -31,7 +31,7 @@ class BaseApp(param.Parameterized):
       width=self.widget_width, name='Model', stylesheets=[self.widget_stylesheet])`
     * apply width to the high level viewable (the outermost element returned from the `panel` method)
        - width=self.page_width
-    * apply the navy background to the overall page `styles=dict(background=self.color_dark_blue)`
+    * apply the navy background to the overall page `styles=dict(background=self.color_main_bg)`
     * apply the button stylesheets, button_type must be set to "primary"
     * visualize the export button and implement the _run_export method to run/collect metrics, etc
     * remove pn.extension from app.py files
@@ -68,17 +68,29 @@ class BaseApp(param.Parameterized):
         super().__init__(**params)
         self.app_width = 1280
         # style guide
-        self.color_light_gray = "#fafefe"
-        self.color_dark_blue = "#001B4D"  # blue-900
+        self.color_blue_900 = "#001B4D"  # blue-900
+        self.color_blue_800 = "#0F388A"  # blue-800
+        self.color_blue_700 = "#1550C1"  # blue-700
+        self.color_blue_600 = "#195FE6"  # blue-600
         self.color_blue_500 = "#5284E5"  # blue-500
+        self.color_blue_400 = "#770FEE"  # blue-400
+        self.color_blue_300 = "#A3BEF5"  # blue-300
         self.color_blue_200 = "#D5E0F6"  # blue-200
-        self.color_light_blue = "#abd1f5"
-        self.color_black = "#000000"
-        self.color_main_bg = "#F8FAFC"  # gray-200
+        self.color_blue_100 = "#EDF2FD"  # blue-100
         self.color_white = "#FFFFFF"  # pure-white
-        self.color_maintext = "#00050A"  # gray-900
-        self.color_subtext = "#415062"  # gray-700
-        self.color_border = "#BBC9DD"  # gray-500
+        self.color_gray_900 = "#00050A"  # gray-900
+        self.color_gray_800 = "#1E2C3E"  # gray-800
+        self.color_gray_700 = "#415062"  # gray-700
+        self.color_gray_600 = "#788BA5"  # gray-600
+        self.color_gray_500 = "#BBC9DD"  # gray-500
+        self.color_gray_400 = "#DDE4EE"  # gray-400
+        self.color_gray_300 = "#F1F4F9"  # gray-300
+        self.color_gray_200 = "#F8FAFC"  # gray-200
+        self.color_main_bg = self.color_gray_200
+
+        self.color_maintext = self.color_gray_900  # gray-900
+        self.color_subtext = self.color_gray_700  # gray-700
+        self.color_border = self.color_gray_500  # gray-500
 
         self.font_family = "'Helvetica Neue', 'Arial'"
         self.style_text_h1 = {
@@ -160,21 +172,21 @@ class BaseApp(param.Parameterized):
         self.widget_height = "20px"
         self.widget_stylesheet = f"""
             :host {{
-              color: {self.color_light_gray}; /* label text color */
+              color: {self.color_gray_700}; /* label text color */
             }}
 
             select:not([multiple]).bk-input, select:not([size]).bk-input {{
               height: {self.widget_height}; /* dropdown widget height */
-              color: {self.color_black} /* text color on value of Dropdown widgets */
+              color: {self.color_gray_900} /* text color on value of Dropdown widgets */
             }}
 
             .bk-input {{
               height: {self.widget_height};  /* FloatInput widget height */
-              color: {self.color_black} /* text color on value of FloatInput widgets */
+              color: {self.color_gray_900} /* text color on value of FloatInput widgets */
             }}
             """
-        self.button_bgcolor = self.color_light_blue
-        self.button_textcolor = self.color_black
+        self.button_bgcolor = self.color_blue_500
+        self.button_textcolor = self.color_white
         self.button_stylesheet = f"""
             :host(.solid) .bk-btn.bk-btn-primary {{
               background-color: {self.button_bgcolor}
@@ -186,12 +198,12 @@ class BaseApp(param.Parameterized):
             """
         self.text_color_styling = f"""
             *, *:before, *:after  {{
-              color: {self.color_light_gray};
+              color: {self.color_gray_700};
             }}
             """
         self.info_button_style = f"""
             .bk-description > .bk-icon {{
-              background-color: {self.color_light_gray};
+              background-color: {self.color_gray_700};
             }}
             """
 
@@ -279,14 +291,13 @@ class BaseApp(param.Parameterized):
         return pn.pane.Markdown(
             self.title,
             styles=self.style_text_h1,
-            # stylesheets=[self.css_title],
         )
 
     def view_header(self) -> pn.Row:
         """View header row with JATIC logo"""
         return pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_blue_900},
             width=self.app_width,
         )
 
@@ -299,5 +310,5 @@ class BaseApp(param.Parameterized):
             self.view_title,
             self.view_status_bar,
             width=self.page_width,
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
         )

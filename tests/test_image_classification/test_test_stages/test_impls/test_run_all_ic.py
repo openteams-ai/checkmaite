@@ -1,5 +1,7 @@
 import pytest 
 
+from gradient.templates_and_layouts.create_deck import create_deck
+
 from jatic_ri.image_classification.metrics import accuracy_multiclass_torch_metric_factory
 from jatic_ri.image_classification.models import TorchvisionICModel
 from jatic_ri.image_classification.datasets import YoloClassificationDataset
@@ -34,12 +36,12 @@ def dataset_ic(fake_dataset):
     return YoloClassificationDataset(dataset_name="test_dataset", root_dir=dataset_root, split="test")
     
 
-@pytest.mark.skip(reason="only for local testing")
+@pytest.mark.real_data
 @pytest.mark.parametrize(
     "config_fixture_name",
     ['nrtk_config_ic', 'survivor_config_ic', 'xaitk_config_ic', 'feasibility_config_ic', 'bias_config_ic', 'linting_config_ic', 'baseline_eval_config_ic', 'shift_config_ic'],
 )
-def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic):
+def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic, artifact_dir):
     """Run end to end test from test stage config output to running the test. 
     This is only for local testing as it is very time consuming. 
     Once a faked model and dataset exist, it can be run in CI.
@@ -69,3 +71,14 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
         test_stage.load_models(models={'model_1': model_ic})
 
     test_stage.run(use_cache=False)
+
+    # run the stage, saving output to the class
+    test_stage.run(use_cache=False)
+    # collect the slides
+    slides = test_stage.collect_report_consumables()
+    # generate report
+    report = create_deck(
+        slides,
+        artifact_dir, 
+        deck_name=f"{test_stage.__class__.__name__}_report",
+    )

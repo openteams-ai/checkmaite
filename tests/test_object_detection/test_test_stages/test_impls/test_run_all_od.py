@@ -1,5 +1,8 @@
 import pytest
 
+from gradient.templates_and_layouts.create_deck import create_deck
+
+import jatic_ri
 from jatic_ri.object_detection.datasets import CocoDetectionDataset
 from jatic_ri import PACKAGE_DIR
 from pathlib import Path
@@ -43,12 +46,12 @@ def dataset_od():
 
 
 
-@pytest.mark.skip(reason="only for local testing")
+@pytest.mark.real_data
 @pytest.mark.parametrize(
     "config_fixture_name",
     ['reallabel_config_od', 'nrtk_config_od', 'survivor_config_od', 'xaitk_config_od', 'feasibility_config_od', 'bias_config_od', 'linting_config_od', 'baseline_eval_config_od', 'shift_config_od'],
 )
-def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od):
+def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od, artifact_dir):
     """Run end to end test from test stage config output to running the test. 
     This is only for local testing as it is very time consuming. 
     Once a faked model and dataset exist, it can be run in CI.
@@ -77,4 +80,14 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     elif isinstance(test_stage, MultiModelPlugin):
         test_stage.load_models(models={'model_1': model_od})
 
+    # run the stage, saving output to the class
     test_stage.run(use_cache=False)
+    # collect the slides
+    slides = test_stage.collect_report_consumables()
+
+    # generate report
+    report = create_deck(
+        slides,
+        artifact_dir, 
+        deck_name=f"{test_stage.__class__.__name__}_report",
+    )

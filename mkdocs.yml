@@ -9,7 +9,9 @@ nav:  # navigation links on sidebar
   - Examples:
     - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
     - Dataset Analysis Configuration: examples/dataset_analysis_configuration.ipynb
+    - Dataset Analysis Testbed: examples/Dataset_Analysis_Testbed.ipynb
     - Model Evaluation Configuration: examples/model_evaluation_configuration.ipynb
+    - Model Evaluation Testbed: examples/Model_Evaluation_Testbed.ipynb
     - Image Classification Dataset Wrapper: examples/image_classification_dataset_wrapper.ipynb
     - XAITK Test Stage: examples/xaitk_test_stage_how_to_guide.ipynb
   - Object Detection:

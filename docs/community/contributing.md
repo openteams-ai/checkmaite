@@ -78,6 +78,13 @@ This project uses `pytest` for it's test suite. Run the full test suite with:
 pytest tests -svv
 ```
 
+There are also tests which run on real data. These are time consuming to run so they are skipped by default. 
+You can run them manually with:
+
+```bash
+pytest tests -svv -m real_data
+```
+
 NOTE:
 If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
 directory to run tests with coverage:

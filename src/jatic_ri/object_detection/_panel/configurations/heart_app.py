@@ -103,7 +103,7 @@ class HeartApp(BaseApp):
                 pn.Card(
                     self.add_attack_config_widget(),
                     title=f"{self.attack_select.value} ",
-                    header_color=self.color_light_gray,
+                    header_color=self.color_gray_400,
                 ),
             ]
 
@@ -111,7 +111,7 @@ class HeartApp(BaseApp):
             pn.Card(
                 self.add_attack_config_widget(),
                 title=f"{self.attack_select.value} ",
-                header_color=self.color_light_gray,
+                header_color=self.color_gray_400,
                 width=self.left_column_width,
             ),
         ]
@@ -169,7 +169,7 @@ class HeartApp(BaseApp):
                 f"""
             <style>
             * {{
-              color: {self.color_light_gray};
+              color: {self.color_gray_900};
             }}
             </style>
             * Attack Type: {self.attack_select.value}
@@ -247,7 +247,7 @@ class HeartApp(BaseApp):
             pn.Row(pn.layout.HSpacer(), self.export_button),
             self.view_status_bar,
             width=self.page_width,
-            styles={"background": self.color_dark_blue},
+            styles={"background": self.color_main_bg},
         )
 
 

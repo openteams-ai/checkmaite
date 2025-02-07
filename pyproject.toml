@@ -137,3 +137,6 @@ known-first-party = ["jatic_ri"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.pytest.ini_options]
+addopts = "-m 'not real_data'"
