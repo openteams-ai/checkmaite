@@ -14,10 +14,11 @@ import maite.protocols.image_classification as ic
 # 3rd party imports
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+import torch
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict
+from torchvision.transforms.v2.functional import rgb_to_grayscale
 from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 
 # XAITK imports
@@ -82,11 +83,7 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
             sub_dir = os.path.join(os.path.splitext(self.cache_path)[0], f"img_{dataset_idx}")
 
             os.makedirs(sub_dir, exist_ok=True)
-            ref_img = np.asarray(ref_img)
-            if ref_img.shape[0] == 1:
-                gray_img = np.asarray(Image.fromarray(ref_img[0]).convert("L"))
-            else:
-                gray_img = np.asarray(Image.fromarray(ref_img.transpose(1, 2, 0)).convert("L"))
+            gray_img = rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy()
 
             gt_label = self.model.index2label[int(np.argmax(targets))]  # type: ignore
             sal_maps = output_values[dataset_idx]

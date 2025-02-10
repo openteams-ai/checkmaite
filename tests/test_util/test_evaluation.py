@@ -14,7 +14,7 @@ mock_pred_detection_object = DetectionTarget(
                                     scores=torch.zeros((5, 5)),
     )
 # This is utilized from the od mock dataset values in conftest.py. 
-mock_image_data = torch.ones((1, 16, 16))
+mock_image_data = torch.ones((3, 16, 16))
 
 TInput = str  
 TTarget = str

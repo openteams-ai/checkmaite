@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+import torch
 from dataeval.metrics.bias import balance, coverage, diversity, parity
 from dataeval.utils.metadata import Metadata
 from numpy.typing import NDArray
@@ -15,6 +16,8 @@ from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin,
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 from jatic_ri.util.slide_deck import create_text_data_slide, create_text_table_data_slide
+
+from ._dataeval_utils import EmbeddingNet, extract_embeddings
 
 
 class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TDataset]):
@@ -33,6 +36,10 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
     BALANCE_KEY = "balance"
     DIVERSITY_KEY = "diversity"
     PARITY_KEY = "parity"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._embedding_net = EmbeddingNet().cpu()
 
     @property
     def cache_id(self) -> str:
@@ -87,8 +94,8 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         except ValueError:
             return result_dict
 
-        faux_embeddings = images.reshape(images.shape[0], -1)
-        cov_out = coverage(faux_embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
+        embeddings = extract_embeddings(torch.from_numpy(images), embedding_net=self._embedding_net).numpy()
+        cov_out = coverage(embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
         cov_dict = cov_out.dict()
         cov_img_path = str(self.image_folder / "coverage_plot.png")
         cov_fig = cov_out.plot(images)
