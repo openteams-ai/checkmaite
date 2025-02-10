@@ -130,9 +130,9 @@ def dummy_dataset_od_with_target_metadata() -> od.Dataset:
     """Creates and returns a dummy maite-compliant dataset"""
 
     class DummyDataset:
-        """Dataset with 10 1x16x16 CHW images"""
+        """Dataset with 10 3x16x16 CHW images"""
 
-        images = torch.ones(size=(10, 1, 16, 16))
+        images = torch.ones(size=(10, 3, 16, 16))
 
         def __len__(self) -> int:
             return len(self.images)
@@ -147,9 +147,9 @@ def dummy_dataset_od() -> od.Dataset:
     """Creates and returns a dummy maite-compliant dataset"""
 
     class DummyDataset:
-        """Dataset with 10 1x16x16 CHW images"""
+        """Dataset with 10 3x16x16 CHW images"""
 
-        images = torch.ones(size=(10, 1, 16, 16))
+        images = torch.ones(size=(10, 3, 16, 16))
 
         def __len__(self) -> int:
             return len(self.images)
@@ -217,7 +217,7 @@ def dummy_model_ic() -> ic.Model:
 def dummy_dataset_ic() -> ic.Dataset:
     class DummyDataset:
         def __init__(self):
-            self.data = RNG.random((10, 1, 16, 16))
+            self.data = RNG.random((10, 3, 16, 16))
 
             self.targets = RNG.random((10, 2))
 

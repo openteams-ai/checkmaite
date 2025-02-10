@@ -23,6 +23,8 @@ from jatic_ri._common.test_stages.interfaces.plugins import TDataset, TwoDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
 
+from ._dataeval_utils import EmbeddingNet, extract_embeddings
+
 
 class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDataset]):
     """Detects dataset shift between two datasets using various methods
@@ -49,6 +51,10 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     _deck: str
     _task: str
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._embedding_net = EmbeddingNet().to(self.device)
+
     @property
     def cache_id(self) -> str:
         """Unique identifier for cached results"""
@@ -57,17 +63,15 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     def _run(self) -> dict[str, Any]:
         """Run methods for drift and ood detectors"""
 
-        # torch handles tensor(list[array]) different than tensor(list[tensor]),
-        # where tensor(list[array]) has the correct and consistent behavior
-        images_1 = [np.array(d[0]) for d in self.dataset_1]
-        images_2 = [np.array(d[0]) for d in self.dataset_2]
+        images_1 = np.array([image for image, *_ in self.dataset_1])
+        images_2 = np.array([image for image, *_ in self.dataset_2])
 
         return {
             **self._run_drift(
-                images_1=torch.tensor(images_1, dtype=torch.float32),
-                images_2=torch.tensor(images_2, dtype=torch.float32),
+                images_1=torch.as_tensor(images_1, dtype=torch.float32, device=self.device),
+                images_2=torch.as_tensor(images_2, dtype=torch.float32, device=self.device),
             ),
-            **self._run_ood(images_1=np.array(images_1), images_2=np.array(images_2)),
+            **self._run_ood(images_1=images_1, images_2=images_2),
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
@@ -88,14 +92,17 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     def _run_drift(self, images_1: torch.Tensor, images_2: torch.Tensor) -> dict[str, Any]:
         """Runs MMD, CVM, and KS methods against images"""
 
-        kwargs = {"x_ref": images_1}
+        embeddings_1 = extract_embeddings(images_1, embedding_net=self._embedding_net).cpu()
+        embeddings_2 = extract_embeddings(images_2, embedding_net=self._embedding_net).cpu()
+
+        kwargs = {"x_ref": embeddings_1}
         detectors = {
             "Maximum Mean Discrepency": partial(DriftMMD, device=self.device),
             "Cramér-von Mises": DriftCVM,
             "Kolmogorov-Smirnov": DriftKS,
         }
 
-        outputs = {name: detector(**kwargs).predict(images_2).dict() for name, detector in detectors.items()}
+        outputs = {name: detector(**kwargs).predict(embeddings_2).dict() for name, detector in detectors.items()}
         return {"drift": outputs}
 
     def _run_ood(self, images_1: NDArray[Any], images_2: NDArray[Any]) -> dict[str, Any]:
