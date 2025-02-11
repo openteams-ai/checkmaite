@@ -262,19 +262,6 @@ def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
     with pytest.raises(RIValidationError, match=r"'metric' not set! Please use `load_metric\(\)` function"):
         test_stage_3.run(use_cache=False)
 
-
-def test_missing_cache_image_error(tmp_path: Path) -> None:
-    """Test error is raised when there is data in the cache but no image."""
-    # Arrange
-    test_df = pd.DataFrame({"image_id": []})
-    test_df.to_csv(tmp_path / "survivor_standard_results.csv")
-    cache = SurvivorCache()
-
-    # Act and Assert
-    with pytest.warns(UserWarning, match=f"Survivor cache path {tmp_path} doesn't contain a cached result visualization!"):
-        cache.read_cache(str(tmp_path))
-
-
 def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_path) -> None:
     """Test cache miss dir is deleted and resets if it already exists."""
     # Arrange

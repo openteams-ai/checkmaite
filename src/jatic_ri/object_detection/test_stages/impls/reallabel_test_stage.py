@@ -70,8 +70,12 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The cached RealLabel results as a pyspark dataframe
                 [1]: The path to the cached RealLabel result image.
         """
+        cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
+        cached_results_img_file_path = Path(cache_path) / _REALLABEL_CACHE_IMAGE_PATH
+        if not (cached_results_csv_file_path.exists() and cached_results_img_file_path.exists()):
+            return None
+
         try:
-            cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
             spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
             cached_results_df = spark.read.csv(str(cached_results_csv_file_path), header=True, inferSchema=True).drop(
                 "_c0",
@@ -80,17 +84,9 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
                 "group_winner_box_coords",
                 sf.from_json("group_winner_box_coords", st.ArrayType(st.IntegerType())),
             )
-            cached_results_img_file_path = Path(cache_path) / _REALLABEL_CACHE_IMAGE_PATH
-            if not cached_results_img_file_path.exists():
-                raise ValueError(f"RealLabel cache path {cache_path} doesn't contain a cached result visualization!")
+        except AnalysisException as e:  # pragma: no cover
+            warnings.warn(f"Cache could not be read: {e}", stacklevel=2)
 
-        except (OSError, ValueError, AnalysisException) as e:  # pragma: no cover
-            warnings.warn(
-                f"Cache could not be read. "
-                f"Set use_cache to `False` to run without caching."
-                f"\nError Message: {e}",
-                stacklevel=2,
-            )
             return None
 
         return cached_results_df, cached_results_img_file_path

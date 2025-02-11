@@ -266,20 +266,6 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
         test_stage_2.run(use_cache=False)
 
 
-def test_missing_cache_image_error(tmp_path: Path) -> None:
-    """Test error is raised when there is data in the cache but no image."""
-    # Arrange
-    test_df = pd.DataFrame({"group_winner_box_coords": []})
-    test_df.to_csv(tmp_path / "reallabel_standard_results.csv")
-    cache = RealLabelCache()
-
-    # Act and Assert
-    with pytest.warns(
-        UserWarning, match=f"RealLabel cache path {tmp_path} doesn't contain a cached result visualization!"
-    ):
-        cache.read_cache(str(tmp_path))
-
-
 def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_path) -> None:
     """Test cache miss dir is deleted and resets if it already exists."""
     # Arrange
