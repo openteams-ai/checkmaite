@@ -1,7 +1,7 @@
 """Evaluation and Prediction tool for Test Stages"""
 
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union, overload
 
 from maite._internals.protocols import image_classification as ic
 from maite._internals.protocols import object_detection as od
@@ -183,6 +183,34 @@ class EvaluationTool:
             self.ri_cache.write_metric(filename, metric_results)
         return metric_results
 
+    @overload
+    def predict(
+        self,
+        model: ic.Model,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataset: ic.Dataset,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataloader: TDataloader = None,
+        batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
+    ) -> tuple[
+        Sequence[ic.TargetBatchType], Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]]
+    ]: ...
+
+    @overload
+    def predict(
+        self,
+        model: od.Model,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataset: od.Dataset,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataloader: TDataloader = None,
+        batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
+    ) -> tuple[
+        Sequence[od.TargetBatchType], Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]]
+    ]: ...
+
     def predict(
         self,
         model: Model,
@@ -259,6 +287,46 @@ class EvaluationTool:
         if self.ri_cache:
             self.ri_cache.write_predictions(cache_file, results)
         return results
+
+    @overload
+    def evaluate(
+        self,
+        model: ic.Model,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataset: ic.Dataset,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
+        metric: ic.Metric,
+        metric_id: str,  # Remove after MAITE 0.7.1 upgrade
+        batch_size: int = 1,
+        dataloader: TDataloader = None,
+        return_augmented_data: bool = False,
+        return_preds: bool = False,
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
+    ) -> tuple[
+        dict[str, Any],
+        Sequence[ic.TargetBatchType],
+        Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]],
+    ]: ...
+
+    @overload
+    def evaluate(
+        self,
+        model: od.Model,
+        model_id: str,  # Remove after MAITE 0.7.1 upgrade
+        dataset: od.Dataset,
+        dataset_id: str,  # Remove after MAITE 0.7.1 upgrade
+        metric: od.Metric,
+        metric_id: str,  # Remove after MAITE 0.7.1 upgrade
+        batch_size: int = 1,
+        dataloader: TDataloader = None,
+        return_augmented_data: bool = False,
+        return_preds: bool = False,
+        augmentation: None = None,  # To match MAITE signature and return appropriate error
+    ) -> tuple[
+        dict[str, Any],
+        Sequence[od.TargetBatchType],
+        Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]],
+    ]: ...
 
     def evaluate(
         self,

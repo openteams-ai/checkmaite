@@ -3,8 +3,6 @@ import os
 import numpy as np
 import pytest
 import torch
-from typing import Sequence
-from maite.protocols import ArrayLike
 from maite.workflows import evaluate
 from jatic_ri.util.cache import JSONCache, NumpyEncoder, TensorEncoder, SimpleRICacheIC, SimpleRICacheOD
 from jatic_ri.object_detection.datasets import DetectionTarget

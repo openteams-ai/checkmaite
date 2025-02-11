@@ -19,6 +19,7 @@ from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
@@ -31,7 +32,9 @@ from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_M
 from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
+from jatic_ri.util.cache import SimpleRICacheIC, SimpleRICacheOD
 from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
+from jatic_ri.util.evaluation import EvaluationTool
 
 JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
     "_sample_imgs",
@@ -63,6 +66,8 @@ METRICS_LABEL_MAP_IC = {
     "F1 Score": "f1score_multiclass_torch_metric_factory",
 }
 
+EVAL_TOOL_CACHE_DIR = ".eval_tool"
+
 
 class BaseDashboard(param.Parameterized):
     """Base Dashboard/Testbed. This class is inherited by the
@@ -91,8 +96,23 @@ class BaseDashboard(param.Parameterized):
     # Input for the target threshold
     threshold = param.String(default="0.5")
 
-    # Load results from cache/save to cache
-    use_cache = param.Boolean(default=True)
+    # This parameter configures the dashboard to use caching.  Caching can occur both at the
+    # test stage output and in the underlying EvaluationTool.  The full flow looks like this:
+    #   1) TestStage.run() will first check for a previously cached output for the given arguments.
+    #   Each tool's test stage may implement this differently. If the stage cache hits, flow ends here.
+    #   2) If no cache hit, the TestStage's _run implementation executes.
+    #   3) If the test stage implements the EvalToolPlugin, it will have loaded an EvaluationTool object
+    #      When 'use_caches' is True, that object will have a backend cache.
+    #   4) The EvaluationTool checks for a cache on two levels:
+    #           Predictions - i.e. model + dataset + batch size.  Both `predict()` and `evaluate()` will check
+    #           and use if available.  Since `evaluate()` runs `predict()`, the same test stage can run multiple
+    #           metrics against a given model and dataset (and batch size) without having to redo the inference.
+    #           Evaluations - i.e. model + dataset + metric + batch size.  Both `evaluate()` and `compute_metric()`
+    #           will check for a cache.
+    #   5) Only after a cache miss for `predict()` or `evaluate()` will the actual execution (model inference and/or
+    #      metric calculation) occur, with the results both cached at the EvaluationTool level and then passed back
+    #      to the TestStage._run(), which will in turn cache the output results for subsequent calls.
+    use_caches = param.Boolean(default=True)
 
     # Input for loading the pipeline config
     config_file = pn.widgets.FileInput(accept=".json")
@@ -664,7 +684,7 @@ class BaseDashboard(param.Parameterized):
 
         return True
 
-    def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover
+    def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover # noqa: C901
         """Loads the inputs to a given test stage based on
         values set in the UI and in the class itself
         """
@@ -699,6 +719,9 @@ class BaseDashboard(param.Parameterized):
         elif isinstance(test_stage, MultiModelPlugin):
             test_stage.load_models(self.loaded_models)
 
+        if isinstance(test_stage, EvalToolPlugin):
+            test_stage.load_eval_tool(self.eval_tool)
+
     def _construct_report_filename(self) -> str:
         """Construct a report filename of the output report based on the UI selections"""
         model_name = "-".join(list(self.loaded_models.keys())).replace(" ", "_")
@@ -716,11 +739,26 @@ class BaseDashboard(param.Parameterized):
         """
         self.status_text = "Processing. Please wait..."
 
+        self.eval_tool: EvaluationTool
+        if not self.use_caches:
+            # By default EvaluationTool is just a container for the functions without cache
+            self.eval_tool = EvaluationTool()
+        elif self.task == "image_classification":
+            self.eval_tool = EvaluationTool(
+                ri_cache=SimpleRICacheIC(cache_root_dir=self.output_dir + EVAL_TOOL_CACHE_DIR)
+            )
+        elif self.task == "object_detection":
+            self.eval_tool = EvaluationTool(
+                ri_cache=SimpleRICacheOD(cache_root_dir=self.output_dir + EVAL_TOOL_CACHE_DIR)
+            )
+        else:
+            raise RuntimeError(f"Task type {self.task} not supported.")
+
         slides = []
         for stage in self.test_stages.values():
             self.load_stage_inputs(stage)
             # run the stage, saving output to the class
-            stage.run(use_cache=self.use_cache)
+            stage.run(use_stage_cache=self.use_caches)
             # collect the slides
             stage_slides = stage.collect_report_consumables()
             slides += stage_slides
@@ -865,7 +903,7 @@ class BaseDashboard(param.Parameterized):
                         pn.Column(
                             "Use Cache",
                             pn.widgets.Switch.from_param(
-                                self.param.use_cache,
+                                self.param.use_caches,
                                 name="",
                                 stylesheets=[self.css_switch],
                             ),

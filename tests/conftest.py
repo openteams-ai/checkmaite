@@ -13,6 +13,8 @@ import pytest
 
 import torch
 from maite.protocols import ArrayLike
+import jatic_ri.util
+import jatic_ri.util.evaluation
 from tests.fake_ic_classes import FakeICDataset, FakeICModel, FakeICMetric
 from tests.fake_od_classes import FakeODDataset, FakeODMetric, FakeODModel
 
@@ -494,3 +496,10 @@ def fake_od_dataset_reallabel_only() -> FakeODDataset:
         targets=DEFAULT_OD_DATASET_TARGETS[:1],
         datum_metadata=DEFAULT_OD_DATUM_METADATA[:1]
     )
+
+@pytest.fixture(scope='session')
+def default_eval_tool_no_cache() -> jatic_ri.util.evaluation.EvaluationTool:
+    """
+    Fixture for returning a default, cache-free evaluation tool for running unit tests on Test Stages.
+    """
+    return jatic_ri.util.evaluation.EvaluationTool()

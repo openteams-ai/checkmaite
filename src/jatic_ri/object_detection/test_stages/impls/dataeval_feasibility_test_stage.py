@@ -9,9 +9,9 @@ import pandas as pd
 from dataeval.metrics.estimators import uap
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.text_data import TextData
-from maite.workflows import predict
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
@@ -27,6 +27,7 @@ class DatasetFeasibilityTestStage(
     SingleDatasetPlugin[od.Dataset],
     MetricPlugin[od.Metric],
     ThresholdPlugin,
+    EvalToolPlugin,
 ):
     """Docstring"""
 
@@ -41,14 +42,13 @@ class DatasetFeasibilityTestStage(
         # Returns a tuple of the predictions (as a sequence of batches) and
         # a sequence of tuples containing the information associated with each batch.
         # Associated information unneeded
-        predictions, _ = predict(model=self.model, dataset=self.dataset, batch_size=32)
-
-        # Reassign to enforce type-hinting checks
-        batches: Sequence[Sequence[od.TargetType]] = predictions
+        predictions, _ = self.eval_tool.predict(
+            model=self.model, model_id=self.model_id, dataset=self.dataset, dataset_id=self.dataset_id, batch_size=32
+        )
 
         # Flattens batches into continuous list of all target objects
         targets: Sequence[od.TargetType] = []
-        for batch in batches:
+        for batch in predictions:
             targets.extend(batch)
 
         # Collect all labels as list of target labels, then stack

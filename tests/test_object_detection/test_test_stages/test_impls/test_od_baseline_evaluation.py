@@ -9,9 +9,10 @@ import maite.protocols.object_detection as od
 from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import (
     BaselineEvaluation,
 )
+from jatic_ri.util.evaluation import EvaluationTool
 
 
-def test_baseline_evaluation_dummy_od(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
+def test_baseline_evaluation_dummy_od(dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache) -> None:
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
@@ -19,18 +20,20 @@ def test_baseline_evaluation_dummy_od(dummy_model_od, dummy_dataset_od, dummy_me
     test.load_metric(metric=dummy_metric_od, metric_id="metric_1")
     test.load_threshold(threshold=0.5)
     test.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
-    test.run(use_cache=False)
+    test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
+    test.run(use_stage_cache=False)
     test.collect_report_consumables()
 
-def test_baseline_evaluation_dummy_od_with_cache(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmp_path) -> None:
+def test_baseline_evaluation_dummy_od_with_cache(dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache, tmp_path) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
     test1.load_model(model=dummy_model_od, model_id="model_1")
     test1.load_metric(metric=dummy_metric_od, metric_id="metric_1")
     test1.load_threshold(threshold=0.5)
     test1.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
+    test1.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test1.cache_base_path = tmp_path
-    test1.run(use_cache=True)
+    test1.run(use_stage_cache=True)
     output1 =test1.collect_report_consumables()
 
     test2 = BaselineEvaluation()
@@ -38,9 +41,10 @@ def test_baseline_evaluation_dummy_od_with_cache(dummy_model_od, dummy_dataset_o
     test2.load_metric(metric=dummy_metric_od, metric_id="metric_1")
     test2.load_threshold(threshold=0.5)
     test2.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
+    test2.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test2.cache_base_path = tmp_path
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.run(use_cache=True)
+    test2.run(use_stage_cache=True)
     output2 = test2.collect_report_consumables()
 
     assert test2._run.call_count == 0

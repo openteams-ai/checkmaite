@@ -81,7 +81,7 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
         test_stage.load_models(models={'model_1': model_od})
 
     # run the stage, saving output to the class
-    test_stage.run(use_cache=False)
+    test_stage.run(use_stage_cache=False)
     # collect the slides
     slides = test_stage.collect_report_consumables()
 

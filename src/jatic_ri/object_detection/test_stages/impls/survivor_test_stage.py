@@ -12,15 +12,19 @@ import numpy as np
 import pyspark.sql.functions as sf
 from gradient import Text
 from maite import protocols as pr
-from maite.workflows import evaluate
 from pyspark.sql import DataFrame, SparkSession
 from survivor.analysis import HistogramBarPlot
 from survivor.config import Config as SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import SurvivorCache
-from jatic_ri._common.test_stages.interfaces.plugins import MetricPlugin, MultiModelPlugin, SingleDatasetPlugin
+from jatic_ri._common.test_stages.interfaces.plugins import (  # , EvalToolPlugin
+    MetricPlugin,
+    MultiModelPlugin,
+    SingleDatasetPlugin,
+)
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+from jatic_ri.util.evaluation import EvaluationTool
 
 # This constant represents the expected location of the Survivor output directory under the test_stage.cache_base_path
 # directory where the SurvivorTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -40,6 +44,8 @@ class SurvivorTestStage(
     MultiModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
     MetricPlugin[od.Metric],
+    # NOTE: Will add EvalToolPlugin with issue 252
+    # EvalToolPlugin
 ):
     """Survivor Test Stage Object.
 
@@ -125,11 +131,18 @@ class SurvivorTestStage(
             # just iterate through each Datum in the Dataset, and throw that single datum into evaluate()
             # in a list, which is compatible with MAITE's definition of a Dataset, therefore mimicking an
             # entire dataset of just one image.
+
+            # NOTE: Because the per-datum evaluations for Survivor require carefully configuring the names of
+            # the single datum "datasets" to avoid erroneous cache hits, we are for now establishing a local
+            # EvaluationTool with no caching enabled and will address cache in issue 252.
             for datum_information_tuple in self.dataset:
-                results, _, _ = evaluate(
+                results, _, _ = EvaluationTool().evaluate(
                     model=self.models[model],
+                    model_id=model,
                     dataset=[datum_information_tuple],
+                    dataset_id=datum_information_tuple[2]["id"],
                     metric=self.metric,
+                    metric_id=self.metric_id,
                     return_preds=True,
                 )
 

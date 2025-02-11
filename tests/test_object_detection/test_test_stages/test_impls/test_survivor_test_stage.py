@@ -219,7 +219,7 @@ def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
         shutil.rmtree(test_stage.cache_base_path)
 
     # Act - Build the cache
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     actual_cached_results_df, actual_cached_image = survivor_cache.read_cache(cache_path=str(expected_cache_location))
 
@@ -280,10 +280,10 @@ def test_survivor_collect_report_consumables(
     expected_title = "Survivor Dataset Breakdown"
 
     # Run test stage once to ensure cache is present
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     # Run again to use cache
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     # Act
     slide_content = test_stage.collect_report_consumables()
@@ -349,13 +349,13 @@ def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
 
     # Act and Assert
     with pytest.raises(RIValidationError, match=r"'models' not set! Please use `load_models\(\)` function"):
-        test_stage_1.run(use_cache=False)
+        test_stage_1.run(use_stage_cache=False)
 
     with pytest.raises(RIValidationError, match=r"'dataset' not set! Please use `load_dataset\(\)` function"):
-        test_stage_2.run(use_cache=False)
+        test_stage_2.run(use_stage_cache=False)
 
     with pytest.raises(RIValidationError, match=r"'metric' not set! Please use `load_metric\(\)` function"):
-        test_stage_3.run(use_cache=False)
+        test_stage_3.run(use_stage_cache=False)
 
 
 def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_path) -> None:

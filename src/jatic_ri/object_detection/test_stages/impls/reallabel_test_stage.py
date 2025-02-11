@@ -14,16 +14,12 @@ import pyspark.sql.functions as sf
 import pyspark.sql.types as st
 import torch
 from gradient import Text
-from maite.workflows import evaluate
 from PIL import Image
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-)
+from jatic_ri._common.test_stages.interfaces.plugins import EvalToolPlugin, MultiModelPlugin, SingleDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 
 # This constant represents the expected location of the RealLabel output directory under the test_stage.cache_base_path
@@ -121,7 +117,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
 
 
 class RealLabelTestStage(
-    MultiModelPlugin[od.Model], SingleDatasetPlugin[od.Dataset], TestStage[tuple[DataFrame, Path]]
+    MultiModelPlugin[od.Model], SingleDatasetPlugin[od.Dataset], TestStage[tuple[DataFrame, Path]], EvalToolPlugin
 ):
     """RealLabel test stage.
 
@@ -211,10 +207,8 @@ class RealLabelTestStage(
         clean_predictions = {}
         # Run all the models
         for model in self.models:
-            _, predictions, _ = evaluate(
-                model=self.models[model],
-                dataset=self.dataset,
-                return_preds=True,
+            predictions, _ = self.eval_tool.predict(
+                model=self.models[model], model_id=model, dataset=self.dataset, dataset_id=self.dataset_id
             )
             clean_predictions[model] = [x[0] for x in predictions]
         return clean_predictions

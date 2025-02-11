@@ -84,7 +84,7 @@ def reallabel_test_stage_args(fake_od_dataset_reallabel_only: FakeODDataset, fak
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
+def create_test_stage(default_eval_tool_no_cache, reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
     """Create a RealLabelTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
@@ -100,6 +100,7 @@ def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRe
         dataset=reallabel_test_stage_args["dataset"],
         dataset_id="test-dataset",
     )
+    test_stage.load_eval_tool(default_eval_tool_no_cache)
 
     test_stage.cache_base_path = CACHE_DIR
 
@@ -132,7 +133,7 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None
     reallabel_cache = RealLabelCache()
 
     # Act
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     actual_cached_results_df, actual_cached_image = reallabel_cache.read_cache(cache_path=str(expected_cache_location))
 
@@ -193,10 +194,10 @@ def test_reallabel_test_stage_collect_report_consumables(
     expected_title = "RealLabel Label Breakdown"
 
     # Run test stage once to ensure cache is present
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     # Run again to use cache
-    test_stage.run(use_cache=True)
+    test_stage.run(use_stage_cache=True)
 
     # Act
     slides = test_stage.collect_report_consumables()
@@ -260,10 +261,10 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
 
     # Act and Assert
     with pytest.raises(RIValidationError, match=r"'models' not set! Please use `load_models\(\)` function"):
-        test_stage_1.run(use_cache=False)
+        test_stage_1.run(use_stage_cache=False)
 
     with pytest.raises(RIValidationError, match=r"'dataset' not set! Please use `load_dataset\(\)` function"):
-        test_stage_2.run(use_cache=False)
+        test_stage_2.run(use_stage_cache=False)
 
 
 def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_path) -> None:
