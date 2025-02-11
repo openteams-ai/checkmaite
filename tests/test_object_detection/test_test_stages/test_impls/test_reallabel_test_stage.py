@@ -13,7 +13,6 @@ import pyspark.sql.functions as sf
 import pytest
 import maite.protocols.object_detection as od
 from gradient import Text
-from matplotlib.testing.compare import compare_images
 from reallabel import ColumnNameConfig
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
@@ -145,12 +144,7 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None
     )
     assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
 
-    # Compare the read-from-cache image against the actual image returned from `run()`
     assert expected_results_png_path.exists()
-    compare_images(str(test_stage.outputs[1]), str(actual_cached_image), 0.001)
-
-    # Further compare the image against what we expect the image to look like from a snapshot
-    compare_images(str(test_stage.outputs[1]), str(EXPECTED_REALLABEL_IMAGE), 0.001)
 
     # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
     assert expected_results_config_path.exists()

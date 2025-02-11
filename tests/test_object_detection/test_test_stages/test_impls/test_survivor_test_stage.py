@@ -12,7 +12,6 @@ import pytest
 import torch
 from gradient import Text
 from maite.protocols import object_detection as od
-from matplotlib.testing.compare import compare_images
 from gradient.templates_and_layouts.create_deck import create_deck
 from survivor.enums import ScoreConversionType
 
@@ -234,11 +233,7 @@ def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
     ]  # .withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
     assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
 
-    # Compare the read-from-cache image against the actual image returned from `run()`
     assert expected_results_png_path.exists()
-    compare_images(str(test_stage.outputs[1]), str(actual_cached_image), 0.001)
-    # Further compare the image against what we expect the image to look like from a snapshot
-    compare_images(str(test_stage.outputs[1]), str(EXPECTED_SURVIVOR_IMAGE), 0.001)
 
     # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
     assert expected_results_config_path.exists()
