@@ -27,8 +27,8 @@ ARGS = {
 }
 
 
-@pytest.mark.parametrize("use_cache", [True, False])
-def test_nrtk_test_stage(use_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od, artifact_dir) -> None:
+@pytest.mark.parametrize("use_stage_cache", [True, False])
+def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od, artifact_dir) -> None:
     """Test NRTKTestStage implementation"""
 
     test = NRTKTestStage(ARGS)
@@ -37,7 +37,7 @@ def test_nrtk_test_stage(use_cache, dummy_model_od, dummy_dataset_od, dummy_metr
     test.load_metric(metric=dummy_metric_od, metric_id=dummy_metric_od.return_key)
     test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
-    test.run(use_cache=use_cache)
+    test.run(use_stage_cache=use_stage_cache)
     output = test.collect_report_consumables()
 
     example_args = output[0]

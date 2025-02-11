@@ -17,7 +17,7 @@ def test_ic_linting(dummy_dataset_ic) -> None:
 
     test = DatasetLintingTestStage()
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_linting")
-    test.run(use_cache=False)
+    test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert output

@@ -16,8 +16,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage
 class TestFeasibilityTestStage:
     """Tests the DatasetFeasibilityTest test stage implementation"""
 
-    @patch("jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage.predict")
-    def test_feasibility_teststage(self, mock_predict: MagicMock, dummy_model_od, dummy_dataset_od) -> None:
+    def test_feasibility_teststage(self, dummy_model_od, dummy_dataset_od, default_eval_tool_no_cache) -> None:
         """Test FeasibilityTestStage implementation runs without error on dummy data"""
 
         # Only need to mock first `predict` return value
@@ -38,13 +37,12 @@ class TestFeasibilityTestStage:
         if batch:  # Append values that remain when dummy_dataset is not divisible by batch size (2)
             target_batches.append(batch)
 
-        mock_predict.return_value = (target_batches, None)
-
         test_stage = DatasetFeasibilityTestStage()
         test_stage.load_model(model=dummy_model_od, model_id="model_1")
         test_stage.load_threshold(threshold=10)
         test_stage.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
-        test_stage.run(use_cache=False)
+        test_stage.load_eval_tool(default_eval_tool_no_cache)
+        test_stage.run(use_stage_cache=False)
 
         assert "uap" in test_stage.outputs
         assert test_stage.outputs["uap"]

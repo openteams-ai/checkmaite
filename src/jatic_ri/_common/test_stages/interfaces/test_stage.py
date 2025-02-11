@@ -62,6 +62,7 @@ class TestStage(Generic[TData], ABC):
             "TwoDatasetPlugin": (["dataset_1", "dataset_1_id", "dataset_2", "dataset_2_id"], "load_datasets"),
             "MetricPlugin": (["metric", "metric_id"], "load_metric"),
             "ThresholdPlugin": (["threshold"], "load_threshold"),
+            "EvalToolPlugin": (["eval_tool"], "load_eval_tool"),
         }
 
         # Identify plugins in the inheritance hierarchy
@@ -80,9 +81,9 @@ class TestStage(Generic[TData], ABC):
                     f"'{missing_attr}' not set! Please use `{load_func}()` function to set the '{missing_attr}'.",
                 )
 
-    def run(self, use_cache: bool = True) -> None:
+    def run(self, use_stage_cache: bool = True) -> None:
         """Run the test stage leveraging cache if available and store any outputs of the evaluation in test stage"""
-        if use_cache and self.cache and self.cache_path:
+        if use_stage_cache and self.cache and self.cache_path:
             cached_outputs = self.cache.read_cache(self.cache_path)
             if cached_outputs:
                 self.outputs = cached_outputs
@@ -90,7 +91,7 @@ class TestStage(Generic[TData], ABC):
 
         self.outputs = self._run()
 
-        if use_cache and self.cache and self.cache_path:
+        if use_stage_cache and self.cache and self.cache_path:
             self.cache.write_cache(self.cache_path, self.outputs)
 
     @abstractmethod

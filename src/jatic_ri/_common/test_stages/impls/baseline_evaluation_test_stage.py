@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from maite.workflows import evaluate
-
 from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
@@ -34,6 +33,7 @@ class BaselineEvaluationBase(
     SingleDatasetPlugin[TDataset],
     MetricPlugin[TMetric],
     ThresholdPlugin,
+    EvalToolPlugin,
 ):
     """Baseline evaluation implementation of TestStage interface with single model, dataset and metric plugins
 
@@ -44,12 +44,13 @@ class BaselineEvaluationBase(
         outputs: Optional[TData]
         cache: Optional[Cache[TData]] = None
         cache_base_path: str = ".tscache"
-        use_cache: bool = False
-        model: od.Model
+        use_stage_cache: bool = False
+        eval_tool: EvaluationTool
+        model: gen.Model
         model_id: str
-        dataset: od.Dataset
+        dataset: gen.Dataset
         dataset_id: str
-        metric: od.Metric
+        metric: gen.Metric
         metric_id: str
         threshold: float
     """
@@ -70,6 +71,9 @@ class BaselineEvaluationBase(
         if self.dataset is None:
             raise Exception("self.dataset is None")
 
+        if self.eval_tool is None:
+            raise Exception("self.eval_tool is None")
+
     @property
     def _metric_key(self) -> str:
         if self.model is None:
@@ -86,16 +90,19 @@ class BaselineEvaluationBase(
         """Run the test stage, and store any outputs of the evaluation in test stage"""
         self._validate()
 
-        result, _, _ = evaluate(
+        result, _, _ = self.eval_tool.evaluate(
             model=self.model,
+            model_id=self.model_id,
             metric=self.metric,
+            metric_id=self.metric_id,
             dataset=self.dataset,
+            dataset_id=self.dataset_id,
             return_preds=True,
         )
 
         if result is None:
             raise RuntimeError(
-                f'Maite evaluate method returned no results for model ID "{self.model_id}", \
+                f'Evaluate method returned no results for model ID "{self.model_id}", \
                 dataset ID "{self.dataset_id}", and metric ID "{self.metric_id}"',
             )
 

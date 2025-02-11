@@ -16,7 +16,7 @@ def test_od_linting(dummy_linting_dataset_od) -> None:
 
     test = DatasetLintingTestStage()
     test.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
-    test.run(use_cache=False)
+    test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert output
@@ -75,5 +75,5 @@ def test_coco():
 
     stage.load_dataset(dataset=coco_dataset, dataset_id='asd')
                         
-    stage.run(use_cache=False)
+    stage.run(use_stage_cache=False)
     pass  # no explosions

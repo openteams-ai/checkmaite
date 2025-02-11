@@ -74,7 +74,7 @@ class TestICDatasetBiasRun:
         """Test output formats at each stage of the Bias test stage"""
         test_stage = DatasetBiasTestStage()
         test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")
-        test_stage.run(use_cache=False)
+        test_stage.run(use_stage_cache=False)
 
         outputs: dict[str, Any] = test_stage.outputs
         methods = ("balance", "coverage", "diversity", "parity")
@@ -93,7 +93,7 @@ class TestICDatasetBiasRun:
 
         test_stage = DatasetBiasTestStage()
         test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")
-        test_stage.run(use_cache=False)
+        test_stage.run(use_stage_cache=False)
 
         outputs: dict[str, Any] = test_stage.outputs
         methods = ("balance", "diversity", "parity")
@@ -113,7 +113,7 @@ class TestICBiasCache:
         test_stage.cache_base_path = tmpdir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
-        # To write cache, use_cache must be True, but don't want to read from previous cache writes
+        # To write cache, use_stage_cache must be True, but don't want to read from previous cache writes
         assert not Path(test_stage.cache_path).exists()
         test_stage.run()
         outputs = test_stage.outputs

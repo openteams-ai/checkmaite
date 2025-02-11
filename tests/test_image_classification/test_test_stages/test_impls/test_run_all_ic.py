@@ -70,11 +70,9 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
     elif isinstance(test_stage, MultiModelPlugin):
         test_stage.load_models(models={'model_1': model_ic})
 
-    test_stage.run(use_cache=False)
-
     # run the stage, saving output to the class
-    test_stage.run(use_cache=False)
-    # collect the slides
+    test_stage.run(use_stage_cache=False)
+# collect the slides
     slides = test_stage.collect_report_consumables()
     # generate report
     report = create_deck(

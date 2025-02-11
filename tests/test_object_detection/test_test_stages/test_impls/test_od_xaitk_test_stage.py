@@ -26,8 +26,8 @@ ARGS = {
 }
 
 
-@pytest.mark.parametrize("use_cache", [True, False])
-def test_xaitk_test_stage(use_cache, dummy_xaitk_model, dummy_xaitk_dataset, dummy_metric_od, artifact_dir) -> None:
+@pytest.mark.parametrize("use_stage_cache", [True, False])
+def test_xaitk_test_stage(use_stage_cache, dummy_xaitk_model, dummy_xaitk_dataset, dummy_metric_od, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(ARGS)
@@ -36,7 +36,7 @@ def test_xaitk_test_stage(use_cache, dummy_xaitk_model, dummy_xaitk_dataset, dum
     test.load_metric(metric=dummy_metric_od, metric_id="metric_1")
     test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_xaitk_dataset, dataset_id="dataset_1")
-    test.run(use_cache=use_cache)
+    test.run(use_stage_cache=use_stage_cache)
     output = test.collect_report_consumables()
 
     assert len(output) == len(dummy_xaitk_dataset) * len(dummy_xaitk_dataset[0][1].scores)

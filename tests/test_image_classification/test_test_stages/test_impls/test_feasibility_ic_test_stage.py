@@ -78,7 +78,7 @@ class TestFeasibilityTestStage:
         test_stage.load_threshold(0.5)
         test_stage.load_dataset(dummy_dataset_ic, "Dataset1")
 
-        test_stage.run(use_cache=True)
+        test_stage.run(use_stage_cache=True)
         base_outputs = test_stage.outputs
 
         test_stage_cached = DatasetFeasibilityTestStage()
