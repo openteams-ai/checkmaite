@@ -55,9 +55,13 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The cached Survivor results as a pyspark dataframe
                 [1]: The path to the cached Survivor result image.
         """
+        cached_results_csv_file_path = Path(cache_path) / self.cache_csv_path
+        cached_image_path = Path(cache_path) / self.cache_image_path
+        if not (cached_results_csv_file_path.exists() and cached_image_path.exists()):
+            return None
+
+        spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
         try:
-            cached_results_csv_file_path = Path(cache_path) / self.cache_csv_path
-            spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
             cached_results_df = (
                 spark.read.csv(
                     str(cached_results_csv_file_path),
@@ -70,18 +74,8 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
                     sf.col("image_id").cast(st.StringType()),
                 )
             )
-
-            cached_image_path = Path(cache_path) / self.cache_image_path
-            if not cached_image_path.exists():
-                raise ValueError(f"Survivor cache path {cache_path} doesn't contain a cached result visualization!")
-
-        except (OSError, ValueError, AnalysisException) as e:  # pragma: no cover
-            warnings.warn(  # pragma: no cover
-                f"Cache could not be read. "
-                f"Set use_cache to `False` to run without caching."
-                f"\nError Message: {e}",
-                stacklevel=2,
-            )
+        except AnalysisException as e:  # pragma: no cover
+            warnings.warn(f"Cache could not be read: {e}", stacklevel=2)
             return None
 
         return cached_results_df, cached_image_path
