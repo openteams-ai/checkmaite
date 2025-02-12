@@ -7,6 +7,7 @@ from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 
 from tests.fake_ic_classes import FakeICDataset, FakeICModel
 
+@pytest.mark.filterwarnings("ignore:The ``compute`` method of metric MulticlassAccuracy was called before the ``update`` method:UserWarning")
 def test_ic_accuracy_defaults() -> None:
     "Tests that a TorchMetric Accuracy wrapper factory initiates with default parameters."
 
@@ -21,6 +22,7 @@ def test_ic_accuracy_defaults() -> None:
     # Assert that the wrapper class compute returns a dictionary with correct return key and underlying metric's initial compute result
     assert accuracy_metric.compute()["accuracy"] == accuracy_metric._ic_metric.compute()
 
+@pytest.mark.filterwarnings("ignore:The ``compute`` method of metric MulticlassF1Score was called before the ``update`` method:UserWarning")
 def test_ic_f1score_defaults() -> None:
     "Tests that a TorchMetric Accuracy wrapper factory initiates with default parameters."
 

@@ -22,6 +22,7 @@ from nrtk.impls.perturb_image.pybsm.perturber import PybsmPerturber
         (PybsmPerturber, CustomPybsmPerturbImageFactory,
             {"theta_keys": ["f", "D"], "thetas": [[0.014, 0.012], [0.001, 0.003]]})
     ])
+@pytest.mark.filterwarnings("ignore:invalid value encountered in (arccos|sqrt):RuntimeWarning")
 def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) -> None:
     """This tests the basic functionality provided in the base class"""
     # instantiate the panel app

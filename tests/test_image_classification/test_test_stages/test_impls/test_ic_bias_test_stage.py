@@ -66,10 +66,20 @@ def parity_outputs() -> dict[str, Any]:
         "p_value": np.array([0.28906231, 0.24263543, 0.77295762]),
     }
 
+def ignore_bias_warnings(test_fn):
+    for filter in [
+        "ignore:All samples look discrete with so few data points:UserWarning",
+        r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
+    ]:
+        test_fn = pytest.mark.filterwarnings(filter)(test_fn)
+
+    return test_fn
+
 
 class TestICDatasetBiasRun:
     """Test shared Bias TestStage _run functionality between balance, coverage, diversity, and parity"""
 
+    @ignore_bias_warnings
     def test_run_and_report(self, dummy_dataset_ic) -> None:
         """Test output formats at each stage of the Bias test stage"""
         test_stage = DatasetBiasTestStage()
@@ -83,6 +93,7 @@ class TestICDatasetBiasRun:
         output = test_stage.collect_report_consumables()
         assert len(output) == 4
 
+    @ignore_bias_warnings
     def test_run_non_homogenous_images(self, dummy_dataset_ic):
         """Test case where images are different sizes.
 
@@ -106,6 +117,7 @@ class TestICDatasetBiasRun:
 class TestICBiasCache:
     """Tests the Bias Cache attribute correctly writes, saves, and reads cached runs"""
 
+    @ignore_bias_warnings
     def test_cache_data(self, dummy_dataset_ic, tmpdir) -> None:
         """Test that the cache file is written after the run method without data modifications"""
 

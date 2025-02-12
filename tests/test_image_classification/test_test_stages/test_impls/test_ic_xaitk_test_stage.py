@@ -46,7 +46,7 @@ def test_xaitk_test_stage(use_stage_cache, dummy_model_ic, dummy_dataset_ic, dum
 
     assert example_args["layout_name"] == "OneImageText"
     assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
-    assert example_args["layout_arguments"]["text"] == "Model: model\_1\nImage: 0\nGT: dummy\_0\nPred: dummy\_0"
+    assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nGT: dummy\\_0\nPred: dummy\\_0"
     # assert example_args["layout_arguments"]["image_path"] == f"{os.path.splitext(test.cache_path)[0]}/img_0/class_dummy_0.png"
     example_args["layout_arguments"]["image_path"] == f"{os.path.splitext(test.cache_path)[0]}/img_0/class_dummy_0.png"
 

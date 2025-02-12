@@ -80,7 +80,7 @@ class HuggingFaceDetector:
         from torchvision.transforms.functional import get_image_size  # type: ignore
 
         # tensor bridging
-        input_tensor = torch.as_tensor(batch)
+        input_tensor = torch.from_numpy(np.array(batch))
         if input_tensor.ndim != 4:
             raise ValueError(f"Invalid input dimensions. Expected 4, got {input_tensor.ndim}")
 

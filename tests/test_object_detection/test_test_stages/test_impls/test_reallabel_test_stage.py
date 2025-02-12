@@ -232,7 +232,7 @@ def test_reallabel_test_stage_collect_metrics_cached_data(
     # Arrange
     expected_output = {"NUM_Re-Label": 3}
 
-    test_stage.run()
+    test_stage.run(use_stage_cache=False)
 
     # Act
     actual_output = test_stage.collect_metrics()

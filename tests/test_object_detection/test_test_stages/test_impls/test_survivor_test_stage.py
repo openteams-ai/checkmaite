@@ -317,7 +317,7 @@ def test_survivor_test_stage_collect_metrics(
     # Arrange
     expected_output = {"Low_Val_Data": 1.0 - (1 / 3)}
 
-    test_stage.run()
+    test_stage.run(use_stage_cache=False)
 
     # Act
     actual_output = test_stage.collect_metrics()
