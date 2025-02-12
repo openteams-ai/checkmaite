@@ -115,6 +115,7 @@ class TestODDatasetBiasRun:
         output = test_stage.collect_report_consumables()
         assert len(output) == 3
 
+    @pytest.mark.filterwarnings(r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning")
     def test_coco(self):
         from jatic_ri.object_detection.datasets import CocoDetectionDataset
         from jatic_ri import PACKAGE_DIR

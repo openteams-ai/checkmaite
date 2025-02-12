@@ -14,9 +14,9 @@ pred_data_dummy_od = (
         [
             [
                 DetectionTarget(
-                    boxes=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
-                    labels=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
-                    scores=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    boxes=torch.tensor([[1, 2, 3], [4, 5, 6]]),
+                    labels=torch.tensor([[1, 2, 3], [4, 5, 6]]),
+                    scores=torch.tensor([[1, 2, 3], [4, 5, 6]]),
                 )
             ]
         ],
@@ -25,9 +25,9 @@ pred_data_dummy_od = (
                 [torch.tensor([[1, 2, 3], [4, 5, 6]])],
                 [
                     DetectionTarget(
-                    boxes=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
-                    labels=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
-                    scores=torch.tensor(torch.tensor([[1, 2, 3], [4, 5, 6]])),
+                    boxes=torch.tensor([[1, 2, 3], [4, 5, 6]]),
+                    labels=torch.tensor([[1, 2, 3], [4, 5, 6]]),
+                    scores=torch.tensor([[1, 2, 3], [4, 5, 6]]),
                 )
                 ],
                 [

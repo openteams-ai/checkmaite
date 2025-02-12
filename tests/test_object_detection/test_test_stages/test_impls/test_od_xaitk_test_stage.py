@@ -27,6 +27,7 @@ ARGS = {
 
 
 @pytest.mark.parametrize("use_stage_cache", [True, False])
+@pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
 def test_xaitk_test_stage(use_stage_cache, dummy_xaitk_model, dummy_xaitk_dataset, dummy_metric_od, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
@@ -47,7 +48,7 @@ def test_xaitk_test_stage(use_stage_cache, dummy_xaitk_model, dummy_xaitk_datase
 
     assert example_args["layout_name"] == "OneImageText"
     assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
-    assert example_args["layout_arguments"]["text"] == "Model: model\_1\nImage: 0\nGT: dummy\_0\nPred: dummy\_0"
+    assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nGT: dummy\\_0\nPred: dummy\\_0"
     assert example_args["layout_arguments"]["image_path"] == Path(f"{os.path.splitext(test.cache_path)[0]}/img_0/det_0.png")
     
     filename = create_deck(output, artifact_dir, 'xaitk')

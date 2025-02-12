@@ -11,6 +11,17 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_linting_test_stage imp
 )
 
 
+def ignore_degenerate_data_warnings(test_fn):
+    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/merge_requests/197#note_167139
+    for filter in [
+        "ignore:invalid value encountered in scalar divide:RuntimeWarning",
+        "ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning",
+    ]:
+        test_fn = pytest.mark.filterwarnings(filter)(test_fn)
+
+    return test_fn
+
+@ignore_degenerate_data_warnings
 def test_od_linting(dummy_linting_dataset_od) -> None:
     """Test Linting implementation"""
 
@@ -22,7 +33,7 @@ def test_od_linting(dummy_linting_dataset_od) -> None:
     assert output
     assert len(output) == 4
 
-
+@ignore_degenerate_data_warnings
 def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> None:
     """Verify cached """
     test1 = DatasetLintingTestStage()
@@ -43,7 +54,7 @@ def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> No
     assert all(len(output1[i]) == len(output2[i]) for i in range(len(output1)))
     assert all(output1[i].keys() == output2[i].keys() for i in range(len(output1)))
 
-
+@ignore_degenerate_data_warnings
 @pytest.mark.parametrize("offset_box", [True, False])
 def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
@@ -56,6 +67,9 @@ def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path, 
     filename = create_deck(slides, artifact_dir, 'TestLintingDeck')
     assert filename.exists()
 
+@pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning")
+@ignore_degenerate_data_warnings
 def test_coco():
     from jatic_ri.object_detection.datasets import CocoDetectionDataset
     from jatic_ri import PACKAGE_DIR

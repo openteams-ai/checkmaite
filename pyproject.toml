@@ -139,4 +139,22 @@ known-first-party = ["jatic_ri"]
 convention = "numpy"
 
 [tool.pytest.ini_options]
-addopts = "-m 'not real_data'"
+minversion = "6.0"
+addopts = "-ra --tb=short -m 'not real_data'"
+testpaths = ["tests"]
+markers = [
+    "real_data",
+]
+filterwarnings = [
+    "error",
+    "ignore::ResourceWarning",
+    "ignore:More than \\d+ figures have been opened:RuntimeWarning",
+    "ignore:pkg_resources is deprecated as an API:DeprecationWarning",
+    "ignore:The 'strip_cdata' option of HTMLParser:DeprecationWarning",
+    "ignore:.*?not importable:UserWarning",
+    "ignore:.*?`scipy.ndimage.filters` namespace is deprecated:DeprecationWarning",
+    "ignore:A custom validator is returning a value other than `self`:UserWarning",
+    "ignore:distutils Version classes are deprecated:DeprecationWarning",
+    "ignore:is_datetime64tz_dtype is deprecated:DeprecationWarning",
+    "ignore:It is preferred to use 'applyInPandas' over this API:UserWarning",
+]
