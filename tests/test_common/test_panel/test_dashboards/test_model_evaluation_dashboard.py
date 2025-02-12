@@ -11,6 +11,8 @@ from jatic_ri.object_detection.models import TorchvisionODModel
 
 
 @pytest.mark.real_data
+@pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")
+@pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend:UserWarning")
 def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir):
     """Test running of the ME dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
@@ -49,8 +51,8 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
     
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
-    app.model_widgets['Select Model 1 type']['model_selector'].value = visualized_model_name
-    app.model_widgets['Select Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+    app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
@@ -64,6 +66,7 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
 
 
 @pytest.mark.real_data
+@pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend:UserWarning")
 def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir):
     """Test running of the DA dashboard for image_classification.
     The actual run (_run_all_tests) is mocked for speed.
@@ -118,8 +121,8 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
     
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
-    app.model_widgets['Select Model 1 type']['model_selector'].value = visualized_model_name
-    app.model_widgets['Select Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+    app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
     
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
