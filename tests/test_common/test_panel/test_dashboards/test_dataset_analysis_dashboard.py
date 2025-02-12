@@ -13,6 +13,10 @@ from jatic_ri.object_detection.models import TorchvisionODModel
 
 
 @pytest.mark.real_data
+@pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")
+@pytest.mark.filterwarnings("ignore:All samples look discrete with so few data points:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
 def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir):
     """Test running of the DA dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
@@ -51,8 +55,8 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
     
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
-    app.model_widgets['Select Model 1 type']['model_selector'].value = visualized_model_name
-    app.model_widgets['Select Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+    app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
@@ -66,6 +70,9 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
 
 
 @pytest.mark.real_data
+@pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")
+@pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning")
 def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir):
     """Test running of the DA dashboard for image_classification.
     The actual run (_run_all_tests) is mocked for speed.
@@ -120,8 +127,8 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
     
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
-    app.model_widgets['Select Model 1 type']['model_selector'].value = visualized_model_name
-    app.model_widgets['Select Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+    app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
     
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
@@ -186,8 +193,8 @@ def test_dataset_analysis_dashboard_od_mockrun_only():
         _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
         
         visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
-        app.model_widgets['Select Model 1 type']['model_selector'].value = visualized_model_name
-        app.model_widgets['Select Model 1 type']['model_weights_path'].value = pickle_path
+        app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+        app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
 
         # trigger the mocked run
         app.run_analysis_button.clicks += 1
