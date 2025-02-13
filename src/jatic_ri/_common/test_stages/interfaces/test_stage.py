@@ -30,6 +30,7 @@ class TestStage(Generic[TData], ABC):
     _deck: str
     _task: str
     _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
+    _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
     cache: Optional[Cache[TData]] = None
     cache_base_path: str = DEFAULT_CACHE_ROOT
 
