@@ -61,9 +61,12 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
             ids=sorted(self.model.index2label.keys()),  # type: ignore
             img_batch_size=self.img_batch_size,
         )
-        img_sal_maps = [
-            self.sal_generator(np.asarray(ref_img).transpose(1, 2, 0), classifier) for ref_img, _, _ in self.dataset
-        ]
+        img_sal_maps = []
+        for ref_img, _, _ in self.dataset:
+            transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
+            if transposed_image.shape[2] == 1:
+                transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
+            img_sal_maps.append(self.sal_generator(transposed_image, classifier))
 
         return {"saliency_map_" + str(i): NumpyEncoder().default(sal_map) for i, sal_map in enumerate(img_sal_maps)}
 
@@ -87,35 +90,74 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
 
             gt_label = self.model.index2label[int(np.argmax(targets))]  # type: ignore
             sal_maps = output_values[dataset_idx]
-            for sal_idx, sal_map in enumerate(sal_maps):
-                sal_map_path = Path(sub_dir).joinpath(f"class_{self.model.index2label[sal_idx]}.png")  # type: ignore
 
-                fig = plt.figure()
-                plt.axis("off")
-                plt.imshow(gray_img, alpha=0.7, cmap="gray")
-                plt.xticks(())
-                plt.yticks(())
+            if "MCRISEStack" in self.config["saliency_generator"]["type"]:
+                fill_colors = self.config["saliency_generator"][self.config["saliency_generator"]["type"]][
+                    "fill_colors"
+                ]
+                for color_idx, color_value in enumerate(fill_colors):
+                    for sal_idx in self.model.index2label:  # type: ignore
+                        sal_map_path = Path(sub_dir).joinpath(
+                            f"color_{color_value}_class_{self.model.index2label[sal_idx]}.png"  # type: ignore
+                        )
 
-                plt.imshow(sal_map, cmap="jet", alpha=0.3)
-                plt.colorbar()
-                plt.savefig(sal_map_path, bbox_inches="tight")
-                plt.close(fig)
+                        fig = plt.figure()
+                        plt.axis("off")
+                        plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                        plt.xticks(())
+                        plt.yticks(())
+                        plt.imshow(np.asarray(sal_maps[color_idx][0]), cmap="jet", alpha=0.3)
+                        plt.colorbar()
+                        plt.savefig(sal_map_path, bbox_inches="tight")
+                        plt.close(fig)
 
-                content = {
-                    "deck": "image_classification_model_evaluation",
-                    "layout_name": "OneImageText",
-                    "layout_arguments": {
-                        "title": f"**XAITK Saliency Map**: {sal_idx} \n",
-                        "text": (
-                            f"Model: {self.model_id}\n"
-                            f"Image: {dataset_idx}\n"
-                            f"GT: {gt_label}\n"
-                            f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
-                        ),
-                        "image_path": sal_map_path,
-                    },
-                }
-                content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
-                gradient_slides.append(content)
+                        content = {
+                            "deck": "image_classification_model_evaluation",
+                            "layout_name": "OneImageText",
+                            "layout_arguments": {
+                                "title": f"**XAITK Saliency Map**: {sal_idx} \n",
+                                "text": (
+                                    f"Model: {self.model_id}\n"
+                                    f"Image: {dataset_idx}\n"
+                                    f"Fill Color: {color_value}\n"
+                                    f"GT: {gt_label}\n"
+                                    f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
+                                ),
+                                "image_path": sal_map_path,
+                            },
+                        }
+                        content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
+                        gradient_slides.append(content)
+            else:
+                for sal_idx, sal_map in enumerate(sal_maps):
+                    sal_map_path = Path(sub_dir).joinpath(f"class_{self.model.index2label[sal_idx]}.png")  # type: ignore
+
+                    fig = plt.figure()
+                    plt.axis("off")
+                    plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                    plt.xticks(())
+                    plt.yticks(())
+
+                    plt.imshow(sal_map, cmap="jet", alpha=0.3)
+                    plt.colorbar()
+                    plt.savefig(sal_map_path, bbox_inches="tight")
+                    plt.close(fig)
+
+                    content = {
+                        "deck": "image_classification_model_evaluation",
+                        "layout_name": "OneImageText",
+                        "layout_arguments": {
+                            "title": f"**XAITK Saliency Map**: {sal_idx} \n",
+                            "text": (
+                                f"Model: {self.model_id}\n"
+                                f"Image: {dataset_idx}\n"
+                                f"GT: {gt_label}\n"
+                                f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
+                            ),
+                            "image_path": sal_map_path,
+                        },
+                    }
+                    content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
+                    gradient_slides.append(content)
 
         return gradient_slides
