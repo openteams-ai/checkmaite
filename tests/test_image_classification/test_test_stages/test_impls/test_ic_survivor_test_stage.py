@@ -78,7 +78,7 @@ def survivor_test_stage_args(fake_ic_model_default: FakeICModel, fake_ic_dataset
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest):
+def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest, default_eval_tool_no_cache):
     """Create a SurvivorTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
@@ -97,6 +97,7 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
         metric=survivor_test_stage_args["metric"],
         metric_id=survivor_test_stage_args["config"].metric_column
     )
+    test_stage.load_eval_tool(default_eval_tool_no_cache)
 
     test_stage.cache_base_path = CACHE_DIR
 

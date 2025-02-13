@@ -18,13 +18,13 @@ from survivor.config import Config as SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import SurvivorCache
-from jatic_ri._common.test_stages.interfaces.plugins import (  # , EvalToolPlugin
+from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.util.evaluation import EvaluationTool
 
 # This constant represents the expected location of the Survivor output directory under the test_stage.cache_base_path
 # directory where the SurvivorTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -44,8 +44,7 @@ class SurvivorTestStage(
     MultiModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
     MetricPlugin[od.Metric],
-    # NOTE: Will add EvalToolPlugin with issue 252
-    # EvalToolPlugin
+    EvalToolPlugin,
 ):
     """Survivor Test Stage Object.
 
@@ -127,25 +126,26 @@ class SurvivorTestStage(
         all_model_metrics_per_datum = {}
         for model in self.models:
             model_metrics_per_datum = []
-            # Since evaluate() only works on a full Dataset, and we need metrics on a per-Datum basis,
-            # just iterate through each Datum in the Dataset, and throw that single datum into evaluate()
-            # in a list, which is compatible with MAITE's definition of a Dataset, therefore mimicking an
-            # entire dataset of just one image.
-
-            # NOTE: Because the per-datum evaluations for Survivor require carefully configuring the names of
-            # the single datum "datasets" to avoid erroneous cache hits, we are for now establishing a local
-            # EvaluationTool with no caching enabled and will address cache in issue 252.
-            for datum_information_tuple in self.dataset:
-                results, _, _ = EvaluationTool().evaluate(
-                    model=self.models[model],
-                    model_id=model,
-                    dataset=[datum_information_tuple],
-                    dataset_id=datum_information_tuple[2]["id"],
+            # Since Survivor's implementation is unique in that it runs metric calculations on each individual in
+            # a dataset, we first call the `predict()` method using the model against the entire dataset.
+            # Otherwise, we could not leverage a cached result from a prior test stage's prediction generation.
+            predictions, targets = self.eval_tool.predict(
+                model=self.models[model],
+                model_id=model,
+                dataset=self.dataset,
+                dataset_id=self.dataset_id,
+                batch_size=self._batch_size,
+            )
+            # With the predictions for each target now in memory, we run only `compute_metric()` against each item.
+            # Calling `evaluate()` to calculate the metrics would require doing model predictions again with each
+            # target as its own dataset.
+            for i, datum_prediction in enumerate(predictions):
+                results: dict[str, Any] = self.eval_tool.compute_metric(
                     metric=self.metric,
-                    metric_id=self.metric_id,
-                    return_preds=True,
+                    filename=f"{model}_{self.dataset_id}-img{i}_{self.metric_id}_{self._batch_size}.json",
+                    prediction=[datum_prediction],
+                    data=[targets[i]],
                 )
-
                 model_metrics_per_datum.append(results[self.metric_id].numpy())
 
                 # Reset the metric for the next evaluate() call so results don't bleed together.
