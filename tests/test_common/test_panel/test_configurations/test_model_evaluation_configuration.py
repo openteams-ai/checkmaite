@@ -35,11 +35,14 @@ def test_model_evaluation_configuration_pipeline():
     app.panel()
 
 
-def test_me_config_dynamic_stages_final_only():
-    """Test the dynamic nature of the pipeline"""
+@pytest.mark.parametrize("local", [True, False])
+def test_me_config_dynamic_stages_local(local):
+    """Ensure local setting makes it to the final page
+    No selections means it goes straight to finalize
+    """
     task = 'object_detection'
     # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task)
+    app = ModelEvaluationConfigApp(task=task, local=local)
 
     # reset the app
     _reset_me_config_app(app)
@@ -52,13 +55,11 @@ def test_me_config_dynamic_stages_final_only():
     # ensure we actually went to the final page by checking the class name
     assert app.pipeline._state.__class__.__name__ == 'FinalPage'
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # the only thing in it is the task
-    assert len(content) == 1
-    assert 'task' in content.keys()
-    assert content['task'] == task
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 1
+    assert 'task' in final_output.keys()
+    assert final_output['task'] == task
+    assert app.pipeline._state.local == local
 
 
 def test_me_config_dynamic_stages_baseline_evaluate_only():

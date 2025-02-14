@@ -8,6 +8,7 @@ import argparse
 import importlib
 import json
 from io import StringIO
+from pathlib import Path
 from typing import Any
 
 import panel as pn
@@ -63,7 +64,7 @@ class ConfigurationLandingPage(BaseApp):
             else:
                 self.next_parameter = "Finalize"
 
-    @param.output(next_parameter=param.Selector, task=param.String, output_test_stages=param.Dict)
+    @param.output(next_parameter=param.Selector, task=param.String, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
         """Update the output configuration based on the settings in
         the UI and then output to the next stage.
@@ -90,7 +91,7 @@ class ConfigurationLandingPage(BaseApp):
                 }
             )
 
-        return followup_next_parameter, self.task, self.output_test_stages
+        return followup_next_parameter, self.task, self.output_test_stages, self.local
 
     def _generate_checkbox_subsection(
         self, checkbox: pn.widgets.Checkbox, label: str, description: str, section_height: int = 62
@@ -282,8 +283,9 @@ class FinalPage(BaseApp):
 
     def __init__(self, **params: dict[str, object]) -> None:
         super().__init__(**params)
+        self.filename = Path("config.json")
         self.writeout_button = pn.widgets.FileDownload(
-            filename="config.json",
+            filename=str(self.filename),
             callback=self._get_filestream,
             stylesheets=[self.css_button],
         )
@@ -298,6 +300,47 @@ class FinalPage(BaseApp):
 
     def panel(self) -> pn.Column:
         """Visualize the Final page"""
+
+        if self.local:
+            config = {"task": self.task}
+            config.update(self.output_test_stages)
+            # Write JSON to a file
+            with open(self.filename, "w") as file:
+                json.dump(config, file, indent=4)
+
+            summary_view = pn.Column(
+                _center_horizontally(
+                    pn.widgets.ButtonIcon(
+                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
+                    ),
+                ),
+                _center_horizontally(
+                    pn.pane.Markdown(
+                        "You're all set! Your .json configuration file is located at",
+                        stylesheets=[self.css_paragraph],
+                    )
+                ),
+                _center_horizontally(pn.pane.Markdown(f"{self.filename.resolve()}", stylesheets=[self.css_paragraph])),
+                styles={**self.style_border, "padding": "15px"},
+            )
+        else:
+            summary_view = pn.Column(
+                _center_horizontally(
+                    pn.widgets.ButtonIcon(icon="checkbox", size="4em", description="favorite", styles={"color": "blue"})
+                ),
+                _center_horizontally(
+                    pn.pane.Markdown(
+                        "You're all set! Download your .json file below to",
+                        stylesheets=[self.css_paragraph],
+                    )
+                ),
+                _center_horizontally(
+                    pn.pane.Markdown("continue your evaluation pipeline.", stylesheets=[self.css_paragraph])
+                ),
+                _center_horizontally(self.writeout_button),
+                styles={**self.style_border, "padding": "15px"},
+            )
+
         return pn.Column(
             self.view_header,
             _center_vertically(
@@ -310,26 +353,7 @@ class FinalPage(BaseApp):
                                     styles=self.style_text_h1,
                                 )
                             ),
-                            pn.Column(
-                                _center_horizontally(
-                                    pn.widgets.ButtonIcon(
-                                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
-                                    )
-                                ),
-                                _center_horizontally(
-                                    pn.pane.Markdown(
-                                        "You're all set! Download your .json file below to",
-                                        stylesheets=[self.css_paragraph],
-                                    )
-                                ),
-                                _center_horizontally(
-                                    pn.pane.Markdown(
-                                        "continue your evaluation pipeline.", stylesheets=[self.css_paragraph]
-                                    )
-                                ),
-                                _center_horizontally(self.writeout_button),
-                                styles={**self.style_border, "padding": "15px"},
-                            ),
+                            summary_view,
                         ),
                     ),
                 ),
@@ -374,7 +398,7 @@ class ModelEvaluationConfigApp(BaseApp):
 
         self.pipeline.add_stage(
             "Introduction",
-            ConfigurationLandingPage(task=self.task),
+            ConfigurationLandingPage(**params),
             next_parameter="next_parameter",
         )
         self.pipeline.add_stage("Configure NRTK", NRTKApp, next_parameter="next_parameter")

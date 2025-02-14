@@ -1,12 +1,14 @@
 """Test base app"""
+import pytest 
 
 from jatic_ri._common._panel.configurations.base_app import BaseApp
 
 
-def test_base_app_widgets() -> None:
+@pytest.mark.parametrize("local", [True, False])
+def test_base_app_widgets(local) -> None:
     """This tests the basic functionality provided in the base class"""
     # instantiate the panel app
-    base_app = BaseApp()
+    base_app = BaseApp(local=local)
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     base_app.panel()
@@ -22,6 +24,7 @@ def test_base_app_widgets() -> None:
     assert base_app.status_text != initial_status_text
 
     # test the panel stage output
-    task, config_dict = base_app.output()
+    task, config_dict, local_output = base_app.output()
     assert base_app.output_test_stages == config_dict
     assert base_app.task == task
+    assert local == local_output

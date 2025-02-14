@@ -3,8 +3,6 @@ This module contains the BaseApp class, which serves as the base class for all i
 It provides common methods and visualization elements that can be utilized by the individual pages.
 """
 
-from typing import Any
-
 import panel as pn
 import param
 
@@ -46,7 +44,6 @@ class BaseApp(param.Parameterized):
     page_height: int = param.Integer(800)
     title_font_size: int = param.Integer(default=24)
     status_text: str = param.String("Waiting for input...")
-    output_test_stages: dict[str, Any] = param.Dict({})
     task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
     summary_text_size: int = param.Integer(default=18)
     export_button: pn.widgets.Button
@@ -57,6 +54,8 @@ class BaseApp(param.Parameterized):
     # this dictionary is passed between all the stages and
     # is used in the final stage to generate the json file
     output_test_stages = param.Dict({})
+    # flag for local deployment
+    local = param.Boolean()
     ##################################################
 
     ##################################################
@@ -229,15 +228,11 @@ class BaseApp(param.Parameterized):
         # for testing and demo purposes only:
         self.output_test_stages[self.__class__.__name__] = {"TYPE": "base app test"}
 
-    @param.output(task=param.Selector, output_test_stages=param.Dict)
+    @param.output(task=param.Selector, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
         """Output handler for passing variables from one pipeline page to another"""
         self._run_export()
-        return self.task, self.output_test_stages
-
-    @param.output(task=param.String)
-    def _task(self) -> str:  # pragma: no cover
-        return self.task
+        return self.task, self.output_test_stages, self.local
 
     def export_button_callback(self, _event: object) -> None:
         """Method to take the configuration and save to disk.
