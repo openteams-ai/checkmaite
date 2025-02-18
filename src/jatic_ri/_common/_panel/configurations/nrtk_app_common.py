@@ -52,8 +52,13 @@ class NRTKBaseApp(BaseApp):
         self.clear_button = pn.widgets.Button(
             name="Clear Test Stages", button_type="primary"
         )  # declare here since its used in pn.depends
+        avail_perturbers = dict(
+            sorted({pert_impl.__name__: pert_impl for pert_impl in PerturbImage.get_impls()}.items())
+        )
         self.perturber_select = pn.widgets.Select(
-            name="Perturber", options={pert_impl.__name__: pert_impl for pert_impl in PerturbImage.get_impls()}
+            name="Perturber",
+            options=avail_perturbers,
+            value=avail_perturbers[next(iter(avail_perturbers))],
         )
 
         super().__init__(**params)
@@ -125,9 +130,9 @@ class NRTKBaseApp(BaseApp):
         self.factory_selector.stylesheets = [self.widget_stylesheet]
 
         if pert_impl.__name__ == "PybsmPerturber":
-            self.theta_keys_input = pn.widgets.LiteralInput(name="Theta Keys", type=list)
+            self.theta_keys_input = pn.widgets.LiteralInput(name="Theta Keys", type=list, value=[])
             self.theta_keys_input.stylesheets = [self.widget_stylesheet]
-            self.thetas_input = pn.widgets.LiteralInput(name="Thetas", type=list)
+            self.thetas_input = pn.widgets.LiteralInput(name="Thetas", type=list, value=[])
             self.thetas_input.stylesheets = [self.widget_stylesheet]
             return pn.Column(
                 self.name_input,
@@ -503,6 +508,9 @@ class NRTKBaseApp(BaseApp):
 
             thetas = self.thetas_input.value
             theta_keys = self.theta_keys_input.value
+            if thetas is None or theta_keys is None:
+                self.status_text = "Thetas and theta keys cannot be empty"
+                return {}
             if len(thetas) != len(theta_keys):
                 self.status_text = "Thetas and theta keys are different lengths"
                 return {}
