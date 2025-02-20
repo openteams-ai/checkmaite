@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
 
+import httpx
+import numpy as np
 import torch
 from maite.protocols import object_detection as od
 
@@ -35,6 +38,12 @@ SUPPORTED_TORCHVISION_MODELS = {
     "keypointrcnn_resnet50_fpn": "KeypointRCNN_ResNet50_FPN_Weights",
     "ssd300_vgg16": "SSD300_VGG16_Weights",
     "ssdlite320_mobilenet_v3_large": "SSDLite320_MobileNet_V3_Large_Weights",
+}
+
+SUPPORTED_VISDRONE_MODELS = {
+    "res2net50": "https://data.kitware.com/api/v1/item/623e18464acac99f42f40a4e/download",
+    "resnet50": "https://data.kitware.com/api/v1/item/623259f64acac99f426f21db/download",
+    "resnet18": "https://data.kitware.com/api/v1/item/623de4744acac99f42f05fb1/download",
 }
 
 # list of all available model wrappers
@@ -89,7 +98,8 @@ class TorchvisionODModel:
         try:
             model = getattr(importlib.import_module("torchvision.models.detection"), model_name)
             torchvision_weights_constructor = getattr(
-                importlib.import_module("torchvision.models.detection"), SUPPORTED_TORCHVISION_MODELS[model_name]
+                importlib.import_module("torchvision.models.detection"),
+                SUPPORTED_TORCHVISION_MODELS[model_name],
             )
         except Exception as e:
             raise ImportError(f"There was an error importing {model_name} from torchvision.") from e
@@ -120,7 +130,11 @@ class TorchvisionODModel:
             self.model = model(weights=None, weights_backbone=None, num_classes=num_classes, **kwargs).to(self.device)
 
             try:
-                state_dict = torch.load(weights_path, map_location=torch.device(self.device), weights_only=True)
+                state_dict = torch.load(
+                    weights_path,
+                    map_location=torch.device(self.device),
+                    weights_only=True,
+                )
                 self.model.load_state_dict(state_dict)
             except Exception as e:
                 raise RuntimeError(f"Error loading data from state_dict from {weights_path}") from e
@@ -159,6 +173,115 @@ class TorchvisionODModel:
     def name(self) -> str:
         """Human-readable name for torchvision model"""
         return self._model_name
+
+
+class VisdroneODModel:
+    """
+    Minimal MAITE-complaint wrapper of visdone wrapper packaged by Kitware.
+
+    See https://github.com/Kitware/SMQTK-Detection/blob/master/smqtk_detection/impls/detect_image_objects/centernet.py
+    for details.
+    """
+
+    def __init__(
+        self,
+        *,
+        arch: str,
+        model_pickle_dir: str,
+        device: Optional[str] = None,  # noqa: UP007
+        batch_size: int = 3,
+        num_workers: int = 1,
+        max_dets: int = 500,
+    ) -> None:
+        """
+        Args:
+            arch: Model backbone to be used (allowed values are "res2net50", "resnet50", "resnet18")
+            model_pickle_dir: Directory where model pickle will be downloaded to.
+            device: Device to use (e.g., 'cpu', 'cuda').
+            batch_size: How many samples per batch to load.
+            num_workers: How many subprocesses to use for data loading.
+            0 means that the data will be loaded in the main process.
+            max_dets: Maximum number of detections returned.
+        """
+        from smqtk_detection.impls.detect_image_objects.centernet import (
+            CenterNetVisdrone,
+        )
+
+        if arch not in SUPPORTED_VISDRONE_MODELS:
+            raise ValueError(f"Model with backbone {arch} is not currently supported by the visdrone model.")
+        self._model_name = f"centernet-{arch}"
+        model_file = os.path.join(model_pickle_dir, f"{self._model_name}.pth")
+        if not os.path.isfile(model_file):
+            with httpx.stream("GET", SUPPORTED_VISDRONE_MODELS[arch], timeout=10, follow_redirects=True) as response:
+                response.raise_for_status()
+                with open(model_file, "wb") as file:
+                    for chunk in response.iter_bytes():
+                        file.write(chunk)
+
+        # Warning: 'mps' won't work for now - CenterNetVisdrone class depends on .gather from torch,
+        # which has issues on metal GPU - https://github.com/pytorch/pytorch/issues/94765
+        use_cuda = device == "cuda"
+
+        self.model = CenterNetVisdrone(
+            arch=arch,
+            model_file=model_file,
+            use_cuda=use_cuda,
+            max_dets=max_dets,
+            batch_size=batch_size,
+            num_workers=num_workers,
+        )
+
+        self.index2label = {
+            0: "pedestrian",
+            1: "people",
+            2: "bicycle",
+            3: "car",
+            4: "van",
+            5: "truck",
+            6: "tricycle",
+            7: "awning-tricycle",
+            8: "bus",
+            9: "motor",
+        }
+
+    def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
+        """
+        Make a model prediction for inputs in input batch. Elements of input batch
+        are expected in the shape `(C, H, W)`.
+        """
+        # required to convert to numpy array before passing to detect_objects ...
+        array_batch = [np.array(inp).transpose(1, 2, 0) for inp in input_batch]
+
+        predictions_batch = self.model.detect_objects(array_batch)
+
+        label2index = {v: k for k, v in self.index2label.items()}
+
+        output_batch = []
+        for pred in predictions_batch:
+            num_bboxes = len(pred)  # type: ignore
+
+            bboxes = np.empty((num_bboxes, 4), dtype=np.float32)
+            labels = np.empty(num_bboxes, dtype=np.int32)
+            scores = np.empty(num_bboxes, dtype=np.float32)
+
+            for i, (bbox, label_map) in enumerate(pred):
+                (min_x, min_y), (max_x, max_y) = (
+                    bbox.min_vertex,
+                    bbox.max_vertex,
+                )
+                bboxes[i] = [min_x, min_y, max_x, max_y]
+                label, score = max(label_map.items(), key=lambda x: x[1])
+                labels[i] = label2index[label]  # type: ignore
+                scores[i] = score
+
+            output_batch.append(DetectionTarget(boxes=bboxes, labels=labels, scores=scores))
+
+        return output_batch
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for visdrone model"""
+        return f"visdrone-centernet-{self._model_name}"
 
 
 class ModelSpecification(TypedDict):

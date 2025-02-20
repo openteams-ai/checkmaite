@@ -41,17 +41,19 @@ xaitk-saliency = "==0.12.0"
 xaitk-jatic = {version = "==0.4.3", extras = ["docker"]}  # docker extra required for panel apps
 # external deps
 holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
+httpx = ">=0.28.1"                                          # arbitrary, needed to run visdrone model
 jupyterlab = "4.3.5"                                        # arbitrary pin
 matplotlib = ">=3.8.4"                                      # arbitrary, required by panel
 more-itertools = ">=10.0"                                   # arbitrary, used by linting test stage
 nbconvert = "7.16.6"                                        # arbitrary pin, required for serving panel notebooks via CLI
+numba = ">=0.60.0"                                          # arbitrary, needed to run visdrone model
 opencv-python-headless = {version = ">=4.9.0.80"}           # necessary pin, required by nrtk usage here
-Pillow = ">=11.0.0"                                         # arbitrary
 panel = ">=1.4.5"                                           # arbitrary pin
-zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
-torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
+Pillow = ">=11.0.0"                                         # arbitrary
 torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
+torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
 torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
+zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
 
 
 # development dependencies
@@ -151,6 +153,8 @@ markers = [
 filterwarnings = [
     "error",
     "ignore::ResourceWarning",
+    "ignore:`torch.cuda.amp.autocast.*` is deprecated.:FutureWarning",
+    "ignore:User provided device_type of 'cuda', but CUDA is not available. Disabling:UserWarning",
     "ignore:More than \\d+ figures have been opened:RuntimeWarning",
     "ignore:pkg_resources is deprecated as an API:DeprecationWarning",
     "ignore:The 'strip_cdata' option of HTMLParser:DeprecationWarning",
