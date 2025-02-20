@@ -18,6 +18,8 @@ dependencies:
 
 # External tools
 - holoviews>=1.20.0                     # arbitrary pin, required for panel pipelines
+- jupyterlab=4.3.5                      # arbitrary pin
+- nbconvert=7.16.6                      # arbitrary pin, required for serving panel notebooks via CLI
 - panel>=1.4.5                          # arbitrary pin
 - pillow>=11.0.0                        # arbitrary pin
 - pyspark>=3.5.3                        # arbitrary pin
