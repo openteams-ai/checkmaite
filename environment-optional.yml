@@ -19,12 +19,21 @@ dependencies:
 # External tools
 - holoviews>=1.20.0                     # arbitrary pin, required for panel pipelines
 - jupyterlab=4.3.5                      # arbitrary pin
+- httpx>=0.28.1                         # arbitrary pin, required to run visdrone model
+- libgl=*                               # Supplementary requirement for opencv-python-headless, needed for nebari.
+- matplotlib>=3.8.4
+- more-itertools>=10.0                  # arbitrary pin, required for dataeval linting test stage
 - nbconvert=7.16.6                      # arbitrary pin, required for serving panel notebooks via CLI
+- numba>=0.60.0                         # arbitrary pin, required to run visdrone model
+- opencv-python-headless>=4.9.0.80      # arbitrary pin, pkg needed for pybsm
+- openjdk=17.0.9                        # necessary pin, pkg needed for pyspark in MORSE RealLabel and Survivor Test Stages.
 - panel>=1.4.5                          # arbitrary pin
 - pillow>=11.0.0                        # arbitrary pin
 - pyspark>=3.5.3                        # arbitrary pin
-- more-itertools>=10.0                  # arbitrary pin, required for dataeval linting test stage
+- pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)
 - timm>=1.0.7                           # arbitrary pin, required for nrtk panel app
+- torchmetrics>=1.4.0                   # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
+- torchvision>=0.17.0                   # necessary pin, pkg needed to run tests using example MAITE-wrapped objects.
 - transformers>=4.42.3                  # arbitrary pin, required for nrtk panel app
 - zstandard>=0.23.0                     # arbitrary pin, required for zip compressed cache
 - pip
@@ -33,14 +42,6 @@ dependencies:
   - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
   - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
   - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.1
-# Optional deps
-- libgl=*                               # Supplementary requirement for opencv-python-headless, needed for nebari.
-- matplotlib>=3.8.4
-- opencv-python-headless>=4.9.0.80      # arbitrary pin, pkg needed for pybsm
-- openjdk=17.0.9                        # necessary pin, pkg needed for pyspark in MORSE RealLabel and Survivor Test Stages.
-- pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)
-- torchmetrics>=1.4.0                   # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
-- torchvision>=0.17.0                   # necessary pin, pkg needed to run tests using example MAITE-wrapped objects.
 # test
 - pytest>=8.3.0                         # necessary pin for compatibility
 - pytest-cov>=4.0.0                     # arbitrary pin
