@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
 
 import httpx
@@ -41,13 +42,13 @@ SUPPORTED_TORCHVISION_MODELS = {
 }
 
 SUPPORTED_VISDRONE_MODELS = {
-    "res2net50": "https://data.kitware.com/api/v1/item/623e18464acac99f42f40a4e/download",
-    "resnet50": "https://data.kitware.com/api/v1/item/623259f64acac99f426f21db/download",
-    "resnet18": "https://data.kitware.com/api/v1/item/623de4744acac99f42f05fb1/download",
+    "res2net50": "Res2Net50_Weights",
+    "resnet50": "ResNet50_Weights",
+    "resnet18": "ResNet18_Weights",
 }
 
 # list of all available model wrappers
-SUPPORTED_MODELS = SUPPORTED_TORCHVISION_MODELS
+SUPPORTED_MODELS = {**SUPPORTED_TORCHVISION_MODELS, **SUPPORTED_VISDRONE_MODELS}
 
 
 class TorchvisionODModel:
@@ -183,6 +184,12 @@ class VisdroneODModel:
     for details.
     """
 
+    _weights_urls = {
+        "Res2Net50_Weights": "https://data.kitware.com/api/v1/item/623e18464acac99f42f40a4e/download",
+        "ResNet50_Weights": "https://data.kitware.com/api/v1/item/623259f64acac99f426f21db/download",
+        "ResNet18_Weights": "https://data.kitware.com/api/v1/item/623de4744acac99f42f05fb1/download",
+    }
+
     def __init__(
         self,
         *,
@@ -212,7 +219,10 @@ class VisdroneODModel:
         self._model_name = f"centernet-{arch}"
         model_file = os.path.join(model_pickle_dir, f"{self._model_name}.pth")
         if not os.path.isfile(model_file):
-            with httpx.stream("GET", SUPPORTED_VISDRONE_MODELS[arch], timeout=10, follow_redirects=True) as response:
+            Path(model_pickle_dir).mkdir(parents=True, exist_ok=True)
+            with httpx.stream(
+                "GET", self._weights_urls[SUPPORTED_VISDRONE_MODELS[arch]], timeout=10, follow_redirects=True
+            ) as response:
                 response.raise_for_status()
                 with open(model_file, "wb") as file:
                     for chunk in response.iter_bytes():
@@ -304,6 +314,9 @@ class ModelSpecification(TypedDict):
         "keypointrcnn_resnet50_fpn",
         "ssd300_vgg16",
         "ssdlite320_mobilenet_v3_large",
+        "res2net50",
+        "resnet50",
+        "resnet18",
     ]
 
 
@@ -315,7 +328,6 @@ def load_models(
     ModelSpecifications."""
     loaded = {}
     for name, meta_dict in models.items():
-        # if this is a torchvision model
         if meta_dict["model_type"] in SUPPORTED_TORCHVISION_MODELS:
             wrapper = TorchvisionODModel(
                 model_name=meta_dict["model_type"],
@@ -324,6 +336,11 @@ def load_models(
             )
 
             loaded[name] = wrapper
+
+        elif meta_dict["model_type"] in SUPPORTED_VISDRONE_MODELS:
+            wrapper = VisdroneODModel(arch=meta_dict["model_type"], model_pickle_dir=meta_dict["model_weights_path"])
+            loaded[name] = wrapper
+
         else:
             raise RuntimeError(f"Model type not yet supported {meta_dict['model_type']}")
 

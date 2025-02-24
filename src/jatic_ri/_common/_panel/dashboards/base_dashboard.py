@@ -32,6 +32,7 @@ from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_M
 from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
+from jatic_ri.object_detection.models import SUPPORTED_VISDRONE_MODELS as SUPPORTED_VISDRONE_MODELS_OD
 from jatic_ri.util.cache import SimpleRICacheIC, SimpleRICacheOD
 from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
 from jatic_ri.util.evaluation import EvaluationTool
@@ -368,6 +369,7 @@ class BaseDashboard(param.Parameterized):
             self.metric_label_map = METRICS_LABEL_MAP_OD
             self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_OD.items()}
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_OD
+            self.visdrone_models = SUPPORTED_VISDRONE_MODELS_OD
 
         elif self.task == "image_classification":
             self.dataset_label_map = DATASET_LABEL_MAP_IC
