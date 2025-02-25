@@ -18,7 +18,6 @@ stages:
 - git config --global url."https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/".insteadOf "git@gitlab.jatic.net:"
 # Need git LFS for pulling MORSE test stage test data
 - apt-get update && apt-get install -y git-lfs
-- git lfs install
 
 .python-matrix:
   parallel:
