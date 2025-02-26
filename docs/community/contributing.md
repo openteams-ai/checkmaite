@@ -1,172 +1,27 @@
 # Contribution Guide
 
-The JATIC Reference Implementation team welcomes contributions in all forms.
+## Feature Requests  
+The RI Team encourages other JATIC teams to submit Reference Implementation feature requests by submitting an issue on the reference-implementation issue board using the [feature request template](https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/issues/new?issuable_template=feature-requests). The RI Team periodically reviews these requests and then divides them according to scope and applicability across the Reference Implementation:  
+  - Features which enhance only a specific use-case, or require primarily niche familiarity of a JATIC component, are marked to be ***led by the appropriate JATIC team*** (e.g. the requestor's team). The RI team can coordinate and support these cases. This marking is accomplished by adding the appropriate JATIC team's tag to the issue.  
+  - Features determined to be generally applicable to the entire Reference Implementation are prioritized for development ***led by the RI Team itself.*** Other JATIC teams may volunteer to support or even lead these efforts. These issues are tracked within the RI Team's usual task workflow.
 
-## Development Setup
+## Code-Compatibility Refactors 
+The environment for the Reference Implementation includes all of the JATIC tools as dependencies. Changes in Reference Implementation code may be required to support changes in these dependencies. The RI Team is ultimately responsible for ensuring the Reference Implementation project correctly builds and operates with the set of dependency versions dictated by technical and security requirements.  
 
-First, fork the repository and setup SSH keys. Then, create a local copy of the repository:
-
-```bash
-git clone git@gitlab.jatic.net:jatic/increment-demos/reference-implementation.git
-```
-
-Navigate to the package directory:
-
-```bash
-cd reference-implementation
-```
-
-Set up your environment. Both a poetry-based environment and conda-based environment options. 
-
-<details>
-<summary>Setup conda environment</summary>
-
-To set up a conda environment, install `conda` (or `mamba`, but these 
-instructions are based on conda) on your machine and build the 
-environment by running:
-
-```bash
-conda env create -f environment.yml -n jatic_env
-```
-
-Then activate the environment
-
-```bash
-conda activate jatic_env
-```
-
-</details>
-
-<details>
-<summary>Setup poetry environment</summary>
-
-TODO add poetry setup instructions
-
-</details>
-
-Install the package itself
-
-```bash
-pip install -e .
-```
-
-This project utilized `pre-commit` for linting and formatting. Install the 
-`pre-commit` hooks using: 
-
-```bash
-pre-commit install
-```
-
-Alternatively, if you have `poetry` and `make` installed on your machine, you can build the environment by running: 
-
-```bash
-make init
-```
-
-This will create a virtual environment with all regular dependencies, developer dependencies,
-and pre-commit hooks installed. This environment can be found at can be found at `[your cloned RI directory]/.venv/`
-and can be manually activated by running:
-```bash
-source ./venv/bin/activate
-```
-
-## Testing
-
-This project uses `pytest` for it's test suite. Run the full test suite with:
-
-```bash
-pytest tests -svv
-```
-
-There are also tests which run on real data. These are time consuming to run so they are skipped by default. 
-You can run them manually with:
-
-```bash
-pytest tests -svv -m real_data
-```
-
-NOTE:
-If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
-directory to run tests with coverage:
-```bash
-make test
-```
-
-## Linting and formatting
-
-Linting and formatting are automated via `pre-commit` hooks. However, if you'd like to run them directly, you can run:
-
-```bash
-pre-commit run --all-files --verbose
-```
-
-NOTE:
-If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
-directory to run all pre-commit hooks:
-```bash
-make format
-```
-
-Type checking is performed by `pyright`. The CI must report a type-completeness score of 100% for the public API. This can be run using:
-
-```bash
-pyright --ignoreexternal --verifytypes jatic_ri
-```
-
-## Building the docs
-
-The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. The RI also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
-
-The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
-
-```bash
-mkdocs serve
-```
-
-This will create a live server running on the local machine. Any changes make to the document will be live-reloaded in the local website. 
-
-Alternately, the docs can be built locally as a static site similar to the process in CI by running:
-
-```bash
-mkdocs build --site-dir site
-```
-
-The `site-dir` flag is optional and it defaults to building the site under `/site` in the directory in which you ran the command. 
-
-The RI documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
-
-## Setting minimum package versions
-
-The JATIC Software Development Plan (SDP) requires that all dependencies include a minimum version. 
-It is preferable that these minimums be valid minimums due to a real incompatibility with the 
-previous version. However, discovering the true minimums in a complex environment is highly 
-time consuming. For this reason, we ask that miminums be set (in compliance with the SDP), but 
-that they be comment tagged as either "necessary" (you are aware of an incompatibility with the
-previous version) or "arbitrary" (you set this version artitrarily and it may be lowered if
-an issue with cross-compatibility arises). 
+The RI Team requires the collaboration of JATIC teams which release components on which the Reference Implementation depends:
+  - ***A bug or security vulnerability in a JATIC component.*** In this case, the RI Team will communicate with the JATIC Team responsible for the affected component in order to coordinate a solution and timeline for the fix.
+  - ***A new version of a JATIC component introduces breaking changes.*** The RI Team will communicate with the JATIC Team responsible for the component to understand the scope of the fix required. The RI Team can support minor compatibility changes, but will request assistance if substantial changes are required to support the new version. ***The RI Team requests maximum advanced notice when breaking API changes will be introduced in upcoming versions of JATIC components*** in order to reduce their impact. 
 
 
-## Maintaining and using the conda lock file
+## External Contribution Procedure  
+The RI Team requests that Contributing Teams follow this procedure:  
+1.) Contributing Team commits to the Reference Implementation codebase within a feature branch of the RI repo or their own fork of the repo  
+2.) Contributing Team opens an MR to the RI repo and adds the ***"needs:: contributing team review"*** tag  
+3.) A second member of the Contributing Team completes a review of the MR  
+4.) A member of the Contributing Team removes the "needs:: contributing team review" tag  
+5.) A member of the Contributing Team adds the ***"needs: RI Team review"*** tag  
 
-The RI contains a conda-lock file for linux-64 which is intended to be a stable conda environment for the 
-latest version of the RI. 
+When the "needs: RI Team review" tag is added to an MR, the RI Team will schedule the MR review and communicate with the owner of the MR on any further changes.
 
-The lockfile contains placeholders for private Gitlab username and tokens. 
-In CI, these are replaced with valid tokens. To use this file locally, you will need to replace 
-`gitlab-ci-token` with your Gitlab username and `${PRIVATE_TOKEN}` with your Personal Access Token (PAT). 
-
-Once that is done, you can build a conda environment from the lockfile called `my-locked-env`, by running
-
-```
-conda-lock install -n my-locked-env
-```
-
-To update the lockfile, you'll first need to update the `environment-optional.yml` by replacing 
-`gitlab-ci-token` with your Gitlab username and `${PRIVATE_TOKEN}` with your Personal Access Token (PAT). Then create the lockfile with:
-
-```
-conda-lock -f environment-optional.yml -p linux-64
-```
-
-Before committing this file to the repository, you will need to scrub your personal username and PAT
-from the file and replace them (as above) with `gitlab-ci-token` and `${PRIVATE_TOKEN}`.
+# Setup Guide
+See: [Setup Guide](setup.md)

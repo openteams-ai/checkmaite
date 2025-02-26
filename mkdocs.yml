@@ -6,6 +6,7 @@ nav:  # navigation links on sidebar
   - Community:
     - Development Strategies: community/development.md
     - Contributing: community/contributing.md
+    - Setup: community/setup.md
   - Examples:
     - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
     - Dataset Analysis Configuration: examples/dataset_analysis_configuration.ipynb
