@@ -1,7 +1,7 @@
 # Contribution Guide
 
 ## Feature Requests  
-The RI Team encourages other JATIC teams to submit Reference Implementation feature requests by submitting an issue on the reference-implementation issue board using the [feature request template](https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/issues/new?issuable_template=feature-requests). The RI Team periodically reviews these requests and then divides them according to scope and applicability across the Reference Implementation:  
+The RI Team encourages other JATIC teams to submit Reference Implementation feature requests by submitting an issue on the reference-implementation issue board using the [feature request template](https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/issues/new?issuable_template=feature-request). The RI Team periodically reviews these requests and then divides them according to scope and applicability across the Reference Implementation:  
   - Features which enhance only a specific use-case, or require primarily niche familiarity of a JATIC component, are marked to be ***led by the appropriate JATIC team*** (e.g. the requestor's team). The RI team can coordinate and support these cases. This marking is accomplished by adding the appropriate JATIC team's tag to the issue.  
   - Features determined to be generally applicable to the entire Reference Implementation are prioritized for development ***led by the RI Team itself.*** Other JATIC teams may volunteer to support or even lead these efforts. These issues are tracked within the RI Team's usual task workflow.
 
