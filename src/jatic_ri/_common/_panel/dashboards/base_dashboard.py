@@ -33,7 +33,6 @@ from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_VISDRONE_MODELS as SUPPORTED_VISDRONE_MODELS_OD
-from jatic_ri.util.cache import SimpleRICacheIC, SimpleRICacheOD
 from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
 from jatic_ri.util.evaluation import EvaluationTool
 
@@ -745,14 +744,8 @@ class BaseDashboard(param.Parameterized):
         if not self.use_caches:
             # By default EvaluationTool is just a container for the functions without cache
             self.eval_tool = EvaluationTool()
-        elif self.task == "image_classification":
-            self.eval_tool = EvaluationTool(
-                ri_cache=SimpleRICacheIC(cache_root_dir=self.output_dir + EVAL_TOOL_CACHE_DIR)
-            )
-        elif self.task == "object_detection":
-            self.eval_tool = EvaluationTool(
-                ri_cache=SimpleRICacheOD(cache_root_dir=self.output_dir + EVAL_TOOL_CACHE_DIR)
-            )
+        elif self.task == "image_classification" or self.task == "object_detection":
+            self.eval_tool = EvaluationTool()
         else:
             raise RuntimeError(f"Task type {self.task} not supported.")
 

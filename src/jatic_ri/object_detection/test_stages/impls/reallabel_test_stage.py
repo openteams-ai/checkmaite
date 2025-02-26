@@ -2,6 +2,7 @@
 
 import copy
 import json
+import logging
 import shutil
 import warnings
 from hashlib import sha256
@@ -21,6 +22,8 @@ from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_r
 
 from jatic_ri._common.test_stages.interfaces.plugins import EvalToolPlugin, MultiModelPlugin, SingleDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+
+logger = logging.getLogger()
 
 # This constant represents the expected location of the RealLabel output directory under the test_stage.cache_base_path
 # directory where the RealLabelTestStage.run() function can store visualizations in the event of a cache miss. Since
@@ -66,6 +69,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The cached RealLabel results as a pyspark dataframe
                 [1]: The path to the cached RealLabel result image.
         """
+        logger.info(f"Checking for existing cache at {cache_path}")
         cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
         cached_results_img_file_path = Path(cache_path) / _REALLABEL_CACHE_IMAGE_PATH
         if not (cached_results_csv_file_path.exists() and cached_results_img_file_path.exists()):
@@ -96,6 +100,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The DataFrame of RealLabel results.
                 [1]: The path to the image to cache.
         """
+        logger.info(f"Writing cache to {cache_path}")
         results_df, results_img = data
 
         cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH

@@ -2,6 +2,7 @@
 
 import glob
 import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from os import getcwd, makedirs, path, remove
@@ -15,6 +16,8 @@ from typing_extensions import TypeAlias
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 from jatic_ri.object_detection.datasets import DetectionTarget
+
+logger = logging.getLogger()
 
 TData = TypeVar("TData", dict, list)
 
@@ -52,6 +55,7 @@ class JSONCache(Cache[TData]):
 
     def read_cache(self, cache_path: str) -> Optional[TData]:
         """Read cache from file and returns as dictionary"""
+        logger.info(f"Checking for existing cache at {cache_path}")
         if path.exists(cache_path):
             with open(cache_path, "rb") as file:
                 raw = file.read()
@@ -61,6 +65,7 @@ class JSONCache(Cache[TData]):
 
     def write_cache(self, cache_path: str, data: TData) -> None:
         """Writes dictionary to file using serializer"""
+        logger.info(f"Writing cache to {cache_path}")
         dirname = path.dirname(cache_path)
         if dirname and not path.exists(dirname):
             makedirs(dirname)

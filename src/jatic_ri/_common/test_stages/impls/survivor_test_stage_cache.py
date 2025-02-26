@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 import warnings
 from pathlib import Path
@@ -10,6 +11,8 @@ from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
+
+logger = logging.getLogger()
 
 # This file will contain a json-ified list of the various parameters that went into generating the hash ID including
 # all model IDs, the dataset ID, the metric ID, and Survivor Config values.
@@ -55,6 +58,7 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The cached Survivor results as a pyspark dataframe
                 [1]: The path to the cached Survivor result image.
         """
+        logger.info(f"Checking for existing cache at {cache_path}")
         cached_results_csv_file_path = Path(cache_path) / self.cache_csv_path
         cached_image_path = Path(cache_path) / self.cache_image_path
         if not (cached_results_csv_file_path.exists() and cached_image_path.exists()):
@@ -89,6 +93,7 @@ class SurvivorCache(Cache[tuple[DataFrame, Path]]):
                 [0]: The DataFrame of RealLabel results.
                 [1]: The path to the image to cache.
         """
+        logger.info(f"Writing cache to {cache_path}")
         results_df, results_img = data
 
         cached_results_csv_file_path = Path(cache_path) / self.cache_csv_path
