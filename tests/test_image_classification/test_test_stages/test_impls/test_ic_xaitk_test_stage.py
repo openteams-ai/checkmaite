@@ -54,7 +54,7 @@ def test_xaitk_test_stage_rise(use_stage_cache, dummy_model_ic, dummy_dataset_ic
     test.run(use_stage_cache=use_stage_cache)
     output = test.collect_report_consumables()
 
-    assert len(output) == dummy_dataset_ic.targets.shape[0] * dummy_dataset_ic.targets.shape[1]
+    assert len(output) == len(dummy_dataset_ic) * dummy_dataset_ic[0][1].shape[0]
 
     example_args = output[0]
 
@@ -82,7 +82,7 @@ def test_xaitk_test_stage_mc_rise(use_stage_cache, dummy_model_ic, dummy_dataset
     test.run(use_stage_cache=use_stage_cache)
     output = test.collect_report_consumables()
 
-    assert len(output) == dummy_dataset_ic.targets.shape[0] * dummy_dataset_ic.targets.shape[1] * 2 # multiply by number of fill colors
+    assert len(output) == len(dummy_dataset_ic) * dummy_dataset_ic[0][1].shape[0] * 2 # multiply by number of fill colors
 
     example_args = output[0]
 

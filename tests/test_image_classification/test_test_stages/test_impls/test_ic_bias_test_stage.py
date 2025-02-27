@@ -80,38 +80,24 @@ class TestICDatasetBiasRun:
     """Test shared Bias TestStage _run functionality between balance, coverage, diversity, and parity"""
 
     @ignore_bias_warnings
-    def test_run_and_report(self, dummy_dataset_ic) -> None:
+    @pytest.mark.parametrize("homogeneous_size", [True, False])
+    def test_run_and_report(self, dummy_dataset_ic, homogeneous_size) -> None:
         """Test output formats at each stage of the Bias test stage"""
+        if not homogeneous_size:
+            # Modify images to be non-homogenous (like VOC)
+            dummy_dataset_ic.data = [np.ones(shape=(3, i, i)) for i in range(1, 10)]
+
         test_stage = DatasetBiasTestStage()
         test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")
         test_stage.run(use_stage_cache=False)
 
         outputs: dict[str, Any] = test_stage.outputs
-        methods = ("balance", "coverage", "diversity", "parity")
-        assert all(method in outputs for method in methods)  # All method keys found after run
+        assert outputs.keys() == {"balance", "coverage", "diversity", "parity"}
+        if homogeneous_size:
+            assert "image" in outputs["coverage"]
 
         output = test_stage.collect_report_consumables()
         assert len(output) == 4
-
-    @ignore_bias_warnings
-    def test_run_non_homogenous_images(self, dummy_dataset_ic):
-        """Test case where images are different sizes.
-
-        Coverage requires ArrayLikes, so skip running coverage
-        """
-        # Modify images to be non-homogenous (like VOC)
-        dummy_dataset_ic.data = [np.ones(shape=(1, i, i)) for i in range(10)]
-
-        test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")
-        test_stage.run(use_stage_cache=False)
-
-        outputs: dict[str, Any] = test_stage.outputs
-        methods = ("balance", "diversity", "parity")
-        assert all(method in outputs for method in methods)  # All method keys found after run
-
-        output = test_stage.collect_report_consumables()
-        assert len(output) == 3
 
 
 class TestICBiasCache:

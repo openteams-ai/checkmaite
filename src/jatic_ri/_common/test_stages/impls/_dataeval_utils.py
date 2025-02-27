@@ -1,6 +1,29 @@
+import sys
+from collections.abc import Iterable
+
 import torch
 import torchvision as tv
+import torchvision.transforms.v2.functional as tvf
+from numpy.typing import ArrayLike
 from torch import nn
+
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    from collections.abc import Iterator
+    from itertools import islice
+    from typing import TypeVar
+
+    T = TypeVar("T")
+
+    # See https://docs.python.org/3.12/library/itertools.html#itertools.batched
+    def batched(iterable: Iterable[T], n: int) -> Iterator[tuple[T, ...]]:
+        # batched('ABCDEFG', 3) → ABC DEF G
+        if n < 1:
+            raise ValueError("n must be at least one")
+        iterator = iter(iterable)
+        while batch := tuple(islice(iterator, n)):
+            yield batch
 
 
 class EmbeddingNet(nn.Module):
@@ -26,13 +49,15 @@ class EmbeddingNet(nn.Module):
         self.model = tv.models.resnet18(weights=weights)
         self.model.fc = nn.Linear(self.model.fc.in_features, dimensionality)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(self.preprocess(x))
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return self.model(images)
 
 
 @torch.no_grad
-def extract_embeddings(images: torch.Tensor, *, embedding_net: EmbeddingNet, batch_size: int = 64) -> torch.Tensor:
-    """Extract embeddings from stacked images
+def extract_embeddings(
+    images: Iterable[ArrayLike], *, embedding_net: EmbeddingNet, batch_size: int = 64, device: str = "cpu"
+) -> torch.Tensor:
+    """Extract embeddings from images
 
     !!! note
 
@@ -40,10 +65,22 @@ def extract_embeddings(images: torch.Tensor, *, embedding_net: EmbeddingNet, bat
         for usage example
 
     Args:
-        images: Stacked images `[N, C, H, W]`
+        images: Iterable of images `[C, H, W]`
         embedding_net: [torch.nn.Module][] that performs the embedding
         batch_size: Number of images to be processed concurrently
+        device: Device to transfer the inputs to
+
+    Returns:
+        Embeddings of shape `[N, E]`, where `N = len(images)` and `E` is the dimensionality of `embedding_net`
 
     """
     embedding_net.eval()
-    return torch.vstack([embedding_net(batch) for batch in images.split(batch_size)])
+
+    def preprocess(image: ArrayLike) -> torch.Tensor:
+        return embedding_net.preprocess(
+            tvf.to_dtype(torch.as_tensor(image, device=device), dtype=torch.float32, scale=True)
+        )
+
+    return torch.vstack(
+        [embedding_net(torch.stack(batch)) for batch in batched((preprocess(image) for image in images), batch_size)]
+    )
