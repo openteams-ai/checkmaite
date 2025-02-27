@@ -9,6 +9,7 @@ import maite.protocols.object_detection as od
 from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
 from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
 import numpy as np
+import numpy.typing
 import pytest
 
 import torch
@@ -19,6 +20,12 @@ from tests.fake_ic_classes import FakeICDataset, FakeICModel, FakeICMetric
 from tests.fake_od_classes import FakeODDataset, FakeODMetric, FakeODModel
 
 import jatic_ri
+
+if tuple(int(v) for v in np.__version__.split(".")[:2]) >= (2, 1):
+    np_unstack = np.unstack
+else:
+    def np_unstack(x: np.typing.NDArray, /, *, axis: int = 0) -> list[np.typing.NDArray]:
+        return [y.squeeze(axis) for y in np.split(x, x.shape[axis], axis=axis)]
 
 
 RNG = np.random.default_rng(seed=42)
@@ -219,20 +226,21 @@ def dummy_model_ic() -> ic.Model:
 def dummy_dataset_ic() -> ic.Dataset:
     class DummyDataset:
         def __init__(self):
-            self.data = RNG.random((10, 3, 16, 16))
+            N = 10
 
-            self.targets = RNG.random((10, 2))
+            self.data = np_unstack(RNG.random((N, 3, 16, 16)))
 
-            for data_index in range(self.targets.shape[0]):
-                self.targets[data_index, data_index % 2] = 1
+            self.targets = np_unstack(RNG.random((N, 2)))
+            for data_index in range(N):
+                self.targets[data_index][data_index % 2] = 1
 
-            self.metadata = [{"some_metadata": i} for i in range(self.data.shape[0])]
+            self.metadata = [{"some_metadata": i} for i in range(N)]
 
         def __len__(self) -> int:
-            return self.data.shape[0]
+            return len(self.data)
 
         def __getitem__(self, ind: int) -> tuple[np.ndarray, np.ndarray, dict]:
-            return (self.data[ind], self.targets[ind], self.metadata[ind])
+            return self.data[ind], self.targets[ind], self.metadata[ind]
 
     return DummyDataset()
 

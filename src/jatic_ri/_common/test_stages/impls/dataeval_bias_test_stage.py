@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-import torch
 from dataeval.metrics.bias import balance, coverage, diversity, parity
 from dataeval.utils.metadata import Metadata
 from numpy.typing import NDArray
@@ -64,46 +63,40 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         """Run bias analysis using coverage and parity"""
 
         images, labels, metadata = self._get_images_labels_factors()
+        embeddings = extract_embeddings(images, embedding_net=self._embedding_net).numpy()
 
-        # Getting the output for balance and diversity to plot the results
         bal_out = balance(metadata)
-        div_out = diversity(metadata)
-
         bal_dict = bal_out.dict()
-        div_dict = div_out.dict()
-
-        # Saving the figure in the results dict to pull out later
         bal_img_path = str(self.image_folder / "balance_heatmap.png")
         bal_fig = bal_out.plot()
         bal_fig.savefig(bal_img_path, format="png")
+        bal_dict["image"] = bal_img_path
+
+        div_out = diversity(metadata)
+        div_dict = div_out.dict()
         div_img_path = str(self.image_folder / "diversity_heatmap.png")
         div_fig = div_out.plot()
         div_fig.savefig(div_img_path, format="png")
-
-        bal_dict["image"] = bal_img_path
         div_dict["image"] = div_img_path
 
-        result_dict = {
-            self.BALANCE_KEY: bal_dict,
-            self.DIVERSITY_KEY: div_dict,
-            self.PARITY_KEY: parity(metadata).dict(),
-        }
+        par_out = parity(metadata)
+        par_dict = par_out.dict()
 
-        try:  # In the case where images are non-homogenous, skip running coverage
-            images = np.array(images)
-        except ValueError:
-            return result_dict
-
-        embeddings = extract_embeddings(torch.from_numpy(images), embedding_net=self._embedding_net).numpy()
         cov_out = coverage(embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
         cov_dict = cov_out.dict()
-        cov_img_path = str(self.image_folder / "coverage_plot.png")
-        cov_fig = cov_out.plot(images)
-        cov_fig.savefig(cov_img_path)
-        cov_dict["image"] = cov_img_path
-        result_dict.update({self.COVERAGE_KEY: cov_dict})
 
-        return result_dict
+        if len({image.shape for image in images}) == 1:
+            cov_img_path = str(self.image_folder / "coverage_plot.png")
+            cov_fig = cov_out.plot(images)
+            cov_fig.savefig(cov_img_path)
+            cov_dict["image"] = cov_img_path
+
+        return {
+            self.BALANCE_KEY: bal_dict,
+            self.DIVERSITY_KEY: div_dict,
+            self.PARITY_KEY: par_dict,
+            self.COVERAGE_KEY: cov_dict,
+        }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect consumables"""
@@ -158,16 +151,16 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
                 "Threshold": [round(outputs["critical_value"], 2)],
             },
         )
-        image_path = Path(outputs["image"])
 
         # Gradient slide creation
+        slide_kwargs = {"deck": self._deck, "title": title, "heading": heading, "text": text, "table": cov_df}
+        # Image is only available if the input dataset had homogeneous-sized images
+        image_path = outputs.get("image")
+        if image_path is None:
+            return create_text_data_slide(**slide_kwargs)
         return create_text_table_data_slide(
-            deck=self._deck,
-            title=title,
-            heading=heading,
-            text=text,
-            table=cov_df,
-            image_path=image_path,
+            **slide_kwargs,
+            image_path=Path(image_path),
         )
 
     def _report_balance(self, outputs: dict[str, Any]) -> dict[str, Any]:

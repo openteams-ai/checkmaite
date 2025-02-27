@@ -70,50 +70,30 @@ def parity_outputs() -> dict[str, Any]:
 class TestODDatasetBiasRun:
     """Test shared Bias TestStage _run functionality between balance, coverage, diversity, and parity"""
 
-    def test_run_and_report_no_target_metadata(self, dummy_dataset_od) -> None:
-        """Test output formats at each stage of the Bias test stage"""
+    @pytest.mark.parametrize("dataset_type", ["default", "with_target_metadata", "non_homogenous_size"])
+    def test_run_and_report(self, dummy_dataset_od, dummy_dataset_od_with_target_metadata, dataset_type) -> None:
+        if dataset_type == "default":
+            dataset = dummy_dataset_od
+        elif dataset_type == "with_target_metadata":
+            dataset = dummy_dataset_od_with_target_metadata
+        elif dataset_type == "non_homogenous_size":
+            dataset = dummy_dataset_od
+            # Modify images to be non-homogenous (like VOC)
+            dataset.data = [np.ones(shape=(3, i, i)) for i in range(1, 10)]
+        else:
+            raise ValueError(dataset_type)
+
         test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dummy_dataset_od, dataset_id="DummyDataset")
+        test_stage.load_dataset(dataset=dataset, dataset_id="DummyDataset")
         test_stage.run(use_stage_cache=False)
 
         outputs: dict[str, Any] = test_stage.outputs
-        methods = ("balance", "coverage", "diversity", "parity")
-        assert all(method in outputs for method in methods)  # All method keys found after run
+        assert outputs.keys() == {"balance", "coverage", "diversity", "parity"}
+        if dataset_type != "non_homogenous_size":
+            assert "image" in outputs["coverage"]
 
         output = test_stage.collect_report_consumables()
         assert len(output) == 4
-
-    def test_run_and_report_with_target_metadata(self, dummy_dataset_od_with_target_metadata) -> None:
-        """Test output formats at each stage of the Bias test stage"""
-        test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dummy_dataset_od_with_target_metadata, dataset_id="DummyDataset")
-        test_stage.run(use_stage_cache=False)
-
-        outputs: dict[str, Any] = test_stage.outputs
-        methods = ("balance", "coverage", "diversity", "parity")
-        assert all(method in outputs for method in methods)  # All method keys found after run
-
-        output = test_stage.collect_report_consumables()
-        assert len(output) == 4
-
-    def test_run_non_homogenous_images(self, dummy_dataset_od):
-        """Test case where images are different sizes.
-
-        Coverage requires ArrayLikes, so skip running coverage
-        """
-        # Modify images to be non-homogenous (like VOC)
-        dummy_dataset_od.images = [np.ones(shape=(1, i, i)) for i in range(10)]
-
-        test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dummy_dataset_od, dataset_id="DummyDataset")
-        test_stage.run(use_stage_cache=False)
-
-        outputs: dict[str, Any] = test_stage.outputs
-        methods = ("balance", "diversity", "parity")
-        assert all(method in outputs for method in methods)  # All method keys found after run
-
-        output = test_stage.collect_report_consumables()
-        assert len(output) == 3
 
     @pytest.mark.filterwarnings(r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning")
     def test_coco(self):

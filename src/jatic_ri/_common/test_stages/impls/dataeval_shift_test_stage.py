@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import torch
 
 # _run imports
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
@@ -63,15 +62,12 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     def _run(self) -> dict[str, Any]:
         """Run methods for drift and ood detectors"""
 
-        images_1 = np.array([image for image, *_ in self.dataset_1])
-        images_2 = np.array([image for image, *_ in self.dataset_2])
+        images_1 = [image for image, *_ in self.dataset_1]
+        images_2 = [image for image, *_ in self.dataset_2]
 
         return {
-            **self._run_drift(
-                images_1=torch.as_tensor(images_1, dtype=torch.float32, device=self.device),
-                images_2=torch.as_tensor(images_2, dtype=torch.float32, device=self.device),
-            ),
-            **self._run_ood(images_1=images_1, images_2=images_2),
+            **self._run_drift(images_1=images_1, images_2=images_2),
+            **self._run_ood(images_1=np.array(images_1), images_2=np.array(images_2)),
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
@@ -89,11 +85,11 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
 
         return report_consumables
 
-    def _run_drift(self, images_1: torch.Tensor, images_2: torch.Tensor) -> dict[str, Any]:
+    def _run_drift(self, images_1: list[NDArray], images_2: list[NDArray]) -> dict[str, Any]:
         """Runs MMD, CVM, and KS methods against images"""
 
-        embeddings_1 = extract_embeddings(images_1, embedding_net=self._embedding_net).cpu()
-        embeddings_2 = extract_embeddings(images_2, embedding_net=self._embedding_net).cpu()
+        embeddings_1 = extract_embeddings(images_1, embedding_net=self._embedding_net, device=self.device).cpu()
+        embeddings_2 = extract_embeddings(images_2, embedding_net=self._embedding_net, device=self.device).cpu()
 
         kwargs = {"x_ref": embeddings_1}
         detectors = {
