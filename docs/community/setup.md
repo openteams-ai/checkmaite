@@ -111,10 +111,10 @@ This will create a live server running on the local machine. Any changes made to
 Alternately, the docs can be built locally as a static site similar to the process in CI by running:
 
 ```bash
-mkdocs build --site-dir site
+mkdocs build --site-dir public
 ```
 
-The `site-dir` flag is optional and it defaults to building the site under `./site` in the directory in which you ran the command. 
+The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command. 
 
 The RI documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
 
