@@ -1,26 +1,62 @@
 site_name: JATIC Reference Implementation
+site_url: https://jatic.pages.jatic.net/reference-implementation/reference-implementation/
+use_directory_urls: false
+theme: 
+  name: material
+  favicon: assets/favicon.ico
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.indexes
+    - toc.integrate
+  palette: 
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+      primary: black
+      accent: indigo
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+      primary: black
+      accent: indigo
+
 nav:  # navigation links on sidebar
   - Home: index.md
-  - Conventions: conventions.md
-  - About: about.md
+  - Explanations:
+    - explanations/index.md
+  - How-tos:
+    - how-tos/index.md
+    - Dataset Analysis Configuration: how-tos/dataset_analysis_configuration.ipynb
+    - Dataset Analysis Testbed: how-tos/Dataset_Analysis_Testbed.ipynb
+    - Model Evaluation Configuration: how-tos/model_evaluation_configuration.ipynb
+    - Model Evaluation Testbed: how-tos/Model_Evaluation_Testbed.ipynb
+  - Tutorials:
+    - tutorials/index.md
+  - Reference:
+    - Conventions: reference/conventions.md
+    - Development Strategy: reference/development.md
   - Community:
-    - Development Strategies: community/development.md
     - Contributing: community/contributing.md
-    - Setup: community/setup.md
-  - Examples:
-    - Torchvision Wrapper: examples/torchvision_wrapper.ipynb
-    - Dataset Analysis Configuration: examples/dataset_analysis_configuration.ipynb
-    - Dataset Analysis Testbed: examples/Dataset_Analysis_Testbed.ipynb
-    - Model Evaluation Configuration: examples/model_evaluation_configuration.ipynb
-    - Model Evaluation Testbed: examples/Model_Evaluation_Testbed.ipynb
-    - Image Classification Dataset Wrapper: examples/image_classification_dataset_wrapper.ipynb
-    - XAITK Test Stage: examples/xaitk_test_stage_how_to_guide.ipynb
-  - Object Detection:
-    - Models: object-detection/models.md
-  - Image Classification:
-    - Datasets: image-classification/datasets.md
-theme: readthedocs
 markdown_extensions:
   - admonition  # enables callout boxes
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+
 plugins:
-    - mkdocs-jupyter
+  - mkdocs-jupyter:
+      execute: true
+      kernel_name: python3
+  - search
+
+exclude_docs: |
+  reference/examples

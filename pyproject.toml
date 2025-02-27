@@ -73,8 +73,10 @@ pytest-mock = ">=3.6.1"                                     # arbitrary, needed 
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-mkdocs = ">=1.6.1"  # arbitrary
-mkdocs-jupyter = ">=0.25"  # arbitrary
+mkdocs = ">=1.6.1"                      # arbitrary
+mkdocs-jupyter = ">=0.25"               # arbitrary
+mkdocs-material = ">=9.6.4"             # arbitrary
+pymdown-extensions = ">=10.14.3"        # arbitrary
 
 [tool.bandit]
 exclude_dirs = [
