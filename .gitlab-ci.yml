@@ -80,6 +80,8 @@ stages:
 test:
   extends: [.python-matrix, .shared-setup, .poetry-setup]
   stage: test
+  tags:
+  - blackbox
   needs: []
   script:
     - git lfs pull
@@ -103,6 +105,8 @@ test:
 conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
+  tags:
+  - blackbox
   needs: []
   script:
     - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
@@ -110,6 +114,8 @@ conda-test:
 conda-lock-test:
   extends: [.shared-setup]
   stage: test
+  tags:
+  - blackbox
   needs: []
   image: python:3.11
   before_script:
@@ -138,6 +144,8 @@ pyright-internal:
   extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: pyright
+  tags:
+  - blackbox
   needs: []
   script:
     - poetry install --with dev
@@ -247,3 +255,5 @@ export-merged-sbom:
   artifacts:
     paths:
       - "gl-sbom-merged-*.cdx.json"
+
+# Fake comment to trigger another pipeline run
