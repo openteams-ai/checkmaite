@@ -78,7 +78,7 @@ class CocoDetectionDataset(Dataset):
     If your dataset includes custom metadata fields, ensure they are placed inside the `image` field.
     """
 
-    def __init__(self, root: str | Path, ann_file: str) -> None:
+    def __init__(self, root: str | Path, ann_file: str, dataset_id: str = "coco") -> None:
         self.dataset: CocoDetection = CocoDetection(
             root,
             annFile=ann_file,
@@ -91,7 +91,7 @@ class CocoDetectionDataset(Dataset):
         self._classes = {i: x["name"] for i, x in enumerate(content["categories"])}
         self._n_classes = len(self._classes)
         self._images = content["images"]
-        self.metadata: DatumMetadataType = {"id": "coco", "index2label": self._classes}
+        self.metadata: DatumMetadataType = {"id": dataset_id, "index2label": self._classes}
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -164,7 +164,7 @@ class YoloDetectionDataset(Dataset):
         Return the number of data elements in the dataset.
     """
 
-    def __init__(self, yaml_dataset: str, ann_dir: str) -> None:
+    def __init__(self, yaml_dataset: str, ann_dir: str, dataset_id: str = "yolo") -> None:
         with open(yaml_dataset) as fd:
             content = yaml.safe_load(fd)
 
@@ -177,7 +177,7 @@ class YoloDetectionDataset(Dataset):
         self._images = sorted(os.listdir(content["train"]))
         self._ann_dir = ann_dir
         self._annotations = sorted(os.listdir(ann_dir))
-        self.metadata = {"id": "yolo", "index2label": self._classes}
+        self.metadata = {"id": dataset_id, "index2label": self._classes}
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -241,11 +241,13 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDe
             loaded[name] = CocoDetectionDataset(
                 root=str(dataset_metadata["data_dir"]),
                 ann_file=str(dataset_metadata["metadata_path"]),
+                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
             )
         elif dataset_metadata["dataset_type"] == "YoloDetectionDataset":
             loaded[name] = YoloDetectionDataset(
                 yaml_dataset=str(dataset_metadata["metadata_path"]),
                 ann_dir=str(dataset_metadata["data_dir"]),
+                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
             )
         else:
             raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")

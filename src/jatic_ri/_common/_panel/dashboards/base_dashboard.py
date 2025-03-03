@@ -692,14 +692,17 @@ class BaseDashboard(param.Parameterized):
         self.status_text = f"Loading inputs for {test_stage.__class__.__name__}"
         if isinstance(test_stage, TwoDatasetPlugin):
             test_stage.load_datasets(
-                self.loaded_datasets["dataset_1"], "dataset1", self.loaded_datasets["dataset_2"], "dataset2"
+                self.loaded_datasets["dataset_1"],
+                self.loaded_datasets["dataset_1"].metadata["id"],
+                self.loaded_datasets["dataset_2"],
+                self.loaded_datasets["dataset_2"].metadata["id"],
             )
         elif isinstance(test_stage, SingleDatasetPlugin):
             if self.dataset_2_visible:
                 self.status_text = (
                     f"Dataset {self.dataset_2_selector.value} is unused for {test_stage.__class__.__name__}"
                 )
-            test_stage.load_dataset(self.loaded_datasets["dataset_1"], "dataset1")
+            test_stage.load_dataset(self.loaded_datasets["dataset_1"], self.loaded_datasets["dataset_1"].metadata["id"])
 
         if isinstance(test_stage, MetricPlugin):
             test_stage.load_metric(self.loaded_metric, self.loaded_metric.return_key)
@@ -710,13 +713,13 @@ class BaseDashboard(param.Parameterized):
         if isinstance(test_stage, SingleModelPlugin):
             if len(self.loaded_models) == 0:
                 raise RuntimeError("No model loaded. Please select model.")
-            if len(self.loaded_models) == 1:
-                test_stage.load_model(self.loaded_models[list(self.loaded_models.keys())[0]], model_id="model_1")
-            else:
-                list(self.loaded_models.keys())[1:]
+            if len(self.loaded_models) != 1:
                 self.status_text = (
                     f"Model(s) {list(self.loaded_models.keys())[1:]} unused for {test_stage.__class__.__name__}"
                 )
+            model_1 = self.loaded_models[list(self.loaded_models.keys())[0]]
+            test_stage.load_model(model_1, model_id=model_1.metadata["id"])
+
         elif isinstance(test_stage, MultiModelPlugin):
             test_stage.load_models(self.loaded_models)
 
