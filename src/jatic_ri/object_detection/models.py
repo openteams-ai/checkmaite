@@ -242,16 +242,18 @@ class VisdroneODModel:
         )
 
         self.index2label = {
-            0: "pedestrian",
-            1: "people",
-            2: "bicycle",
-            3: "car",
-            4: "van",
-            5: "truck",
-            6: "tricycle",
-            7: "awning-tricycle",
-            8: "bus",
-            9: "motor",
+            0: "ignored regions",
+            1: "pedestrian",
+            2: "people",
+            3: "bicycle",
+            4: "car",
+            5: "van",
+            6: "truck",
+            7: "tricycle",
+            8: "awning-tricycle",
+            9: "bus",
+            10: "motor",
+            11: "others",
         }
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
