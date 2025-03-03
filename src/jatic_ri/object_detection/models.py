@@ -80,6 +80,7 @@ class TorchvisionODModel:
         weights_path: Optional[str] = None,  # noqa: UP007
         config_path: str = "config.json",
         index2label_key: str = "index2label",
+        model_id: str = "torchvisionOD",
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -89,6 +90,7 @@ class TorchvisionODModel:
             weights_path: Path to pickle file with pretrained weights.
             config_path: Path to config file with metadata for pretrained weights.
             index2label_key: Config key for mapping from class labels to output categories.
+            model_id: unique identifier for this model
             **kwargs: Additional parameters passed to `torchvision` base class. See
               `torchvision` for more details.
         """
@@ -144,6 +146,7 @@ class TorchvisionODModel:
             self.index2label = get_default_index2label(torchvision_weights_constructor)
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
 
+        self.metadata = {"id": model_id}
         self.model.eval()  # sets model to inference mode rather than training mode
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
@@ -199,6 +202,7 @@ class VisdroneODModel:
         batch_size: int = 3,
         num_workers: int = 1,
         max_dets: int = 500,
+        model_id: str = "visdrone",
     ) -> None:
         """
         Args:
@@ -209,6 +213,7 @@ class VisdroneODModel:
             num_workers: How many subprocesses to use for data loading.
             0 means that the data will be loaded in the main process.
             max_dets: Maximum number of detections returned.
+            model_id: unique identifier for this model
         """
         from smqtk_detection.impls.detect_image_objects.centernet import (
             CenterNetVisdrone,
@@ -255,6 +260,7 @@ class VisdroneODModel:
             10: "motor",
             11: "others",
         }
+        self.metadata = {"id": model_id}
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
         """
@@ -334,13 +340,18 @@ def load_models(
             wrapper = TorchvisionODModel(
                 model_name=meta_dict["model_type"],
                 weights_path=meta_dict["model_weights_path"],
+                model_id=meta_dict["model_type"],
                 **kwargs,
             )
 
             loaded[name] = wrapper
 
         elif meta_dict["model_type"] in SUPPORTED_VISDRONE_MODELS:
-            wrapper = VisdroneODModel(arch=meta_dict["model_type"], model_pickle_dir=meta_dict["model_weights_path"])
+            wrapper = VisdroneODModel(
+                arch=meta_dict["model_type"],
+                model_pickle_dir=meta_dict["model_weights_path"],
+                model_id=meta_dict["model_type"],
+            )
             loaded[name] = wrapper
 
         else:
