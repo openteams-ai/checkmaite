@@ -80,6 +80,9 @@ class BaseDashboard(param.Parameterized):
     title_font_size = param.Integer(default=24)
     task = param.String(default="object_detection")
 
+    # flag for local deployment
+    local = param.Boolean(default=True)
+
     # Dictionary for holding test stages
     test_stages = param.Dict(default={})
 
@@ -741,7 +744,8 @@ class BaseDashboard(param.Parameterized):
 _{self.threshold}_report_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
     def _run_all_tests(self) -> str:  # pragma: no cover
-        """Run all the tests on all the stages and return a link to the resulting report.
+        """Run all the tests on all the stages and returns either the path to the resulting
+        report (if self.local=True) or a link to download the report.
         Common across IC/OD usecases.
         Should be triggered in `_run_button_callback` implementation
         """
@@ -771,10 +775,14 @@ _{self.threshold}_report_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
         self.status_text = f"Report saved to {report}"
 
-        return create_download_link(
-            str(report),
-            label="Download Report",
-            download_filename=f"{report_title}.pptx",
+        return (
+            str(report)
+            if self.local
+            else create_download_link(
+                str(report),
+                label="Download Report",
+                download_filename=f"{report_title}.pptx",
+            )
         )
 
     def horizontal_line(self) -> pn.pane.HTML:
