@@ -22,7 +22,9 @@ stages:
 .python-matrix:
   parallel:
     matrix:
-      - VERSION: ["3.9", "3.10", "3.11"]
+ # Temporarily reduce jobs
+       - VERSION: ["3.9"]
+ #     - VERSION: ["3.9", "3.10", "3.11"]
   image: python:$VERSION
 
 .shared-setup:
