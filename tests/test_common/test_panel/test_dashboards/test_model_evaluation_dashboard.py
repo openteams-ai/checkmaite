@@ -9,6 +9,8 @@ import jatic_ri
 from jatic_ri._common._panel.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
 from jatic_ri.object_detection.models import TorchvisionODModel
 
+REPORT_PATH = "/report/path"
+REPORT_LINK = "<a href='report-link'>Report Link</a>"
 
 @pytest.mark.real_data
 @pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")
@@ -174,14 +176,14 @@ def test_model_evaluation_dashboard():
     report_title = app._construct_report_filename()
     assert 'Coco' in report_title
     
-
-def test_model_evaluation_dashboard_od_full_mock(monkeypatch, fake_od_model_default, fake_od_dataset_default):
+@pytest.mark.parametrize("local", [True, False])
+def test_model_evaluation_dashboard_od_full_mock(local, monkeypatch, fake_od_model_default, fake_od_dataset_default):
     """Test running of the ME dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
     """
 
     def _run_all_tests_mocked(self):
-        return 'report_link'
+        return REPORT_PATH if self.local else REPORT_LINK
 
     def load_models_from_widgets_mocked(self):
         self.loaded_models = {'fake_model_1': fake_od_model_default}
@@ -198,6 +200,7 @@ def test_model_evaluation_dashboard_od_full_mock(monkeypatch, fake_od_model_defa
     app = ModelEvaluationTestbed(
         task='object_detection',
         output_dir=jatic_ri.DEFAULT_CACHE_ROOT,
+        local=local
     )
     
     # trigger the visualization to detect errors
@@ -218,7 +221,7 @@ def test_model_evaluation_dashboard_od_full_mock(monkeypatch, fake_od_model_defa
     app.run_analysis_button.clicks += 1
 
     # ensure the results table was populated 
-    assert app.results_df['Gradient Report'][0] == 'report_link'
+    assert app.results_df['Gradient Report'][0] == REPORT_PATH if local else REPORT_LINK
 
     ## test report name generation
     report_title = app._construct_report_filename()
