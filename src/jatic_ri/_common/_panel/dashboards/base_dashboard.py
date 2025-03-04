@@ -660,6 +660,7 @@ class BaseDashboard(param.Parameterized):
         True if successful, False if there were issues.
         """
         logger.debug("load pipeline")
+        self.test_stages = {}
         if "task" not in configs:
             self.status_text = "Task must be specified in the provided config."
             logger.debug("Task must be specified in the provided config.")
