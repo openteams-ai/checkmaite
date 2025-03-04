@@ -26,6 +26,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
 from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
+from jatic_ri.util.cache import JSONCache, TensorEncoder
 
 
 class NRTKTestStageBase(
@@ -58,6 +59,7 @@ class NRTKTestStageBase(
         super().__init__()
         self.config = args
         self.stage_name = args["name"]
+        self.cache = JSONCache(encoder=TensorEncoder)
 
     @property
     def cache_id(self) -> str:
