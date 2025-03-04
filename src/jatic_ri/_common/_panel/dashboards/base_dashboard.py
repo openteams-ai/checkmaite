@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,7 @@ METRICS_LABEL_MAP_IC = {
 }
 
 EVAL_TOOL_CACHE_DIR = ".eval_tool"
+TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 
 
 class BaseDashboard(param.Parameterized):
@@ -735,7 +737,8 @@ class BaseDashboard(param.Parameterized):
             if self.dataset_2_visible
             else self.dataset_1_selector.value.replace(" ", "_")
         )
-        return f"{model_name}_{dataset_name}_{self.metric_selector.value.replace(' ','_')}_{self.threshold}_report"
+        return f"{model_name}_{dataset_name}_{self.metric_selector.value.replace(' ','_')}\
+_{self.threshold}_report_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
     def _run_all_tests(self) -> str:  # pragma: no cover
         """Run all the tests on all the stages and return a link to the resulting report.
