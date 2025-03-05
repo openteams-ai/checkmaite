@@ -22,9 +22,7 @@ stages:
 .python-matrix:
   parallel:
     matrix:
- # Temporarily reduce jobs
-       - VERSION: ["3.9"]
- #     - VERSION: ["3.9", "3.10", "3.11"]
+      - VERSION: ["3.9", "3.10", "3.11"]
   image: python:$VERSION
 
 .shared-setup:
@@ -82,8 +80,6 @@ stages:
 test:
   extends: [.python-matrix, .shared-setup, .poetry-setup]
   stage: test
-  tags:
-  - blackbox
   needs: []
   script:
     - git lfs pull
@@ -107,8 +103,6 @@ test:
 conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
-  tags:
-  - blackbox
   needs: []
   script:
     - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
@@ -116,8 +110,6 @@ conda-test:
 conda-lock-test:
   extends: [.shared-setup]
   stage: test
-  tags:
-  - blackbox
   needs: []
   image: python:3.11
   before_script:
@@ -146,8 +138,6 @@ pyright-internal:
   extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: pyright
-  tags:
-  - blackbox
   needs: []
   script:
     - poetry install --with dev
