@@ -143,7 +143,7 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None
     actual_returned_results_df = test_stage.outputs[0].withColumn(
         "classification", sf.col("classification").cast("integer")
     )
-    assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
+    assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas(),["id","box_group","classification"])
 
     assert expected_results_png_path.exists()
 
