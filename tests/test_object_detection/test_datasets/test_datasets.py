@@ -39,6 +39,18 @@ def test_load_datasets_coco():
     loaded = load_datasets(datasets=datasets)
     assert 'coco_dataset1' in loaded
 
+def test_load_datasets_visdrone():
+    """test loading a visdrone dataset through the programmatic loader"""
+    spec: DatasetSpecification = {
+        'dataset_type': 'VisdroneDetectionDataset',
+        'metadata_path': "",
+        'data_dir': Path(__file__).parents[2] / "testing_utilities" / "example_data" / "visdrone_dataset",
+    }
+
+    key = "visdrone_dataset1"
+    loaded = load_datasets(datasets={key: spec})
+    assert key in loaded
+
 
 def test_load_datasets_invalid():
     """test loading an invalid dataset"""

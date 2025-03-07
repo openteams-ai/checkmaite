@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 from dataclasses import dataclass
@@ -219,11 +220,105 @@ class YoloDetectionDataset(Dataset):
         return img_pt, DetectionTarget(boxes, labels, scores), metadata
 
 
+class VisdroneDetectionDataset(Dataset):
+    """
+    A dataset protocol for object detection ML subproblem providing datum-level
+    data access.
+
+    Indexing into or iterating over the object detection dataset returns a `Tuple` of
+    types `Tensor`, `DetectionTarget`, and `Dict[str, Any]`. These correspond to
+    the model input type, model target type, and datum-level metadata, respectively.
+
+    Parameters
+    ----------
+    root: str or Path
+        Root directory of the dataset
+
+    Attributes
+    ----------
+    classes
+        Mapping from ids to labels.
+
+    Methods
+    -------
+    __getitem__(self, index: int) -> Tuple[Tensor, DetectionTarget, Dict[str, Any]]
+        Provide mapping-style access to dataset elements. Returned tuple elements
+        correspond to input type, target type, and datum-specific metadata,
+        respectively.
+
+    __len__(self) -> int
+        Return the number of data elements in the dataset.
+    """
+
+    def __init__(self, root: str | Path, *, dataset_id: str = "visdrone") -> None:
+        self.root = Path(root).expanduser().resolve()
+        self.metadata = {
+            "id": dataset_id,
+            # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
+            "index2label": {
+                0: "ignored regions",
+                1: "pedestrian",
+                2: "people",
+                3: "bicycle",
+                4: "car",
+                5: "van",
+                6: "truck",
+                7: "tricycle",
+                8: "awning-tricycle",
+                9: "bus",
+                10: "motor",
+                11: "others",
+            },
+        }
+
+        self._samples = self._load_samples(self.root)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
+        """Get `index`-th element from dataset."""
+        image_path, target, metadata = self._samples[index]
+        image = pil_to_tensor(Image.open(image_path))
+        return image, target, metadata
+
+    def __len__(self) -> int:
+        """Return length of dataset."""
+        return len(self._samples)
+
+    def _load_samples(self, root: Path) -> list[tuple[Path, DetectionTarget, DatumMetadataType]]:
+        images_folder = root / "images"
+        annotations_folder = root / "annotations"
+
+        samples = []
+
+        for annotation_path in sorted(annotations_folder.glob("*.txt")):
+            boxes: list[tuple[float, float, float, float]] = []
+            scores: list[float] = []
+            labels: list[int] = []
+            with open(annotation_path) as f:
+                r = csv.reader(f, delimiter=",")
+                # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
+                for x, y, h, w, score, label, *_ in r:
+                    boxes.append((float(x), float(y), float(h), float(w)))
+                    scores.append(float(score))
+                    labels.append(int(label))
+
+            image_path = images_folder / annotation_path.relative_to(annotations_folder).with_suffix(".jpg")
+            target = DetectionTarget(
+                boxes=box_convert(torch.tensor(boxes), in_fmt="xywh", out_fmt="xyxy"),
+                scores=torch.tensor(scores),
+                labels=torch.tensor(labels),
+            )
+            metadata = {"image_path": str(image_path), "annotation_path": str(annotation_path)}
+
+            samples.append((image_path, target, metadata))
+
+        return samples
+
+
 class DatasetSpecification(TypedDict):
     """Dataset metadata required for loading datasets via the RI wrappers"""
 
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset"]
+    dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset", "VisdroneDetectionDataset"]
     # full path to the metadata file. For Coco datasets, this is the annotation file. For
     # yolo datasets, this is the yaml file.
     metadata_path: str | Path
@@ -247,6 +342,11 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDe
             loaded[name] = YoloDetectionDataset(
                 yaml_dataset=str(dataset_metadata["metadata_path"]),
                 ann_dir=str(dataset_metadata["data_dir"]),
+                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
+            )
+        elif dataset_metadata["dataset_type"] == "VisdroneDetectionDataset":
+            loaded[name] = VisdroneDetectionDataset(
+                root=str(dataset_metadata["data_dir"]),
                 dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
             )
         else:

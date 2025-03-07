@@ -52,6 +52,7 @@ logger = logging.getLogger()
 DATASET_LABEL_MAP_OD = {
     "Coco dataset": "CocoDetectionDataset",
     "Yolo dataset": "YoloDetectionDataset",
+    "Visdrone dataset": "VisdroneDetectionDataset",
 }
 
 DATASET_LABEL_MAP_IC = {
