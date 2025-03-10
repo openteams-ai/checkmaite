@@ -372,7 +372,9 @@ class BaseDashboard(param.Parameterized):
             self.metric_selector.options = list(METRICS_LABEL_MAP_OD.keys())
             self.metric_selector.value = list(METRICS_LABEL_MAP_OD.keys())[0]
             self.metric_label_map = METRICS_LABEL_MAP_OD
-            self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_OD.items()}
+            self.model_label_map = {
+                value.replace("_", " ").removesuffix(" Weights"): key for key, value in SUPPORTED_MODELS_OD.items()
+            }
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_OD
             self.visdrone_models = SUPPORTED_VISDRONE_MODELS_OD
 
@@ -381,7 +383,9 @@ class BaseDashboard(param.Parameterized):
             self.metric_selector.options = list(METRICS_LABEL_MAP_IC.keys())
             self.metric_selector.value = list(METRICS_LABEL_MAP_IC.keys())[0]
             self.metric_label_map = METRICS_LABEL_MAP_IC
-            self.model_label_map = {value.replace("_", " "): key for key, value in SUPPORTED_MODELS_IC.items()}
+            self.model_label_map = {
+                value.replace("_", " ").removesuffix(" Weights"): key for key, value in SUPPORTED_MODELS_IC.items()
+            }
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_IC
 
     @pn.depends("config_file.value", watch=True)
