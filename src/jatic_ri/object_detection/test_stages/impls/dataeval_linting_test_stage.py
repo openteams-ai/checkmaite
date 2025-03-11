@@ -8,6 +8,7 @@ import maite.protocols.object_detection as od
 import numpy as np
 from dataeval.interop import as_numpy
 from dataeval.metrics.stats import DatasetStatsOutput, HashStatsOutput, datasetstats, hashstats
+from maite.protocols import ArrayLike
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.impls.dataeval_linting_test_stage import DatasetLintingTestStageBase
@@ -24,10 +25,25 @@ class DatasetLintingTestStage(DatasetLintingTestStageBase[od.Dataset]):
     _deck: str = "object_detection_linting_evaluation"
     _task: str = "od"
 
+    def _increment_invalid_boxes(self, boxes: ArrayLike) -> NDArray:
+        boxes_ = np.array(boxes, dtype=np.int_)
+
+        for box in boxes_:
+            if box[3] == box[1]:  # Height is zero
+                box[3] += 1
+            if box[2] == box[0]:  # Width is zero
+                box[2] += 1
+
+        return boxes_
+
     def _run_stats(self) -> tuple[HashStatsOutput, DatasetStatsOutput]:
         """Run stats for specific dataset type"""
-        hashes = hashstats((d[0] for d in self.dataset), (np.array(d[1].boxes, dtype=np.int_) for d in self.dataset))
-        stats = datasetstats((d[0] for d in self.dataset), (np.array(d[1].boxes, dtype=np.int_) for d in self.dataset))
+        x = (d[0] for d in self.dataset)
+        y = (self._increment_invalid_boxes(d[1].boxes) for d in self.dataset)
+        hashes = hashstats(x, y)
+        x = (d[0] for d in self.dataset)
+        y = (self._increment_invalid_boxes(d[1].boxes) for d in self.dataset)
+        stats = datasetstats(x, y)
         return hashes, stats
 
     def _get_image_label_box(self, index: int, target: int | None) -> tuple[NDArray[Any], str, NDArray[np.int_]]:
