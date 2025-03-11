@@ -12,6 +12,7 @@ import httpx
 import numpy as np
 import torch
 from maite.protocols import object_detection as od
+from typing_extensions import NotRequired
 
 from jatic_ri._common.models import (
     get_default_index2label,
@@ -50,6 +51,8 @@ SUPPORTED_VISDRONE_MODELS = {
 # list of all available model wrappers
 SUPPORTED_MODELS = {**SUPPORTED_TORCHVISION_MODELS, **SUPPORTED_VISDRONE_MODELS}
 
+DEFAULT_TORCHVISION_CONFIG_PATH = "config.json"
+
 
 class TorchvisionODModel:
     """
@@ -78,7 +81,7 @@ class TorchvisionODModel:
         model_name: str,
         device: Optional[str] = None,  # noqa: UP007
         weights_path: Optional[str] = None,  # noqa: UP007
-        config_path: str = "config.json",
+        config_path: Optional[str] = None,  # noqa: UP007
         index2label_key: str = "index2label",
         model_id: str = "torchvisionOD",
         **kwargs: dict[str, Any],
@@ -97,6 +100,9 @@ class TorchvisionODModel:
         if model_name not in SUPPORTED_TORCHVISION_MODELS:
             raise ValueError(f"Model {model_name} is not currently supported by jatic_ri.")
         self._model_name = model_name
+
+        if not config_path:
+            config_path = DEFAULT_TORCHVISION_CONFIG_PATH
 
         try:
             model = getattr(importlib.import_module("torchvision.models.detection"), model_name)
@@ -197,7 +203,7 @@ class VisdroneODModel:
         self,
         *,
         arch: str,
-        model_pickle_dir: str,
+        model_pickle_dir: Optional[str],  # noqa: UP007
         device: Optional[str] = None,  # noqa: UP007
         batch_size: int = 3,
         num_workers: int = 1,
@@ -207,7 +213,7 @@ class VisdroneODModel:
         """
         Args:
             arch: Model backbone to be used (allowed values are "res2net50", "resnet50", "resnet18")
-            model_pickle_dir: Directory where model pickle will be downloaded to.
+            model_pickle_dir: Directory where model pickle will be downloaded to.  Defaults to CWD.
             device: Device to use (e.g., 'cpu', 'cuda').
             batch_size: How many samples per batch to load.
             num_workers: How many subprocesses to use for data loading.
@@ -218,6 +224,9 @@ class VisdroneODModel:
         from smqtk_detection.impls.detect_image_objects.centernet import (
             CenterNetVisdrone,
         )
+
+        if not model_pickle_dir:
+            model_pickle_dir = os.getcwd()
 
         if arch not in SUPPORTED_VISDRONE_MODELS:
             raise ValueError(f"Model with backbone {arch} is not currently supported by the visdrone model.")
@@ -306,7 +315,10 @@ class ModelSpecification(TypedDict):
     """Model metadata required for loading models via the RI wrappers"""
 
     # full filepath to model weights file
-    model_weights_path: str
+    model_weights_path: NotRequired[str]
+    # full filepath to model config file
+    # NOTE Visdrone Models do not take a config path.
+    model_config_path: NotRequired[str]
     # model type, keys map to model wrappers
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
     model_type: Literal[
@@ -339,7 +351,8 @@ def load_models(
         if meta_dict["model_type"] in SUPPORTED_TORCHVISION_MODELS:
             wrapper = TorchvisionODModel(
                 model_name=meta_dict["model_type"],
-                weights_path=meta_dict["model_weights_path"],
+                weights_path=meta_dict.get("model_weights_path"),
+                config_path=meta_dict.get("model_config_path"),
                 model_id=meta_dict["model_type"],
                 **kwargs,
             )
@@ -349,7 +362,7 @@ def load_models(
         elif meta_dict["model_type"] in SUPPORTED_VISDRONE_MODELS:
             wrapper = VisdroneODModel(
                 arch=meta_dict["model_type"],
-                model_pickle_dir=meta_dict["model_weights_path"],
+                model_pickle_dir=meta_dict.get("model_weights_path"),
                 model_id=meta_dict["model_type"],
             )
             loaded[name] = wrapper

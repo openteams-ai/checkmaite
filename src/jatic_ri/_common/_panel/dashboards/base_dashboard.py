@@ -508,22 +508,27 @@ class BaseDashboard(param.Parameterized):
         model_dict = {}
         for widget_label, widget_dict in self.model_widgets.items():
             model_number = re.search(r"\d+", widget_label).group()
-            # require a path input
-            if widget_dict["model_weights_path"].value:
-                if widget_dict["model_selector"].value not in self.model_label_map:
-                    self.status_text = f"Skipping model {model_number}, invalid type"
+            if widget_dict["model_selector"].value not in self.model_label_map:
+                # For as long as model dropdowns with 'Select Model type' appear in the UI in the case where no
+                # test stages require a model, this is a valid path.
+                self.status_text = f"Skipping model {model_number}, invalid type"
+                continue
+            model_meta: model_meta_class = {"model_type": self.model_label_map[widget_dict["model_selector"].value]}
+            # Add key for weights path only if one is provided
+            if not widget_dict["model_weights_path"].value:
+                # map from the visual name of the model to a model key we can use to reference the class
+                # constructed without weights path by default, but appending modle number for uniqueness
+                model_name = f"{widget_dict['model_selector'].value}-{model_number}"
+                self.status_text = f"Using {model_name} with default weights and configuration."
+            else:
+                model_meta["model_weights_path"] = widget_dict["model_weights_path"].value
+                weights_path = Path(widget_dict["model_weights_path"].value)
+                # TO DO: this is a temporary 'hack' - look for config JSON in same dir and name as weights
+                model_meta["model_config_path"] = weights_path.parent.joinpath(f"{weights_path.stem}.json")
                 model_name = (
                     f"{widget_dict['model_selector'].value}-{Path(widget_dict['model_weights_path'].value).stem}"
                 )
-                model_meta: model_meta_class = {
-                    "model_type": self.model_label_map[
-                        widget_dict["model_selector"].value
-                    ],  # map from the visual name of the model to a model key we can use to reference the class
-                    "model_weights_path": widget_dict["model_weights_path"].value,
-                }
-                model_dict[model_name] = model_meta
-            else:
-                self.status_text = f"Skipping model {model_number}, invalid path"
+            model_dict[model_name] = model_meta
 
         self.loaded_models = load_models(model_dict)
         return True

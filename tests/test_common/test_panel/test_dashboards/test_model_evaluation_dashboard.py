@@ -44,10 +44,15 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     # Set up model
     model_name = "ssdlite320_mobilenet_v3_large"
     model_wrapper = TorchvisionODModel(model_name=model_name)
-    config_path = "config.json"
-    pickle_path = "my_pickle.pt"
+
+    # Until issue 303 is implemented, dashboard will instantiate models by providing JSON config file
+    # with same stem name (different extension)
+    # Ref: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/303
+    config_path = "subdir/my_model.json"
+    pickle_path = "subdir/my_model.pt"
     
     # save metadata and state_dict to disk
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, "w") as f:
         json.dump({"index2label": model_wrapper.index2label}, f)
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
@@ -114,10 +119,14 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     model_name = "resnext50_32x4d"
     model_wrapper = TorchvisionICModel(model_name=model_name)
     
-    config_path = "config.json"
-    pickle_path = "my_pickle.pt"
+    # Until issue 303 is implemented, dashboard will instantiate models by providing JSON config file
+    # with same stem name (different extension)
+    # Ref: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/303
+    config_path = "subdir/my_model.json"
+    pickle_path = "subdir/my_model.pt"
     
     # save metadata and state_dict to disk
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, "w") as f:
         json.dump({"index2label": model_wrapper.index2label}, f)
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
