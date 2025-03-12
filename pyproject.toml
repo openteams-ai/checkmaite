@@ -67,6 +67,9 @@ pyspark = '>=3.5.3'                                         # arbitrary pin
 pytest = ">=8.3.0"                                          # necessary pin for compatibility
 pytest-cov = ">=4.0.0"                                      # arbitrary pin
 pytest-mock = ">=3.6.1"                                     # arbitrary, needed to test heart_app
+# This is not needed by us, but required to avoid a critical vulnerability warning
+# See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
+virtualenv = ">=20.26.6"
 
 # documentation dependencies
 [tool.poetry.group.docs]
