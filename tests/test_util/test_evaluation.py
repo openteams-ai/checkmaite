@@ -113,8 +113,8 @@ def test_single_item_batch(data_loader):
     assert batch_targets == ["target0"]
     assert batch_metadata == ["metadata0"]
 
-
-def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
+@pytest.mark.parametrize("return_augmented_data", [True, False])
+def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir, return_augmented_data) -> None:
 
     model=dummy_model_od
     model_id="dummy1"
@@ -130,7 +130,8 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
         dataset=dataset,
         dataset_id=dataset_id,
         dataloader=dataloader,
-        batch_size=2
+        batch_size=2,
+        return_augmented_data=return_augmented_data,
     )
 
     # First, this test goes through the detection object that was found by the model.
@@ -144,9 +145,12 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir) -> None:
     # Assert that the score tensors of the computed prediction match the expected values.
     assert torch.equal(detection_object.scores, mock_pred_detection_object.scores)
 
-    # Next, we test the data that was returned in batch format to test if it matches our original input.
-    # Assert that the image data returned to the user match the expected values.
-    assert torch.equal(data[0][0][0], mock_image_data)
+    if return_augmented_data:
+        # Next, we test the data that was returned in batch format to test if it matches our original input.
+        # Assert that the image data returned to the user match the expected values.
+        assert torch.equal(data[0][0][0], mock_image_data)
+    else:
+        assert not data[0][0]
 
 def test_metric_compute(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdir) -> None:
     metric_expected = {"fake_metric": 1.0}

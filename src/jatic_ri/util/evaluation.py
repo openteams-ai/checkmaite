@@ -193,6 +193,7 @@ class EvaluationTool:
         dataloader: TDataloader = None,
         batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
         augmentation: None = None,  # To match MAITE signature and return appropriate error
+        return_augmented_data: bool = False,
     ) -> tuple[
         Sequence[ic.TargetBatchType], Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]]
     ]: ...
@@ -207,6 +208,7 @@ class EvaluationTool:
         dataloader: TDataloader = None,
         batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
         augmentation: None = None,  # To match MAITE signature and return appropriate error
+        return_augmented_data: bool = False,
     ) -> tuple[
         Sequence[od.TargetBatchType], Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]]
     ]: ...
@@ -220,6 +222,7 @@ class EvaluationTool:
         dataloader: TDataloader = None,
         batch_size: int = 1,  # Remove after MAITE 0.7.1 upgrade
         augmentation: None = None,  # To match MAITE signature and return appropriate error
+        return_augmented_data: bool = False,
     ) -> tuple[
         Sequence[SomeTargetBatchType], Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
     ]:
@@ -250,13 +253,17 @@ class EvaluationTool:
             generated one sample at a time.
         augmentation : None = None
             NOT IMPLEMENTED: only raise appropriate error if called.
+        return_augmented_data : bool = False
+            Set to True to return post-augmentation data as a function output. Note that caching the data requires a lot
+            of memory.
+
         Returns
         -------
         predictions : tuple
             A tuple containing two sequences:
             - The first sequence is a list of dictionaries representing predicted values for each data point.
             - The second sequence contains tuples with three elements:
-              1) A list of inputs (e.g. images)
+              1) A list of inputs (e.g. images). This will be empty unless return_augmented_data is set
               2) A list of targets (ground truth) for each input
               3) A list of metadata
         """
@@ -281,7 +288,9 @@ class EvaluationTool:
         for input_datum_batch, target_datum_batch, metadata_batch in dataloader:
             preds_batch = model(input_datum_batch)
             preds_batches.append(preds_batch)
-            data_batches.append((input_datum_batch, target_datum_batch, metadata_batch))
+            data_batches.append(
+                (input_datum_batch if return_augmented_data else [], target_datum_batch, metadata_batch)
+            )
 
         results = (preds_batches, data_batches)
         if self.ri_cache:
@@ -391,7 +400,7 @@ class EvaluationTool:
             - A dictionary where keys are metric identifiers and values are the computed metric values.
             - A Sequence (batches) of list of predictions IF return_preds=true, else None
             - A Sequence (batches) of tuples IF return_augmented_data=true, else None, containing:
-                - A list of data (e.g. images)
+                - A list of data (e.g. images). This will be empty unless return_augmented_data is set.
                 - A list of targets (ground truth).
                 - A list of metadata.
         """
@@ -413,6 +422,7 @@ class EvaluationTool:
             dataset_id=dataset_id,
             dataloader=dataloader,
             batch_size=batch_size,
+            return_augmented_data=return_augmented_data,
         )
 
         metric_results = self.compute_metric(
