@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 def load_torchvision_constructor(model_name: str, supported_torchvision_models: dict[str, str]) -> object:
     try:
         return getattr(
-            importlib.import_module("torchvision.models.detection"), supported_torchvision_models[model_name]
+            importlib.import_module("torchvision.models.detection"),
+            supported_torchvision_models[model_name],
         )
     except Exception as e:
         raise ImportError(
@@ -24,12 +25,28 @@ def load_torchvision_constructor(model_name: str, supported_torchvision_models: 
         ) from e
 
 
-def set_device(device: str | None) -> str:
+def set_device(device: str | None | torch.device) -> torch.device:
+    """
+    Determines the appropriate `torch.device` based on the provided input.
+
+    If `device` is None, it selects the best available option:
+    - `"cuda"` if a CUDA-capable GPU is available.
+    - `"mps"` if running on macOS with an Apple Metal backend.
+    - `"cpu"` otherwise.
+
+    If `device` is provided as a string, it must be a valid PyTorch device identifier
+    such as `"cpu"`, `"cuda"`, `"cuda:0"`, `"mps"`, etc.
+    For a complete list of valid device strings, see:
+    https://pytorch.org/docs/stable/tensor_attributes.html#torch-device
+    """
+
     if device is None:
         if torch.cuda.is_available():
-            return "cuda"
-        return "cpu"
-    return device
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+    return torch.device(device)
 
 
 def get_index2label_from_model_config(
@@ -44,7 +61,9 @@ def get_index2label_from_model_config(
     raise TypeError(f"index2label should be provided as a dict or list, not {type(model_config[index2label_key])}")
 
 
-def get_default_index2label(torchvision_weights_constructor: Any) -> dict[int, str]:  # noqa: ANN401
+def get_default_index2label(
+    torchvision_weights_constructor: Any,  # noqa: ANN401
+) -> dict[int, str]:
     default = torchvision_weights_constructor.DEFAULT
     return dict(enumerate(default.meta["categories"]))
 
@@ -52,7 +71,7 @@ def get_default_index2label(torchvision_weights_constructor: Any) -> dict[int, s
 def maybe_download_weights(
     model: Any,  # noqa: ANN401
     torchvision_weights_constructor: Any,  # noqa: ANN401
-    device: str,
+    device: torch.device,
     **kwargs: Any,  # noqa: ANN401
 ) -> nn.Module:
     # if weights not already in cache, they are downloaded here
@@ -78,7 +97,7 @@ def validate_input_batch(input_batch: Sequence[ArrayLike]) -> None:
             )
 
 
-def to_torch_batch(input_batch: Sequence[ArrayLike], device: str) -> torch.Tensor:
+def to_torch_batch(input_batch: Sequence[ArrayLike], device: torch.device) -> torch.Tensor:
     # we are not writing to the underlying array in this method and hence we suppress this warning
     with warnings.catch_warnings():
         warnings.filterwarnings(

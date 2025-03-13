@@ -113,7 +113,7 @@ class TorchvisionODModel:
         except Exception as e:
             raise ImportError(f"There was an error importing {model_name} from torchvision.") from e
 
-        self.device: str = set_device(device)
+        self.device: torch.device = set_device(device)
 
         # warning: assumed that preprocessing transforms will be unchanged even when loading user-supplied weights
         self.preprocess: nn.Module = torchvision_weights_constructor.DEFAULT.transforms()
@@ -204,7 +204,7 @@ class VisdroneODModel:
         *,
         arch: str,
         model_pickle_dir: Optional[str],  # noqa: UP007
-        device: str = "cpu",
+        device: None | str | torch.device = None,
         batch_size: int = 3,
         num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688
         max_dets: int = 500,
@@ -214,7 +214,8 @@ class VisdroneODModel:
         Args:
             arch: Model backbone to be used (allowed values are "res2net50", "resnet50", "resnet18")
             model_pickle_dir: Directory where model pickle will be downloaded to.  Defaults to CWD.
-            device: Device to use (e.g., 'cpu', 'cuda').
+            device: Device to use (e.g., 'cpu', 'cuda'). If None, attempts to locate a GPU. If no GPU
+                is present, falls back to CPU.
             batch_size: How many samples per batch to load.
             num_workers: How many subprocesses to use for data loading.
             0 means that the data will be loaded in the main process.
@@ -245,7 +246,7 @@ class VisdroneODModel:
         self.model = CenterNetVisdrone(
             arch=arch,
             model_file=model_file,
-            device=device,
+            device=str(set_device(device)),
             max_dets=max_dets,
             batch_size=batch_size,
             num_workers=num_workers,
