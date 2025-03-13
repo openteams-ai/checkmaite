@@ -91,7 +91,7 @@ class TorchvisionICModel:
         except Exception as e:
             raise ImportError(f"There was an error importing {model_name} from torchvision.") from e
 
-        self.device: str = set_device(device)
+        self.device: torch.device = set_device(device)
 
         # warning: assumed that preprocessing transforms will be unchanged even when loading user-supplied weights
         self.preprocess: nn.Module = torchvision_weights_constructor.DEFAULT.transforms()
