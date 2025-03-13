@@ -54,6 +54,7 @@ torch = ">=2.2.0"                                           # necessary pin (at 
 torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
 torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
 zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
+smqtk-detection = ">=0.21.0"                                # required for running VisDrone model on Mac
 
 
 # development dependencies

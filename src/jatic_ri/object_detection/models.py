@@ -204,9 +204,9 @@ class VisdroneODModel:
         *,
         arch: str,
         model_pickle_dir: Optional[str],  # noqa: UP007
-        device: Optional[str] = None,  # noqa: UP007
+        device: str = "cpu",
         batch_size: int = 3,
-        num_workers: int = 1,
+        num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688
         max_dets: int = 500,
         model_id: str = "visdrone",
     ) -> None:
@@ -242,14 +242,10 @@ class VisdroneODModel:
                     for chunk in response.iter_bytes():
                         file.write(chunk)
 
-        # Warning: 'mps' won't work for now - CenterNetVisdrone class depends on .gather from torch,
-        # which has issues on metal GPU - https://github.com/pytorch/pytorch/issues/94765
-        use_cuda = device == "cuda"
-
         self.model = CenterNetVisdrone(
             arch=arch,
             model_file=model_file,
-            use_cuda=use_cuda,
+            device=device,
             max_dets=max_dets,
             batch_size=batch_size,
             num_workers=num_workers,
