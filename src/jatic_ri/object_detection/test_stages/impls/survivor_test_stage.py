@@ -115,8 +115,7 @@ class SurvivorTestStage(
     @property
     def cache_id(self) -> str:
         """Generate the cache ID for based on the Model IDs, Dataset ID, Metric ID, and Survivor Config."""
-        if self._cache_configuration is None:
-            self._generate_cache_config()
+        self._generate_cache_config()
         config_hash_string = sha256(json.dumps(self._cache_configuration).encode("utf-8")).hexdigest()
 
         return f"survivor_{self._task}_cache_{config_hash_string}"
