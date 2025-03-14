@@ -201,8 +201,7 @@ class RealLabelTestStage(
     @property
     def cache_id(self) -> str:
         """Generate the cache ID for this instance based on the Model IDs, Dataset ID, and RealLabel Config."""
-        if self._cache_configuration is None:
-            self._generate_cache_config()
+        self._generate_cache_config()
         config_hash_string = sha256(json.dumps(self._cache_configuration).encode("utf-8")).hexdigest()
 
         return f"reallabel_{self._task}_cache_{config_hash_string}"
