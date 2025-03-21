@@ -5096,13 +5096,13 @@ zarr = ["fsspec", "zarr (<3)"]
 
 [[package]]
 name = "timm"
-version = "1.0.15"
+version = "1.0.11"
 description = "PyTorch Image Models"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "timm-1.0.15-py3-none-any.whl", hash = "sha256:5a3dc460c24e322ecc7fd1f3e3eb112423ddee320cb059cc1956fbc9731748ef"},
-    {file = "timm-1.0.15.tar.gz", hash = "sha256:756a3bc30c96565f056e608a9b559daed904617eaadb6be536f96874879b1055"},
+    {file = "timm-1.0.11-py3-none-any.whl", hash = "sha256:52a6f895e2cbec35a87d0846870419c2c0aa40de9b205bcda917f38278bf3044"},
+    {file = "timm-1.0.11.tar.gz", hash = "sha256:a005f72b87e67ed30cdbf405a9ffd4e723360c780a43b1cefe266af8ecc9d151"},
 ]
 
 [package.dependencies]
@@ -5400,6 +5400,7 @@ pyyaml = ">=5.1"
 regex = "!=2019.12.17"
 requests = "*"
 safetensors = ">=0.4.1"
+timm = {version = "<=1.0.11", optional = true, markers = "extra == \"timm\""}
 tokenizers = ">=0.21,<0.22"
 tqdm = ">=4.27"
 
@@ -5670,13 +5671,9 @@ files = [
 
 [package.dependencies]
 maite = ">=0.6.0,<0.7.0"
-matplotlib = {version = ">=3.4.1", optional = true, markers = "extra == \"tools\" or extra == \"docker\""}
 numpy = {version = ">=1.22,<2.0", markers = "python_version < \"3.12\""}
 scipy = ">=1.10.0"
 setuptools = ">=65.6.3"
-timm = {version = ">=1.0.7,<2.0.0", optional = true, markers = "extra == \"docker\""}
-torchvision = {version = ">=0.10.0", optional = true, markers = "extra == \"docker\""}
-transformers = {version = ">=4.42.3,<5.0.0", optional = true, markers = "extra == \"docker\""}
 xaitk-saliency = ">=0.9.2"
 
 [package.extras]
@@ -6001,4 +5998,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <3.12"
-content-hash = "4f90b76c407e34252740a2be37efaf9ed86b10b41fe6b72c826d4640216e64b9"
+content-hash = "f841cecb6bb69a996046fa4fb1ac5ccb1433cb9fbd57efb777813508b43a2f11"
