@@ -38,7 +38,7 @@ pybsm = "==0.8.0"                                 # optional dep for nrtk, requi
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
 xaitk-saliency = "==0.12.0"
-xaitk-jatic = {version = "==0.4.3", extras = ["docker"]}  # docker extra required for panel apps
+xaitk-jatic = "==0.4.3"
 # external deps
 holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
 httpx = ">=0.28.1"                                          # arbitrary, needed to run visdrone model
@@ -55,6 +55,7 @@ torchmetrics = ">=1.4.0"                                    # arbitrary pin, req
 torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
 zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
 smqtk-detection = ">=0.21.0"                                # required for running VisDrone model on Mac
+transformers = {version = ">=4.48.0", extras = ["timm"]}    # required for xaitk panel app, pin for security vulnerability
 
 
 # development dependencies
