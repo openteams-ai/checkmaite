@@ -293,13 +293,17 @@ class VisdroneDetectionDataset(Dataset):
             boxes: list[tuple[float, float, float, float]] = []
             scores: list[float] = []
             labels: list[int] = []
+            truncations: list[int] = []
+            occlusions: list[int] = []
             with open(annotation_path) as f:
                 r = csv.reader(f, delimiter=",")
                 # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
-                for x, y, h, w, score, label, *_ in r:
+                for x, y, h, w, score, label, truncation, occlusion in r:
                     boxes.append((float(x), float(y), float(h), float(w)))
                     scores.append(float(score))
                     labels.append(int(label))
+                    truncations.append(int(truncation))
+                    occlusions.append(int(occlusion))
 
             image_path = images_folder / annotation_path.relative_to(annotations_folder).with_suffix(".jpg")
             target = DetectionTarget(
@@ -307,7 +311,12 @@ class VisdroneDetectionDataset(Dataset):
                 scores=torch.tensor(scores),
                 labels=torch.tensor(labels),
             )
-            metadata = {"image_path": str(image_path), "annotation_path": str(annotation_path)}
+            metadata = {
+                "image_path": str(image_path),
+                "annotation_path": str(annotation_path),
+                "truncations": truncations,
+                "occlusions": occlusions,
+            }
 
             samples.append((image_path, target, metadata))
 

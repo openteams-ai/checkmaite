@@ -60,3 +60,7 @@ class TestVisdroneDetectionDataset:
         assert "annotation_path" in metadata
         assert isinstance(metadata["annotation_path"], str)
         Path(metadata["annotation_path"]).relative_to(self.ROOT)
+        assert "truncations" in metadata
+        assert len(metadata["truncations"]) == len(target.boxes)
+        assert "occlusions" in metadata
+        assert len(metadata["occlusions"]) == len(target.boxes)
