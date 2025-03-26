@@ -10,6 +10,7 @@ from jatic_ri.object_detection.models import TorchvisionODModel
 from jatic_ri.util.dashboard_utils import rehydrate_test_stage_od
 from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
@@ -17,6 +18,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     ThresholdPlugin,
     TwoDatasetPlugin,
 )
+from jatic_ri.util.evaluation import EvaluationTool
 
 
 @pytest.fixture(scope='session')
@@ -80,6 +82,9 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     elif isinstance(test_stage, MultiModelPlugin):
         test_stage.load_models(models={'model_1': model_od})
 
+    if isinstance(test_stage, EvalToolPlugin):
+        test_stage.load_eval_tool(EvaluationTool())
+        
     # run the stage, saving output to the class
     test_stage.run(use_stage_cache=False)
     # collect the slides
