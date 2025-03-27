@@ -3,6 +3,9 @@ from collections.abc import Sequence
 from typing import Any, Hashable
 from pathlib import Path
 import os
+# https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/326
+# must be set before torch is imported!
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK']='1'
 
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
@@ -511,3 +514,13 @@ def default_eval_tool_no_cache() -> jatic_ri.util.evaluation.EvaluationTool:
     Fixture for returning a default, cache-free evaluation tool for running unit tests on Test Stages.
     """
     return jatic_ri.util.evaluation.EvaluationTool()
+
+@pytest.fixture(scope='session')
+def dummy_cpu_image_batch():
+    return torch.testing.make_tensor(
+        (3, 3, 11, 17),
+        low=0,
+        high=torch.iinfo(torch.uint8).max,
+        dtype=torch.uint8,
+        device="cpu",
+    )

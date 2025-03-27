@@ -3,6 +3,7 @@
 import importlib.metadata as importlib_metadata
 import logging
 import os
+import warnings
 from pathlib import Path
 
 __version__ = importlib_metadata.version("jatic_ri")
@@ -23,3 +24,20 @@ root_logger.addHandler(file_handler)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 root_logger.addHandler(console_handler)
+
+# https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/326
+# must be set before torch is imported!
+user_mps_fallback = os.environ.get("PYTORCH_ENABLE_MPS_FALLBACK") is not None
+if not user_mps_fallback:
+    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
+
+import torch  # noqa: E402
+
+if not user_mps_fallback and torch.mps.is_available():
+    warnings.warn(
+        "MPS fallback has been enabled. "
+        "Please set the environment variable PYTORCH_ENABLE_MPS_FALLBACK=0 "
+        "to prevent CPU fallback.",
+        stacklevel=2,
+    )

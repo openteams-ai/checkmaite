@@ -28,7 +28,7 @@ def test_integration_dataset(model_name: str):
     # It's a bicycle, but close enough, there's many other objects in the image
     assert torchvision_wrapper.index2label[prediction[0].argmax().item()] == 'unicycle'
 
-def test_valid_user_weights_load(tmpdir):
+def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     """
     Test that can load user-supplied weights.
 
@@ -56,7 +56,7 @@ def test_valid_user_weights_load(tmpdir):
 
     # check that scores from random prediction from both models identical
     # maybe overkill, but useful smoke-test
-    random_img = np.random.random(size=(3, 100, 100))
+    random_img = dummy_cpu_image_batch[0]
     assert (
         model_wrapper(input_batch=[random_img])[0]
         == model_wrapper_2(input_batch=[random_img])[0]

@@ -48,7 +48,7 @@ def test_integration_coco_dataset():
     assert 0 <= int(ymax) <= img.height
 
 
-def test_valid_user_weights_load(tmpdir):
+def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     """
     Test that can load user-supplied weights.
 
@@ -76,7 +76,7 @@ def test_valid_user_weights_load(tmpdir):
 
     # check that scores from random prediction from both models identical
     # maybe overkill, but useful smoke-test
-    random_img = np.random.random(size=(3, 100, 100))
+    random_img = dummy_cpu_image_batch[0]
     assert (
         model_wrapper(input_batch=[random_img])[0].scores.numpy()
         == model_wrapper_2(input_batch=[random_img])[0].scores.numpy()
