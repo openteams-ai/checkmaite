@@ -43,7 +43,7 @@ class BaselineEvaluationBase(
     Inherited attributes:
         outputs: Optional[TData]
         cache: Optional[Cache[TData]] = None
-        cache_base_path: str = ".tscache"
+        cache_base_path: str = "tscache"
         use_stage_cache: bool = False
         eval_tool: EvaluationTool
         model: gen.Model
