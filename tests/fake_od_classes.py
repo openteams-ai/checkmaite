@@ -5,7 +5,7 @@ from jatic_ri.object_detection.datasets import DetectionTarget
 import torch
 from tests.fake_ic_classes import RestartingIterator
 # Remove once envrionment updated so maite>=0.7.0
-from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata
+from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata, ModelMetadata
 
 """
 The default fake "dataset" will include only one image/target initally.  It is based off of http://cocodataset.org/#explore?id=37777
@@ -30,12 +30,12 @@ DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
     DetectionTarget(
             boxes=torch.Tensor(
                 [
-                    [301.84, 74.94, 351.46, 226.38],  # fridge
-                    [137.47, 124.11, 197.65, 195.13],  # oven
-                    [79.55, 178.05, 287.91, 226.75],  # dining table
+                    [301.84, 74.94, 351.46, 226.38],  # date
+                    [137.47, 124.11, 197.65, 195.13],  # cherry
+                    [79.55, 178.05, 287.91, 226.75],  # banana
                 ]
             ),
-            labels=torch.Tensor([82, 79, 67]),
+            labels=torch.Tensor([4, 3, 2]),
             scores=torch.Tensor([1.0, 1.0, 1.0]),
         )  for _ in range(DEFAULT_DATASET_LENGTH)
 ]
@@ -44,10 +44,13 @@ DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
 DEFAULT_OD_DATASET_METADATA = DatasetMetadata(
     id = "fake_od_dataset",
     index2label={
-        67:"dining table",
-        79:"oven",
-        82:"fridge"
-    } # subset of all classes that applies to the default target
+        0:"ignored regions",
+        1:"apple",
+        2:"banana",
+        3:"cherry",
+        4:"date",
+        5:"eggplant"
+    }
 )
 
 # 'Datum metadata' apply to an individual item within the dataset (e.g. an image ID)
@@ -63,6 +66,20 @@ The default OD model returns the same value for each image.  The response is a p
 prediction to the default dataset's image/target data (i.e. six instances of the same image).
 Specific deviations from prediction and "ground truth" annotated in comments in-line below.
 """
+
+# 'Model metadata' apply to the entire model (e.g. the index2label dictionary)
+DEFAULT_OD_MODEL_METADATA = ModelMetadata(
+    id = "fake_od_model",
+    index2label={
+        0:"ignored regions",
+        1:"apple",
+        2:"banana",
+        3:"cherry",
+        4:"date",
+        5:"eggplant"
+    }
+)
+
 DEFAULT_OD_MODEL_PREDICTIONS: Sequence[od.ObjectDetectionTarget] = [
     DetectionTarget(
             boxes=torch.Tensor(
@@ -72,7 +89,7 @@ DEFAULT_OD_MODEL_PREDICTIONS: Sequence[od.ObjectDetectionTarget] = [
                     [79.55, 178.05, 287.91, 226.75],  # accurate bbox, incorrect label, high confidence
                 ]
             ),  
-            labels=torch.Tensor([82, 11, 23]),
+            labels=torch.Tensor([4, 1, 5]),
             scores=torch.Tensor([0.9, 0.2, 0.7]),
         )
 ]
@@ -97,6 +114,8 @@ class FakeODModel(od.Model):
     data for different scenarios.
 
     Attributes:
+
+        model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for RI tools.
         prediction_data (Sequence[od.ObjectDetectionTarget]): A Sequence of responses to provide, sequentially and repeating, as the model is called.
         The __call__ method will batch these responses into a return batch of the correct size.
 
@@ -104,11 +123,10 @@ class FakeODModel(od.Model):
             prediction to the default dataset's single image as documented with the DEFAULT_OD_MODEL_PREDICTIONS constant above.
 
             A fake model can also be pre-loaded with the desired responses to a known dataset order.
-    
-    NOTE: MAITE 0.7.0 specifies ModelMetadata and DatasetMetadata _may_ include index2label dict.  Initially, only the default fake Dataset will have this attribute.
     """
-    def __init__(self, prediction_data: Sequence[od.ObjectDetectionTarget] = DEFAULT_OD_MODEL_PREDICTIONS):
+    def __init__(self, model_metadata: ModelMetadata = DEFAULT_OD_MODEL_METADATA, prediction_data: Sequence[od.ObjectDetectionTarget] = DEFAULT_OD_MODEL_PREDICTIONS):
         self.prediction_iter: RestartingIterator = RestartingIterator(prediction_data)
+        self.metadata: ModelMetadata = model_metadata
 
     def __call__(self, input: Sequence[ArrayLike]) -> Sequence[od.ObjectDetectionTarget]:
         return [ next(self.prediction_iter) for _ in range(len(input))]
