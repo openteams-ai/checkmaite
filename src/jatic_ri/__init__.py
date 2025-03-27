@@ -11,7 +11,7 @@ __version__ = importlib_metadata.version("jatic_ri")
 PACKAGE_DIR = Path(os.path.dirname(__file__)).resolve()
 CACHE_DIR = Path(os.path.dirname(__file__)).resolve()
 
-DEFAULT_CACHE_ROOT = str(Path.cwd().joinpath(".tscache"))
+DEFAULT_CACHE_ROOT = str(Path.cwd().joinpath("tscache"))
 
 # setup loger to print to stdout and to file (`runtime.log`)
 log_formatter = logging.Formatter("%(asctime)s [%(levelname)-7.7s] [%(module)s] %(message)s")
