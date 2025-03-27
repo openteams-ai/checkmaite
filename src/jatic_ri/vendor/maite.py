@@ -36,3 +36,21 @@ class DatumMetadata(TypedDict):
     """
 
     id: Required[ReadOnly[int | str]]
+
+
+# This code should be removed once MAITE 0.7.x is allowed.
+class ModelMetadata(TypedDict):
+    # doc-ignore: PR01, EX01
+    """
+    Metadata associated with a Model object.
+
+    Attributes
+    ----------
+    id : str
+        Identifier for a single Dataset instance
+    index2label : NotRequired[ReadOnly[dict[int, str]]]
+        Mapping from integer labels to corresponding string descriptions
+    """
+
+    id: Required[ReadOnly[str]]
+    index2label: NotRequired[ReadOnly[dict[int, str]]]

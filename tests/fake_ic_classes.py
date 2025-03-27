@@ -1,59 +1,95 @@
+import torch
 from typing import Any, Iterable, Sequence, Tuple
-from torch import Tensor
 from maite._internals.protocols import ArrayLike
 import maite.protocols.image_classification as ic
+# Remove once envrionment updated so maite>=0.7.0
+from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata, ModelMetadata
 
-DEFAULT_IC_MODEL_PREDICTIONS: Sequence[Tensor] = [
-    Tensor([-0.2832, -0.4654, -0.5866,  3.3975, -0.4545,  0.0570, -0.3015, -0.4808, -0.1757, -0.5573]),
-    Tensor([-0.1634, -0.1646, -0.6448, -0.3842, -0.5051, -0.4712, -0.4654, -0.6231, 3.4097, -0.6745]),
-    Tensor([-0.0775,  0.1461, -0.5379, -0.4177, -0.5669, -0.6365, -0.4918, -0.6450, 3.2838, -0.5834]),
-    Tensor([ 2.2617, -0.7592,  1.2758, -0.3185, -0.1752, -0.6627, -0.4864, -0.5339, -0.1966, -0.5145]),
-    Tensor([-0.3537, -0.2256, -0.1936, -0.3826, -0.3499, -0.5073,  3.3957, -0.5077, -0.2492, -0.5025]),
-    Tensor([-0.7112, -0.6057, -0.5041,  0.1275, -0.3270,  0.1434,  3.3354, -0.4935, -0.4712, -0.6506]),
-    Tensor([-0.3078,  3.4402, -0.2747, -0.6082, -0.5243, -0.6291, -0.3965, -0.3440, -0.2732,  0.2556]),
-    Tensor([-0.2937, -0.4419, -0.4337, -0.2989, -0.3909, -0.3279,  3.3799, -0.5901, -0.2065, -0.4537]),
-    Tensor([-0.5285, -0.4450, -0.6761,  3.3978, -0.3468,  0.0582, -0.2942, -0.3642, -0.1514, -0.5457]),
-    Tensor([-0.5058,  3.3764, -0.3019, -0.5000, -0.5454, -0.6148, -0.3679, -0.4290, -0.2001,  0.3801]),
-    Tensor([ 2.9787, -0.6276,  0.8979, -0.4128, -0.6522, -0.2636, -0.6498, -0.5331, -0.3570, -0.3990]),
-    Tensor([-0.3237,  0.0699, -0.4151, -0.4021, -0.1599, -0.3998, -0.3533, -0.5239, -0.4047,  3.3992]),
-    Tensor([-0.5112, -0.7362, -0.4982,  0.1223, -0.3884,  3.1434, -0.4271, -0.3184, -0.2962, -0.4724]),
-    Tensor([-0.3638, -0.2724, -0.2569, -0.3294, -0.0768, -0.2099, -0.3563,  3.5357, -0.3638, -0.4512]), # 7 predicted, 8 is correct target
-    Tensor([-0.3090, -0.0466, -0.3871, -0.2501, -0.1755, -0.4787, -0.3690, -0.5002, -0.3567,  3.3851]),
-    Tensor([ 0.0523, -0.5057, -0.5043, -0.4131, -0.4282, -0.5697, -0.4123, -0.7042, 3.3588, -0.7597]),
-    Tensor([-0.4867, -0.6812, -0.2931,  0.2918, -0.5057,  3.1666, -0.4555, -0.3837, -0.3678, -0.6348]),
-    Tensor([-0.2538, -0.1592, -0.3918, -0.3946, -0.1470, -0.3973, -0.3574,  3.4823, -0.2857, -0.2486]), # 7 predicted, 8 is correct target
-    Tensor([-0.2821, -0.3694, -0.5154, -0.2898, -0.3963, -0.5335, -0.4082, -0.7029, 3.4225, -0.6853]),
-    Tensor([-0.4688, -0.3213, -0.0638, -0.3976, -0.2782, -0.3688,  3.4971, -0.5379, -0.4190, -0.5718])
+DEFAULT_IC_MODEL_PREDICTIONS: Sequence[torch.Tensor] = [
+    torch.Tensor([-0.2832, -0.4654, -0.5866,  3.3975, -0.4545,  0.0570, -0.3015, -0.4808, -0.1757, -0.5573]),
+    torch.Tensor([-0.1634, -0.1646, -0.6448, -0.3842, -0.5051, -0.4712, -0.4654, -0.6231, 3.4097, -0.6745]),
+    torch.Tensor([-0.0775,  0.1461, -0.5379, -0.4177, -0.5669, -0.6365, -0.4918, -0.6450, 3.2838, -0.5834]),
+    torch.Tensor([ 2.2617, -0.7592,  1.2758, -0.3185, -0.1752, -0.6627, -0.4864, -0.5339, -0.1966, -0.5145]),
+    torch.Tensor([-0.3537, -0.2256, -0.1936, -0.3826, -0.3499, -0.5073,  3.3957, -0.5077, -0.2492, -0.5025]),
+    torch.Tensor([-0.7112, -0.6057, -0.5041,  0.1275, -0.3270,  0.1434,  3.3354, -0.4935, -0.4712, -0.6506]),
+    torch.Tensor([-0.3078,  3.4402, -0.2747, -0.6082, -0.5243, -0.6291, -0.3965, -0.3440, -0.2732,  0.2556]),
+    torch.Tensor([-0.2937, -0.4419, -0.4337, -0.2989, -0.3909, -0.3279,  3.3799, -0.5901, -0.2065, -0.4537]),
+    torch.Tensor([-0.5285, -0.4450, -0.6761,  3.3978, -0.3468,  0.0582, -0.2942, -0.3642, -0.1514, -0.5457]),
+    torch.Tensor([-0.5058,  3.3764, -0.3019, -0.5000, -0.5454, -0.6148, -0.3679, -0.4290, -0.2001,  0.3801]),
+    torch.Tensor([ 2.9787, -0.6276,  0.8979, -0.4128, -0.6522, -0.2636, -0.6498, -0.5331, -0.3570, -0.3990]),
+    torch.Tensor([-0.3237,  0.0699, -0.4151, -0.4021, -0.1599, -0.3998, -0.3533, -0.5239, -0.4047,  3.3992]),
+    torch.Tensor([-0.5112, -0.7362, -0.4982,  0.1223, -0.3884,  3.1434, -0.4271, -0.3184, -0.2962, -0.4724]),
+    torch.Tensor([-0.3638, -0.2724, -0.2569, -0.3294, -0.0768, -0.2099, -0.3563,  3.5357, -0.3638, -0.4512]), # 7 predicted, 8 is correct target
+    torch.Tensor([-0.3090, -0.0466, -0.3871, -0.2501, -0.1755, -0.4787, -0.3690, -0.5002, -0.3567,  3.3851]),
+    torch.Tensor([ 0.0523, -0.5057, -0.5043, -0.4131, -0.4282, -0.5697, -0.4123, -0.7042, 3.3588, -0.7597]),
+    torch.Tensor([-0.4867, -0.6812, -0.2931,  0.2918, -0.5057,  3.1666, -0.4555, -0.3837, -0.3678, -0.6348]),
+    torch.Tensor([-0.2538, -0.1592, -0.3918, -0.3946, -0.1470, -0.3973, -0.3574,  3.4823, -0.2857, -0.2486]), # 7 predicted, 8 is correct target
+    torch.Tensor([-0.2821, -0.3694, -0.5154, -0.2898, -0.3963, -0.5335, -0.4082, -0.7029, 3.4225, -0.6853]),
+    torch.Tensor([-0.4688, -0.3213, -0.0638, -0.3976, -0.2782, -0.3688,  3.4971, -0.5379, -0.4190, -0.5718])
  ]
 
-DEFAULT_IC_DATASET_TARGETS: Sequence[Tensor] = [
-    Tensor([0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
-    Tensor([1., 0., 0., 0., 0., 0., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
-    Tensor([0., 1., 0., 0., 0., 0., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
-    Tensor([0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]),
-    Tensor([0., 1., 0., 0., 0., 0., 0., 0., 0., 0.]),
-    Tensor([1., 0., 0., 0., 0., 0., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]),
-    Tensor([0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]), # altered 7 to 8
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
-    Tensor([0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]), # altered 7 to 8
-    Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
-    Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.])
+# 'Model metadata' apply to the entire model (e.g. the index2label dictionary)
+DEFAULT_IC_MODEL_METADATA = ModelMetadata(
+    id = "fake_ic_model",
+    index2label={
+        1:"apple",
+        2:"banana",
+        3:"cherry",
+        4:"date",
+        5:"eggplant",
+        6: "fig",
+        7: "grape",
+        8: "honeycomb",
+        9: "iceberg lettuce",
+        10: "jackfruit"
+    }
+)
+
+DEFAULT_IC_DATASET_TARGETS: Sequence[torch.Tensor] = [
+    torch.Tensor([0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
+    torch.Tensor([1., 0., 0., 0., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
+    torch.Tensor([0., 1., 0., 0., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([0., 1., 0., 0., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([1., 0., 0., 0., 0., 0., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]),
+    torch.Tensor([0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]), # altered 7 to 8
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]), # altered 7 to 8
+    torch.Tensor([0., 0., 0., 0., 0., 0., 0., 0., 1., 0.]),
+    torch.Tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0.])
 ]
+
+# 'Dataset metadata' apply to the entire dataset (e.g. the index2label dictionary)
+DEFAULT_IC_DATASET_METADATA = DatasetMetadata(
+    id = "fake_id_dataset",
+    index2label={
+        1:"apple",
+        2:"banana",
+        3:"cherry",
+        4:"date",
+        5:"eggplant",
+        6: "fig",
+        7: "grape",
+        8: "honeycomb",
+        9: "iceberg lettuce",
+        10: "jackfruit"
+    }
+)
 
 # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
 DEFAULT_IC_METRIC_RESPONSE: dict[str,Any] = {
-        "fake_metric":   Tensor([0.12]),
-        "fake_metric_1": Tensor([0.43]),
-        "fake_metric_2": Tensor([0.56]),
+        "fake_metric":   torch.Tensor([0.12]),
+        "fake_metric_1": torch.Tensor([0.43]),
+        "fake_metric_2": torch.Tensor([0.56]),
     }
 # Take the first ordered key above for use as return_key, the 'primary metric' in RI conventions
 DEFAULT_IC_METRIC_RETURN_KEY: str = list(DEFAULT_IC_METRIC_RESPONSE.keys())[0]
@@ -86,6 +122,7 @@ class FakeICModel(ic.Model):
     data for different scenarios.
 
     Attributes:
+        model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for RI tools.
         prediction_data (Sequence[ArrayLike]): A Sequence of responses to provide, sequentially and repeating, as the model is called.
         The __call__ method will batch these responses into a return batch of the correct size.
 
@@ -102,10 +139,9 @@ class FakeICModel(ic.Model):
 
             A fake model can also be pre-loaded with the desired responses to a known dataset order.  (This is how the default value is implemented
             vis-a-vis the default values for the FakeICDataset.)
-    
-    NOTE: real implementations of MAITE Models may include an index2label property (mapping class '3' to 'chair', e.g.).  TBD if that's necessary for our fake suite.
     """
-    def __init__(self, prediction_data: Sequence[ArrayLike] = DEFAULT_IC_MODEL_PREDICTIONS):
+    def __init__(self, model_metadata: ModelMetadata = DEFAULT_IC_MODEL_METADATA, prediction_data: Sequence[ArrayLike] = DEFAULT_IC_MODEL_PREDICTIONS):
+        self.metadata: ModelMetadata = model_metadata
         self.prediction_iter: RestartingIterator = RestartingIterator(prediction_data)
 
     def __call__(self, input: Sequence[ArrayLike]) -> Sequence[ArrayLike]:
@@ -126,19 +162,22 @@ class FakeICDataset(ic.Dataset):
     Attributes:
         images (Sequence[ArrayLike]): A Sequence (e.g. list) of images represented in an ArrayLike format (e.g. a torch Tensor)
         targets (Sequence[ArrayLike]): A Sequence of ground truth targets, typically as a 1D array of one-hot encodings, shape (C,).
-        metadata (Sequence[dict[str,Any]]): A dictionary of metadata associated with each image.
+        datum_metadata (Sequence[dict[str,Any]]): A dictionary of metadata associated with each image.
+        metadata (DatasetMetadata): This is the metadata that applies to the whole dataset, specifically its 'id' and 'index2label' dict
     """
     def __init__(self, 
-                 images: Sequence[ArrayLike] = list([ Tensor(1,1,1) for _ in range(20) ]),
+                 images: Sequence[ArrayLike] = list([ torch.ones(torch.Size([3, 11, 17]),dtype=torch.uint8)for _ in range(20) ]),
                  targets: Sequence[ArrayLike] = DEFAULT_IC_DATASET_TARGETS,
-                 metadata: Sequence[dict[str, Any]] = [ {"id": i} for i in range(20)]
+                 datum_metadata: Sequence[dict[str, Any]] = [ {"id": i} for i in range(20)],
+                 dataset_metadata: DatasetMetadata = DEFAULT_IC_DATASET_METADATA
                 ):
         self.images: Sequence[ArrayLike] = images
         self.targets: Sequence[ArrayLike] = targets
-        self.metadata: Sequence[dict[str, Any]] = metadata
+        self.datum_metadata: Sequence[dict[str, Any]] = datum_metadata
+        self.metadata: DatasetMetadata = dataset_metadata
 
     def __getitem__(self, ind:int) -> Tuple[ArrayLike, ArrayLike, dict[str,Any]]:
-      return (self.images[ind],self.targets[ind],self.metadata[ind])
+      return (self.images[ind],self.targets[ind],self.datum_metadata[ind])
 
     def __len__(self) -> int:
       return len(self.images)
