@@ -33,7 +33,7 @@ def dataset_ic(fake_dataset):
     NOTE: this should be replaced by a faked ic model when available
     """
     dataset_root, _, _, _ = fake_dataset
-    return YoloClassificationDataset(dataset_name="test_dataset", root_dir=dataset_root, split="test")
+    return YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
     
 
 @pytest.mark.real_data

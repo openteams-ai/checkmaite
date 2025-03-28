@@ -73,6 +73,7 @@ class TorchvisionICModel:
             weights_path: Path to pickle file with pretrained weights.
             config_path: Path to config file with metadata for pretrained weights.
             index2label_key: Config key for mapping from class labels to output categories.
+            model_id: Unique identifier for this model
             **kwargs: Additional parameters passed to `torchvision` base class. See
               `torchvision` for more details.
         """
@@ -173,6 +174,7 @@ def load_models(
                 model_name=meta_dict.get("model_type"),
                 weights_path=meta_dict.get("model_weights_path"),
                 config_path=meta_dict.get("model_config_path"),
+                model_id=meta_dict.get("model_type"),
                 **kwargs,
             )
 

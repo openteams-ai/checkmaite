@@ -52,12 +52,10 @@ class YoloClassificationDataset:
         Return the number of data elements in the dataset.
     """
 
-    def __init__(
-        self, dataset_name: str, root_dir: str, split: Literal["train", "test", "validation"] = "test"
-    ) -> None:
+    def __init__(self, dataset_id: str, root_dir: str, split: Literal["train", "test", "validation"] = "test") -> None:
         """
         Args:
-            dataset_name: Identifier for dataset that will be stored in dataset metadata. Name should
+            dataset_id: Identifier for dataset that will be stored in dataset metadata. Name should
                 be chosen to help users quickly identify what the dataset contains and/or how it was created.
             root_dir: Root directory of the dataset.
             split: Dataset split to use (e.g., "train", "test", "validation"). Defaults to "test".
@@ -75,7 +73,7 @@ class YoloClassificationDataset:
         self._index2label = dict(enumerate(labels))  # 0-indexing
         self._label2index = {val: idx for idx, val in enumerate(labels)}  # 0-indexing
 
-        self._metadata = DatasetMetadata({"id": dataset_name, "index2label": self._index2label})
+        self._metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
 
     @staticmethod
     def _get_filepaths_by_split(dataset_split: Path) -> list[Path]:
@@ -146,7 +144,7 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloCl
             split_dir = Path(dataset_metadata["data_dir"]).stem
             root_path = Path(dataset_metadata["data_dir"]).parent.resolve()
             loaded[name] = YoloClassificationDataset(
-                dataset_name=name,
+                dataset_id="_".join([str(root_path), str(split_dir)]),
                 root_dir=str(root_path),
                 split=str(split_dir),  # type: ignore
             )
