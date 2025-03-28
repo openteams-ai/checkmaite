@@ -744,14 +744,7 @@ class BaseDashboard(param.Parameterized):
 
     def _construct_report_filename(self) -> str:
         """Construct a report filename of the output report based on the UI selections"""
-        model_name = "-".join(list(self.loaded_models.keys())).replace(" ", "_")
-        dataset_name = (
-            "-".join(list(self.loaded_datasets.keys())).replace(" ", "_")
-            if self.dataset_2_visible
-            else self.dataset_1_selector.value.replace(" ", "_")
-        )
-        return f"{model_name}_{dataset_name}_{self.metric_selector.value.replace(' ','_')}\
-_{self.threshold}_report_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
+        return f"{'-'.join(self.test_stages.keys())}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
     def _run_all_tests(self) -> str:  # pragma: no cover
         """Run all the tests on all the stages and returns either the path to the resulting
@@ -786,7 +779,7 @@ _{self.threshold}_report_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
         self.status_text = f"Report saved to {report}"
 
         return (
-            str(report)
+            str(report_title)
             if self.local
             else create_download_link(
                 str(report),

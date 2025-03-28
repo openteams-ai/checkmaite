@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import os
 from pathlib import Path
@@ -69,7 +70,7 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert model_name in report_title.replace(" ", "_").lower()
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
 
 
 @pytest.mark.real_data
@@ -143,7 +144,7 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert model_name in report_title.replace(" ", "_").lower()
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
 
 
 def test_model_evaluation_dashboard():
@@ -183,7 +184,7 @@ def test_model_evaluation_dashboard():
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert 'Coco' in report_title
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
     
 @pytest.mark.parametrize("local", [True, False])
 def test_model_evaluation_dashboard_od_full_mock(local, monkeypatch, fake_od_model_default, fake_od_dataset_default):
@@ -234,4 +235,4 @@ def test_model_evaluation_dashboard_od_full_mock(local, monkeypatch, fake_od_mod
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert 'fake_model_1' in report_title
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
