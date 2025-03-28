@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 from unittest import mock
 import os
@@ -72,7 +73,7 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert model_name in report_title.replace(" ", "_").lower()
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
 
 
 @pytest.mark.real_data
@@ -148,7 +149,7 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert model_name in report_title.replace(" ", "_").lower()
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
 
 
 @pytest.mark.real_data
@@ -218,7 +219,7 @@ def test_dataset_analysis_dashboard_od_mockrun_only():
 
         ## test report name generation
         report_title = app._construct_report_filename()
-        assert "-".join(list(app.loaded_models.keys())).replace(" ", "_") in report_title
+        assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
 
 
 @pytest.mark.parametrize("local", [True, False])
@@ -270,4 +271,4 @@ def test_dataset_analysis_dashboard_od_full_mock(local, monkeypatch, fake_od_mod
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert 'fake_model_1' in report_title
+    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
