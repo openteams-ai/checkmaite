@@ -10,7 +10,7 @@ from jatic_ri.image_classification.datasets import MissingYoloDataSplitError, Yo
 
 def test_dataset_initialization(fake_dataset):
     dataset_root, classes, num_images_per_class, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_name="test_dataset", root_dir=dataset_root, split="test")
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
     assert len(dataset) == len(classes) * num_images_per_class
     assert dataset.metadata["id"] == "test_dataset"
     assert dataset.metadata["index2label"] == dict(enumerate(classes))
@@ -18,7 +18,7 @@ def test_dataset_initialization(fake_dataset):
 
 def test_get_item(fake_dataset):
     dataset_root, classes, _, image_shape = fake_dataset
-    dataset = YoloClassificationDataset(dataset_name="test_dataset", root_dir=dataset_root, split="test")
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
     img, label, metadata = dataset[0]
 
     width, height = image_shape
@@ -30,7 +30,7 @@ def test_get_item(fake_dataset):
 
 def test_iteration_over_dataset(fake_dataset):
     dataset_root, _, _, _= fake_dataset
-    dataset = YoloClassificationDataset(dataset_name="test_dataset", root_dir=dataset_root, split="test")
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
     count = 0
     for _ in dataset:
         count += 1
@@ -43,7 +43,7 @@ def test_missing_data_split(fake_dataset):
         MissingYoloDataSplitError,
         match="The following data split subdirectory does not exist",
     ):
-        YoloClassificationDataset(dataset_name="test_dataset", root_dir=fake_dataset, split="train")
+        YoloClassificationDataset(dataset_id="test_dataset", root_dir=fake_dataset, split="train")
 
 
 def test_load_datasets(fake_dataset):
