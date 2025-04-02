@@ -31,7 +31,7 @@ python = ">=3.9, <3.12"                                     # required by SDP
 # jatic tools
 dataeval = {version = "0.75"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
-heart-library = "==0.4.4"
+heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", rev="a6ae756dd6d8801cf9e02e480daf2b57ce7615a0"}
 maite = {version = "==0.6.0"}                     # required by SDP
 nrtk = {version = "==0.15.1", extras = ["headless"]}
 pybsm = "==0.8.0"                                 # optional dep for nrtk, required here
