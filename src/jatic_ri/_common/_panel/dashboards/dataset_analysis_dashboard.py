@@ -151,7 +151,10 @@ class DatasetAnalysisDashboard(BaseDashboard):
             pn.Row(
                 pn.Spacer(width=self.width_subwidget_offset),
                 self.model_widgets["Model 1 type"]["model_weights_path"],
-                # self.model_widgets["Model 1 type"]["tooltip"],
+            ),
+            pn.Row(
+                pn.Spacer(width=self.width_subwidget_offset),
+                self.model_widgets["Model 1 type"]["model_config_path"],
             ),
         )
 

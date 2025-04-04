@@ -77,6 +77,141 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
 
 
 @pytest.mark.real_data
+@pytest.mark.filterwarnings(r"ignore:Unsupported placeholder:Warning")
+def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_config_od, artifact_dir):
+    """Test running of the DA dashboard for object detection.
+    The actual run (_run_all_tests) is mocked for speed.
+    """
+
+    def _clear_app(app):
+        """clear the widgets"""
+        app.model_widgets['Model 1 type']['model_selector'].value = "Select Model type"
+        app.model_widgets['Model 1 type']['model_weights_path'].value = ""
+        app.model_widgets['Model 1 type']['model_config_path'].value = ""
+        app.dataset_1_split_path.value = ""
+        app.dataset_1_metadata_path.value = ""
+        app.loaded_models = {}
+        app.loaded_datasets = {}
+
+    def _set_coco_dataset_1(app):
+        coco_dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
+        app.dataset_1_selector.value = "Coco dataset"
+        app.dataset_1_split_path.value = str(coco_dataset_dir)
+        app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json'))
+
+    def _set_visdrone_dataset_1(app):
+        dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/visdrone_dataset'))
+        app.dataset_1_selector.value = "Visdrone dataset"
+        app.dataset_1_split_path.value = str(dataset_dir)
+        app.dataset_1_metadata_path.value = ""
+
+
+    # Set up model
+    model_name = "ssdlite320_mobilenet_v3_large"
+    model_wrapper = TorchvisionODModel(model_name=model_name)
+    config_path = f"{artifact_dir}/my_model.json"
+    pickle_path = f"{artifact_dir}/my_model.pt"
+    # save metadata and state_dict to disk
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, "w") as f:
+        json.dump({"index2label": model_wrapper.index2label}, f)
+    _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
+
+    def _set_model_1(app, model_name):
+        visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
+        app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
+
+    def _set_model_1_weights(app, path):
+        app.model_widgets['Model 1 type']['model_weights_path'].value = path
+
+    def _set_model_1_config(app, path):
+        app.model_widgets['Model 1 type']['model_config_path'].value = path
+
+
+    app = DatasetAnalysisDashboard(
+        task='object_detection',
+        output_dir=artifact_dir,
+    )
+    
+    # trigger the visualization to detect errors
+    app.panel()
+
+    # load in the config values
+    app.config_file.value = json.dumps(baseline_eval_config_od)
+
+    app.use_cache = True
+    app.run_analysis_button.disabled = False
+
+
+    # No model type selected
+    # warn and skip 
+    # can't fully test until https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/346 is resolved
+    _clear_app(app)
+    app.load_models_from_widgets()
+    assert "invalid type" in app.status_text
+    assert not app.loaded_models
+
+    # torchvision
+    # no weights path
+    # load default weights
+    _clear_app(app)
+    _set_coco_dataset_1(app)
+    _set_model_1(app, model_name)
+    app.run_analysis_button.clicks += 1
+    assert app.loaded_models
+
+
+    # torchvision
+    # weights provided
+    # no config path 
+    # warn and skip 
+    _clear_app(app)
+    _set_coco_dataset_1(app)
+    _set_model_1(app, model_name)
+    _set_model_1_weights(app, pickle_path)
+    app.run_analysis_button.clicks += 1
+    assert not app.loaded_models
+
+
+    # torchvision
+    # weights provided
+    # config provided
+    # load custom weights and config
+    _clear_app(app)
+    _set_coco_dataset_1(app)
+    _set_model_1(app, model_name)
+    _set_model_1_weights(app, pickle_path)
+    _set_model_1_config(app, config_path)
+    app.run_analysis_button.clicks += 1
+    # testing can be improved by checking status_text
+    assert "Report saved to" in app.status_text
+    assert app.loaded_models
+
+
+    # visdrone
+    # no weights/output dir 
+    # download to cwd and execute
+    _clear_app(app)
+    _set_visdrone_dataset_1(app)
+    _set_model_1(app, "resnet18")
+    app.run_analysis_button.clicks += 1
+    assert "Report saved to" in app.status_text
+    assert app.loaded_models
+
+    # visdrone
+    # weights/output dir provided
+    # download to output dir and execute
+    _clear_app(app)
+    _set_visdrone_dataset_1(app)
+    _set_model_1(app, "resnet18")
+    _set_model_1_weights(app, str(artifact_dir))
+    _set_model_1_config(app, config_path)
+    app.run_analysis_button.clicks += 1
+    assert "Report saved to" in app.status_text
+    assert app.loaded_models
+
+
+@pytest.mark.real_data
 @pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")
 @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning")
