@@ -430,18 +430,66 @@ class BaseDashboard(param.Parameterized):
         to look up the model_weights_path widget and change the value of the placeholder
         text. This allows us to dynamically change the placeholder text
         to guide users to upload the proper type of file.
+
+        XREF: additional behavior changes happen when `model_weights_path` is changed,
+        see `_on_model_weights_path_change`.
         """
 
-        if self.model_label_map[event.obj.value] in self.torchvision_models:
-            self.model_widgets[event.obj.name][
-                "model_weights_path"
-            ].placeholder = "Filepath to model weights file containing the state dict"
-            # self.model_widgets[event.obj.name][
-            #     "tooltip"
-            # ].value = "Supported extensions are .pt and .pth. A config.json should exist in the same directory )"
+        # get a list of model numbers as strings
+        str_numbers = re.findall(r"\d+", event.obj.name)
+        # convert string list to int list and get the max model number
+        model_no = max(list(map(int, str_numbers)))
+
+        # if a model type is selected:
+        if self.model_widgets[event.obj.name]["model_selector"].value != "Select Model type":
+            self.model_widgets[event.obj.name]["model_weights_path"].disabled = False
+            # if a torchvision type
+            if self.model_label_map[event.obj.value] in self.torchvision_models:
+                self.model_widgets[event.obj.name]["model_weights_path"].name = "Path to weights file"
+                self.model_widgets[event.obj.name][
+                    "model_weights_path"
+                ].placeholder = "Filepath to model weights file. Leave empty for torchvision default weights."
+                self.model_widgets[event.obj.name][
+                    "model_config_path"
+                ].placeholder = "Path to JSON config with 'index2label' key defining the categories."
+                self.model_widgets[event.obj.name][
+                    "model_weights_path"
+                ].description = f"Model {model_no} weights pickle file containing the model state dictionary."
+                if self.model_widgets[event.obj.name]["model_weights_path"].value:
+                    self.model_widgets[event.obj.name]["model_config_path"].disabled = False
+            # if non-torchvision (aka visdrone for now)
+            else:
+                self.model_widgets[event.obj.name]["model_weights_path"].name = "Output directory"
+                self.model_widgets[event.obj.name][
+                    "model_weights_path"
+                ].placeholder = "Output directory for Visdrone model weights."
+                self.model_widgets[event.obj.name]["model_weights_path"].description = (
+                    f"Set model {model_no} output directory in which the Visdrone model will be "
+                    f"downloaded from Kitware data server."
+                )
+                self.model_widgets[event.obj.name][
+                    "model_weights_path"
+                ].value = ""  # triggers _on_model_weights_path_change
         else:
-            self.model_widgets[event.obj.name]["model_weights_path"].placeholder = "Select file"
-            # self.model_widgets[event.obj.name]["tooltip"].value = "Select file"
+            self.model_widgets[event.obj.name]["model_weights_path"].disabled = True
+            self.model_widgets[event.obj.name]["model_config_path"].disabled = True
+
+    def _on_model_weights_path_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
+        # get a list of model numbers as strings
+        str_numbers = re.findall(r"\d+", event.obj.description)
+        # convert string list to int list and get the max model number
+        model_no = max(list(map(int, str_numbers)))
+
+        model_key = f"Model {model_no} type"
+        # if weights path has something in it and this is a torchvision model
+        if (
+            self.model_widgets[model_key]["model_weights_path"].value
+            and self.model_label_map[self.model_widgets[model_key]["model_selector"].value] in self.torchvision_models
+        ):
+            self.model_widgets[model_key]["model_config_path"].disabled = False
+        else:
+            # visdrone models never require config
+            self.model_widgets[model_key]["model_config_path"].disabled = True
 
     def _remove_model_widget(self, event) -> None:  # noqa: ANN001
         del self.model_widgets[event.obj.description]
@@ -450,16 +498,15 @@ class BaseDashboard(param.Parameterized):
 
     def add_model_button_callback(self, event) -> None:  # noqa: ANN001, ARG002
         """Callback that runs when the add model button is clicked
-        When called, this adds a two new widgets for setting a new model
+        When called, this adds a three new widgets for setting a new model.
         """
-        # construct the dropdown for a new model widgets
-        model_weights_path = pn.widgets.TextInput(
-            name="Path to model weights",
-            placeholder="Path to weights file",
-            width=self.width_input_default,
-            stylesheets=[self.css_dropdown],
-        )
-        selector_label = f"Model {len(self.model_widgets) + 1} type"
+
+        # get a list of model numbers as strings
+        str_numbers = re.findall(r"\d+", " ".join(self.model_widgets.keys()))
+        # convert string list to int list and get the max model number,
+        # increment from the current highest model number to avoid name collisions
+        new_model_no = max(list(map(int, str_numbers))) + 1 if str_numbers else 1
+        selector_label = f"Model {new_model_no} type"
         model_selector = pn.widgets.Select(
             name=selector_label,
             options=["Select Model type", *list(self.model_label_map.keys())],
@@ -467,12 +514,30 @@ class BaseDashboard(param.Parameterized):
             stylesheets=[self.css_dropdown],
             value="Select Model type",
         )
-        # tooltip = pn.widgets.TooltipIcon(
-        #     value="Path to model weights file (config.json should exist in the same directory)"
-        # )
+        model_weights_path = pn.widgets.TextInput(
+            name="Path to model weights",
+            placeholder="Path to weights file",
+            width=self.width_input_default,
+            stylesheets=[self.css_dropdown],
+            disabled=True,
+            description=f"Model {new_model_no} weights pickle file containing the model state dictionary.",
+        )
+        model_config_path = pn.widgets.TextInput(
+            name="Path to model config",
+            placeholder="Path to config file",
+            width=self.width_input_default,
+            stylesheets=[self.css_dropdown],
+            disabled=True,
+            description=(
+                "JSON-formatted configuration file with translation from index to category "
+                "label stored in a dictionary under 'index2label' key. Required if providing custom weights."
+            ),
+        )
         # link a callback method to the model dropdown so that we
         # can change the placeholder text when the model type is changed
-        model_selector.param.watch(self._on_model_type_change, ["value"], onlychanged=False)
+        model_selector.param.watch(self._on_model_type_change, ["value"])
+        # link a callback method to change config path anytime weights path changes
+        model_weights_path.param.watch(self._on_model_weights_path_change, ["value"])
 
         if self.multi_model_visible:
             # button for removing model from widget list
@@ -485,11 +550,11 @@ class BaseDashboard(param.Parameterized):
             remove_model_button = None
 
         # store the set of widgets for this model in a dict for reference later
-        self.model_widgets[model_selector.name] = {
+        self.model_widgets[selector_label] = {
             "model_selector": model_selector,
             "model_weights_path": model_weights_path,
-            # "tooltip": tooltip,
             "remove_button": remove_model_button,
+            "model_config_path": model_config_path,
         }
 
         # redraw the model widgets - this has its own trigger to
@@ -508,30 +573,51 @@ class BaseDashboard(param.Parameterized):
         model_dict = {}
         for widget_label, widget_dict in self.model_widgets.items():
             model_number = re.search(r"\d+", widget_label).group()
+            # if no model type is selected, warn and skip
             if widget_dict["model_selector"].value not in self.model_label_map:
                 # For as long as model dropdowns with 'Select Model type' appear in the UI in the case where no
                 # test stages require a model, this is a valid path.
                 self.status_text = f"Skipping model {model_number}, invalid type"
                 continue
             model_meta: model_meta_class = {"model_type": self.model_label_map[widget_dict["model_selector"].value]}
-            # Add key for weights path only if one is provided
-            if not widget_dict["model_weights_path"].value:
-                # map from the visual name of the model to a model key we can use to reference the class
-                # constructed without weights path by default, but appending modle number for uniqueness
-                model_name = f"{widget_dict['model_selector'].value}-{model_number}"
-                self.status_text = f"Using {model_name} with default weights and configuration."
-            else:
-                model_meta["model_weights_path"] = widget_dict["model_weights_path"].value
-                weights_path = Path(widget_dict["model_weights_path"].value)
-                # TO DO: this is a temporary 'hack' - look for config JSON in same dir and name as weights
-                model_meta["model_config_path"] = weights_path.parent.joinpath(f"{weights_path.stem}.json")
-                model_name = (
-                    f"{widget_dict['model_selector'].value}-{Path(widget_dict['model_weights_path'].value).stem}"
-                )
-            model_dict[model_name] = model_meta
+            # if torchvision
+            if self.model_label_map[widget_dict["model_selector"].value] in self.torchvision_models:
+                # if no weights path, use OOTB weights
+                if not widget_dict["model_weights_path"].value:
+                    # map from the visual name of the model to a model key we can use to reference the class
+                    # constructed without weights path by default, but appending model number for uniqueness
+                    model_name = f"{widget_dict['model_selector'].value}-{model_number}"
+                    self.status_text = f"Using {model_name} with default weights and configuration."
+                # weights path
+                else:
+                    model_meta["model_weights_path"] = widget_dict["model_weights_path"].value
+                    # if no config path, warn and skip
+                    if not widget_dict["model_config_path"].value:
+                        self.status_text = f"Skipping model {model_number}, config path must be set"
+                        continue
+                    model_meta["model_config_path"] = widget_dict["model_config_path"].value
 
-        self.loaded_models = load_models(model_dict)
-        return True
+                    model_name = (
+                        f"{widget_dict['model_selector'].value}-{Path(widget_dict['model_weights_path'].value).stem}"
+                        f"-{Path(widget_dict['model_config_path'].value).stem}"
+                    )
+            # if visdrone
+            else:
+                # if weights path (aka output dir)
+                if not widget_dict["model_weights_path"].value:
+                    model_meta["model_weights_path"] = widget_dict["model_weights_path"].value
+                # if no weights path (aka output dir), assume cwd
+                else:
+                    model_meta["model_weights_path"] = os.getcwd()
+                model_name = f"{widget_dict['model_selector'].value}-{model_number}"
+
+            model_dict[model_name] = model_meta
+        try:
+            self.loaded_models = load_models(model_dict)
+            return True
+        except Exception as e:  # noqa: BLE001
+            self.status_text = f"An error occurred during model loading: {e}"
+            return False
 
     @param.depends("redraw_models_trigger")
     def view_model_widget_pairs(self) -> pn.Column:
@@ -555,7 +641,12 @@ class BaseDashboard(param.Parameterized):
                     pn.Row(
                         pn.Spacer(width=self.width_subwidget_offset),
                         value["model_weights_path"],
-                        # value["tooltip"],
+                    )
+                )
+                view.append(
+                    pn.Row(
+                        pn.Spacer(width=self.width_subwidget_offset),
+                        value["model_config_path"],
                     )
                 )
 
