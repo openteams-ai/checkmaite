@@ -128,7 +128,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         uncovered_percent = round(uncovered_count / total_length, 1)
 
         action_str = (
-            "Increase respresentation of rare but relevant samples in areas of poor coverage"
+            "Increase representation of rare but relevant samples in areas of poor coverage"
             if uncovered_count > 0
             else "No action required"
         )
