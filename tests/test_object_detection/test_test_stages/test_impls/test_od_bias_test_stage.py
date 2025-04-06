@@ -193,7 +193,7 @@ class TestODBiasCollectReportConsumables:
         assert layout_args["text_column_half"]
         assert (
             layout_args['text_column_body'][-1].content[0].content ==
-            "* Increase respresentation of rare but relevant samples in areas of poor coverage"
+            "* Increase representation of rare but relevant samples in areas of poor coverage"
         )
 
         # Test calculated dataframe values
