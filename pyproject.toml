@@ -31,14 +31,14 @@ python = ">=3.9, <3.12"                                     # required by SDP
 # jatic tools
 dataeval = {version = "0.75"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.1"}
-heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", rev="a6ae756dd6d8801cf9e02e480daf2b57ce7615a0"}
-maite = {version = "==0.6.0"}                     # required by SDP
+maite = {version = "==0.7.1"}                     # could be >=0.7.0,<0.8.0, but only 0.7.1 is available through conda
+heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", tag="0.5.0"}
 nrtk = {version = "==0.15.1", extras = ["headless"]}
 pybsm = "==0.8.0"                                 # optional dep for nrtk, required here
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
 xaitk-saliency = "==0.12.0"
-xaitk-jatic = "==0.4.3"
+xaitk-jatic = "==0.5.1"
 # external deps
 holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
 httpx = ">=0.28.1"                                          # arbitrary, needed to run visdrone model
@@ -55,7 +55,7 @@ torchmetrics = ">=1.4.0"                                    # arbitrary pin, req
 torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
 zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
 smqtk-detection = ">=0.21.0"                                # required for running VisDrone model on Mac
-transformers = {version = ">=4.48.0", extras = ["timm"]}    # required for xaitk panel app, pin for security vulnerability
+transformers = {version = ">=4.48.0,!=4.51.0", extras = ["timm"]}    # required for xaitk panel app, pin for security vulnerability
 
 
 # development dependencies

@@ -2,9 +2,10 @@
 
 import copy
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+from maite.protocols import AugmentationMetadata
 from maite.protocols.object_detection import (
     Augmentation,
     DatumMetadataBatchType,
@@ -39,8 +40,9 @@ class JATICDetectionAugmentation(Augmentation):
         Augmentations to apply to an image.
     """
 
-    def __init__(self, augment: PerturbImage) -> None:
+    def __init__(self, augment: PerturbImage, *, augmentation_id: str = "JATICDetection") -> None:
         self.augment = augment
+        self.metadata = AugmentationMetadata(id=augmentation_id)
 
     def __call__(
         self,
@@ -58,7 +60,7 @@ class JATICDetectionAugmentation(Augmentation):
             # Perform augmentation
             aug_img = np.array(img, copy=True).transpose((1, 2, 0))
             height, width = aug_img.shape[0:2]
-            aug_img = self.augment(aug_img, md)
+            aug_img = self.augment(aug_img, cast(dict[str, Any], md))
             aug_height, aug_width = aug_img.shape[0:2]
             if aug_img.ndim > 2:
                 aug_img = np.transpose(aug_img, (2, 0, 1))  # Need to transpose it back
@@ -80,9 +82,9 @@ class JATICDetectionAugmentation(Augmentation):
                 ),
             )
 
-            m_aug = copy.deepcopy(md)
+            m_aug = cast(dict[str, Any], copy.deepcopy(md))
             m_aug.update({"nrtk::perturber": self.augment.get_config()})
-            aug_metadata.append(m_aug)
+            aug_metadata.append(cast(DatumMetadataType, m_aug))
 
         # return batch of augmented inputs, resized bounding boxes and updated metadata
         return aug_imgs, aug_dets, aug_metadata

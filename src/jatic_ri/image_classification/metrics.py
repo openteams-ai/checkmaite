@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 import torch
+from maite.protocols import MetricMetadata
 from maite.protocols import image_classification as ic
 from torchmetrics import Accuracy, F1Score
 from torchmetrics import Metric as TorchMetric
@@ -38,7 +39,7 @@ class TorchICMulticlassMetric(ic.Metric):
     (Reference: https://torchmetrics.readthedocs.io/en/v0.10.2/pages/classification.html#input-types)
     """
 
-    def __init__(self, ic_metric: TorchMetric, return_key: str) -> None:
+    def __init__(self, ic_metric: TorchMetric, return_key: str, *, metric_id: str = "torchICMulticlass") -> None:
         if not issubclass(type(ic_metric), MulticlassStatScores):
             raise InvalidMetricTypeError(
                 """
@@ -48,6 +49,7 @@ class TorchICMulticlassMetric(ic.Metric):
             )
         self._ic_metric: TorchMetric = ic_metric
         self.return_key: str = return_key
+        self.metadata = MetricMetadata(id=metric_id)
 
     def update(
         self,

@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import numpy as np
+from maite.protocols import DatasetMetadata, DatumMetadata
 from PIL import Image
-
-from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

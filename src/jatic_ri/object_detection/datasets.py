@@ -11,7 +11,7 @@ from typing import Literal, TypedDict
 
 import torch
 import yaml
-from maite.protocols import ArrayLike
+from maite.protocols import ArrayLike, DatasetMetadata
 from maite.protocols.object_detection import Dataset, DatumMetadataType
 from PIL import Image
 from torchvision.datasets import CocoDetection
@@ -92,7 +92,7 @@ class CocoDetectionDataset(Dataset):
         self._classes = {i: x["name"] for i, x in enumerate(content["categories"])}
         self._n_classes = len(self._classes)
         self._images = content["images"]
-        self.metadata: DatumMetadataType = {"id": dataset_id, "index2label": self._classes}
+        self.metadata = DatasetMetadata(id=dataset_id, index2label=self._classes)
 
     def __len__(self) -> int:
         """Return length of dataset."""

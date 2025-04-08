@@ -8,9 +8,9 @@ from maite._internals.protocols import generic as gen
 
 from jatic_ri.util.evaluation import EvaluationTool
 
-TDataset = TypeVar("TDataset", bound=gen.Dataset)
-TMetric = TypeVar("TMetric", bound=gen.Metric)
-TModel = TypeVar("TModel", bound=gen.Model)
+TDataset = TypeVar("TDataset", bound=gen.Dataset)  # type: ignore
+TMetric = TypeVar("TMetric", bound=gen.Metric)  # type: ignore
+TModel = TypeVar("TModel", bound=gen.Model)  # type: ignore
 
 
 # MODELS --------------------------------------------

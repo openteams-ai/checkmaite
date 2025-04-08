@@ -9,10 +9,10 @@ dependencies:
 - python>=3.9, <3.12
 # JATIC tools
 - dataeval=0.75.0                       # pinned for demo 
-- maite=0.6.0                           # pinned for demo
+- maite=0.7.1                           # pinned for demo
 - nrtk=0.15.1                           # pinned for demo
 - pybsm=0.8.0                           # pinned for demo, optional dep for nrtk, required here
-- xaitk-jatic=0.4.3                     # pinned for demo
+- xaitk-jatic=0.5.1                     # pinned for demo
 - xaitk-saliency=0.12.0                 # arbitrary pin, optional dep for nrtk, required here
 
 # External tools
@@ -41,4 +41,4 @@ dependencies:
   - gradient @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@0.10.1
   - reallabel @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@0.5.0
   - survivor @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@0.3.1
-  - heart-library @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@a6ae756dd6d8801cf9e02e480daf2b57ce7615a0 # Temporary: Points to dev branch "511-typing-validation" which avoids install of out-of-policy licenses
+  - heart-library @ git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0
