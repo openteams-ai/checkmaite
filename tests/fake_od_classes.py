@@ -3,6 +3,7 @@ import maite.protocols.object_detection as od
 from maite.protocols import ArrayLike
 from jatic_ri.object_detection.datasets import DetectionTarget
 import torch
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2, FasterRCNN_ResNet50_FPN_V2_Weights
 from tests.fake_ic_classes import RestartingIterator
 from maite.protocols import DatasetMetadata, DatumMetadata, ModelMetadata
 
@@ -112,6 +113,10 @@ class FakeODModel(od.Model):
     the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
     data for different scenarios.
 
+    Per RI conventions, our model classes must expose the model API (e.g. torch.nn.Module) as `model` attribute.
+    NOTE: the initialized Torchvision `model` does not actually do inference when this wrapper class is called.  Nor does the index2label contained
+    in this fake model's metadata align with this model object.
+
     Attributes:
 
         model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for RI tools.
@@ -126,9 +131,15 @@ class FakeODModel(od.Model):
     def __init__(self, model_metadata: ModelMetadata = DEFAULT_OD_MODEL_METADATA, prediction_data: Sequence[od.ObjectDetectionTarget] = DEFAULT_OD_MODEL_PREDICTIONS):
         self.prediction_iter: RestartingIterator = RestartingIterator(prediction_data)
         self.metadata: ModelMetadata = model_metadata
+        self.model: torch.nn.Module = self._load_default_od_model()
 
     def __call__(self, input: Sequence[ArrayLike]) -> Sequence[od.ObjectDetectionTarget]:
         return [ next(self.prediction_iter) for _ in range(len(input))]
+
+    def _load_default_od_model(self) -> torch.nn.Module:
+        # NOTE: This model is for unit tests that require accessing the underlying model API only.  Calling the FakeODModel object does NOT
+        # use this model for inference. 
+        return fasterrcnn_resnet50_fpn_v2(weights=FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT)
 
 class FakeODDataset(od.Dataset):
     """
