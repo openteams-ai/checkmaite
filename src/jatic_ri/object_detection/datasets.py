@@ -87,12 +87,10 @@ class CocoDetectionDataset(Dataset):
         )
         with open(ann_file) as fd:
             content = json.load(fd)
-        self._int_to_id = {i: x["id"] for i, x in enumerate(content["categories"])}
-        self._id_to_int = {val: key for key, val in self._int_to_id.items()}
-        self._classes = {i: x["name"] for i, x in enumerate(content["categories"])}
-        self._n_classes = len(self._classes)
+        self._index2label = {x["id"]: x["name"] for x in content["categories"]}
+        self._n_classes = len(self._index2label)
         self._images = content["images"]
-        self.metadata = DatasetMetadata(id=dataset_id, index2label=self._classes)
+        self.metadata = DatasetMetadata(id=dataset_id, index2label=self._index2label)
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -122,7 +120,7 @@ class CocoDetectionDataset(Dataset):
             bbox = torch.as_tensor(ann["bbox"])
             boxes[i, :] = box_convert(bbox, in_fmt="xywh", out_fmt="xyxy")
             scores[i] = 1
-            labels.append(self._id_to_int[ann["category_id"]])
+            labels.append(ann["category_id"])
 
         # format metadata
         metadata = self._images[[image["id"] for image in self._images].index(self.dataset.ids[index])]
@@ -169,16 +167,13 @@ class YoloDetectionDataset(Dataset):
         with open(yaml_dataset) as fd:
             content = yaml.safe_load(fd)
 
-        self._int_to_id = dict(enumerate(content["names"]))
-        self._id_to_int = {val: key for key, val in self._int_to_id.items()}
-        self._classes = dict(enumerate(content["names"].values()))
-        self._n_classes = len(self._classes)
+        self._n_classes = len(content["names"])
 
         self._train = content["train"]
         self._images = sorted(os.listdir(content["train"]))
         self._ann_dir = ann_dir
         self._annotations = sorted(os.listdir(ann_dir))
-        self.metadata = {"id": dataset_id, "index2label": self._classes}
+        self.metadata = {"id": dataset_id, "index2label": content["names"]}
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -214,7 +209,7 @@ class YoloDetectionDataset(Dataset):
                 out_fmt="xyxy",
             )
             scores[i] = 1
-        labels = torch.as_tensor([self._id_to_int[label] for label in labels])
+        labels = torch.as_tensor(labels)
 
         metadata: DatumMetadataType = {"id": index}
         return img_pt, DetectionTarget(boxes, labels, scores), metadata

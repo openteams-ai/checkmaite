@@ -19,5 +19,5 @@ def test_coco_dataset():
     assert element[1].scores.ndim == 1
     assert element[1].scores.shape == (14,)
     assert isinstance(element[2], dict)
-    assert coco_dataset.metadata['index2label'][0] == 'person'
-    assert coco_dataset.metadata['index2label'][1] == 'bicycle'
+    assert coco_dataset.metadata['index2label'][1] == 'person'
+    assert coco_dataset.metadata['index2label'][2] == 'bicycle'
