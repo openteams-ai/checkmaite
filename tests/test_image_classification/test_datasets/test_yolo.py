@@ -14,6 +14,8 @@ def test_dataset_initialization(fake_dataset):
     assert len(dataset) == len(classes) * num_images_per_class
     assert dataset.metadata["id"] == "test_dataset"
     assert dataset.metadata["index2label"] == dict(enumerate(classes))
+    assert dataset.metadata['index2label'][0] == 'cat'
+    assert dataset.metadata['index2label'][1] == 'dog'
 
 
 def test_get_item(fake_dataset):
