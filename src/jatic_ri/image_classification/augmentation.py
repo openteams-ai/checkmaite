@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+from maite.protocols import AugmentationMetadata
 from maite.protocols.image_classification import (
     Augmentation,
     DatumMetadataBatchType,
@@ -36,8 +37,9 @@ class JATICClassificationAugmentation(Augmentation):
         Object used to apply augmentations to an image.
     """
 
-    def __init__(self, augment: PerturbImage) -> None:
+    def __init__(self, augment: PerturbImage, augumentation_id: str = "JATICClassification") -> None:
         self.augment = augment
+        self.metadata = AugmentationMetadata(id=augumentation_id)
 
     def __call__(
         self,
@@ -56,7 +58,7 @@ class JATICClassificationAugmentation(Augmentation):
         for img, ann, md in zip(imgs_new, anns, metadata):
             # Perform augmentation
             aug_img = copy.deepcopy(img)
-            aug_img = self.augment(aug_img, md)
+            aug_img = self.augment(aug_img, cast(dict[str, Any], md))
             if aug_img.ndim > 2:
                 aug_img = np.transpose(aug_img, (2, 0, 1))  # Need to transpose it back
             aug_imgs.append(aug_img)

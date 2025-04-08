@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Any, Optional, cast
 
 import torch
+from maite.protocols import MetricMetadata
 from maite.protocols import object_detection as od
 from torchmetrics import Metric as TorchMetric
 from torchmetrics.detection import MeanAveragePrecision
@@ -25,9 +26,10 @@ class TorchODMetric:
     returning a specific metric (if not specified, then all metrics will be returned).
     """
 
-    def __init__(self, od_metric: TorchMetric, return_key: Optional[str] = None) -> None:
+    def __init__(self, od_metric: TorchMetric, return_key: Optional[str] = None, *, metric_id: str = "torchOD") -> None:
         self._od_metric = od_metric
         self.return_key = return_key
+        self.metadata = MetricMetadata(id=metric_id)
 
     @staticmethod
     def to_tensor_dict(tgt: od.ObjectDetectionTarget) -> dict[str, torch.Tensor]:

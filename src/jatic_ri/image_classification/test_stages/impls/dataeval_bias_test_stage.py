@@ -1,6 +1,6 @@
 """DataEval Image Classification Bias Test Stage"""
 
-from typing import Any
+from typing import Any, cast
 
 import maite.protocols.image_classification as ic
 import numpy as np
@@ -34,7 +34,7 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset]):
         for d in self.dataset:
             images.append(np.asarray(d[0]))
             labels.append(np.argmax(d[1]))  # labels are one-hot encoded
-            metadatas.append(d[2])
+            metadatas.append(cast(dict[str, Any], d[2]))
 
         metadata = preprocess(raw_metadata=metadatas, class_labels=labels)
         return images, np.asarray(labels, dtype=np.int_), metadata

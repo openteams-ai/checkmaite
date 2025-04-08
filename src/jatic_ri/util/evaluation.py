@@ -3,10 +3,10 @@
 from collections.abc import Iterable, Iterator, Sequence
 from typing import Any, Generic, Optional, TypeVar, Union, overload
 
-from maite._internals.protocols import image_classification as ic
-from maite._internals.protocols import object_detection as od
-from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
+from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model  # type: ignore
 from maite.errors import InvalidArgument
+from maite.protocols import image_classification as ic
+from maite.protocols import object_detection as od
 from typing_extensions import TypeAlias
 
 from jatic_ri.util.cache import RICache

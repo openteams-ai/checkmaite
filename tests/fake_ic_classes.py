@@ -2,8 +2,7 @@ import torch
 from typing import Any, Iterable, Sequence, Tuple
 from maite._internals.protocols import ArrayLike
 import maite.protocols.image_classification as ic
-# Remove once envrionment updated so maite>=0.7.0
-from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata, ModelMetadata
+from maite.protocols import DatasetMetadata, DatumMetadata, ModelMetadata
 
 DEFAULT_IC_MODEL_PREDICTIONS: Sequence[torch.Tensor] = [
     torch.Tensor([-0.2832, -0.4654, -0.5866,  3.3975, -0.4545,  0.0570, -0.3015, -0.4808, -0.1757, -0.5573]),

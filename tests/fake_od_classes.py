@@ -4,8 +4,7 @@ from maite.protocols import ArrayLike
 from jatic_ri.object_detection.datasets import DetectionTarget
 import torch
 from tests.fake_ic_classes import RestartingIterator
-# Remove once envrionment updated so maite>=0.7.0
-from jatic_ri.vendor.maite import DatasetMetadata, DatumMetadata, ModelMetadata
+from maite.protocols import DatasetMetadata, DatumMetadata, ModelMetadata
 
 """
 The default fake "dataset" will include only one image/target initally.  It is based off of http://cocodataset.org/#explore?id=37777
