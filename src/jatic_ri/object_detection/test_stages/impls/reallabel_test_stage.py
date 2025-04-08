@@ -14,14 +14,20 @@ import numpy as np
 import pyspark.sql.functions as sf
 import pyspark.sql.types as st
 import torch
-from gradient import Text
+from gradient import SubText, Text
 from PIL import Image
+from pptx.dml.color import RGBColor
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
 
-from jatic_ri._common.test_stages.interfaces.plugins import EvalToolPlugin, MultiModelPlugin, SingleDatasetPlugin
+from jatic_ri._common.test_stages.interfaces.plugins import (
+    EvalToolPlugin,
+    MultiModelPlugin,
+    SingleDatasetPlugin,
+)
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
+from jatic_ri.util.utils import sanitize_gradient_markdown_text
 
 logger = logging.getLogger()
 
@@ -122,7 +128,10 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
 
 
 class RealLabelTestStage(
-    MultiModelPlugin[od.Model], SingleDatasetPlugin[od.Dataset], TestStage[tuple[DataFrame, Path]], EvalToolPlugin
+    MultiModelPlugin[od.Model],
+    SingleDatasetPlugin[od.Dataset],
+    TestStage[tuple[DataFrame, Path]],
+    EvalToolPlugin,
 ):
     """RealLabel test stage.
 
@@ -212,7 +221,10 @@ class RealLabelTestStage(
         # Run all the models
         for model in self.models:
             predictions, _ = self.eval_tool.predict(
-                model=self.models[model], model_id=model, dataset=self.dataset, dataset_id=self.dataset_id
+                model=self.models[model],
+                model_id=model,
+                dataset=self.dataset,
+                dataset_id=self.dataset_id,
             )
             clean_predictions[model] = [x[0] for x in predictions]
         return clean_predictions
@@ -256,7 +268,7 @@ class RealLabelTestStage(
 
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
-        most_populous_image_uuids_columns_to_values = (
+        self._example_image_unique_id = (
             reallabel_results.groupBy(self.config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
@@ -264,31 +276,26 @@ class RealLabelTestStage(
             .first()
             .asDict()  # type: ignore
         )
+
         results_for_most_populous_image_df = reallabel_results.filter(
-            *[sf.col(key) == value for key, value in most_populous_image_uuids_columns_to_values.items()]
+            *[sf.col(key) == value for key, value in self._example_image_unique_id.items()]
         )
 
         # Iterate through the dataset until we find the index with the matching UUID. Get the Image tensor from it.
         most_populous_image_array = None
         for image_tensor, _, image_metadata in self.dataset:
-            if all(
-                str(image_metadata[key]) == str(value)
-                for key, value in most_populous_image_uuids_columns_to_values.items()
-            ):
+            if all(str(image_metadata[key]) == str(value) for key, value in self._example_image_unique_id.items()):
                 most_populous_image_array = image_tensor
+                break
         if most_populous_image_array is None:
             raise ValueError("Where's the image?!")
 
         # Since we aren't guaranteed an actual file name metadata field (not all datasets have them),
         # make a new file name with the raw UUID values
-        most_populous_image_file_name = (
-            "_".join(value for value in most_populous_image_uuids_columns_to_values.values()) + ".jpeg"
-        )
+        most_populous_image_file_name = "_".join(value for value in self._example_image_unique_id.values()) + ".jpeg"
         # Ensure we have a mapping of this portmanteau file name to the actual UUID values that
         # will be found in the dataframe.
-        most_populous_image_name_to_uuid_value_map = {
-            most_populous_image_file_name: most_populous_image_uuids_columns_to_values
-        }
+        most_populous_image_name_to_uuid_value_map = {most_populous_image_file_name: self._example_image_unique_id}
 
         # Save the image to the temporary directory (workaround for potentially not knowing the original datapath)
         most_populous_image_final_path = most_populous_image_temp_dir_path / most_populous_image_file_name
@@ -345,6 +352,25 @@ class RealLabelTestStage(
             sf.col("reallabel_type") == "Likely Correct",
         ).count()
 
+        sentence_formatting = {
+            "fontsize": 18,
+            "bold": True,
+        }
+
+        bullet_formatting = {
+            "fontsize": 16,
+        }
+
+        spaces_formatting = {
+            "fontsize": 12,
+        }
+
+        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:  # noqa: ANN401
+            return (
+                SubText("• ", fontsize=22),
+                SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
+            )
+
         return [
             {
                 "deck": self._deck,
@@ -352,16 +378,62 @@ class RealLabelTestStage(
                 "layout_arguments": {
                     "title": "RealLabel Label Breakdown",
                     "content_left": Text(
-                        content=f"**Description**\n"
-                        f"• RealLabel aids re-labeling efforts by using model ensembling to "
-                        f"determine if a label is a:\n"
-                        f"• True Positive Label: probably correct label.\n"
-                        f"• False Positive Label: potentially incorrect label.\n"
-                        f"• False Negative Label: potentially missing label.\n"
-                        f"• In an example subset of the data, RealLabel has found {num_true_positives} True Positive, "
-                        f"{num_false_positives} False Positive, and {num_false_negatives} False Negative labels.\n"
-                        f"Displayed is an example of a True Positive label.",
-                        fontsize=22,
+                        content=[
+                            # Paragraph 1
+                            SubText(
+                                "RealLabel aids re-labeling efforts by "
+                                "using model ensembling to determine if a label is a:\n",
+                                **sentence_formatting,  # type: ignore
+                            ),
+                            *bullet_point("True Positive: (Probably Correct Label)\n"),
+                            *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
+                            *bullet_point("False Negative: (Potentially Missing Label)\n"),
+                            # Spacing
+                            SubText("\n" * 1, **spaces_formatting),  # type: ignore
+                            # Paragraph 2
+                            SubText(
+                                "In this dataset, RealLabel has found:\n",
+                                **sentence_formatting,
+                            ),
+                            # colors defined in https://gitlab.jatic.net/jatic/morse/reallabel/-/blob/0.5.0/src/reallabel/visualizer.py#L525-527
+                            *bullet_point(
+                                "True Positive: ",
+                                color=RGBColor(173, 214, 95),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_true_positives}\n",
+                                **bullet_formatting,  # type: ignore
+                                bold=True,
+                            ),
+                            *bullet_point(
+                                "False Positive: ",
+                                color=RGBColor(72, 127, 199),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_false_positives}\n",
+                                **bullet_formatting,  # type: ignore
+                                bold=True,
+                            ),
+                            *bullet_point(
+                                "False Negative: ",
+                                color=RGBColor(221, 0, 0),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_false_negatives}\n",
+                                **bullet_formatting,  # type: ignore
+                                bold=True,
+                            ),
+                            SubText("\n" * 1, **spaces_formatting),  # type: ignore
+                            SubText(
+                                sanitize_gradient_markdown_text(
+                                    f"An example image ({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})}) is shown to the right"  # noqa: E501
+                                ),
+                                fontsize=14,
+                            ),
+                        ]
                     ),
                     "content_right": results_img,
                 },

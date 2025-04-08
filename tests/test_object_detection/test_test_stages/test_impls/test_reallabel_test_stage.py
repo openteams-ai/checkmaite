@@ -179,17 +179,6 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Arrange
     expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
-    expected_content_left = Text(
-        content="**Description**\n"
-        "• RealLabel aids re-labeling efforts by using model ensembling to determine if a label is a:\n"
-        "• True Positive Label: probably correct label.\n"
-        "• False Positive Label: potentially incorrect label.\n"
-        "• False Negative Label: potentially missing label.\n"
-        "• In an example subset of the data, RealLabel has found 1 True Positive, "
-        "2 False Positive, and 1 False Negative labels.\n"
-        "Displayed is an example of a True Positive label.",
-        fontsize=22,
-    )
     expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/{_REALLABEL_CACHE_IMAGE_PATH}"
     expected_title = "RealLabel Label Breakdown"
 
@@ -202,12 +191,13 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Act
     slides = test_stage.collect_report_consumables()
     output_consumables = slides[0]
+    combined_lc_text =  ''.join([subtext.content for subtext in output_consumables["layout_arguments"]["content_left"].content])
 
     # Assert
     assert output_consumables["deck"] == expected_deck
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
-    assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
+    assert all([expected in combined_lc_text for expected in ['True Positive: 1', 'False Positive: 2', 'False Negative: 1']])
     assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
 
     filename = create_deck(slides, artifact_dir, 'reallabel')
