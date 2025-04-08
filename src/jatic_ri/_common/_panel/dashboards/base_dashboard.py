@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+from abc import abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -34,7 +35,12 @@ from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
 from jatic_ri.object_detection.models import SUPPORTED_VISDRONE_MODELS as SUPPORTED_VISDRONE_MODELS_OD
-from jatic_ri.util.dashboard_utils import create_download_link, rehydrate_test_stage_ic, rehydrate_test_stage_od
+from jatic_ri.util.dashboard_utils import (
+    create_download_link,
+    rehydrate_test_stage_ic,
+    rehydrate_test_stage_od,
+    with_loading,
+)
 from jatic_ri.util.evaluation import EvaluationTool
 
 JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
@@ -42,7 +48,14 @@ JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
     "JATIC_Logo_Acronym_Spelled_Out_RGB_white_type.svg",
 )
 
-pn.extension("tabulator", "floatpanel")
+pn.extension(
+    "tabulator",
+    "floatpanel",
+    # Spiner settings for loading animation
+    loading_spinner="dots",
+    loading_color="#001B4D",
+    template="bootstrap",
+)
 
 logger = logging.getLogger()
 
@@ -313,6 +326,7 @@ class BaseDashboard(param.Parameterized):
 
         # button to run the analysis
         self.run_analysis_button = pn.widgets.Button(name="Run Analysis", button_type="primary", disabled=False)
+        self.run_analysis_button.on_click(self._run_analysis_loading)
 
         self.dataset_1_selector = pn.widgets.Select(
             options=["Select Dataset Type", *list(self.dataset_label_map.keys())],
@@ -364,6 +378,22 @@ class BaseDashboard(param.Parameterized):
         self.view_config_btn.on_click(self._on_view_config_callback)
         # create invisible container to put floatpanel "in", cannot be completely empty
         self.config_floatpanel_container = pn.Column(pn.widgets.Checkbox(visible=False))
+
+    @abstractmethod
+    def _run_button_callback(self, event=None) -> None:  # noqa: ANN001
+        """
+        Callback that runs when the run button is clicked
+        When called, this is a placeholder method that is overridden by subclasses
+        """
+        pass
+
+    @with_loading("run_analysis_button")
+    def _run_analysis_loading(self, event=None) -> None:  # noqa: ANN001
+        """
+        This function runs when `run_analysis_button` is clicked, allows for
+        loading spinner to be shown while the callback is executing
+        """
+        self._run_button_callback(event)
 
     @param.depends("task", watch=True)
     def _update_task_related_objects(self, event=None) -> None:  # noqa: ANN001, ARG002

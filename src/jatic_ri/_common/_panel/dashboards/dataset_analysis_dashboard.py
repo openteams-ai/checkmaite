@@ -19,7 +19,6 @@ class DatasetAnalysisDashboard(BaseDashboard):
         super().__init__(**params)
         self.title = "Dataset Analysis Testbed"
 
-        self.run_analysis_button.on_click(self._run_button_callback)
         self.run_analysis_button.disabled = True
 
         # NOTE: column names defined here must match the `new_data` columns in _run_button_callback
