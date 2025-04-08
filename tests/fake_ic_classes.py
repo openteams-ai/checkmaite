@@ -1,4 +1,5 @@
 import torch
+from torchvision.models import resnext50_32x4d, ResNeXt50_32X4D_Weights
 from typing import Any, Iterable, Sequence, Tuple
 from maite._internals.protocols import ArrayLike
 import maite.protocols.image_classification as ic
@@ -120,6 +121,10 @@ class FakeICModel(ic.Model):
     the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
     data for different scenarios.
 
+    Per RI conventions, our model classes must expose the model API (e.g. torch.nn.Module) as `model` attribute.
+    NOTE: the initialized Torchvision `model` does not actually do inference when this wrapper class is called.  Nor does the index2label contained
+    in this fake model's metadata align with this model object.
+    
     Attributes:
         model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for RI tools.
         prediction_data (Sequence[ArrayLike]): A Sequence of responses to provide, sequentially and repeating, as the model is called.
@@ -142,10 +147,15 @@ class FakeICModel(ic.Model):
     def __init__(self, model_metadata: ModelMetadata = DEFAULT_IC_MODEL_METADATA, prediction_data: Sequence[ArrayLike] = DEFAULT_IC_MODEL_PREDICTIONS):
         self.metadata: ModelMetadata = model_metadata
         self.prediction_iter: RestartingIterator = RestartingIterator(prediction_data)
+        self.model: torch.nn.Module = self._load_default_od_model()
 
     def __call__(self, input: Sequence[ArrayLike]) -> Sequence[ArrayLike]:
         return [ next(self.prediction_iter) for _ in range(len(input))]
-    
+
+    def _load_default_od_model(self) -> torch.nn.Module:
+        # NOTE: This model is for unit tests that require accessing the underlying model API only.  Calling the FakeICModel object does NOT
+        # use this model for inference. 
+        return resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.DEFAULT)
 
 class FakeICDataset(ic.Dataset):
     """
