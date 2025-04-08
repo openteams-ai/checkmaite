@@ -21,8 +21,6 @@ class ModelEvaluationTestbed(BaseDashboard):
         self.title = "Model Evaluation Testbed"
         self.results_df = pd.DataFrame(columns=["Gradient Report", "Model(s)", "Dataset", "Metric", "Threshold"])
 
-        self.run_analysis_button.on_click(self._run_button_callback)
-
         # ensure we don't visualize dataset_2
         self.dataset_2_visible = False
         # ensure we only visualize one model and don't allow removing that model

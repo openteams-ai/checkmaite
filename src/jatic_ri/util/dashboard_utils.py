@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import panel as pn
 
@@ -183,3 +183,22 @@ def _center_horizontally(panel_object: pn.viewable.Viewable) -> pn.Row:
         panel_object,
         pn.HSpacer(),
     )
+
+
+def with_loading(button_attr_name: str) -> Callable:
+    """Decorator to wrap a method with loading/spinner logic when binded to a button"""
+
+    def decorator(func: Callable) -> Callable:
+        """Decorator to wrap around any method that encapsulates an event callback"""
+
+        def wrapper(self, *args, **kwargs) -> None | bool:  # noqa: ANN001, ANN002, ANN003
+            button = getattr(self, button_attr_name)
+            button.loading = True
+            try:
+                return func(self, *args, **kwargs)
+            finally:
+                button.loading = False
+
+        return wrapper
+
+    return decorator
