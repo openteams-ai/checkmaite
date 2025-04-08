@@ -1,6 +1,7 @@
 """utils"""
 
 import io
+import re
 import tempfile
 from typing import Any, Union
 
@@ -81,3 +82,25 @@ def create_metrics_bar_plot(
     fig.tight_layout()
 
     return fig
+
+
+# Not expected to be needed after updating to gradient 0.11.0
+# See https://gitlab.jatic.net/jatic/morse/gradient/-/issues/643 for more details.
+def sanitize_gradient_markdown_text(text: str) -> str:
+    """Escape gradient's special characters (e.g. "*" and "_") when rendering Markdown text for slides.
+
+    More info in the gradient documentation: https://jatic.pages.jatic.net/morse/gradient/rai_card_creation/user_guide/reference/markdown_formatting.html
+
+    Args:
+        s (str): The input string to escape.
+
+    Returns:
+        str: The escaped string.
+
+    Example:
+        >>> sanitize_gradient_markdown_text("some_string")
+        'some\\_string'
+    """
+    gradient_special_chars = "*_"
+    gradient_escape_char = r"\\"
+    return re.sub(f"([{gradient_special_chars}])", rf"{gradient_escape_char}\1", text)
