@@ -3,14 +3,16 @@
 import os
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
+import torch
 from dataeval.metrics.bias import balance, coverage, diversity, parity
 from dataeval.utils.metadata import Metadata
 from numpy.typing import NDArray
 
+from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
@@ -31,6 +33,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
     """
 
     cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
+    device: Union[str, torch.device] = set_device(None)
     COVERAGE_KEY = "coverage"
     BALANCE_KEY = "balance"
     DIVERSITY_KEY = "diversity"
@@ -38,7 +41,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
 
     def __init__(self) -> None:
         super().__init__()
-        self._embedding_net = EmbeddingNet().cpu()
+        self._embedding_net = EmbeddingNet()
 
     @property
     def cache_id(self) -> str:
@@ -63,7 +66,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
         """Run bias analysis using coverage and parity"""
 
         images, labels, metadata = self._get_images_labels_factors()
-        embeddings = extract_embeddings(images, embedding_net=self._embedding_net).numpy()
+        embeddings = extract_embeddings(images, embedding_net=self._embedding_net, device=self.device).cpu().numpy()
 
         bal_out = balance(metadata)
         bal_dict = bal_out.dict()
