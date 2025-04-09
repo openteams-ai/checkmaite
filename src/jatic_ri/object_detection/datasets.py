@@ -293,7 +293,9 @@ class VisdroneDetectionDataset(Dataset):
             with open(annotation_path) as f:
                 r = csv.reader(f, delimiter=",")
                 # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
-                for x, y, h, w, score, label, truncation, occlusion in r:
+                # Discards any data after 8th value of a row (e.g. due to trailing comma).  See:
+                # https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/merge_requests/287
+                for x, y, h, w, score, label, truncation, occlusion, *_ in r:
                     boxes.append((float(x), float(y), float(h), float(w)))
                     scores.append(float(score))
                     labels.append(int(label))
