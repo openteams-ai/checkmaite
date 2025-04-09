@@ -307,7 +307,7 @@ class VisdroneDetectionDataset(Dataset):
                 labels=torch.tensor(labels),
             )
             metadata = {
-                "id": str(image_path),
+                "id": image_path.stem,
                 "image_path": str(image_path),
                 "annotation_path": str(annotation_path),
                 "truncations": truncations,
