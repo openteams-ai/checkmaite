@@ -1,11 +1,14 @@
 import sys
 from collections.abc import Iterable
+from typing import Union
 
 import torch
 import torchvision as tv
 import torchvision.transforms.v2.functional as tvf
 from numpy.typing import ArrayLike
 from torch import nn
+
+from jatic_ri._common.models import set_device
 
 if sys.version_info >= (3, 12):
     from itertools import batched
@@ -55,7 +58,11 @@ class EmbeddingNet(nn.Module):
 
 @torch.no_grad
 def extract_embeddings(
-    images: Iterable[ArrayLike], *, embedding_net: EmbeddingNet, batch_size: int = 64, device: str = "cpu"
+    images: Iterable[ArrayLike],
+    *,
+    embedding_net: EmbeddingNet,
+    batch_size: int = 64,
+    device: Union[str, None, torch.device] = "cpu",
 ) -> torch.Tensor:
     """Extract embeddings from images
 
@@ -74,7 +81,8 @@ def extract_embeddings(
         Embeddings of shape `[N, E]`, where `N = len(images)` and `E` is the dimensionality of `embedding_net`
 
     """
-    embedding_net.eval()
+    device = set_device(device)
+    embedding_net.to(device).eval()
 
     def preprocess(image: ArrayLike) -> torch.Tensor:
         return embedding_net.preprocess(
