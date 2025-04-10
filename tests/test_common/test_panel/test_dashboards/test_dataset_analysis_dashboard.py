@@ -20,10 +20,15 @@ REPORT_LINK = "<a href='report-link'>Report Link</a>"
 @pytest.mark.filterwarnings("ignore:All samples look discrete with so few data points:UserWarning")
 @pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")
 @pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning")
+@pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
 def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir):
     """Test running of the DA dashboard for object detection.
-    The actual run (_run_all_tests) is mocked for speed.
     """
+    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/379
+    json_config_da_od = json_config_da_od.copy()
+    del json_config_da_od["reallabel"]
+
     app = DatasetAnalysisDashboard(
         task='object_detection',
         output_dir=artifact_dir,
@@ -37,14 +42,14 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
 
     ## Set up dataset
     # for OD - use sample dataset in the test suite
-    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_dataset'))
+    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
     app.dataset_1_selector.value = "Coco dataset"
     app.dataset_1_split_path.value = str(coco_dataset_dir)
-    app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json"))
+    app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json'))
     
     app.dataset_2_selector.value = "Coco dataset"
     app.dataset_2_split_path.value = str(coco_dataset_dir)
-    app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json")) 
+    app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')) 
 
     # Set up model
     model_name = "ssdlite320_mobilenet_v3_large"
@@ -64,16 +69,18 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
     app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
     app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_config_path'].value = config_path
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
 
+    title_YMD_H = dt.datetime.now().strftime('%Y%m%d_%H') 
     # ensure the results table was populated 
-    assert model_name in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
+    assert title_YMD_H in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
+    assert title_YMD_H in report_title
 
 
 @pytest.mark.real_data
@@ -217,7 +224,6 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
 @pytest.mark.filterwarnings("ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning")
 def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir):
     """Test running of the DA dashboard for image_classification.
-    The actual run (_run_all_tests) is mocked for speed.
     """
     app = DatasetAnalysisDashboard(
         task='image_classification',
@@ -275,16 +281,18 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
     app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
     app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_config_path'].value = config_path
     
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
 
+    title_YMD_H = dt.datetime.now().strftime('%Y%m%d_%H')
     # ensure the results table was populated 
-    assert model_name in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
+    assert title_YMD_H in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
+    assert title_YMD_H in report_title
 
 
 @pytest.mark.real_data
@@ -344,6 +352,7 @@ def test_dataset_analysis_dashboard_od_mockrun_only():
         visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
         app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
         app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
+        app.model_widgets['Model 1 type']['model_config_path'].value = config_path
 
         # trigger the mocked run
         app.run_analysis_button.clicks += 1

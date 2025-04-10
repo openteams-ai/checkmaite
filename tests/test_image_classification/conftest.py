@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 CLASSES = ["cat", "dog"]
-NUM_IMAGES_PER_CLASS = 3
+NUM_IMAGES_PER_CLASS = 4
 IMG_SHAPE = (64, 128)
 
 

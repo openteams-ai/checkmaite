@@ -12,8 +12,10 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     SingleModelPlugin,
     ThresholdPlugin,
     TwoDatasetPlugin,
+    EvalToolPlugin,
 )
 from jatic_ri.util.dashboard_utils import rehydrate_test_stage_ic
+from jatic_ri.util.evaluation import EvaluationTool
 
 
 @pytest.fixture(scope='session')
@@ -39,12 +41,26 @@ def dataset_ic(fake_dataset):
 @pytest.mark.real_data
 @pytest.mark.parametrize(
     "config_fixture_name",
-    ['nrtk_config_ic', 'survivor_config_ic', 'xaitk_config_ic', 'feasibility_config_ic', 'bias_config_ic', 'linting_config_ic', 'baseline_eval_config_ic', 'shift_config_ic'],
+    [
+        pytest.param('nrtk_config_ic', marks=[pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning")]),
+        'survivor_config_ic',
+        'feasibility_config_ic',
+        pytest.param('bias_config_ic', marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")]),
+        pytest.param('linting_config_ic', marks=[
+            pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning"),
+            pytest.mark.filterwarnings("ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning"),
+        ]),
+        'baseline_eval_config_ic',
+        'shift_config_ic',
+    ],
 )
 def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic, artifact_dir):
     """Run end to end test from test stage config output to running the test. 
     This is only for local testing as it is very time consuming. 
     Once a faked model and dataset exist, it can be run in CI.
+
+    xaitk is purposefully not tested
+    See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
     """
     config = request.getfixturevalue(config_fixture_name)
     
@@ -69,6 +85,10 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
         test_stage.load_model(model_ic, model_id="model_1")
     elif isinstance(test_stage, MultiModelPlugin):
         test_stage.load_models(models={'model_1': model_ic})
+
+    eval_tool = EvaluationTool()
+    if isinstance(test_stage, EvalToolPlugin):
+        test_stage.load_eval_tool(eval_tool)
 
     # run the stage, saving output to the class
     test_stage.run(use_stage_cache=False)

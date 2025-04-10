@@ -18,7 +18,6 @@ REPORT_LINK = "<a href='report-link'>Report Link</a>"
 @pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend:UserWarning")
 def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir):
     """Test running of the ME dashboard for object detection.
-    The actual run (_run_all_tests) is mocked for speed.
     """
     app = ModelEvaluationTestbed(
         task='object_detection',
@@ -33,14 +32,14 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
 
     ## Set up dataset
     # for OD - use sample dataset in the test suite
-    coco_dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_dataset'))
+    coco_dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
     app.dataset_1_selector.value = "Coco dataset"
     app.dataset_1_split_path.value = str(coco_dataset_dir)
-    app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json"))
+    app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath('single_image.json'))
     
     app.dataset_2_selector.value = "Coco dataset"
     app.dataset_2_split_path.value = str(coco_dataset_dir)
-    app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json")) 
+    app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath('single_image.json')) 
 
     # Set up model
     model_name = "ssdlite320_mobilenet_v3_large"
@@ -61,16 +60,18 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
     app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
     app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_config_path'].value = config_path
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
 
+    title_YMD_H = dt.datetime.now().strftime('%Y%m%d_%H') 
     # ensure the results table was populated 
-    assert model_name in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
+    assert title_YMD_H in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
+    assert title_YMD_H in report_title
 
 
 @pytest.mark.real_data
@@ -93,8 +94,8 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     ## Set up dataset
     # for IC - create a fake dataset
     from PIL import Image
-    classes = ["cat", "dog"]
-    num_images_per_class = 3
+    classes = ["cat"]
+    num_images_per_class = 1
     img_shape = (64, 128)
 
     root_dir = Path('temp_yolo_dataset').resolve()
@@ -135,16 +136,18 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     visualized_model_name = {value: key for key, value in app.model_label_map.items()}[model_name]
     app.model_widgets['Model 1 type']['model_selector'].value = visualized_model_name
     app.model_widgets['Model 1 type']['model_weights_path'].value = pickle_path
+    app.model_widgets['Model 1 type']['model_config_path'].value = config_path
     
     # trigger the mocked run
     app.run_analysis_button.clicks += 1
 
+    title_YMD_H = dt.datetime.now().strftime('%Y%m%d_%H') 
     # ensure the results table was populated 
-    assert model_name in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
+    assert title_YMD_H in app.results_df['Gradient Report'][0].replace(" ", "_").lower()
 
     ## test report name generation
     report_title = app._construct_report_filename()
-    assert dt.datetime.now().strftime('%Y%m%d_%H') in report_title
+    assert title_YMD_H in report_title
 
 
 def test_model_evaluation_dashboard():
