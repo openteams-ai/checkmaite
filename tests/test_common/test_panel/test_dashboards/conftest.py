@@ -55,6 +55,6 @@ def json_config_me_ic(
     return {
         'task': 'image_classification',
         'nrtk': nrtk_config_ic, 
-        'xaitk': xaitk_config_ic, 
+        # 'xaitk': xaitk_config_ic, 
         'baseline_eval': baseline_eval_config_ic,
     }

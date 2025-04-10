@@ -83,6 +83,9 @@ test:
   extends: [.python-matrix, .shared-setup, .poetry-setup]
   stage: test
   needs: []
+  timeout: 3h
+  variables:
+    PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
     - git lfs pull     # Pull large files using git-lfs
     - poetry install --with dev
@@ -92,7 +95,7 @@ test:
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
-    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml --cov-fail-under=90
+    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always

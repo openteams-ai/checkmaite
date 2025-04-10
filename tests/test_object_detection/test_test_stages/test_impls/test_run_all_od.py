@@ -17,6 +17,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     SingleModelPlugin,
     ThresholdPlugin,
     TwoDatasetPlugin,
+    EvalToolPlugin,
 )
 from jatic_ri.util.evaluation import EvaluationTool
 
@@ -40,20 +41,56 @@ def dataset_od():
     NOTE: this should be replaced by a faked od model when available
     """
     coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
-    coco_dataset = CocoDetectionDataset(
+    dataset_wrapper = CocoDetectionDataset(
         root=str(coco_dataset_dir),
         ann_file=str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')),
     )
-    return coco_dataset
+    return dataset_wrapper
 
+@pytest.fixture(scope='session')
+def dataset_od_mini():
+    """
+    generate real od dataset wrapper
+    NOTE: this should be replaced by a faked od model when available
+    """
+    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
+    dataset_wrapper = CocoDetectionDataset(
+        root=str(coco_dataset_dir),
+        ann_file=str(coco_dataset_dir.joinpath('three_image.json')),
+    )
+    return dataset_wrapper
 
 
 @pytest.mark.real_data
 @pytest.mark.parametrize(
     "config_fixture_name",
-    ['reallabel_config_od', 'nrtk_config_od', 'survivor_config_od', 'xaitk_config_od', 'feasibility_config_od', 'bias_config_od', 'linting_config_od', 'baseline_eval_config_od', 'shift_config_od'],
+    [
+        'reallabel_config_od',
+        pytest.param('nrtk_config_od', marks=[
+            pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning"),
+            pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning"),
+        ]),
+        pytest.param('survivor_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")]),
+        'xaitk_config_od',
+        pytest.param(
+            'feasibility_config_od',
+            marks=[
+                pytest.mark.xfail(
+                    reason="Feasability computation is broken. See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/181",
+                )
+            ]
+        ),
+        pytest.param('bias_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")]),
+        pytest.param('linting_config_od', marks=[
+            pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning"),
+            pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning"),
+            pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning"),
+        ]),
+        pytest.param('baseline_eval_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")]),
+        'shift_config_od',
+    ],
 )
-def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od, artifact_dir):
+def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od, dataset_od_mini, artifact_dir):
     """Run end to end test from test stage config output to running the test. 
     This is only for local testing as it is very time consuming. 
     Once a faked model and dataset exist, it can be run in CI.
@@ -64,12 +101,17 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
 
     metric_od = map50_torch_metric_factory()
 
+    if config["TYPE"] == "XAITKTestStage":
+        dataset = dataset_od_mini
+    else:
+        dataset = dataset_od
+
     if isinstance(test_stage, TwoDatasetPlugin):
         test_stage.load_datasets(
-            dataset_od, "dataset1", dataset_od, "dataset2"
+            dataset, "dataset1", dataset, "dataset2"
         )
     elif isinstance(test_stage, SingleDatasetPlugin):
-        test_stage.load_dataset(dataset_od, "dataset1")
+        test_stage.load_dataset(dataset, "dataset1")
 
     if isinstance(test_stage, MetricPlugin):
         test_stage.load_metric(metric_od, metric_od.return_key)
@@ -84,7 +126,7 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
 
     if isinstance(test_stage, EvalToolPlugin):
         test_stage.load_eval_tool(EvaluationTool())
-        
+
     # run the stage, saving output to the class
     test_stage.run(use_stage_cache=False)
     # collect the slides
