@@ -1,14 +1,9 @@
-import pytest
+from pathlib import Path
 
+import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-import jatic_ri
-from jatic_ri.object_detection.datasets import CocoDetectionDataset
 from jatic_ri import PACKAGE_DIR
-from pathlib import Path
-from jatic_ri.object_detection.models import TorchvisionODModel
-from jatic_ri.util.dashboard_utils import rehydrate_test_stage_od
-from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
     MetricPlugin,
@@ -17,86 +12,105 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     SingleModelPlugin,
     ThresholdPlugin,
     TwoDatasetPlugin,
-    EvalToolPlugin,
 )
+from jatic_ri.object_detection.datasets import CocoDetectionDataset
+from jatic_ri.object_detection.metrics import map50_torch_metric_factory
+from jatic_ri.object_detection.models import TorchvisionODModel
+from jatic_ri.util.dashboard_utils import rehydrate_test_stage_od
 from jatic_ri.util.evaluation import EvaluationTool
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def model_od():
     """
     generate real od model wrapper
     NOTE: this should be replaced by a faked od model when available
     """
     model_name = "ssdlite320_mobilenet_v3_large"
-    model_wrapper = TorchvisionODModel(model_name=model_name)
-
-    return model_wrapper
+    return TorchvisionODModel(model_name=model_name)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def dataset_od():
     """
     generate real od dataset wrapper
     NOTE: this should be replaced by a faked od model when available
     """
-    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
-    dataset_wrapper = CocoDetectionDataset(
-        root=str(coco_dataset_dir),
-        ann_file=str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')),
+    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
+        Path("tests/testing_utilities/example_data/coco_resized_val2017")
     )
-    return dataset_wrapper
+    return CocoDetectionDataset(
+        root=str(coco_dataset_dir),
+        ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
+    )
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture(scope="session")
 def dataset_od_mini():
     """
     generate real od dataset wrapper
     NOTE: this should be replaced by a faked od model when available
     """
-    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path('tests/testing_utilities/example_data/coco_resized_val2017'))
-    dataset_wrapper = CocoDetectionDataset(
-        root=str(coco_dataset_dir),
-        ann_file=str(coco_dataset_dir.joinpath('three_image.json')),
+    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
+        Path("tests/testing_utilities/example_data/coco_resized_val2017")
     )
-    return dataset_wrapper
+    return CocoDetectionDataset(
+        root=str(coco_dataset_dir),
+        ann_file=str(coco_dataset_dir.joinpath("three_image.json")),
+    )
 
 
 @pytest.mark.real_data
 @pytest.mark.parametrize(
     "config_fixture_name",
     [
-        'reallabel_config_od',
-        pytest.param('nrtk_config_od', marks=[
-            pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning"),
-            pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning"),
-        ]),
-        pytest.param('survivor_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")]),
-        'xaitk_config_od',
+        "reallabel_config_od",
         pytest.param(
-            'feasibility_config_od',
+            "nrtk_config_od",
+            marks=[
+                pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning"),
+                pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning"),
+            ],
+        ),
+        pytest.param(
+            "survivor_config_od",
+            marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")],
+        ),
+        "xaitk_config_od",
+        pytest.param(
+            "feasibility_config_od",
             marks=[
                 pytest.mark.xfail(
                     reason="Feasability computation is broken. See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/181",
                 )
-            ]
+            ],
         ),
-        pytest.param('bias_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")]),
-        pytest.param('linting_config_od', marks=[
-            pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning"),
-            pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning"),
-            pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning"),
-        ]),
-        pytest.param('baseline_eval_config_od', marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")]),
-        'shift_config_od',
+        pytest.param(
+            "bias_config_od",
+            marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")],
+        ),
+        pytest.param(
+            "linting_config_od",
+            marks=[
+                pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning"),
+                pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning"),
+                pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning"),
+            ],
+        ),
+        pytest.param(
+            "baseline_eval_config_od",
+            marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")],
+        ),
+        "shift_config_od",
     ],
 )
 def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od, dataset_od_mini, artifact_dir):
-    """Run end to end test from test stage config output to running the test. 
-    This is only for local testing as it is very time consuming. 
+    """Run end to end test from test stage config output to running the test.
+    This is only for local testing as it is very time consuming.
     Once a faked model and dataset exist, it can be run in CI.
     """
     config = request.getfixturevalue(config_fixture_name)
-    
+
     test_stage = rehydrate_test_stage_od(config=config)
 
     metric_od = map50_torch_metric_factory()
@@ -107,9 +121,7 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
         dataset = dataset_od
 
     if isinstance(test_stage, TwoDatasetPlugin):
-        test_stage.load_datasets(
-            dataset, "dataset1", dataset, "dataset2"
-        )
+        test_stage.load_datasets(dataset, "dataset1", dataset, "dataset2")
     elif isinstance(test_stage, SingleDatasetPlugin):
         test_stage.load_dataset(dataset, "dataset1")
 
@@ -122,7 +134,7 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     if isinstance(test_stage, SingleModelPlugin):
         test_stage.load_model(model_od, model_id="model_1")
     elif isinstance(test_stage, MultiModelPlugin):
-        test_stage.load_models(models={'model_1': model_od})
+        test_stage.load_models(models={"model_1": model_od})
 
     if isinstance(test_stage, EvalToolPlugin):
         test_stage.load_eval_tool(EvaluationTool())
@@ -133,8 +145,8 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     slides = test_stage.collect_report_consumables()
 
     # generate report
-    report = create_deck(
+    create_deck(
         slides,
-        artifact_dir, 
+        artifact_dir,
         deck_name=f"{test_stage.__class__.__name__}_report",
     )

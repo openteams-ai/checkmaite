@@ -2,13 +2,13 @@
 
 import os
 from pathlib import Path
+
 import pytest
-import os
+from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import (
     XAITKTestStage,
 )
-from gradient.templates_and_layouts.create_deck import create_deck
 
 ARGS = {
     "name": "XAITKTestStage Example",
@@ -28,7 +28,9 @@ ARGS = {
 
 @pytest.mark.parametrize("use_stage_cache", [True, False])
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
-def test_xaitk_test_stage(use_stage_cache, dummy_xaitk_model, dummy_xaitk_dataset, dummy_metric_od, artifact_dir) -> None:
+def test_xaitk_test_stage(
+    use_stage_cache, dummy_xaitk_model, dummy_xaitk_dataset, dummy_metric_od, artifact_dir
+) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(ARGS)
@@ -49,7 +51,9 @@ def test_xaitk_test_stage(use_stage_cache, dummy_xaitk_model, dummy_xaitk_datase
     assert example_args["layout_name"] == "OneImageText"
     assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
     assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nGT: dummy\\_0\nPred: dummy\\_0"
-    assert example_args["layout_arguments"]["image_path"] == Path(f"{os.path.splitext(test.cache_path)[0]}/img_0/det_0.png")
-    
-    filename = create_deck(output, artifact_dir, 'xaitk')
+    assert example_args["layout_arguments"]["image_path"] == Path(
+        f"{os.path.splitext(test.cache_path)[0]}/img_0/det_0.png"
+    )
+
+    filename = create_deck(output, artifact_dir, "xaitk")
     assert filename.exists()

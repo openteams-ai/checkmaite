@@ -1,14 +1,13 @@
 """Test Dataset Bias Analysis"""
 
 import json
-import matplotlib.pyplot as plt
-import numpy as np
-import pytest
-import pandas as pd
-
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.image_classification.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStage
@@ -17,11 +16,12 @@ from jatic_ri.util.utils import save_figure_to_tempfile
 
 @pytest.fixture(scope="module")
 def fake_image() -> str:
-    image = np.ones((28,28,3), dtype=int)*200
+    image = np.ones((28, 28, 3), dtype=int) * 200
     fig, ax = plt.subplots()
     ax.imshow(image)
     ax.axis("off")
     return save_figure_to_tempfile(fig)
+
 
 @pytest.fixture(scope="module")
 def balance_outputs(fake_image) -> dict[str, Any]:
@@ -66,10 +66,11 @@ def parity_outputs() -> dict[str, Any]:
         "p_value": np.array([0.28906231, 0.24263543, 0.77295762]),
     }
 
+
 def ignore_bias_warnings(test_fn):
     for filter in [
         "ignore:All samples look discrete with so few data points:UserWarning",
-        r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
+        r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning",
     ]:
         test_fn = pytest.mark.filterwarnings(filter)(test_fn)
 
@@ -149,11 +150,11 @@ class TestICBiasCollectReportConsumables:
         layout_args = slide["layout_arguments"]
 
         # Check rollup calculation and associated action
-        assert f"0 factors" in layout_args["text_column_body"][1].content[0].content
+        assert "0 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_balance")
@@ -174,8 +175,8 @@ class TestICBiasCollectReportConsumables:
         assert layout_args["text_column_heading"] == "Metric: Coverage"
         assert layout_args["text_column_half"]
         assert (
-            layout_args['text_column_body'][-1].content[0].content ==
-            "* Increase representation of rare but relevant samples in areas of poor coverage"
+            layout_args["text_column_body"][-1].content[0].content
+            == "* Increase representation of rare but relevant samples in areas of poor coverage"
         )
 
         # Test calculated dataframe values
@@ -191,7 +192,7 @@ class TestICBiasCollectReportConsumables:
         assert folder.is_dir()
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage")
@@ -215,7 +216,7 @@ class TestICBiasCollectReportConsumables:
         )
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_diversity")
@@ -239,13 +240,7 @@ class TestICBiasCollectReportConsumables:
         assert filename.exists()
 
     def test_bias_gradient_pptx(
-            self,
-            dummy_dataset_ic,
-            coverage_outputs,
-            balance_outputs,
-            diversity_outputs,
-            parity_outputs,
-            artifact_dir
+        self, dummy_dataset_ic, coverage_outputs, balance_outputs, diversity_outputs, parity_outputs, artifact_dir
     ) -> None:
         """Test all gradient slide kwargs collected together"""
 

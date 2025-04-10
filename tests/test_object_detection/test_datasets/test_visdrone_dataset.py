@@ -1,6 +1,8 @@
-from jatic_ri.object_detection.datasets import VisdroneDetectionDataset, DetectionTarget
-import torch
 from pathlib import Path
+
+import torch
+
+from jatic_ri.object_detection.datasets import DetectionTarget, VisdroneDetectionDataset
 
 
 class TestVisdroneDetectionDataset:

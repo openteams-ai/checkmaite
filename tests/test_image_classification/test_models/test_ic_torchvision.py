@@ -8,7 +8,7 @@ from PIL import Image
 from jatic_ri.image_classification.models import TorchvisionICModel
 
 
-@pytest.mark.parametrize('model_name', ['alexnet', 'resnext50_32x4d'])
+@pytest.mark.parametrize("model_name", ["alexnet", "resnext50_32x4d"])
 def test_integration_dataset(model_name: str):
     """
     Integration test to validate the torchvision wrapper on a sample image from COCO dataset.
@@ -26,7 +26,8 @@ def test_integration_dataset(model_name: str):
     assert prediction[0].shape == (1000,)
     assert torchvision_wrapper.name == model_name
     # It's a bicycle, but close enough, there's many other objects in the image
-    assert torchvision_wrapper.index2label[prediction[0].argmax().item()] == 'unicycle'
+    assert torchvision_wrapper.index2label[prediction[0].argmax().item()] == "unicycle"
+
 
 def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     """
@@ -48,19 +49,14 @@ def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     _ = torch.save(model_wrapper.model.state_dict(), pickle_path)
 
     # reload from disk and confirm equality with original model
-    model_wrapper_2 = TorchvisionICModel(
-        model_name="alexnet", weights_path=pickle_path, config_path=config_path
-    )
+    model_wrapper_2 = TorchvisionICModel(model_name="alexnet", weights_path=pickle_path, config_path=config_path)
 
     assert model_wrapper.index2label == model_wrapper_2.index2label
 
     # check that scores from random prediction from both models identical
     # maybe overkill, but useful smoke-test
     random_img = dummy_cpu_image_batch[0]
-    assert (
-        model_wrapper(input_batch=[random_img])[0]
-        == model_wrapper_2(input_batch=[random_img])[0]
-    ).all()
+    assert (model_wrapper(input_batch=[random_img])[0] == model_wrapper_2(input_batch=[random_img])[0]).all()
 
 
 def test_invalid_model_name():

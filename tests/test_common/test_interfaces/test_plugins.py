@@ -1,6 +1,8 @@
+import re
 from typing import Any
 
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage, RIValidationError
+import pytest
+
 from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     MultiModelPlugin,
@@ -9,10 +11,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     ThresholdPlugin,
     TwoDatasetPlugin,
 )
-import re
-
-import pytest
-
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError, TestStage
 
 
 def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
@@ -74,7 +73,7 @@ def test_threshold_validation(dummy_model_od, dummy_dataset_od, dummy_metric_od)
     )
     with pytest.raises(
         RIValidationError,
-        match=re.escape("'threshold' not set! Please use `load_threshold()` function to set the 'threshold'.")
+        match=re.escape("'threshold' not set! Please use `load_threshold()` function to set the 'threshold'."),
     ):
         stage.validate_plugins()
 

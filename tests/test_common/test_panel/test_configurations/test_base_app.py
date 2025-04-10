@@ -1,5 +1,6 @@
 """Test base app"""
-import pytest 
+
+import pytest
 
 from jatic_ri._common._panel.configurations.base_app import BaseApp
 

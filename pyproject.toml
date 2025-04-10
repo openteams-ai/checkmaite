@@ -103,7 +103,6 @@ exclude = [
 [tool.ruff]
 exclude = [
   "environment*",
-  "tests",
 ]
 
 line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
@@ -120,7 +119,7 @@ select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", 
           "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
           "RUF100", "PERF"]
 
-ignore = ["ANN101", "ANN102", "COM812", "ISC001"]
+ignore = ["ANN101", "ANN102", "ANN401", "COM812", "ISC001"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -130,7 +129,19 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.extend-per-file-ignores]
-"**/tests/*" = ["ANN001", "ANN204", "D100", "D103", "S101"]
+"**/tests/*" = [
+    "ANN",
+    "D",
+    "ARG",
+    "SIM",
+    "C90",
+    "SLF001",
+    "S101",
+    "A001",
+    "E501",
+    "PT007",
+    "PT011",
+]
 
 [tool.ruff.format]
 quote-style = "double"

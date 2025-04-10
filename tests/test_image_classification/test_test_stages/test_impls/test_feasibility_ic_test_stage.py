@@ -1,4 +1,5 @@
 """Test Image Classification DataEval Feasibility Test Stage"""
+
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -12,11 +13,12 @@ from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_s
 @pytest.fixture(scope="class")
 def ber_outputs() -> dict[str, dict[str, float]]:
     return {
-            "feasibility": {
-                "ber": 0.75,
-                "ber_lower": 0.5287908970299657,
-            }
+        "feasibility": {
+            "ber": 0.75,
+            "ber_lower": 0.5287908970299657,
         }
+    }
+
 
 class TestFeasibilityTestStage:
     """Tests the image classification DatasetFeasibilityTestStage implementation"""
@@ -37,14 +39,14 @@ class TestFeasibilityTestStage:
         test_stage.load_dataset(None, "ICDataset")  # type: ignore
 
         mock_read_dataset.return_value = (
-                np.ones((10, 1, 16, 16)),
-                np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]),
-                [], # Unused by test stage
+            np.ones((10, 1, 16, 16)),
+            np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]),
+            [],  # Unused by test stage
         )
 
         results = test_stage._run()
 
-        assert results == {'feasibility': {'ber': 0.5, 'ber_lower': 0.5}}
+        assert results == {"feasibility": {"ber": 0.5, "ber_lower": 0.5}}
 
     def test_collect_report_consumable(self, ber_outputs, tmp_path):
         """"""

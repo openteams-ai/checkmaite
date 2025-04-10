@@ -1,9 +1,7 @@
 """Test DataEval Feasibility Test Stage"""
 
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import maite.protocols.object_detection as od
 import pandas as pd

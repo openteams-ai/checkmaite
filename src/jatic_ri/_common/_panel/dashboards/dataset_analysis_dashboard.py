@@ -31,7 +31,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
         }
         self.results_df = pd.DataFrame(columns=list(self.tabulator_widths.keys()))
 
-    def _run_button_callback(self, event) -> None:  # noqa: ANN001, ARG002  # pragma: no cover
+    def _run_button_callback(self, event: Any) -> None:  # noqa: ARG002  # pragma: no cover
         """This function runs when `run_dataset_button` is clicked"""
         # =========================
         # Load model(s)

@@ -29,7 +29,7 @@ class ModelEvaluationTestbed(BaseDashboard):
         # ME never needs two datasets
         self.dataset_1_selector.name = "Dataset type"
 
-    def _run_button_callback(self, event) -> None:  # noqa: ANN001, ARG002 # pragma: no cover
+    def _run_button_callback(self, event: Any) -> None:  # noqa: ARG002 # pragma: no cover
         """This function runs when `run_model_button` is clicked
         Call sequence:
         * Call _run_all_tests from the baseclass which:

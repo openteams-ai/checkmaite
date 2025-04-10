@@ -1,9 +1,7 @@
 """Test Image Classification Linting Test Stage"""
 
-from unittest.mock import MagicMock
-import os
 from pathlib import Path
-import pytest
+from unittest.mock import MagicMock
 
 from gradient.templates_and_layouts.create_deck import create_deck
 
@@ -25,7 +23,7 @@ def test_ic_linting(dummy_dataset_ic) -> None:
 
 
 def test_ic_linting_with_cached_values(dummy_dataset_ic, tmp_path) -> None:
-    """Verify cached """
+    """Verify cached"""
     test1 = DatasetLintingTestStage()
     test1.cache_base_path = tmp_path
     test1.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_linting")

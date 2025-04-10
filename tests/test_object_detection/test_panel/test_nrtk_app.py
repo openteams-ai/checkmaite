@@ -1,27 +1,38 @@
 """Test base app"""
+
 import pytest
+from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
+from nrtk.impls.perturb_image.pybsm.perturber import PybsmPerturber
+from nrtk.impls.perturb_image_factory.generic.linspace_step import LinSpacePerturbImageFactory
+from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
+from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactory
+from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
 
 from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp
 from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage
 
-from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
-from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactory
-from nrtk.impls.perturb_image_factory.generic.linspace_step import LinSpacePerturbImageFactory
-from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
-from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
-from nrtk.impls.perturb_image.pybsm.perturber import PybsmPerturber
 
-@pytest.mark.parametrize(("perturber_type", "perturber_factory_type", "factory_args"), 
+@pytest.mark.parametrize(
+    ("perturber_type", "perturber_factory_type", "factory_args"),
     [
-        (BrightnessPerturber, OneStepPerturbImageFactory,
-            {"theta_key": "factor", "theta_value": 10.0}),
-        (BrightnessPerturber, StepPerturbImageFactory,
-            {"theta_key": "factor", "start": 1.0, "stop": 30.0, "step": 2.0, "to_int": True}),
-        (BrightnessPerturber, LinSpacePerturbImageFactory,
-            {"theta_key": "factor", "start": 0.0, "stop": 30.0, "step": 3}),
-        (PybsmPerturber, CustomPybsmPerturbImageFactory,
-            {"theta_keys": ["f", "D"], "thetas": [[0.014, 0.012], [0.001, 0.003]]})
-    ])
+        (BrightnessPerturber, OneStepPerturbImageFactory, {"theta_key": "factor", "theta_value": 10.0}),
+        (
+            BrightnessPerturber,
+            StepPerturbImageFactory,
+            {"theta_key": "factor", "start": 1.0, "stop": 30.0, "step": 2.0, "to_int": True},
+        ),
+        (
+            BrightnessPerturber,
+            LinSpacePerturbImageFactory,
+            {"theta_key": "factor", "start": 0.0, "stop": 30.0, "step": 3},
+        ),
+        (
+            PybsmPerturber,
+            CustomPybsmPerturbImageFactory,
+            {"theta_keys": ["f", "D"], "thetas": [[0.014, 0.012], [0.001, 0.003]]},
+        ),
+    ],
+)
 @pytest.mark.filterwarnings("ignore:invalid value encountered in (arccos|sqrt):RuntimeWarning")
 def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) -> None:
     """This tests the basic functionality provided in the base class"""
@@ -70,7 +81,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
 
     # test factory config is built correctly
     factory_json = nrtk_app.build_factory_json()
-    factory_type_string = f"{perturber_factory_type.__module__}.{perturber_factory_type.__name__}"        
+    factory_type_string = f"{perturber_factory_type.__module__}.{perturber_factory_type.__name__}"
     assert factory_json["type"] == factory_type_string
     if perturber_factory_type == OneStepPerturbImageFactory:
         assert factory_json[factory_type_string]["theta_key"] == factory_args["theta_key"]
@@ -84,7 +95,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     nrtk_app._run_export()
     assert len(nrtk_app.output_test_stages) == 1
     test_stage = nrtk_app.output_test_stages["NRTKApp_0"]
-    assert test_stage["TYPE"] == 'NRTKTestStage'
+    assert test_stage["TYPE"] == "NRTKTestStage"
     assert test_stage["CONFIG"]["name"] == "natural_robustness_TestFactory"
     assert test_stage["CONFIG"]["perturber_factory"] == factory_json
 

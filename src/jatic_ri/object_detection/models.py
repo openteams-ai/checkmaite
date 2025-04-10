@@ -339,7 +339,7 @@ class ModelSpecification(TypedDict):
 
 def load_models(
     models: dict[str, ModelSpecification],
-    **kwargs: Any,  # noqa: ANN401
+    **kwargs: Any,
 ) -> dict[str, TorchvisionODModel]:  # pragma: no cover
     """Simplified programmatic loading of models from a dictionary of
     ModelSpecifications."""

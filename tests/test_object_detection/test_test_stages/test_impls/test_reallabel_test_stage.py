@@ -7,12 +7,10 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from gradient.templates_and_layouts.create_deck import create_deck
-import pandas as pd
+import maite.protocols.object_detection as od
 import pyspark.sql.functions as sf
 import pytest
-import maite.protocols.object_detection as od
-from gradient import Text
+from gradient.templates_and_layouts.create_deck import create_deck
 from reallabel import ColumnNameConfig
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
@@ -42,12 +40,17 @@ _REALLABEL_CONFIG = "config"
 
 
 @pytest.fixture(scope="session")
-def reallabel_test_stage_args(fake_od_dataset_reallabel_only: FakeODDataset, fake_od_model_default: FakeODModel) -> dict[str, Any]:
+def reallabel_test_stage_args(
+    fake_od_dataset_reallabel_only: FakeODDataset, fake_od_model_default: FakeODModel
+) -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
 
     # a single image with groundtruth along with two models with identical predictions
     reallabel_test_stage_dataset: od.Dataset = fake_od_dataset_reallabel_only
-    reallabel_test_stage_models: dict[str,od.Model] = {"model_1": fake_od_model_default, "model_2": fake_od_model_default}
+    reallabel_test_stage_models: dict[str, od.Model] = {
+        "model_1": fake_od_model_default,
+        "model_2": fake_od_model_default,
+    }
 
     config = Config(
         deduplication_algorithm="wbf",
@@ -84,7 +87,9 @@ def reallabel_test_stage_args(fake_od_dataset_reallabel_only: FakeODDataset, fak
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(default_eval_tool_no_cache, reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
+def create_test_stage(
+    default_eval_tool_no_cache, reallabel_test_stage_args: dict, request: pytest.FixtureRequest
+) -> RealLabelTestStage:
     """Create a RealLabelTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
@@ -92,9 +97,7 @@ def create_test_stage(default_eval_tool_no_cache, reallabel_test_stage_args: dic
     """
 
     # Create and yield test_stage
-    test_stage = RealLabelTestStage(
-        config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)]
-    )
+    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
     test_stage.load_models(models=reallabel_test_stage_args["models"])
     test_stage.load_dataset(
         dataset=reallabel_test_stage_args["dataset"],
@@ -143,7 +146,9 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None
     actual_returned_results_df = test_stage.outputs[0].withColumn(
         "classification", sf.col("classification").cast("integer")
     )
-    assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas(),["id","box_group","classification"])
+    assert_spark_dataframes_equal(
+        actual_returned_results_df, actual_cached_results_df.toPandas(), ["id", "box_group", "classification"]
+    )
 
     assert expected_results_png_path.exists()
 
@@ -191,16 +196,20 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Act
     slides = test_stage.collect_report_consumables()
     output_consumables = slides[0]
-    combined_lc_text =  ''.join([subtext.content for subtext in output_consumables["layout_arguments"]["content_left"].content])
+    combined_lc_text = "".join(
+        [subtext.content for subtext in output_consumables["layout_arguments"]["content_left"].content]
+    )
 
     # Assert
     assert output_consumables["deck"] == expected_deck
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
-    assert all([expected in combined_lc_text for expected in ['True Positive: 1', 'False Positive: 2', 'False Negative: 1']])
+    assert all(
+        expected in combined_lc_text for expected in ["True Positive: 1", "False Positive: 2", "False Negative: 1"]
+    )
     assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
 
-    filename = create_deck(slides, artifact_dir, 'reallabel')
+    filename = create_deck(slides, artifact_dir, "reallabel")
     assert filename.exists()
 
 

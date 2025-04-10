@@ -5,9 +5,11 @@ from unittest.mock import MagicMock
 from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import (
     BaselineEvaluation,
 )
-from jatic_ri.util.evaluation import EvaluationTool
 
-def test_baseline_evaluation_dummy_ic(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, default_eval_tool_no_cache) -> None:
+
+def test_baseline_evaluation_dummy_ic(
+    dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, default_eval_tool_no_cache
+) -> None:
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
@@ -19,7 +21,10 @@ def test_baseline_evaluation_dummy_ic(dummy_model_ic, dummy_dataset_ic, dummy_me
     test.run()
     test.collect_report_consumables()
 
-def test_baseline_evaluation_dummy_ic_with_cache(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, default_eval_tool_no_cache, tmp_path) -> None:
+
+def test_baseline_evaluation_dummy_ic_with_cache(
+    dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, default_eval_tool_no_cache, tmp_path
+) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
     test1.load_model(model=dummy_model_ic, model_id="model_1")
@@ -29,7 +34,7 @@ def test_baseline_evaluation_dummy_ic_with_cache(dummy_model_ic, dummy_dataset_i
     test1.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test1.cache_base_path = tmp_path
     test1.run(use_stage_cache=True)
-    output1 =test1.collect_report_consumables()
+    output1 = test1.collect_report_consumables()
 
     test2 = BaselineEvaluation()
     test2.load_model(model=dummy_model_ic, model_id="model_1")

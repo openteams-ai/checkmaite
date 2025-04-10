@@ -1,4 +1,5 @@
 """Test image classification survivor test stage."""
+
 import contextlib
 import json
 import os
@@ -6,22 +7,17 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 import pytest
+from gradient import Text
 from maite.protocols import image_classification as ic
 from survivor.enums import ScoreConversionType
-from gradient import Text
 
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import (
-    SurvivorConfig,
-    SurvivorTestStage
-)
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
-    SurvivorCache,
     _SURVIVOR_CACHE_CONFIGURATION_PATH,
+    SurvivorCache,
 )
-
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
+from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorConfig, SurvivorTestStage
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
 from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
 
@@ -30,12 +26,13 @@ from tests.testing_utilities.testing_utilities import assert_spark_dataframes_eq
 # then this file will need to be updated
 
 # KNOWN ISSUES:
-# (1) Per the comment above, the expected survivor image file SHOULD need updating given fixtures have changed.  However, 
+# (1) Per the comment above, the expected survivor image file SHOULD need updating given fixtures have changed.  However,
 # the tests still passed.  RI issue #232 is tracking
 # (2) Higher fidelity tests (i.e. Survivor-relevant variance in the faked model/dataset/metric) are being solutioned - RI issue #229
 
-EXPECTED_SURVIVOR_IMAGE = Path(
-    os.path.abspath(__file__)).parent / "test_data" / "expected_survivor_result_visualization.png"
+EXPECTED_SURVIVOR_IMAGE = (
+    Path(os.path.abspath(__file__)).parent / "test_data" / "expected_survivor_result_visualization.png"
+)
 
 CACHE_DIR = Path(os.path.abspath(__file__)).parent / ".tscache"
 _DICT_CONFIG = "dict_config"
@@ -43,7 +40,9 @@ _SURVIVOR_CONFIG = "config"
 
 
 @pytest.fixture(scope="session")
-def survivor_test_stage_args(fake_ic_model_default: FakeICModel, fake_ic_dataset_default: FakeICDataset, fake_ic_metric_default: FakeICMetric) -> dict[str, Any]:
+def survivor_test_stage_args(
+    fake_ic_model_default: FakeICModel, fake_ic_dataset_default: FakeICDataset, fake_ic_metric_default: FakeICMetric
+) -> dict[str, Any]:
     """Default arguments for RealLabelTestStage."""
     fake_model: ic.Model = fake_ic_model_default
     model_dict: dict[str, FakeICModel] = {
@@ -89,13 +88,11 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
         shutil.rmtree(CACHE_DIR)
 
     # Create and configure SurvivorTestStage
-    test_stage = SurvivorTestStage(
-        config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
+    test_stage = SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
     test_stage.load_models(models=survivor_test_stage_args["models"])
     test_stage.load_dataset(dataset=survivor_test_stage_args["dataset"], dataset_id="test-dataset")
     test_stage.load_metric(
-        metric=survivor_test_stage_args["metric"],
-        metric_id=survivor_test_stage_args["config"].metric_column
+        metric=survivor_test_stage_args["metric"], metric_id=survivor_test_stage_args["config"].metric_column
     )
     test_stage.load_eval_tool(default_eval_tool_no_cache)
 
@@ -139,7 +136,9 @@ def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
     # conversion but can't really be helped :/
     assert expected_results_df_path.exists()
     # 'timestamp' column was part of the USA_SUMMER_DATASET in initial tests, but does not exist in our default FakeODDataset
-    actual_returned_results_df = test_stage.outputs[0] #.withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
+    actual_returned_results_df = test_stage.outputs[
+        0
+    ]  # .withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
     assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
 
     assert expected_results_png_path.exists()
@@ -172,8 +171,7 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage) -> N
     expected_deck = "image_classification_survivor"
     expected_layout_name = "TwoImageTextNoHeader"
     expected_content_left = Text(
-        content=
-        "**Types of Data**\n"
+        content="**Types of Data**\n"
         "• Easy: Models score the same and perform well.\n"
         "• Hard: Models score the same and perform poorly.\n"
         "• On the Bubble: Models score differently.\n\n"
@@ -181,7 +179,7 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage) -> N
         "performance.\n\n"
         "• This dataset had 0.0% Easy, 100.0% Hard, and "
         "0.0% On the Bubble data.",
-        fontsize=22
+        fontsize=22,
     )
     expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/survivor_result_visualization.png"
     expected_title = "Survivor Dataset Breakdown"
@@ -204,7 +202,7 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage) -> N
 
 
 def test_survivor_test_stage_collect_report_consumables_error(
-        test_stage: SurvivorTestStage,
+    test_stage: SurvivorTestStage,
 ) -> None:
     """Test collect_report_consumables error when run not called."""
     # No Arrange
@@ -215,7 +213,7 @@ def test_survivor_test_stage_collect_report_consumables_error(
 
 
 def test_survivor_test_stage_collect_metrics(
-        test_stage: SurvivorTestStage,
+    test_stage: SurvivorTestStage,
 ) -> None:
     """Test collect_metrics."""
     # Arrange
@@ -231,7 +229,7 @@ def test_survivor_test_stage_collect_metrics(
 
 
 def test_survivor_test_stage_collect_metrics_error(
-        test_stage: SurvivorTestStage,
+    test_stage: SurvivorTestStage,
 ) -> None:
     """Test collect_metrics error when run not called."""
     # No Arrange
@@ -262,6 +260,7 @@ def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
 
     with pytest.raises(RIValidationError, match=r"'metric' not set! Please use `load_metric\(\)` function"):
         test_stage_3.run(use_stage_cache=False)
+
 
 def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_path) -> None:
     """Test cache miss dir is deleted and resets if it already exists."""

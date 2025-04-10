@@ -380,7 +380,7 @@ class BaseDashboard(param.Parameterized):
         self.config_floatpanel_container = pn.Column(pn.widgets.Checkbox(visible=False))
 
     @abstractmethod
-    def _run_button_callback(self, event=None) -> None:  # noqa: ANN001
+    def _run_button_callback(self, event: Any = None) -> None:
         """
         Callback that runs when the run button is clicked
         When called, this is a placeholder method that is overridden by subclasses
@@ -388,7 +388,7 @@ class BaseDashboard(param.Parameterized):
         pass
 
     @with_loading("run_analysis_button")
-    def _run_analysis_loading(self, event=None) -> None:  # noqa: ANN001
+    def _run_analysis_loading(self, event: Any = None) -> None:
         """
         This function runs when `run_analysis_button` is clicked, allows for
         loading spinner to be shown while the callback is executing
@@ -396,7 +396,7 @@ class BaseDashboard(param.Parameterized):
         self._run_button_callback(event)
 
     @param.depends("task", watch=True)
-    def _update_task_related_objects(self, event=None) -> None:  # noqa: ANN001, ARG002
+    def _update_task_related_objects(self, event: Any = None) -> None:  # noqa: ARG002
         if self.task == "object_detection":
             self.dataset_label_map = DATASET_LABEL_MAP_OD
             self.metric_selector.options = list(METRICS_LABEL_MAP_OD.keys())
@@ -419,14 +419,14 @@ class BaseDashboard(param.Parameterized):
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_IC
 
     @pn.depends("config_file.value", watch=True)
-    def _update_default_config(self, event=None) -> None:  # noqa: ANN001, ARG002
+    def _update_default_config(self, event: Any = None) -> None:  # noqa: ARG002
         logger.debug("update default config")
         config = json.loads(self.config_file.value)
         success = self.load_pipeline(config)
         if success:
             self.run_analysis_button.disabled = False
 
-    def _on_view_config_callback(self, event=None) -> None:  # noqa: ANN001, ARG002
+    def _on_view_config_callback(self, event: Any = None) -> None:  # noqa: ARG002
         """Callback that fires when the "view config" button is clicked.
         This adds a float panel widget to the visualized (otherwise empty) container"""
         floatpanel = pn.layout.FloatPanel(
@@ -448,13 +448,13 @@ class BaseDashboard(param.Parameterized):
         floatpanel.param.watch(self._on_config_panel_close_callback, "status")
         self.config_floatpanel_container.append(floatpanel)
 
-    def _on_config_panel_close_callback(self, event=None) -> None:  # noqa: ANN001
+    def _on_config_panel_close_callback(self, event: Any = None) -> None:
         """Callback that fires when floating config viewer panel is closed
         This removes the float panel from the visualized container."""
         if event.obj.status == "closed":
             self.config_floatpanel_container.remove(event.obj)
 
-    def _on_model_type_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
+    def _on_model_type_change(self, event: Any) -> None:  # pragma: no cover
         """Callback listening for changes to all model selector widgets.
         When called, this uses the name of the model selector widget
         to look up the model_weights_path widget and change the value of the placeholder
@@ -504,7 +504,7 @@ class BaseDashboard(param.Parameterized):
             self.model_widgets[event.obj.name]["model_weights_path"].disabled = True
             self.model_widgets[event.obj.name]["model_config_path"].disabled = True
 
-    def _on_model_weights_path_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
+    def _on_model_weights_path_change(self, event: Any) -> None:  # pragma: no cover
         # get a list of model numbers as strings
         str_numbers = re.findall(r"\d+", event.obj.description)
         # convert string list to int list and get the max model number
@@ -521,12 +521,12 @@ class BaseDashboard(param.Parameterized):
             # visdrone models never require config
             self.model_widgets[model_key]["model_config_path"].disabled = True
 
-    def _remove_model_widget(self, event) -> None:  # noqa: ANN001
+    def _remove_model_widget(self, event: Any) -> None:
         del self.model_widgets[event.obj.description]
         # redraw the model widgets
         self.redraw_models_trigger += 1
 
-    def add_model_button_callback(self, event) -> None:  # noqa: ANN001, ARG002
+    def add_model_button_callback(self, event: Any) -> None:  # noqa: ARG002
         """Callback that runs when the add model button is clicked
         When called, this adds a three new widgets for setting a new model.
         """

@@ -1,14 +1,13 @@
 """Test Dataset Bias Analysis"""
 
 import json
-import numpy as np
-import matplotlib.pyplot as plt
-import pytest
-import pandas as pd
-
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStage
@@ -17,11 +16,12 @@ from jatic_ri.util.utils import save_figure_to_tempfile
 
 @pytest.fixture(scope="module")
 def fake_image() -> str:
-    image = np.ones((28,28,3), dtype=int)*200
+    image = np.ones((28, 28, 3), dtype=int) * 200
     fig, ax = plt.subplots()
     ax.imshow(image)
     ax.axis("off")
     return save_figure_to_tempfile(fig)
+
 
 @pytest.fixture(scope="module")
 def balance_outputs(fake_image) -> dict[str, Any]:
@@ -95,26 +95,29 @@ class TestODDatasetBiasRun:
         output = test_stage.collect_report_consumables()
         assert len(output) == 4
 
-    @pytest.mark.filterwarnings(r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning")
+    @pytest.mark.filterwarnings(
+        r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
+    )
     def test_coco(self):
-        from jatic_ri.object_detection.datasets import CocoDetectionDataset
-        from jatic_ri import PACKAGE_DIR
         from os import path
+
         import tests
+        from jatic_ri import PACKAGE_DIR
+        from jatic_ri.object_detection.datasets import CocoDetectionDataset
 
         coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
             path.dirname(tests.__file__),
-            ('testing_utilities/example_data/coco_resized_val2017'),
+            ("testing_utilities/example_data/coco_resized_val2017"),
         )
         coco_dataset = CocoDetectionDataset(
             root=str(coco_dataset_dir),
-            ann_file=str(coco_dataset_dir.joinpath('instances_val2017_resized_6.json')),
+            ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
         )
 
         stage = DatasetBiasTestStage()
 
-        stage.load_dataset(dataset=coco_dataset, dataset_id='asd')
-                            
+        stage.load_dataset(dataset=coco_dataset, dataset_id="asd")
+
         stage.run(use_stage_cache=False)
         pass  # no explosions
 
@@ -167,11 +170,11 @@ class TestODBiasCollectReportConsumables:
         layout_args = slide["layout_arguments"]
 
         # Check rollup calculation and associated action
-        assert f"0 factors" in layout_args["text_column_body"][1].content[0].content
+        assert "0 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_balance")
@@ -192,8 +195,8 @@ class TestODBiasCollectReportConsumables:
         assert layout_args["text_column_heading"] == "Metric: Coverage"
         assert layout_args["text_column_half"]
         assert (
-            layout_args['text_column_body'][-1].content[0].content ==
-            "* Increase representation of rare but relevant samples in areas of poor coverage"
+            layout_args["text_column_body"][-1].content[0].content
+            == "* Increase representation of rare but relevant samples in areas of poor coverage"
         )
 
         # Test calculated dataframe values
@@ -209,7 +212,7 @@ class TestODBiasCollectReportConsumables:
         assert folder.is_dir()
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage")
@@ -233,7 +236,7 @@ class TestODBiasCollectReportConsumables:
         )
 
         # Check if image was saved
-        img_path = layout_args['data_column_image']
+        img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_diversity")
@@ -257,14 +260,8 @@ class TestODBiasCollectReportConsumables:
         assert filename.exists()
 
     def test_bias_gradient_pptx(
-            self,
-            dummy_dataset_od,
-            coverage_outputs,
-            balance_outputs,
-            diversity_outputs,
-            parity_outputs,
-            artifact_dir
-        ) -> None:
+        self, dummy_dataset_od, coverage_outputs, balance_outputs, diversity_outputs, parity_outputs, artifact_dir
+    ) -> None:
         """Test all gradient slide kwargs collected together"""
 
         test_stage: DatasetBiasTestStage = DatasetBiasTestStage()
