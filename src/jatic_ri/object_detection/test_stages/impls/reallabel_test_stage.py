@@ -365,7 +365,7 @@ class RealLabelTestStage(
             "fontsize": 12,
         }
 
-        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:  # noqa: ANN401
+        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:
             return (
                 SubText("• ", fontsize=22),
                 SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),

@@ -1,31 +1,24 @@
-from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-import panel as pn
 import pytest
 
+from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     Config,
     RealLabelTestStage,
-    )
+)
 
 
 @pytest.mark.parametrize(
     ("exp_iou_threshold", "exp_confidence_thresholds", "exp_class_agnostic", "exp_rwgt"),
-    [
-        (0.6, (0.3, 0.4), True, False),
-        (0.9, (0.2, 0.8), False, True)
-    ],
-    ids=["Agnostic_Not_Ground_Truth", "Ground_Truth_Not_Agnostic"]
+    [(0.6, (0.3, 0.4), True, False), (0.9, (0.2, 0.8), False, True)],
+    ids=["Agnostic_Not_Ground_Truth", "Ground_Truth_Not_Agnostic"],
 )
 def test_run_export(
-        exp_iou_threshold: float,
-        exp_confidence_thresholds: tuple[float, float],
-        exp_class_agnostic: bool,
-        exp_rwgt: bool
+    exp_iou_threshold: float, exp_confidence_thresholds: tuple[float, float], exp_class_agnostic: bool, exp_rwgt: bool
 ) -> None:
     """Test RealLabelApp._run_export() with all possible similarity strategies."""
     # Arrange
     app = RealLabelApp()
-    app.panel() # test building the UI even though we can't see it here
+    app.panel()  # test building the UI even though we can't see it here
     app.run_with_ground_truth = exp_rwgt
     app.iou_threshold = exp_iou_threshold
     app.likely_wrong_max_confidence = exp_confidence_thresholds[1]
@@ -53,14 +46,14 @@ def test_run_export(
                 "calibrated_confidence_column": "score",
                 "unique_identifier_columns": ["id"],
             },
-        }
+        },
     }
 
     # Act
     app._run_export()
     output = app.output_test_stages["reallabel_test_stage"]
     reallabel_config = Config(**output)
-    stage = RealLabelTestStage(config=reallabel_config)
+    RealLabelTestStage(config=reallabel_config)
 
     # Assert
     assert output == exp_output

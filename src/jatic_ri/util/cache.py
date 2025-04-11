@@ -79,7 +79,7 @@ class JSONCache(Cache[TData]):
 class NumpyEncoder(json.JSONEncoder):
     """Convert numpy objects to serializable native objects"""
 
-    def default(self, o: Any) -> Any:  # noqa: ANN401
+    def default(self, o: Any) -> Any:
         """JSON encoding entry point"""
         if isinstance(o, np.integer):
             return int(o)
@@ -94,7 +94,7 @@ class NumpyEncoder(json.JSONEncoder):
 class TensorEncoder(json.JSONEncoder):
     """Convert Pytorch tensors and numpy arrays to serializable objects"""
 
-    def default(self, o: Any) -> Any:  # noqa: ANN401
+    def default(self, o: Any) -> Any:
         """JSON encoding entry point"""
         if isinstance(o, torch.Tensor):
             return o.tolist()  # Convert tensor to list

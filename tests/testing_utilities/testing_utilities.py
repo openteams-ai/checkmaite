@@ -1,4 +1,5 @@
 """Module containing utility functions that can aid in testing."""
+
 import os
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -13,7 +14,7 @@ def assert_spark_dataframes_equal(
     actual: DataFrame,
     expected: pd.DataFrame,
     orderby: Optional[Union[str, list[str]]] = None,
-    **kwargs: Any,  # noqa: ANN401
+    **kwargs: Any,
 ) -> None:
     """Check whether a SparkDataFrame has the same values as a pandas.DataFrame.
 
@@ -22,9 +23,7 @@ def assert_spark_dataframes_equal(
     :param orderby: Optional param used to order columns in a dataframe
     """
     expected_sorted = (
-        expected.sort_values(orderby).reset_index(drop=True)
-        if orderby is not None
-        else expected.reset_index(drop=True)
+        expected.sort_values(orderby).reset_index(drop=True) if orderby is not None else expected.reset_index(drop=True)
     )
     actual_as_pandas: pd.DataFrame = actual.toPandas()
     actual_pandas_sorted = (

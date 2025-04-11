@@ -20,7 +20,7 @@ def create_fake_yolo_dataset(root_dir, split, classes, num_images_per_class, ima
             img.save(class_dir / f"{i}_{class_name}.jpg")
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def fake_dataset(tmp_path_factory):
     dataset_root = tmp_path_factory.mktemp("yolo_dataset")
     create_fake_yolo_dataset(
@@ -28,6 +28,6 @@ def fake_dataset(tmp_path_factory):
         split="test",
         classes=CLASSES,
         num_images_per_class=NUM_IMAGES_PER_CLASS,
-        image_shape=IMG_SHAPE
+        image_shape=IMG_SHAPE,
     )
     return dataset_root, CLASSES, NUM_IMAGES_PER_CLASS, IMG_SHAPE

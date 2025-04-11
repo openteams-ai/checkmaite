@@ -1,6 +1,5 @@
-""" Test OD XAITKApp"""
+"""Test OD XAITKApp"""
 
-import panel as pn
 import json
 
 from smqtk_core.configuration import from_config_dict
@@ -37,17 +36,13 @@ def test_run_export() -> None:
     random_grid_stack_impl = "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.RandomGridStack"
 
     assert saliency_generator_config["type"] == random_grid_stack_impl
-    assert (
-        all(
-            k in saliency_generator_config[random_grid_stack_impl]
-            for k in ("n", "s", "p1", "threads", "seed", "fill")
-        )
+    assert all(
+        k in saliency_generator_config[random_grid_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "fill")
     )
     # Check PlugConfigurable compatibilty
     assert isinstance(
-        from_config_dict(
-            saliency_generator_config, GenerateObjectDetectorBlackboxSaliency.get_impls()
-        ), GenerateObjectDetectorBlackboxSaliency
+        from_config_dict(saliency_generator_config, GenerateObjectDetectorBlackboxSaliency.get_impls()),
+        GenerateObjectDetectorBlackboxSaliency,
     )
 
     # Check output to XAITKTestStage

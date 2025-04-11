@@ -1,5 +1,4 @@
 import json
-import importlib
 
 import numpy as np
 import pytest
@@ -7,6 +6,7 @@ import torch
 from PIL import Image
 
 from jatic_ri.object_detection.models import TorchvisionODModel
+
 
 def test_integration_coco_dataset():
     """

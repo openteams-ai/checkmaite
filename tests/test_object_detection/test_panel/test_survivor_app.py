@@ -1,24 +1,28 @@
 from typing import Any, Optional, Union
 
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp
 import panel as pn
 import pytest
+
+from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp
 
 
 @pytest.mark.parametrize(
     ("strategy", "exp_type", "exp_value", "exp_description", "is_widget"),
     [
-        ("Binned", pn.widgets.TextInput, "0, 0.25, 0.5, 1.0",
-         "Edges of the bins to sort model metrics into. Should all be within metric range i.e (0-1), (1-100)", True),
-        ("Rounded", pn.widgets.IntInput, 2,
-         "Number of decimal places to round model metrics to.", True),
+        (
+            "Binned",
+            pn.widgets.TextInput,
+            "0, 0.25, 0.5, 1.0",
+            "Edges of the bins to sort model metrics into. Should all be within metric range i.e (0-1), (1-100)",
+            True,
+        ),
+        ("Rounded", pn.widgets.IntInput, 2, "Number of decimal places to round model metrics to.", True),
         ("Exact", pn.Row, None, None, False),
-
     ],
     ids=["Binned", "Rounded", "Exact"],
 )
 def test_similarity_option_pane(
-        strategy: str, exp_type: type, exp_value: Any, exp_description: str, is_widget: bool
+    strategy: str, exp_type: type, exp_value: Any, exp_description: str, is_widget: bool
 ) -> None:
     """Test SurvivorApp.similarity_option_pane() with all possible similarity_strategies."""
     # Arrange
@@ -47,10 +51,20 @@ def test_similarity_option_pane(
         ("12...3", [0, 0.25, 0.5, 1.0], True),
         ("Hi", [0, 0.25, 0.5, 1.0], True),
         ("12, 4, g, 89", [0, 0.25, 0.5, 1.0], True),
-        (".23", [0, 0.25, 0.5, 1.0], True)
+        (".23", [0, 0.25, 0.5, 1.0], True),
     ],
-    ids=["Zero", "Large_Number", "No_Spaces", "Single_Float", "Floats_And_Ints", "Hanging_Decimal_Points",
-         "Multiple_Decimal_points", "Single_Word", "Word_And_Numbers", "Leading_Decimal"]
+    ids=[
+        "Zero",
+        "Large_Number",
+        "No_Spaces",
+        "Single_Float",
+        "Floats_And_Ints",
+        "Hanging_Decimal_Points",
+        "Multiple_Decimal_points",
+        "Single_Word",
+        "Word_And_Numbers",
+        "Leading_Decimal",
+    ],
 )
 def test_parse_bin_string(input_str: str, exp_output: Optional[Union[int, list[float]]], exp_fail: bool) -> None:
     """Test SurvivorApp.parse_bin_string() sets SurvivorApp._bins correctly."""
@@ -73,14 +87,13 @@ def test_parse_bin_string(input_str: str, exp_output: Optional[Union[int, list[f
         ["Binned", "1, 2, 3", "binned", {"conversion_args": {"bin_edges": [1, 2, 3]}}],
         ["Rounded", "2", "rounded", {"conversion_args": {"decimals_to_round": 9}}],
     ],
-    ids=["Exact", "Binned", "Rounded"]
+    ids=["Exact", "Binned", "Rounded"],
 )
 def test_run_export(
-        similarity_strategy: str,
-        bins: str,
-        exp_conversion_type: str,
-        exp_conversion_args: dict[str, Any],
-
+    similarity_strategy: str,
+    bins: str,
+    exp_conversion_type: str,
+    exp_conversion_args: dict[str, Any],
 ) -> None:
     """Test SurvivorApp._run_export() with all possible similarity strategies."""
     # Arrange
@@ -93,11 +106,12 @@ def test_run_export(
     exp_output = {
         "TYPE": "SurvivorTestStage",
         "CONFIG": {
-                      "metric_column": "metric",
-                      "conversion_type": exp_conversion_type,
-                      "otb_threshold": app.otb_threshold,
-                      "easy_hard_threshold": app.easy_hard_threshold,
-                  } | exp_conversion_args
+            "metric_column": "metric",
+            "conversion_type": exp_conversion_type,
+            "otb_threshold": app.otb_threshold,
+            "easy_hard_threshold": app.easy_hard_threshold,
+        }
+        | exp_conversion_args,
     }
 
     # Act
@@ -107,10 +121,12 @@ def test_run_export(
     # Assert
     assert output == exp_output
 
+
 def test_roundtrip() -> None:
     from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
+
     app = SurvivorApp()
-    app.panel() # test constructing the UI even though we can't see it
+    app.panel()  # test constructing the UI even though we can't see it
     app._run_export()
-    output_config = app.output_test_stages['survivor_test_stage']["CONFIG"]
+    output_config = app.output_test_stages["survivor_test_stage"]["CONFIG"]
     SurvivorTestStage(config=output_config)

@@ -191,7 +191,7 @@ def with_loading(button_attr_name: str) -> Callable:
     def decorator(func: Callable) -> Callable:
         """Decorator to wrap around any method that encapsulates an event callback"""
 
-        def wrapper(self, *args, **kwargs) -> None | bool:  # noqa: ANN001, ANN002, ANN003
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> None | bool:
             button = getattr(self, button_attr_name)
             button.loading = True
             try:

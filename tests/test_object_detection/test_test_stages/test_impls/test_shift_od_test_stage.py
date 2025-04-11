@@ -2,6 +2,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage impor
     DatasetShiftTestStage,
 )
 
+
 def test_shift_od_deck_name():
     test_stage = DatasetShiftTestStage()
     assert test_stage._deck == "object_detection_dataset_evaluation"

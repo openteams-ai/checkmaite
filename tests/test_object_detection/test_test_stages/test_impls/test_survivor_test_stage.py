@@ -7,12 +7,11 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 import pytest
 import torch
 from gradient import Text
-from maite.protocols import object_detection as od
 from gradient.templates_and_layouts.create_deck import create_deck
+from maite.protocols import object_detection as od
 from survivor.enums import ScoreConversionType
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
@@ -25,9 +24,7 @@ from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import (
     SurvivorTestStage,
 )
 from tests.fake_od_classes import FakeODDataset, FakeODModel
-from tests.testing_utilities.testing_utilities import (
-    assert_spark_dataframes_equal
-)
+from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
 
 # This file is the expected output of Survivor if using all the information found in the survivor_test_stage_args
 # fixture, and if any of the data, model, metric, or SurvivorConfig information used by that fixture changes,
@@ -77,8 +74,9 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
 
         def compute(self) -> dict[str, Any]:
             if not self._can_compute:
-                raise ValueError("FakeSurvivorMetric requires exactly one image. "
-                "Please call .update before computing again.")
+                raise ValueError(
+                    "FakeSurvivorMetric requires exactly one image. " "Please call .update before computing again."
+                )
 
             self._can_compute = False
             self._needs_reset = True
@@ -91,32 +89,35 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
             self._counter += 1
 
             # hard data - all models give the same score and its very low
-            if image_idx < dataset_length/3:
-                return {"fake_survivor_metric":torch.tensor([0.001])}
+            if image_idx < dataset_length / 3:
+                return {"fake_survivor_metric": torch.tensor([0.001])}
 
             # easy data - all models give the same score and its very high
-            if image_idx >= 2*dataset_length/3:
-                return {"fake_survivor_metric":torch.tensor([0.999])}
+            if image_idx >= 2 * dataset_length / 3:
+                return {"fake_survivor_metric": torch.tensor([0.999])}
 
             # otb_data - there is no agreement between model scores.
             # the pattern adopted here is that each model is more confident
             # than the previous model by an increment of 1/total_models
-            return {"fake_survivor_metric":torch.tensor([(model_idx + 1) / total_models])}
+            return {"fake_survivor_metric": torch.tensor([(model_idx + 1) / total_models])}
 
         def update(self, preds, targets) -> None:
             if self._can_compute:
-                raise ValueError("FakeSurvivorMetric requires exactly one image. "
-                "Please call .compute before updating again.")
+                raise ValueError(
+                    "FakeSurvivorMetric requires exactly one image. " "Please call .compute before updating again."
+                )
             if self._needs_reset:
-                raise ValueError("FakeSurvivorMetric requires exactly one image. "
-                "Please call .reset before updating again.")
+                raise ValueError(
+                    "FakeSurvivorMetric requires exactly one image. " "Please call .reset before updating again."
+                )
 
             self._can_compute = True
 
         def reset(self) -> None:
             if self._can_compute:
-                raise ValueError("FakeSurvivorMetric requires exactly one image. "
-                "Please call .compute before resetting again.")
+                raise ValueError(
+                    "FakeSurvivorMetric requires exactly one image. " "Please call .compute before resetting again."
+                )
 
             self._needs_reset = False
 
@@ -124,10 +125,12 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
 
 
 @pytest.fixture(scope="session")
-def survivor_test_stage_args(fake_od_dataset_default: FakeODDataset, fake_od_model_default: FakeODModel) -> dict[str, Any]:
+def survivor_test_stage_args(
+    fake_od_dataset_default: FakeODDataset, fake_od_model_default: FakeODModel
+) -> dict[str, Any]:
     """
     Default arguments for RealLabelTestStage.
-    
+
     The fake metric is the most important test object here. The test dataset and model
     are mostly ignored - the only pieces of information used by the fake metric are
     the number of images in the dataset and the number of models.
@@ -136,10 +139,14 @@ def survivor_test_stage_args(fake_od_dataset_default: FakeODDataset, fake_od_mod
     # choice of 6 arbitrary, but allows simple divide between easy, hard and otb images (2, 2 and 2)
     survivor_test_stage_dataset: od.Dataset = fake_od_dataset_default
     # at least 2 models are required for model disagreement to make sense
-    survivor_test_stage_models: dict[str, od.Model] = {"model_1": fake_od_model_default, "model_2": fake_od_model_default}
-    
-    fake_survivor_metric = survivor_metric_factory(dataset_length=len(survivor_test_stage_dataset),
-    total_models=len(survivor_test_stage_models))
+    survivor_test_stage_models: dict[str, od.Model] = {
+        "model_1": fake_od_model_default,
+        "model_2": fake_od_model_default,
+    }
+
+    fake_survivor_metric = survivor_metric_factory(
+        dataset_length=len(survivor_test_stage_dataset), total_models=len(survivor_test_stage_models)
+    )
 
     config = SurvivorConfig(
         metric_column="fake_survivor_metric",
@@ -180,9 +187,7 @@ def create_test_stage(
         shutil.rmtree(CACHE_DIR)
 
     # Create and configure SurvivorTestStage
-    test_stage = SurvivorTestStage(
-        config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)]
-    )
+    test_stage = SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
     test_stage.load_models(models=survivor_test_stage_args["models"])
     test_stage.load_dataset(dataset=survivor_test_stage_args["dataset"], dataset_id="test-dataset")
     test_stage.load_metric(
@@ -297,8 +302,9 @@ def test_survivor_collect_report_consumables(
     assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
     assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
 
-    filename = create_deck(slide_content, artifact_dir, 'survivor')
+    filename = create_deck(slide_content, artifact_dir, "survivor")
     assert filename.exists()
+
 
 def test_survivor_test_stage_collect_report_consumables_error(
     test_stage: SurvivorTestStage,

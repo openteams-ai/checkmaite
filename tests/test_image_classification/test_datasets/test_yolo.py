@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-from PIL import Image
 
-from jatic_ri.image_classification.datasets import MissingYoloDataSplitError, YoloClassificationDataset, DatasetSpecification, load_datasets
+from jatic_ri.image_classification.datasets import (
+    DatasetSpecification,
+    MissingYoloDataSplitError,
+    YoloClassificationDataset,
+    load_datasets,
+)
 
 
 def test_dataset_initialization(fake_dataset):
@@ -14,8 +16,8 @@ def test_dataset_initialization(fake_dataset):
     assert len(dataset) == len(classes) * num_images_per_class
     assert dataset.metadata["id"] == "test_dataset"
     assert dataset.metadata["index2label"] == dict(enumerate(classes))
-    assert dataset.metadata['index2label'][0] == 'cat'
-    assert dataset.metadata['index2label'][1] == 'dog'
+    assert dataset.metadata["index2label"][0] == "cat"
+    assert dataset.metadata["index2label"][1] == "dog"
 
 
 def test_get_item(fake_dataset):
@@ -31,7 +33,7 @@ def test_get_item(fake_dataset):
 
 
 def test_iteration_over_dataset(fake_dataset):
-    dataset_root, _, _, _= fake_dataset
+    dataset_root, _, _, _ = fake_dataset
     dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
     count = 0
     for _ in dataset:
@@ -50,13 +52,13 @@ def test_missing_data_split(fake_dataset):
 
 def test_load_datasets(fake_dataset):
     dataset_root, _, _, _ = fake_dataset
-    split_dir = dataset_root.resolve().joinpath('test')
+    split_dir = dataset_root.resolve().joinpath("test")
     spec: DatasetSpecification = {
-        'dataset_type': 'YoloClassificationDataset',
-        'data_dir': split_dir,
+        "dataset_type": "YoloClassificationDataset",
+        "data_dir": split_dir,
     }
     datasets = {
-        'dataset1': spec,
+        "dataset1": spec,
     }
     loaded = load_datasets(datasets=datasets)
     assert loaded

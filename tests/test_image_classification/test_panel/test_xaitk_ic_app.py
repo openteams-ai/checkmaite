@@ -1,6 +1,5 @@
-""" Test IC XAITKApp"""
+"""Test IC XAITKApp"""
 
-import panel as pn
 import json
 
 from smqtk_core.configuration import from_config_dict
@@ -37,23 +36,20 @@ def test_run_export_rise() -> None:
     random_grid_stack_impl = "xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise.RISEStack"
 
     assert saliency_generator_config["type"] == random_grid_stack_impl
-    assert (
-        all(
-            k in saliency_generator_config[random_grid_stack_impl]
-            for k in ("n", "s", "p1", "threads", "seed", "debiased")
-        )
+    assert all(
+        k in saliency_generator_config[random_grid_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "debiased")
     )
     # Check PlugConfigurable compatibilty
     assert isinstance(
-        from_config_dict(
-            saliency_generator_config, GenerateImageClassifierBlackboxSaliency.get_impls()
-        ), GenerateImageClassifierBlackboxSaliency
+        from_config_dict(saliency_generator_config, GenerateImageClassifierBlackboxSaliency.get_impls()),
+        GenerateImageClassifierBlackboxSaliency,
     )
 
     # Check output to XAITKTestStage
     json.dumps(xaitk_app.output_test_stages)
     xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
     assert xaitk_test_stage.stage_name == test_stage["CONFIG"]["name"]
+
 
 def test_run_export_mc_rise() -> None:
     """Test calling the XAITKApp's _run_export method"""
@@ -82,17 +78,13 @@ def test_run_export_mc_rise() -> None:
     mc_rise_stack_impl = "xaitk_saliency.impls.gen_image_classifier_blackbox_sal.mc_rise.MCRISEStack"
 
     assert saliency_generator_config["type"] == mc_rise_stack_impl
-    assert (
-        all(
-            k in saliency_generator_config[mc_rise_stack_impl]
-            for k in ("n", "s", "p1", "threads", "seed", "fill_colors")
-        )
+    assert all(
+        k in saliency_generator_config[mc_rise_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "fill_colors")
     )
     # Check PlugConfigurable compatibilty
     assert isinstance(
-        from_config_dict(
-            saliency_generator_config, GenerateImageClassifierBlackboxSaliency.get_impls()
-        ), GenerateImageClassifierBlackboxSaliency
+        from_config_dict(saliency_generator_config, GenerateImageClassifierBlackboxSaliency.get_impls()),
+        GenerateImageClassifierBlackboxSaliency,
     )
 
     # Check output to XAITKTestStage
@@ -117,6 +109,7 @@ def test_saliency_generation_rise() -> None:
 
     xaitk_app.saliency_gen_button.clicks = 1
     assert xaitk_app.status_text == "Saliency generation test completed"
+
 
 def test_saliency_generation_mc_rise() -> None:
     """

@@ -1,16 +1,14 @@
 """Test NRTKTestStage"""
-import os
 
 # 3rd party imports
-from gradient.templates_and_layouts.create_deck import create_deck
 import pandas as pd
 import pytest
+from gradient.templates_and_layouts.create_deck import create_deck
 
 # Local imports
 from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import (
     NRTKTestStage,
 )
-
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -53,5 +51,5 @@ def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dumm
     assert example_args["layout_arguments"]["model"] == test.model_id
 
     slides = test.collect_report_consumables()
-    filename = create_deck(slides, artifact_dir, 'nrtk')
+    filename = create_deck(slides, artifact_dir, "nrtk")
     assert filename.exists()

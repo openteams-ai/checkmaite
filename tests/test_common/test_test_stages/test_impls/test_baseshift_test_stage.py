@@ -11,17 +11,17 @@ from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import DatasetShiftTestStageBase
 
+
 @pytest.fixture(scope="module")
 def dummy_shift_test_stage():
     class DummyShiftTestStage(DatasetShiftTestStageBase):
-
         @property
         def cache_id(self) -> str:
             """Unique identifier for cached results"""
-            return f"dummy_cache_id.json"
-    
+            return "dummy_cache_id.json"
+
         _deck: str = "dummy_deck"
-    
+
     return DummyShiftTestStage
 
 
@@ -69,9 +69,8 @@ class TestDatasetShift:
             for slide in report:
                 assert required_key in slide
 
-        filename = create_deck(report, artifact_dir, 'shift')
-        assert filename.exists()        
-
+        filename = create_deck(report, artifact_dir, "shift")
+        assert filename.exists()
 
     def test_create_data(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
         """Test that the cache file is written after the run method is called without data modifications"""
@@ -135,13 +134,13 @@ class TestDatasetShift:
 
         test_stage = DatasetShiftTestStageBase()
         test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
-        
+
         with pytest.raises(AttributeError):
-            test_stage.cache_id
+            test_stage.cache_id  # noqa: B018
 
     def test_deck_name(self, dummy_shift_test_stage):
         """Tests that the _deck property of the BaseShiftTestStage is correctly overwritten"""
-        
+
         test_stage = dummy_shift_test_stage()
         assert test_stage._deck == "dummy_deck"
 
@@ -152,7 +151,7 @@ class TestDatasetShift:
             deck: str = "WrongProperty"
 
         with pytest.raises(AttributeError):
-            NoDeckShiftTestStage()._deck
+            NoDeckShiftTestStage()._deck  # noqa: B018
 
 
 class TestDrift:
@@ -300,7 +299,7 @@ class TestOOD:
         }
 
         # Outer gradient kwargs checked by BaseShiftTestStage
-        results = test_stage._collect_ood(outputs=dummy_outputs)  # noqa: SLF001 > ignore private method access
+        results = test_stage._collect_ood(outputs=dummy_outputs)  # > ignore private method access
         results = results["layout_arguments"]
 
         assert "DummyDataset1" in results["title"]
