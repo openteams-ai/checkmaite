@@ -4,7 +4,7 @@ from typing import Any
 import maite.protocols.object_detection as od
 import torch
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata, ModelMetadata
-from torchvision.models.detection import FasterRCNN_ResNet50_FPN_V2_Weights, fasterrcnn_resnet50_fpn_v2
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
 
 from jatic_ri.object_detection.datasets import DetectionTarget
 from tests.fake_ic_classes import RestartingIterator
@@ -134,7 +134,7 @@ class FakeODModel(od.Model):
     def _load_default_od_model(self) -> torch.nn.Module:
         # NOTE: This model is for unit tests that require accessing the underlying model API only.  Calling the FakeODModel object does NOT
         # use this model for inference.
-        return fasterrcnn_resnet50_fpn_v2(weights=FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT)
+        return fasterrcnn_resnet50_fpn_v2(weights=None, num_classes=6)
 
 
 class FakeODDataset(od.Dataset):
