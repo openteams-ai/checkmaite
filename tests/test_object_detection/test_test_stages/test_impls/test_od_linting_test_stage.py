@@ -35,16 +35,14 @@ def test_od_linting(dummy_linting_dataset_od) -> None:
 
 
 @ignore_degenerate_data_warnings
-def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> None:
+def test_od_linting_with_cached_values(dummy_linting_dataset_od) -> None:
     """Verify cached"""
     test1 = DatasetLintingTestStage()
-    test1.cache_base_path = tmp_path
     test1.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
     test1.run()
     output1 = test1.collect_report_consumables()
 
     test2 = DatasetLintingTestStage()
-    test2.cache_base_path = tmp_path
     test2._run = MagicMock()  # mock out _run to ensure cache hit
     test2.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
     test2.run()
@@ -58,10 +56,9 @@ def test_od_linting_with_cached_values(dummy_linting_dataset_od, tmp_path) -> No
 
 @ignore_degenerate_data_warnings
 @pytest.mark.parametrize("offset_box", [True, False])
-def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, tmp_path, artifact_dir) -> None:
+def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetLintingTestStage()
-    test.cache_base_path = tmp_path
     test.load_dataset(dataset=dummy_linting_dataset_od(offset_box), dataset_id="dummy_linting")
     test.run()
 

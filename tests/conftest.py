@@ -1,5 +1,5 @@
+import contextlib
 import os
-import tempfile
 from collections.abc import Hashable, Sequence
 from pathlib import Path
 from typing import Any
@@ -34,14 +34,33 @@ else:
 
 RNG = np.random.default_rng(seed=42)
 
-# Set the test_stage default cache root to temp path
-jatic_ri.DEFAULT_CACHE_ROOT = tempfile.gettempdir()
+
+@contextlib.contextmanager
+def _tmp_cache_path(new: Path):
+    """
+    Temporarily sets the cache path to a new directory
+    and reverts this upon exiting the context manager.
+    """
+    old = jatic_ri.cache_path()
+    try:
+        yield jatic_ri.cache_path(new)
+    finally:
+        jatic_ri.cache_path(old)
+
+
+@pytest.fixture(autouse=True)
+def tmp_cache_path(tmp_path):
+    """
+    Automatically sets the cache path to a temporary directory.
+    """
+    with _tmp_cache_path(tmp_path) as p:
+        yield p
 
 
 @pytest.fixture
-def artifact_dir(tmpdir):
-    # use env var if available, otherwise use tmpdir under the repo root
-    return Path(os.environ.get("ARTIFACT_DIR", tmpdir))
+def artifact_dir(tmp_path):
+    with _tmp_cache_path(Path(os.environ.get("ARTIFACT_DIR", tmp_path))) as p:
+        yield p
 
 
 class DummyObjectDetectionTarget(od.ObjectDetectionTarget):

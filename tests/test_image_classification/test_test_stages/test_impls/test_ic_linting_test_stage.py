@@ -22,16 +22,14 @@ def test_ic_linting(dummy_dataset_ic) -> None:
     assert len(output) == 4
 
 
-def test_ic_linting_with_cached_values(dummy_dataset_ic, tmp_path) -> None:
+def test_ic_linting_with_cached_values(dummy_dataset_ic, tmp_cache_path) -> None:
     """Verify cached"""
     test1 = DatasetLintingTestStage()
-    test1.cache_base_path = tmp_path
     test1.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_linting")
     test1.run()
     output1 = test1.collect_report_consumables()
 
     test2 = DatasetLintingTestStage()
-    test2.cache_base_path = tmp_path
     test2._run = MagicMock()  # mock out _run to ensure cache hit
     test2.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_linting")
     test2.run()
@@ -46,7 +44,6 @@ def test_ic_linting_with_cached_values(dummy_dataset_ic, tmp_path) -> None:
 def test_ic_linting_create_deck(dummy_dataset_ic, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetLintingTestStage()
-    test.cache_base_path = tmp_path
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_linting")
     test.run()
 

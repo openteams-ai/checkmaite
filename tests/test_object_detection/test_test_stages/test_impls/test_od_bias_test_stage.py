@@ -125,11 +125,10 @@ class TestODDatasetBiasRun:
 class TestODBiasCache:
     """Tests the Bias Cache attribute correctly writes, saves, and reads cached runs"""
 
-    def test_cache_data(self, dummy_dataset_od, tmpdir) -> None:
+    def test_cache_data(self, dummy_dataset_od) -> None:
         """Test that the cache file is written after the run method without data modifications"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = tmpdir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         # To write cache, use_stage_cache must be True, but don't want to read from previous cache writes
@@ -163,7 +162,6 @@ class TestODBiasCollectReportConsumables:
         """Test balance specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         slide = test_stage._report_balance(outputs=balance_outputs)
@@ -177,14 +175,13 @@ class TestODBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_balance")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_balance")
         assert filename.exists()
 
     def test_report_coverage(self, dummy_dataset_od, coverage_outputs: dict[str, Any], artifact_dir):
         """Test the coverage specific gradient output"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         slide = test_stage._report_coverage(coverage_outputs)
@@ -215,14 +212,13 @@ class TestODBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_coverage")
         assert filename.exists()
 
     def test_report_diversity(self, dummy_dataset_od, diversity_outputs, artifact_dir):
         """Test diversity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         slide = test_stage._report_diversity(diversity_outputs)
@@ -239,14 +235,13 @@ class TestODBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_diversity")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_diversity")
         assert filename.exists()
 
     def test_report_parity(self, dummy_dataset_od, parity_outputs, artifact_dir):
         """Test parity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         slide = test_stage._report_parity(parity_outputs)
@@ -265,7 +260,6 @@ class TestODBiasCollectReportConsumables:
         """Test all gradient slide kwargs collected together"""
 
         test_stage: DatasetBiasTestStage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_od, "DummyDataset")
 
         test_stage.outputs = {

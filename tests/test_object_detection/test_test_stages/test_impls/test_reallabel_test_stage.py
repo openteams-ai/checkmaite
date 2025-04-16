@@ -1,9 +1,7 @@
 """Test RealLabelTestStage."""
 
-import contextlib
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -105,17 +103,7 @@ def create_test_stage(
     )
     test_stage.load_eval_tool(default_eval_tool_no_cache)
 
-    test_stage.cache_base_path = CACHE_DIR
-
-    # Ensure cache doesn't exist
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(test_stage.cache_base_path)
-
-    yield test_stage
-
-    # Cleanup the cache once test is finished running
-    if test_stage.cache_base_path.exists():
-        shutil.rmtree(test_stage.cache_base_path)
+    return test_stage
 
 
 @pytest.mark.parametrize(
@@ -124,10 +112,10 @@ def create_test_stage(
     ids=["Using RealLabelConfig", "Using dict config"],
     indirect=True,
 )
-def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage) -> None:
+def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage, tmp_cache_path) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
     # Arrange
-    expected_cache_location = Path(test_stage.cache_base_path) / test_stage.cache_id
+    expected_cache_location = tmp_cache_path / test_stage.cache_id
 
     expected_results_df_path = expected_cache_location / _REALLABEL_CACHE_CSV_PATH
     expected_results_png_path = expected_cache_location / _REALLABEL_CACHE_IMAGE_PATH
@@ -184,7 +172,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Arrange
     expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
-    expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/{_REALLABEL_CACHE_IMAGE_PATH}"
+    expected_content_right = str(artifact_dir / test_stage.cache_id / _REALLABEL_CACHE_IMAGE_PATH)
     expected_title = "RealLabel Label Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -266,11 +254,10 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
         test_stage_2.run(use_stage_cache=False)
 
 
-def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_path) -> None:
+def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_cache_path) -> None:
     """Test cache miss dir is deleted and resets if it already exists."""
     # Arrange
-    test_stage.cache_base_path = tmp_path
-    output = tmp_path / "reallabel_cache_miss_outputs"
+    output = tmp_cache_path / "reallabel_cache_miss_outputs"
     output.mkdir()
     file = output / "test_file.txt"
     file.touch()

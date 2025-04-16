@@ -5,13 +5,42 @@ import logging
 import os
 import warnings
 from pathlib import Path
+from typing import Union
 
 __version__ = importlib_metadata.version("jatic_ri")
 
 PACKAGE_DIR = Path(os.path.dirname(__file__)).resolve()
-CACHE_DIR = Path(os.path.dirname(__file__)).resolve()
 
-DEFAULT_CACHE_ROOT = str(Path.cwd().joinpath("tscache"))
+
+class _CachePath:
+    """
+    Utility class to globally get and set a cache path.
+
+    Calling an instance of this (`cache_path` below)
+    - without arguments, will return the current cache path.
+    - with a path, will create the directory and set the path for future invocations.
+    """
+
+    def __init__(self, p: Union[str, Path]) -> None:
+        self.__p: Path
+        self._p = p
+
+    @property
+    def _p(self) -> Path:
+        return self.__p
+
+    @_p.setter
+    def _p(self, p: Union[str, Path]) -> None:
+        self.__p = Path(p).expanduser().resolve()
+        self.__p.mkdir(parents=True, exist_ok=True)
+
+    def __call__(self, p: Union[str, Path, None] = None) -> Path:
+        if p is not None:
+            self._p = p
+        return self._p
+
+
+cache_path = _CachePath(Path.home() / ".cache" / "jatic-ri")
 
 # setup loger to print to stdout and to file (`runtime.log`)
 log_formatter = logging.Formatter("%(asctime)s [%(levelname)-7.7s] [%(module)s] %(message)s")

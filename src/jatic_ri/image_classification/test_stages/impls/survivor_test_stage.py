@@ -17,6 +17,7 @@ from survivor.analysis import HistogramBarPlot
 from survivor.config import Config as SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
+from jatic_ri import cache_path
 from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import SurvivorCache
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
@@ -26,12 +27,12 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 
-# This constant represents the expected location of the Survivor output directory under the test_stage.cache_base_path
+# This constant represents the expected location of the Survivor output directory under the cache_path()
 # directory where the SurvivorTestStage.run() function can store visualizations in the event of a cache miss. Since
 # these results may be needed past the lifetime of the TestStage, these results will just be left until deleted by the
 # user. NOTE: There should only ever be one file in here at a time since the image file will just be overwritten by
 # the next cache miss.
-_SURVIVOR_CACHE_MISS_OUTPUT_DIR = Path("survivor_cache_miss_outputs")
+_SURVIVOR_CACHE_MISS_OUTPUT_DIR = "survivor_cache_miss_outputs"
 
 # The key that must be present in a MAITE evaluate()'s returned dictionary. This should correspond to another
 # dictionary with MetricPlugin.metric_id as a key. This list will then be a datum-by-datum specification of the
@@ -173,7 +174,7 @@ class SurvivorTestStage(
         results_df = survivor.run().raw_output_df
 
         # Clear out the cache miss dir in preparation for our new results.
-        cache_miss_output_output_dir = self.cache_base_path / _SURVIVOR_CACHE_MISS_OUTPUT_DIR
+        cache_miss_output_output_dir = cache_path() / _SURVIVOR_CACHE_MISS_OUTPUT_DIR
         if cache_miss_output_output_dir.exists():
             shutil.rmtree(cache_miss_output_output_dir)
         cache_miss_output_output_dir.mkdir(parents=True)

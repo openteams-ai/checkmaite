@@ -25,6 +25,7 @@ from matplotlib import pyplot as plt
 from more_itertools import take
 from numpy.typing import NDArray
 
+from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
@@ -92,7 +93,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
     @property
     def cache_contents_path(self) -> Path:
         """Cache base folder for image artifacts"""
-        return Path(self.cache_base_path, f"linting_{self._task}_{self.dataset_id}")
+        return cache_path() / f"linting_{self._task}_{self.dataset_id}"
 
     @abstractmethod
     def _run_stats(self) -> tuple[HashStatsOutput, DatasetStatsOutput]:

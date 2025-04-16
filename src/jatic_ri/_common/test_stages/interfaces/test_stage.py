@@ -1,10 +1,9 @@
 """Base Test Stage for all test implementations"""
 
-import os
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Optional, TypeVar
 
-from jatic_ri import DEFAULT_CACHE_ROOT
+from jatic_ri import cache_path
 
 TData = TypeVar("TData")
 
@@ -32,7 +31,6 @@ class TestStage(Generic[TData], ABC):
     _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
     _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
     cache: Optional[Cache[TData]] = None
-    cache_base_path: str = DEFAULT_CACHE_ROOT
 
     @property
     def outputs(self) -> TData:
@@ -53,7 +51,7 @@ class TestStage(Generic[TData], ABC):
 
     @property
     def cache_path(self) -> str:
-        return os.path.join(self.cache_base_path, self.cache_id) if self.cache_id else ""
+        return str(cache_path() / self.cache_id) if self.cache_id else ""
 
     def validate_plugins(self) -> None:
         plugin_requirements = {
