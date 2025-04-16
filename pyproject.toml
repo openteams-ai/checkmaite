@@ -50,6 +50,7 @@ numba = ">=0.60.0"                                          # arbitrary, needed 
 opencv-python-headless = {version = ">=4.9.0.80"}           # necessary pin, required by nrtk usage here
 panel = ">=1.4.5"                                           # arbitrary pin
 Pillow = ">=11.0.0"                                         # arbitrary
+pydantic = ">=2.0.0"                                        # arbitrary
 torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
 torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
 torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
