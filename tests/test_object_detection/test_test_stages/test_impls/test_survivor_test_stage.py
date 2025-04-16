@@ -1,9 +1,7 @@
 """Test Object Detection Survivor test stage."""
 
-import contextlib
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -182,10 +180,6 @@ def create_test_stage(
     Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
     string input to `request.param` (set through indirect parametrization of `test_stage`).
     """
-    # Ensure cache doesn't exist
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(CACHE_DIR)
-
     # Create and configure SurvivorTestStage
     test_stage = SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
     test_stage.load_models(models=survivor_test_stage_args["models"])
@@ -195,13 +189,7 @@ def create_test_stage(
     )
     test_stage.load_eval_tool(default_eval_tool_no_cache)
 
-    test_stage.cache_base_path = CACHE_DIR
-
-    yield test_stage
-
-    # Cleanup the cache once test is finished running
-    if test_stage.cache_base_path.exists():
-        shutil.rmtree(test_stage.cache_base_path)
+    return test_stage
 
 
 @pytest.mark.parametrize(
@@ -210,19 +198,15 @@ def create_test_stage(
     ids=["Using SurvivorConfig", "Using dict config"],
     indirect=True,
 )
-def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage) -> None:
+def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage, tmp_cache_path) -> None:
     """Test RealLabelTestStage generates a cache object that can be read correctly."""
     # Arrange
-    expected_cache_location = Path(test_stage.cache_base_path) / test_stage.cache_id
+    expected_cache_location = tmp_cache_path / test_stage.cache_id
     expected_results_df_path = expected_cache_location / Path("survivor_standard_results.csv")
     expected_results_png_path = expected_cache_location / Path("survivor_result_visualization.png")
     expected_results_config_path = expected_cache_location / _SURVIVOR_CACHE_CONFIGURATION_PATH
 
     survivor_cache = SurvivorCache()
-
-    # test cache should not exist but wipe it if it does so we have a clean slate
-    if Path(test_stage.cache_base_path).exists():
-        shutil.rmtree(test_stage.cache_base_path)
 
     # Act - Build the cache
     test_stage.run(use_stage_cache=True)
@@ -282,7 +266,7 @@ def test_survivor_collect_report_consumables(
         "33.3% On the Bubble data.",
         fontsize=22,
     )
-    expected_content_right = f"{test_stage.cache_base_path}/{test_stage.cache_id}/survivor_result_visualization.png"
+    expected_content_right = str(artifact_dir / test_stage.cache_id / "survivor_result_visualization.png")
     expected_title = "Survivor Dataset Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -365,11 +349,10 @@ def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
         test_stage_3.run(use_stage_cache=False)
 
 
-def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_path) -> None:
+def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_cache_path) -> None:
     """Test cache miss dir is deleted and resets if it already exists."""
     # Arrange
-    test_stage.cache_base_path = tmp_path
-    output = tmp_path / "survivor_cache_miss_outputs"
+    output = tmp_cache_path / "survivor_cache_miss_outputs"
     output.mkdir()
     file = output / "test_file.txt"
     file.touch()

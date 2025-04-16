@@ -299,18 +299,14 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
 
 
 @pytest.mark.real_data
-def test_dataset_analysis_dashboard_od_mockrun_only():
+def test_dataset_analysis_dashboard_od_mockrun_only(tmp_cache_path):
     """Test running of the DA dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
     """
 
     with mock.patch.object(DatasetAnalysisDashboard, "_run_all_tests") as _run_all_tests_mocked:
         _run_all_tests_mocked.return_value = REPORT_LINK
-        app = DatasetAnalysisDashboard(
-            task="object_detection",
-            # output_dir=jatic_ri.DEFAULT_CACHE_ROOT,
-            output_dir=jatic_ri.DEFAULT_CACHE_ROOT,
-        )
+        app = DatasetAnalysisDashboard(task="object_detection", output_dir=tmp_cache_path)
 
         # trigger the visualization to detect errors
         app.panel()
@@ -370,7 +366,9 @@ def test_dataset_analysis_dashboard_od_mockrun_only():
 
 
 @pytest.mark.parametrize("local", [True, False])
-def test_dataset_analysis_dashboard_od_full_mock(local, monkeypatch, fake_od_model_default, fake_od_dataset_default):
+def test_dataset_analysis_dashboard_od_full_mock(
+    local, monkeypatch, fake_od_model_default, fake_od_dataset_default, tmp_cache_path
+):
     """Test running of the DA dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
     """
@@ -390,7 +388,7 @@ def test_dataset_analysis_dashboard_od_full_mock(local, monkeypatch, fake_od_mod
     monkeypatch.setattr(DatasetAnalysisDashboard, "load_models_from_widgets", load_models_from_widgets_mocked)
     monkeypatch.setattr(DatasetAnalysisDashboard, "load_datasets_from_widgets", load_datasets_from_widgets_mocked)
 
-    app = DatasetAnalysisDashboard(task="object_detection", output_dir=jatic_ri.DEFAULT_CACHE_ROOT, local=local)
+    app = DatasetAnalysisDashboard(task="object_detection", output_dir=tmp_cache_path, local=local)
 
     # trigger the visualization to detect errors
     app.panel()

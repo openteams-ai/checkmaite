@@ -74,9 +74,8 @@ class TestFeasibilityTestStage:
         create_deck(slides, path=tmp_path, deck_name="DatasetFeasibilityDeck")
         assert (tmp_path / "DatasetFeasibilityDeck.pptx").exists()
 
-    def test_cache(self, dummy_dataset_ic, tmp_path) -> None:
+    def test_cache(self, dummy_dataset_ic) -> None:
         test_stage = DatasetFeasibilityTestStage()
-        test_stage.cache_base_path = tmp_path
         test_stage.load_threshold(0.5)
         test_stage.load_dataset(dummy_dataset_ic, "Dataset1")
 
@@ -84,7 +83,6 @@ class TestFeasibilityTestStage:
         base_outputs = test_stage.outputs
 
         test_stage_cached = DatasetFeasibilityTestStage()
-        test_stage_cached.cache_base_path = tmp_path  # set to same cache location
         test_stage_cached.load_threshold(0.5)
         test_stage_cached.load_dataset(dummy_dataset_ic, "Dataset1")
         test_stage_cached._run = MagicMock()

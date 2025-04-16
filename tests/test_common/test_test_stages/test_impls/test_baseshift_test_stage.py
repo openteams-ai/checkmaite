@@ -86,12 +86,11 @@ class TestDatasetShift:
 
         assert os.path.exists(test_stage.cache_path)
 
-    def test_use_stage_cache(self, dummy_dataset_ic, dummy_dataset_od, tmp_path):
+    def test_use_stage_cache(self, dummy_dataset_ic, dummy_dataset_od):
         """Tests that cached data can be created and read without modifications"""
 
         # Set cache required attributes for original test stage
         test_stage = DatasetShiftTestStageBase()
-        test_stage.cache_base_path = tmp_path
         test_stage._task = "dummy_task"
         test_stage.load_datasets(dummy_dataset_ic, "Dataset1", dummy_dataset_od, "Dataset2")
 
@@ -109,7 +108,6 @@ class TestDatasetShift:
         # Create new test stage that will only use cached results
         test_stage_cached = DatasetShiftTestStageBase()
         # Set all cache information to be the same as original test stage
-        test_stage_cached.cache_base_path = tmp_path
         test_stage_cached._task = "dummy_task"
         test_stage_cached.load_datasets(dummy_dataset_ic, "Dataset1", dummy_dataset_od, "Dataset2")
         # Mock out to ensure the cache overrides the use of _run

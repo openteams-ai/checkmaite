@@ -23,7 +23,7 @@ def test_baseline_evaluation_dummy_od(
 
 
 def test_baseline_evaluation_dummy_od_with_cache(
-    dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache, tmp_path
+    dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache
 ) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
@@ -32,7 +32,6 @@ def test_baseline_evaluation_dummy_od_with_cache(
     test1.load_threshold(threshold=0.5)
     test1.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
     test1.load_eval_tool(eval_tool=default_eval_tool_no_cache)
-    test1.cache_base_path = tmp_path
     test1.run(use_stage_cache=True)
     output1 = test1.collect_report_consumables()
 
@@ -42,7 +41,6 @@ def test_baseline_evaluation_dummy_od_with_cache(
     test2.load_threshold(threshold=0.5)
     test2.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
     test2.load_eval_tool(eval_tool=default_eval_tool_no_cache)
-    test2.cache_base_path = tmp_path
     test2._run = MagicMock()  # mock out _run to ensure cache hit
     test2.run(use_stage_cache=True)
     output2 = test2.collect_report_consumables()

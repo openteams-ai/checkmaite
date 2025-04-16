@@ -154,7 +154,7 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     assert title_ymd_h in report_title
 
 
-def test_model_evaluation_dashboard():
+def test_model_evaluation_dashboard(tmp_cache_path):
     """Test instantiation of ME dashboard and some of the functions.
     Does not run full end to end to avoid heavy compute. Instead,
     some of the functionality is tested directly.
@@ -163,7 +163,7 @@ def test_model_evaluation_dashboard():
 
     app = ModelEvaluationTestbed(
         task="object_detection",
-        output_dir=jatic_ri.DEFAULT_CACHE_ROOT,
+        output_dir=tmp_cache_path,
     )
     # trigger the visualization to detect errors
     app.panel()
@@ -195,7 +195,9 @@ def test_model_evaluation_dashboard():
 
 
 @pytest.mark.parametrize("local", [True, False])
-def test_model_evaluation_dashboard_od_full_mock(local, monkeypatch, fake_od_model_default, fake_od_dataset_default):
+def test_model_evaluation_dashboard_od_full_mock(
+    local, monkeypatch, fake_od_model_default, fake_od_dataset_default, tmp_cache_path
+):
     """Test running of the ME dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
     """
@@ -215,7 +217,7 @@ def test_model_evaluation_dashboard_od_full_mock(local, monkeypatch, fake_od_mod
     monkeypatch.setattr(ModelEvaluationTestbed, "load_models_from_widgets", load_models_from_widgets_mocked)
     monkeypatch.setattr(ModelEvaluationTestbed, "load_datasets_from_widgets", load_datasets_from_widgets_mocked)
 
-    app = ModelEvaluationTestbed(task="object_detection", output_dir=jatic_ri.DEFAULT_CACHE_ROOT, local=local)
+    app = ModelEvaluationTestbed(task="object_detection", output_dir=tmp_cache_path, local=local)
 
     # trigger the visualization to detect errors
     app.panel()

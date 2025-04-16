@@ -105,11 +105,10 @@ class TestICBiasCache:
     """Tests the Bias Cache attribute correctly writes, saves, and reads cached runs"""
 
     @ignore_bias_warnings
-    def test_cache_data(self, dummy_dataset_ic, tmpdir) -> None:
+    def test_cache_data(self, dummy_dataset_ic) -> None:
         """Test that the cache file is written after the run method without data modifications"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = tmpdir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         # To write cache, use_stage_cache must be True, but don't want to read from previous cache writes
@@ -143,7 +142,6 @@ class TestICBiasCollectReportConsumables:
         """Test balance specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         slide = test_stage._report_balance(outputs=balance_outputs)
@@ -157,14 +155,13 @@ class TestICBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_balance")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_balance")
         assert filename.exists()
 
     def test_report_coverage(self, dummy_dataset_ic, coverage_outputs: dict[str, Any], artifact_dir):
         """Test the coverage specific gradient output"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         slide = test_stage._report_coverage(coverage_outputs)
@@ -195,14 +192,13 @@ class TestICBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_coverage")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_coverage")
         assert filename.exists()
 
     def test_report_diversity(self, dummy_dataset_ic, diversity_outputs, artifact_dir):
         """Test diversity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         slide = test_stage._report_diversity(diversity_outputs)
@@ -219,14 +215,13 @@ class TestICBiasCollectReportConsumables:
         img_path = layout_args["data_column_image"]
         assert img_path.exists()
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_diversity")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_diversity")
         assert filename.exists()
 
     def test_report_parity(self, dummy_dataset_ic, parity_outputs, artifact_dir):
         """Test parity specific rollup values and action"""
 
         test_stage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         slide = test_stage._report_parity(parity_outputs)
@@ -236,7 +231,7 @@ class TestICBiasCollectReportConsumables:
         assert "0 factors" in layout_args["text_column_body"][1].content[0].content
         assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
 
-        filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_parity")
+        filename = create_deck([slide], path=artifact_dir, deck_name="test_report_parity")
         assert filename.exists()
 
     def test_bias_gradient_pptx(
@@ -245,7 +240,6 @@ class TestICBiasCollectReportConsumables:
         """Test all gradient slide kwargs collected together"""
 
         test_stage: DatasetBiasTestStage = DatasetBiasTestStage()
-        test_stage.cache_base_path = artifact_dir
         test_stage.load_dataset(dummy_dataset_ic, "DummyDataset")
 
         test_stage.outputs = {
@@ -257,5 +251,5 @@ class TestICBiasCollectReportConsumables:
 
         slides: list[dict[str, Any]] = test_stage.collect_report_consumables()
 
-        filename = create_deck(slides, path=Path(artifact_dir), deck_name="test_bias_gradient_pptx")
+        filename = create_deck(slides, path=artifact_dir, deck_name="test_bias_gradient_pptx")
         assert filename.exists()

@@ -21,6 +21,7 @@ from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
 from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
 
+from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
     MultiModelPlugin,
@@ -31,21 +32,21 @@ from jatic_ri.util.utils import sanitize_gradient_markdown_text
 
 logger = logging.getLogger()
 
-# This constant represents the expected location of the RealLabel output directory under the test_stage.cache_base_path
+# This constant represents the expected location of the RealLabel output directory under the cache_path()
 # directory where the RealLabelTestStage.run() function can store visualizations in the event of a cache miss. Since
 # these results may be needed past the lifetime of the TestStage, these results will just be left until deleted by the
 # user. NOTE: There should only ever be one file in here at a time since the image file will just be overwritten by
 # the next cache miss.
-_REALLABEL_CACHE_MISS_OUTPUT_DIR = Path("reallabel_cache_miss_outputs")
+_REALLABEL_CACHE_MISS_OUTPUT_DIR = "reallabel_cache_miss_outputs"
 
 # These constants represent the expected names and locations of the RealLabel cache results to be found
-# under the test_stage.cache_base_path / test_stage.cache_id directory,
+# under the cache_path() / test_stage.cache_id directory,
 # and should be used as `self.cache_base_dir/self.cache_id/_REALLABEL_CACHE_CSV_PATH`
-_REALLABEL_CACHE_CSV_PATH = Path("reallabel_standard_results.csv")
-_REALLABEL_CACHE_IMAGE_PATH = Path("reallabel_result_visualization.png")
+_REALLABEL_CACHE_CSV_PATH = "reallabel_standard_results.csv"
+_REALLABEL_CACHE_IMAGE_PATH = "reallabel_result_visualization.png"
 # This file will contain a json-ified list of the various parameters that went into generating the hash ID including
 # all model IDs, the dataset ID, and RealLabel Config values.
-_REALLABEL_CACHE_CONFIGURATION_PATH = Path("reallabel_cache_configuration.json")
+_REALLABEL_CACHE_CONFIGURATION_PATH = "reallabel_cache_configuration.json"
 
 
 class RealLabelCache(Cache[tuple[DataFrame, Path]]):
@@ -251,18 +252,14 @@ class RealLabelTestStage(
             raise RuntimeError("Reallabel result pyspark df is empty!")
 
         # Clear out the cache miss dir in preparation for our new results.
-        cache_miss_output_img_path = (
-            Path(self.cache_base_path) / _REALLABEL_CACHE_MISS_OUTPUT_DIR / _REALLABEL_CACHE_IMAGE_PATH
-        )
+        cache_miss_output_img_path = cache_path() / _REALLABEL_CACHE_MISS_OUTPUT_DIR / _REALLABEL_CACHE_IMAGE_PATH
         if cache_miss_output_img_path.parent.exists():
             shutil.rmtree(cache_miss_output_img_path.parent)
         cache_miss_output_img_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create a directory where we can save the tensor image for the image with the most bounding boxes.
         most_populous_image_temp_dir_path = (
-            Path(self.cache_base_path)
-            / _REALLABEL_CACHE_MISS_OUTPUT_DIR
-            / "directory_for_visualization_input_base_images"
+            cache_path() / _REALLABEL_CACHE_MISS_OUTPUT_DIR / "directory_for_visualization_input_base_images"
         )
         most_populous_image_temp_dir_path.mkdir()
 
