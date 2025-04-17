@@ -1,5 +1,6 @@
 """Base Test Stage for all test implementations"""
 
+import enum
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any, Generic, Optional, TypeVar
@@ -7,9 +8,28 @@ from typing import Any, Generic, Optional, TypeVar
 from pydantic import BaseModel, field_serializer, field_validator
 
 from jatic_ri import cache_path
+from jatic_ri._common.test_stages.interfaces.plugins import (
+    MetricPlugin,
+    MultiModelPlugin,
+    SingleDatasetPlugin,
+    SingleModelPlugin,
+    TwoDatasetPlugin,
+)
 
 TData = TypeVar("TData")
 TConfig = TypeVar("TConfig", bound=BaseModel)
+
+
+class Number(enum.Enum):
+    """
+    Enumeration to specify the cardinality (number of supported items)
+    for models, datasets, or metrics within a tool.
+    """
+
+    ZERO = enum.auto()
+    ONE = enum.auto()
+    TWO = enum.auto()
+    MANY = enum.auto()
 
 
 class Run(BaseModel, Generic[TConfig, TData], ABC):
@@ -144,6 +164,31 @@ class TestStage(Generic[TData], ABC):
     _outputs: Optional[TData] = None  # test results are expected to be stored within the test stage
     _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
     cache: Optional[Cache[TData]] = None
+
+    @property
+    def supports_datasets(self) -> Number:
+        """Indicates the number of datasets this plugin supports."""
+        if isinstance(self, TwoDatasetPlugin):
+            return Number.TWO
+        if isinstance(self, SingleDatasetPlugin):
+            return Number.ONE
+        return Number.ZERO
+
+    @property
+    def supports_models(self) -> Number:
+        """Indicates the number of models this plugin supports."""
+        if isinstance(self, MultiModelPlugin):
+            return Number.MANY
+        if isinstance(self, SingleModelPlugin):
+            return Number.ONE
+        return Number.ZERO
+
+    @property
+    def supports_metric(self) -> Number:
+        """Indicates whether this plugin supports a metric."""
+        if isinstance(self, MetricPlugin):
+            return Number.ONE
+        return Number.ZERO
 
     @property
     def outputs(self) -> TData:

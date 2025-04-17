@@ -1,7 +1,7 @@
 """Evaluation and Prediction tool for Test Stages"""
 
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Any, Generic, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
 
 from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model  # type: ignore
 from maite.errors import InvalidArgument
@@ -9,7 +9,8 @@ from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
 from typing_extensions import TypeAlias
 
-from jatic_ri.util.cache import RICache
+if TYPE_CHECKING:
+    from jatic_ri.util.cache import RICache
 
 SomeInputBatchType: TypeAlias = Union[ic.InputBatchType, od.InputBatchType]
 SomeTargetBatchType: TypeAlias = Union[ic.TargetBatchType, od.TargetBatchType]
@@ -25,7 +26,7 @@ TTarget = TypeVar("TTarget", bound=SomeTargetType)
 TMetadata = TypeVar("TMetadata", bound=SomeMetadataType)
 TDataset = TypeVar("TDataset", bound=Dataset)
 
-TRICache = TypeVar("TRICache", bound=RICache)
+TRICache = TypeVar("TRICache", bound="RICache")
 Cache_Option: TypeAlias = Union[TRICache, None]
 
 
