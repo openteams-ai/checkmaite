@@ -146,8 +146,7 @@ class XAITKApp(BaseXAITKApp):
                 The default saliency configuration in this app takes about
                 3 minutes to run on a server instance with a dual-core CPU
                 and 8GB RAM. To generate optimal saliency maps, kindly
-                refer to the documentation:
-                https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation
+                refer to the [XAITK Documentation](https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation).
                 """
 
         super().__init__(**params)
