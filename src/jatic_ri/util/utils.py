@@ -41,17 +41,20 @@ def create_metrics_bar_plot(
     metrics: dict[str, Union[float, Any]],
     metric_key: str,
     threshold: float,
+    width: float = 0.75,
 ) -> matplotlib.figure.Figure:
     """Generate a matplotlib bar chart from metric results
 
     Parameters
     ----------
-    metrics: dict
+    metrics:
         Results of `metric.compute`. Keys are the metric name, values are float
-    metric_key: str
+    metric_key:
         Key name for the metric. Will be colored differently than the other bars
-    threshold: float
+    threshold:
         Threshold value, will appear as horizontal line on bar chart
+    width:
+        [Optional] Width of the bars
 
     Returns
     -------
@@ -66,7 +69,6 @@ def create_metrics_bar_plot(
 
     # set up bar spacing
     index = np.arange(len(metrics))  # the x locations for the bars
-    width = 0.75  # the width of the bars
 
     # plot the individual bars
     for idx, (key, value) in enumerate(metrics.items()):
@@ -79,6 +81,7 @@ def create_metrics_bar_plot(
     # set title and xtick labels
     ax.set_title("Computed metrics")
     ax.set_xticks(index, metrics.keys())
+    ax.set_xlim(-0.5, 0.5)  # required in order to set width
     fig.tight_layout()
 
     return fig

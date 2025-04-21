@@ -126,7 +126,7 @@ class BaselineEvaluationBase(
             raise Exception("No clean result computed or loaded before call to `collect_report_consumables`")
 
         # create bar plot of metric results
-        fig = create_metrics_bar_plot(self.outputs, metric_key=metric_key, threshold=self.threshold)
+        fig = create_metrics_bar_plot(self.outputs, metric_key=metric_key, threshold=self.threshold, width=0.4)
         # save to tempfile
         image_path = save_figure_to_tempfile(fig)
 
