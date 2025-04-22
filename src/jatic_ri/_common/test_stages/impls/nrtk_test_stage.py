@@ -71,6 +71,51 @@ class NRTKTestStageBase(
         """Returns classname as a string"""
         return self.__class__.__name__
 
+    def __labelx_gen(self, perturber: str, theta_key: Any) -> str:
+        """Returns the labelx name for the report consumables stage"""
+        perturber = perturber.rpartition(".")[-1].replace("Perturber", "")
+        theta_key_map = {
+            "factor": "Factor",
+            "s_x": "Root Mean Squared",
+            "s_y": "Root Mean Squared",
+            "p_x": "Pitch in X Direction",
+            "w_x": "Detector Width",
+            "w_y": "Detector Height",
+            "read_noise": "Read Noise",
+            "max_n": "Maximum ADC Level",
+            "bit_depth": "Bit Depth",
+            "da_x": "Drifts (radians/s)",
+            "da_y": "Drifts (radians/s)",
+            "ihaze": "Weather Model",
+            "altitude": "Sensor Altitude",
+            "ground_range": "Ground Range",
+            "aircraft_speed": "Aircraft Speed",
+            "amount": "Amount of Noise",
+            "salt_vs_pepper": "Percentage of Salt vs Pepper",
+            "mean": "Mean",
+            "var": "Variance",
+            "rng": "Pseudo Random Number Generator",
+            "D": "Effective Aperture Diameter",
+            "f": "Focal Length",
+            "ifov": "Instantaneous Field of View",
+            "eta": "Relative Linear Obscuration",
+            "slant_range": "Line-of-Sight Distance",
+            "interp": "Interpolation Method",
+        }
+        return f"{perturber} {theta_key_map.get(theta_key, theta_key)}"
+
+    def __labely_gen(self) -> str:
+        """Returns the labely name for the report consumables stage"""
+        y_label_map = {
+            "accuracy": "Accuracy",
+            "f1_score": "F1 Score",
+            "precision": "Precision",
+            "recall": "Recall",
+            "mAP": "Mean Average Precision",
+            "map_50": "Mean Average Precision",
+        }
+        return y_label_map.get(self.metric_id, self.metric_id)
+
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
         load_cached_results method"""
@@ -103,6 +148,8 @@ class NRTKTestStageBase(
                     "plot_kwargs": {
                         "y_threshold_value": self.threshold,
                         "title": "NRTK Item Response Curve",
+                        "x_label": self.__labelx_gen(self.factory.get_config()["perturber"], self.factory.theta_key),
+                        "y_label": self.__labely_gen(),
                     },
                 },
             },
