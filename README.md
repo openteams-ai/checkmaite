@@ -73,6 +73,6 @@ For production documentation builds, build a static website using
 
 where `public` is the output folder. The main page in this case will be at `public/index.html`.
 
-NOTE: `mkdocs` does not follow pages that are being dynamically generated from `*ipynb` via the `mkdocs-juptyer` plugin. 
+NOTE: `mkdocs` does not follow pages that are being dynamically generated from `*ipynb` via the `mkdocs-jupyter` plugin. 
 For this reason, building the docs displays several warnings that can be safely ignored. For example:
 `WARNING -  Doc file 'how-tos/index.md' contains a link 'dataset_analysis_configuration.html', but the target 'how-tos/dataset_analysis_configuration.html' is not found among documentation files.`
