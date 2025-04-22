@@ -19,7 +19,7 @@ from PIL import Image
 from pptx.dml.color import RGBColor
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
-from reallabel import Config, MAITERealLabel, RealLabelColumns, plot_reallabel_results
+from reallabel import MAITERealLabel, RealLabelColumns, RealLabelConfig, plot_reallabel_results
 
 from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -163,7 +163,7 @@ class RealLabelTestStage(
 
     def __init__(
         self,
-        config: Union[Config, dict[str, Any]],
+        config: Union[RealLabelConfig, dict[str, Any]],
     ) -> None:
         """Initialize the RealLabel test stage.
 
@@ -171,8 +171,8 @@ class RealLabelTestStage(
             config (Union[Config, dict[str, Any]]): The RealLabel Config object that should be used when running
                 Reallabel. Or a dict representing a RealLabel config in a json readable format.
         """
-        self.config: Config = Config(**config) if isinstance(config, dict) else config
-        # Need AG for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
+        self.config: RealLabelConfig = RealLabelConfig(**config) if isinstance(config, dict) else config
+        # Need AC for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
         # that we need to fix.
         if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self.config.additional_columns_clean_results:
             self.config.additional_columns_clean_results.append(RealLabelColumns.AGGREGATED_CONFIDENCE.value)
@@ -246,9 +246,17 @@ class RealLabelTestStage(
         )
 
         # Run RealLabel
-        reallabel_results = reallabel.run().results
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=UserWarning,
+                message="It is preferred to use 'applyInPandas' over this API.*",
+                module="pyspark.sql.pandas.group_ops",
+            )
+            reallabel_results = reallabel.run()
+            default_reallabel_results = reallabel_results.results
 
-        if reallabel_results.isEmpty():
+        if default_reallabel_results.isEmpty():
             raise RuntimeError("Reallabel result pyspark df is empty!")
 
         # Clear out the cache miss dir in preparation for our new results.
@@ -266,7 +274,7 @@ class RealLabelTestStage(
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
         self._example_image_unique_id = (
-            reallabel_results.groupBy(self.config.column_names.unique_identifier_columns)
+            default_reallabel_results.groupBy(self.config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
             .drop("count")
@@ -274,7 +282,7 @@ class RealLabelTestStage(
             .asDict()  # type: ignore
         )
 
-        results_for_most_populous_image_df = reallabel_results.filter(
+        results_for_most_populous_image_df = default_reallabel_results.filter(
             *[sf.col(key) == value for key, value in self._example_image_unique_id.items()]
         )
 
@@ -318,7 +326,7 @@ class RealLabelTestStage(
             image_name_map=most_populous_image_name_to_uuid_value_map,
         )
 
-        return reallabel_results, cache_miss_output_img_path
+        return default_reallabel_results, cache_miss_output_img_path
 
     def collect_metrics(self) -> dict[str, float]:
         """Collect metrics on total number of Re-labels found."""

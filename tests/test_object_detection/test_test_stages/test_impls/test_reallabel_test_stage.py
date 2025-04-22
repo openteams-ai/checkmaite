@@ -16,8 +16,8 @@ from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     _REALLABEL_CACHE_CONFIGURATION_PATH,
     _REALLABEL_CACHE_CSV_PATH,
     _REALLABEL_CACHE_IMAGE_PATH,
-    Config,
     RealLabelCache,
+    RealLabelConfig,
     RealLabelTestStage,
 )
 from tests.fake_od_classes import FakeODDataset, FakeODModel
@@ -50,14 +50,14 @@ def reallabel_test_stage_args(
         "model_2": fake_od_model_default,
     }
 
-    config = Config(
+    config = RealLabelConfig(
         deduplication_algorithm="wbf",
         column_names=ColumnNameConfig(
             unique_identifier_columns=["id"],
             calibrated_confidence_column="score",
         ),
         run_confidence_calibration=False,
-        keep_true_positives=True,
+        keep_likely_corrects=True,
         deduplication_iou_threshold=0.5,
         minimum_confidence_threshold=0.1,
         threshold_max_aggregated_confidence_fp=0.01,
@@ -131,11 +131,9 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage, tmp_cac
     # Compare the read-from-cache dataframe against the actual dataframe returned from `run()`. Minor issues in type
     # conversion but can't really be helped :/
     assert expected_results_df_path.exists()
-    actual_returned_results_df = test_stage.outputs[0].withColumn(
-        "classification", sf.col("classification").cast("integer")
-    )
+    actual_returned_results_df = test_stage.outputs[0].withColumn("class", sf.col("class").cast("integer"))
     assert_spark_dataframes_equal(
-        actual_returned_results_df, actual_cached_results_df.toPandas(), ["id", "box_group", "classification"]
+        actual_returned_results_df, actual_cached_results_df.toPandas(), ["id", "box_group", "class"]
     )
 
     assert expected_results_png_path.exists()
@@ -155,7 +153,7 @@ def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
     This will also need to be updated upon the resolution of the issue that requires Aggregated Confidence to
     """
     # Arrange
-    expected_cache_id = "reallabel_od_cache_2f8620de3f6a9b5979efa876f0c1e10c07b8827902f0c292ced3d050c15ab874"
+    expected_cache_id = "reallabel_od_cache_b22bc35e63da8a8f663bc27440c18dc9ec6df61c2064ccd8f1de6e8d9eb4ab16"
 
     # Act
     actual_cache_id = test_stage.cache_id

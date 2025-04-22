@@ -38,7 +38,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage impor
     DatasetShiftTestStage as DatasetShiftTestStageOD,
 )
 from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage as NRTKTestStageOD
-from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import Config as ReallabelConfig
+from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import RealLabelConfig
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import RealLabelTestStage as RealLabelTestStageOD
 from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage as SurvivorTestStageOD
 from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKTestStage as XAITKTestStageOD
@@ -59,7 +59,7 @@ def rehydrate_test_stage_od(  # noqa: C901
 ):
     """Initialize test stage object based on config dictionary"""
     if config["TYPE"] == "RealLabelTestStage":
-        reallabel_config = ReallabelConfig(**config["CONFIG"])
+        reallabel_config = RealLabelConfig(**config["CONFIG"])
         return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
         return NRTKTestStageOD(config["CONFIG"])
