@@ -166,7 +166,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
         ]
 
         fig, axes = plt.subplots(1, 2, figsize=(4, 2), dpi=100)
-        self.cache_contents_path.mkdir(exist_ok=True)
+        self.cache_contents_path.mkdir(parents=True, exist_ok=True)
 
         near_dp_kwargs = {}
         for i, nd in enumerate(examples):
@@ -278,7 +278,7 @@ class DatasetLintingTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin
         images: dict[str, list[Path]] = {}
         fig, ax = plt.subplots(figsize=(2, 2), dpi=100)
         ax.set_aspect("equal")
-        self.cache_contents_path.mkdir(exist_ok=True)
+        self.cache_contents_path.mkdir(parents=True, exist_ok=True)
         for k, targets in issues.items():
             for si, value in (targets[_] for _ in range(min(len(targets), 3))):
                 i, ti, _ = source_index[si]
