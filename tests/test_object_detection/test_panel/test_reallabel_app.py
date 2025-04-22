@@ -28,12 +28,11 @@ def test_run_export(
         "TYPE": "RealLabelTestStage",
         "CONFIG": {
             "additional_outputs": [
-                "results",
-                "verbose_df",
-                "classification_disagreements_df",
-                "sequence_priority_score_df",
-                "wanrs_df",
-                "sequence_priority_score_balanced_df",
+                "sequence_priority_score",
+                "sequence_priority_score_balanced",
+                "classification_disagreements",
+                "wanrs",
+                "aggregated_confidence_df",
             ],
             "run_with_ground_truth": exp_rwgt,
             "deduplication_iou_threshold": exp_iou_threshold,

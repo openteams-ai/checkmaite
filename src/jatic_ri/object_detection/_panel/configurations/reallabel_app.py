@@ -9,6 +9,7 @@ from typing import Any
 
 import panel as pn
 import param
+import reallabel
 from bokeh.resources import INLINE
 
 from jatic_ri._common._panel.configurations.base_app import BaseApp
@@ -35,8 +36,8 @@ class RealLabelApp(BaseApp):
             Defaults to 0.5.
         class_agnostic (param.Boolean): Set to True for when you only care about the LOCATIONS of
             bounding boxes (and not their labels). Defaults to True.
-        run_with_ground_truth (param.Boolean): Set to True when you want to run RealLabel with ground truth data.
-            Defaults to False.
+        run_with_ground_truth (param.Boolean): Set to False when you want to run RealLabel on an unlabeled dataset.
+            Defaults to True.
     """
 
     title: param.String = param.String(default="RealLabel - Identify potential errors in ground truth")
@@ -49,7 +50,7 @@ class RealLabelApp(BaseApp):
         default=0.5, bounds=(0, 1), label="Maximum Confidence Threshold"
     )
     class_agnostic: param.Boolean = param.Boolean(default=True, label="Class Agnostic")
-    run_with_ground_truth: param.Boolean = param.Boolean(default=False, label="Run with Ground Truth")
+    run_with_ground_truth: param.Boolean = param.Boolean(default=True, label="Run with Ground Truth")
 
     # special parameter for dynamically setting the next stage
     # in this case, its set by output from previous stage
@@ -66,12 +67,10 @@ class RealLabelApp(BaseApp):
 
         # Just giving the option to call any RealLabel output
         additional_outputs = [
-            "results",
-            "verbose_df",
-            "classification_disagreements_df",
-            "sequence_priority_score_df",
-            "wanrs_df",
-            "sequence_priority_score_balanced_df",
+            # VERBOSE_OUTPUT throws an error in 0.5.0.  Try again after updating.
+            e.value
+            for e in reallabel.RealLabelOutput
+            if e not in {reallabel.RealLabelOutput.VERBOSE_OUTPUT}
         ]
 
         self.output_test_stages["reallabel_test_stage"] = {

@@ -139,6 +139,9 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     if isinstance(test_stage, EvalToolPlugin):
         test_stage.load_eval_tool(EvaluationTool())
 
+    if isinstance(test_stage, EvalToolPlugin):
+        test_stage.load_eval_tool(EvaluationTool())
+
     # run the stage, saving output to the class
     test_stage.run(use_stage_cache=False)
     # collect the slides

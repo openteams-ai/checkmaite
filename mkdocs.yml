@@ -38,6 +38,7 @@ nav:  # navigation links on sidebar
     - Model Evaluation Testbed: how-tos/Model_Evaluation_Testbed.ipynb
   - Tutorials:
     - tutorials/index.md
+    - RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
   - Reference:
     - Conventions: reference/conventions.md
     - Development Strategy: reference/development.md
