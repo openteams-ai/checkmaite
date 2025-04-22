@@ -2,7 +2,7 @@ import pytest
 
 from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
-    Config,
+    RealLabelConfig,
     RealLabelTestStage,
 )
 
@@ -52,7 +52,7 @@ def test_run_export(
     # Act
     app._run_export()
     output = app.output_test_stages["reallabel_test_stage"]
-    reallabel_config = Config(**output)
+    reallabel_config = RealLabelConfig(**output)
     RealLabelTestStage(config=reallabel_config)
 
     # Assert

@@ -35,7 +35,7 @@ maite = {version = "==0.7.1"}                     # could be >=0.7.0,<0.8.0, but
 heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", tag="0.5.0"}
 nrtk = {version = "==0.15.1", extras = ["headless"]}
 pybsm = "==0.8.0"                                 # optional dep for nrtk, required here
-reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.5.0"}
+reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.2"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.3.1"}
 xaitk-saliency = "==0.12.0"
 xaitk-jatic = "==0.5.1"
@@ -182,6 +182,5 @@ filterwarnings = [
     "ignore:A custom validator is returning a value other than `self`:UserWarning",
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
     "ignore:is_datetime64tz_dtype is deprecated:DeprecationWarning",
-    "ignore:It is preferred to use 'applyInPandas' over this API:UserWarning",
 ]
 xfail_strict = true
