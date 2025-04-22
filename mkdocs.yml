@@ -41,6 +41,7 @@ nav:  # navigation links on sidebar
   - Reference:
     - Conventions: reference/conventions.md
     - Development Strategy: reference/development.md
+    - Persona: reference/persona.md
   - Community:
     - Contributing: community/contributing.md
 markdown_extensions:
