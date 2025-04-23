@@ -10,7 +10,7 @@ from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKTe
 
 
 def test_run_export() -> None:
-    """Test calling the XAITKApp's _run_export method"""
+    """Test calling the XAITKApp's _run_export method with default DRISE stack"""
     xaitk_app = XAITKApp()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
@@ -33,12 +33,14 @@ def test_run_export() -> None:
 
     # Test saliency generator config
     saliency_generator_config = test_stage["CONFIG"]["saliency_generator"]
-    random_grid_stack_impl = "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.RandomGridStack"
+    drise_stack_impl = "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.DRISEStack"
 
-    assert saliency_generator_config["type"] == random_grid_stack_impl
-    assert all(
-        k in saliency_generator_config[random_grid_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "fill")
-    )
+    assert saliency_generator_config["type"] == drise_stack_impl
+    assert all(k in saliency_generator_config[drise_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "fill"))
+
+    # DRISEStack expects a single value for size
+    assert type(saliency_generator_config[drise_stack_impl]["s"]) is int
+
     # Check PlugConfigurable compatibilty
     assert isinstance(
         from_config_dict(saliency_generator_config, GenerateObjectDetectorBlackboxSaliency.get_impls()),
@@ -66,3 +68,29 @@ def test_saliency_generation() -> None:
 
     xaitk_app.saliency_gen_button.clicks = 1
     assert xaitk_app.status_text == "Saliency generation test completed"
+
+
+def test_random_grid_export() -> None:
+    """Test parameters when setting stack to RandomGrid the XAITKApp's _run_export method"""
+    xaitk_app = XAITKApp()
+    xaitk_app.panel()
+    xaitk_app.stack_select.value = "RandomGrid"
+    xaitk_app.export_button.clicks = 1
+
+    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
+    # Test saliency generator config
+    saliency_generator_config = test_stage["CONFIG"]["saliency_generator"]
+    random_grid_stack_impl = "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.RandomGridStack"
+
+    assert saliency_generator_config["type"] == random_grid_stack_impl
+    assert all(
+        k in saliency_generator_config[random_grid_stack_impl] for k in ("n", "s", "p1", "threads", "seed", "fill")
+    )
+
+    # RandomGridStack expects a list of 2 parammeters (dimensions of a square)
+    assert len(saliency_generator_config[random_grid_stack_impl]["s"]) == 2
+    # Check PlugConfigurable compatibilty
+    assert isinstance(
+        from_config_dict(saliency_generator_config, GenerateObjectDetectorBlackboxSaliency.get_impls()),
+        GenerateObjectDetectorBlackboxSaliency,
+    )

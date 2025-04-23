@@ -29,7 +29,7 @@ from PIL.Image import Image as PilImg
 from smqtk_core.configuration import to_config_dict
 from smqtk_image_io.bbox import AxisAlignedBoundingBox
 from xaitk_jatic.interop.object_detection.model import JATICDetector
-from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import RandomGridStack
+from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import DRISEStack, RandomGridStack
 
 # local imports
 from jatic_ri import PACKAGE_DIR
@@ -42,6 +42,7 @@ pn.extension("jsoneditor")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
 TEST_IMAGE = IMAGE_DIR / "XAITK_Visdrone_example_img.jpg"
+STACK_OPTIONS = ["D-RISE", "RandomGrid"]
 
 
 @dataclass
@@ -140,6 +141,10 @@ class XAITKApp(BaseXAITKApp):
         self.id2label = self.jatic_detector.index2label
         self.pad_perc = 0.4
 
+        self.stack_select = pn.widgets.Select(
+            name="Choose generator",
+            options=STACK_OPTIONS,
+        )
         self.md_text = """
                 The sample saliency generation uses the [DETR-Resnet50](https://huggingface.co/facebook/detr-resnet-50)
                 model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
@@ -165,17 +170,27 @@ class XAITKApp(BaseXAITKApp):
         """This function runs when `export_button` is clicked"""
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
-
+        generator_type = self.stack_select.value
         for idx, widget_value in enumerate(self.widget_values):
-            saliency_generator = RandomGridStack(
-                n=widget_value["num_masks"],
-                s=widget_value["grid_size"],
-                p1=0.7,
-                threads=8,
-                seed=42,
-            )
             fill = [95, 96, 93]
-            saliency_generator.fill = fill
+            if generator_type == "D-RISE":
+                saliency_generator = DRISEStack(
+                    n=widget_value["num_masks"],
+                    s=widget_value["grid_size"][0],
+                    p1=0.7,
+                    threads=8,
+                    seed=42,
+                )
+                saliency_generator.fill = fill
+            elif generator_type == "RandomGrid":
+                saliency_generator = RandomGridStack(
+                    n=widget_value["num_masks"],
+                    s=widget_value["grid_size"],
+                    p1=0.7,
+                    threads=8,
+                    seed=42,
+                )
+                saliency_generator.fill = fill
 
             self.output_test_stages[f"{self.__class__.__name__}_{idx}"] = {
                 "TYPE": "XAITKTestStage",
@@ -241,15 +256,27 @@ class XAITKApp(BaseXAITKApp):
     def generate_saliency(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Method to generate saliency maps for a given saliency algorithm and detection model"""
         widget_value = self.collect_widget_values()
-        saliency_generator = RandomGridStack(
-            n=widget_value["num_masks"],
-            s=widget_value["grid_size"],
-            p1=0.7,
-            threads=8,
-            seed=42,
-        )
+        generator_type = self.stack_select.value
+
         fill = [95, 96, 93]
-        saliency_generator.fill = fill
+        if generator_type == "D-RISE":
+            saliency_generator = DRISEStack(
+                n=widget_value["num_masks"],
+                s=widget_value["grid_size"][0],
+                p1=0.7,
+                threads=8,
+                seed=42,
+            )
+            saliency_generator.fill = fill
+        elif generator_type == "RandomGrid":
+            saliency_generator = RandomGridStack(
+                n=widget_value["num_masks"],
+                s=widget_value["grid_size"],
+                p1=0.7,
+                threads=8,
+                seed=42,
+            )
+            saliency_generator.fill = fill
 
         dets = list(self.detector([img]))[0]
         det = list(dets)[int(self.select_widget.value)]
@@ -316,6 +343,51 @@ class XAITKApp(BaseXAITKApp):
     def update_plot(self, bboxes: np.ndarray) -> None:
         """Update Matplotlib Image/Plot"""
         self.sample_image.object = self.create_sample_image(include_dets=True, bboxes=bboxes)
+
+    @pn.depends("stack_select.value")
+    def view_generator_params(self) -> pn.Column:
+        """Generator params helper"""
+        return pn.Column(self.stack_select, self.saliency_widget[0])
+
+    def panel(self) -> pn.Column:
+        """High level view of the full app"""
+        return pn.Column(
+            self.view_header,
+            pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
+            pn.Row(
+                self.view_generator_params,
+                pn.Column(
+                    pn.pane.Markdown(
+                        f"""
+                            <style>
+                            * {{
+                                color: {self.color_gray_900};
+                            }}
+                            </style>
+                            <h2> Choose Sample Detection
+                        """
+                    ),
+                    self.select_widget,
+                    self.sample_image,
+                    pn.pane.Markdown(
+                        f"""
+                            <style>
+                            * {{
+                                color: {self.color_gray_900};
+                            }}
+                            </style>
+                            <h2> Saliency Generation Output
+                        """
+                    ),
+                    self.view_plots,
+                ),
+            ),
+            pn.layout.Divider(),
+            pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
+            self.view_status_bar,
+            width=self.page_width,
+            styles={"background": self.color_main_bg},
+        )
 
 
 if __name__ == "__main__":
