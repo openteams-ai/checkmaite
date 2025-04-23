@@ -99,19 +99,6 @@ def dummy_model_od() -> od.Model:
 
 
 @pytest.fixture
-def dummy_xaitk_model() -> od.Model:
-    """Creates and returns a dummy maite-compliant model"""
-
-    class DummyModel:
-        index2label: dict[str, Hashable] = {0: "dummy_0", 1: "dummy_1", 2: "dummy_2", 3: "dummy_3", 4: "dummy_4"}
-
-        def __call__(self, input_batch: Sequence[ArrayLike]) -> Sequence[od.ObjectDetectionTarget]:
-            return [DummyXAITKObjectDetectionTarget() for _ in input_batch]
-
-    return DummyModel()
-
-
-@pytest.fixture
 def dummy_linting_dataset_od():
     """Creates and returns a dummy maite-compliant dataset"""
 
@@ -190,24 +177,6 @@ def dummy_dataset_od() -> od.Dataset:
 
         def __getitem__(self, ind: int):
             return self.images[ind], DummyObjectDetectionTarget(), {"id": ind, "dummy": 0}
-
-    return DummyDataset()
-
-
-@pytest.fixture
-def dummy_xaitk_dataset() -> od.Dataset:
-    """Creates and returns a dummy maite-compliant dataset"""
-
-    class DummyDataset:
-        """Dataset with 10 1x16x16 CHW images"""
-
-        images = torch.ones(size=(10, 1, 16, 16))
-
-        def __len__(self) -> int:
-            return len(self.images)
-
-        def __getitem__(self, ind: int):
-            return self.images[ind], DummyXAITKObjectDetectionTarget(), {"id": ind, "dummy": 0}
 
     return DummyDataset()
 

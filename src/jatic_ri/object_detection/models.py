@@ -203,7 +203,7 @@ class VisdroneODModel:
         self,
         *,
         arch: str,
-        model_pickle_dir: Optional[str],  # noqa: UP007
+        model_pickle_dir: Optional[str] = None,  # noqa: UP007
         device: None | str | torch.device = None,
         batch_size: int = 3,
         num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688
@@ -266,7 +266,7 @@ class VisdroneODModel:
             10: "motor",
             11: "others",
         }
-        self.metadata = {"id": model_id}
+        self.metadata = {"id": model_id, "index2label": self.index2label}
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
         """
