@@ -37,6 +37,7 @@ pn.extension("jsoneditor")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
 TEST_IMAGE = IMAGE_DIR / "example_car_img.jpg"
+STACK_OPTIONS = ["RISE", "MC-RISE"]
 
 
 class HuggingFaceClassifier:
@@ -100,10 +101,7 @@ class XAITKApp(BaseXAITKApp):
         # metadata after relevant updates to protocols are added
         self.id2label = self.jatic_classifier.index2label
 
-        self.stack_select = pn.widgets.Select(
-            name="Choose generator",
-            options=["MC-RISE", "RISE"],
-        )
+        self.stack_select = pn.widgets.Select(name="Choose generator", options=STACK_OPTIONS)
 
         super().__init__(**params)
 
