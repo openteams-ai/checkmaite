@@ -37,7 +37,7 @@ DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
                 [79.55, 178.05, 287.91, 226.75],  # banana
             ]
         ),
-        labels=torch.Tensor([4, 3, 2]),
+        labels=torch.tensor([4, 3, 2], dtype=torch.int32),
         scores=torch.Tensor([1.0, 1.0, 1.0]),
     )
     for _ in range(DEFAULT_DATASET_LENGTH)
@@ -79,7 +79,7 @@ DEFAULT_OD_MODEL_PREDICTIONS: Sequence[od.ObjectDetectionTarget] = [
                 [79.55, 178.05, 287.91, 226.75],  # accurate bbox, incorrect label, high confidence
             ]
         ),
-        labels=torch.Tensor([4, 1, 5]),
+        labels=torch.tensor([4, 1, 5], dtype=torch.int32),
         scores=torch.Tensor([0.9, 0.2, 0.7]),
     )
 ]
