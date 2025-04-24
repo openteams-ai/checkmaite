@@ -11,7 +11,7 @@ import re
 from abc import abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import panel as pn
@@ -43,6 +43,9 @@ from jatic_ri.util.dashboard_utils import (
 )
 from jatic_ri.util.evaluation import EvaluationTool
 
+if TYPE_CHECKING:
+    from panel.widgets import Widget
+
 JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
     "_sample_imgs",
     "JATIC_Logo_Acronym_Spelled_Out_RGB_white_type.svg",
@@ -63,13 +66,13 @@ logger = logging.getLogger()
 # mapping between the visible dataset labels in the UI and
 # the underlying wrapper class
 DATASET_LABEL_MAP_OD = {
-    "Coco dataset": "CocoDetectionDataset",
-    "Yolo dataset": "YoloDetectionDataset",
+    "COCO dataset": "CocoDetectionDataset",
+    "YOLO dataset": "YoloDetectionDataset",
     "Visdrone dataset": "VisdroneDetectionDataset",
 }
 
 DATASET_LABEL_MAP_IC = {
-    "Yolo dataset": "YoloClassificationDataset",
+    "YOLO dataset": "YoloClassificationDataset",
 }
 
 METRICS_LABEL_MAP_OD = {
@@ -114,6 +117,8 @@ class BaseDashboard(param.Parameterized):
 
     # Input for the target threshold
     threshold = param.String(default="0.5")
+    # boolean for viewing threshold widget
+    threshold_visible = param.Boolean(default=False)
 
     # This parameter configures the dashboard to use caching.  Caching can occur both at the
     # test stage output and in the underlying EvaluationTool.  The full flow looks like this:
@@ -331,40 +336,52 @@ class BaseDashboard(param.Parameterized):
         self.dataset_1_selector = pn.widgets.Select(
             options=["Select Dataset Type", *list(self.dataset_label_map.keys())],
             width=self.width_input_default,
-            name="Dataset",
+            name="Dataset type",
             stylesheets=[self.css_dropdown],
             value="Select Dataset Type",
         )
         self.dataset_2_selector = pn.widgets.Select(
             options=["Select Dataset Type", *list(self.dataset_label_map.keys())],
             width=self.width_input_default,
-            name="Comparison Dataset",
+            name="Comparison Dataset type",
             stylesheets=[self.css_dropdown],
             value="Select Dataset Type",
         )
-        self.dataset_1_split_path = pn.widgets.TextInput(
-            name="Path of split folder",
-            placeholder="Path of split folder",
+        # link a callback method to the dataset dropdown so that we
+        # can change the placeholder text when the dataset type is changed
+        self.dataset_1_selector.param.watch(self._on_dataset_type_change, ["value"])
+        self.dataset_2_selector.param.watch(self._on_dataset_type_change, ["value"])
+        self.dataset_1_directory = pn.widgets.TextInput(
+            name="Images directory",
+            placeholder="Full path to images directory.",
+            description="Full filepath to the directory containing dataset images.",
             width=self.width_input_default - self.width_subwidget_offset,
             stylesheets=[self.css_dropdown],
+            disabled=True,
         )
-        self.dataset_2_split_path = pn.widgets.TextInput(
-            name="Path of split folder",
-            placeholder="Path of split folder",
+        self.dataset_2_directory = pn.widgets.TextInput(
+            name="Images directory",
+            placeholder="Full path to images directory.",
+            description="Full filepath to the directory containing dataset images.",
             width=self.width_input_default - self.width_subwidget_offset,
             stylesheets=[self.css_dropdown],
+            disabled=True,
         )
         self.dataset_1_metadata_path = pn.widgets.TextInput(
-            name="Path to metadata file",
-            placeholder="Path to metadata file",
+            name="Metadata filepath",
+            placeholder="Full filepath to dataset metadata file.",
+            description="Full filepath to dataset metadata file.",
             width=self.width_input_default - self.width_subwidget_offset,
             stylesheets=[self.css_dropdown],
+            disabled=True,
         )
         self.dataset_2_metadata_path = pn.widgets.TextInput(
-            name="Path to metadata file",
-            placeholder="Path to metadata file",
+            name="Metadata filepath",
+            placeholder="Full filepath to dataset metadata file.",
+            description="Full filepath to dataset metadata file.",
             width=self.width_input_default - self.width_subwidget_offset,
             stylesheets=[self.css_dropdown],
+            disabled=True,
         )
 
         # controls for viewing configuration
@@ -423,8 +440,11 @@ class BaseDashboard(param.Parameterized):
         logger.debug("update default config")
         config = json.loads(self.config_file.value)
         success = self.load_pipeline(config)
+
         if success:
             self.run_analysis_button.disabled = False
+        else:
+            self.status_text = "Configuration file failed to load properly."
 
     def _on_view_config_callback(self, event: Any = None) -> None:  # noqa: ARG002
         """Callback that fires when the "view config" button is clicked.
@@ -464,7 +484,6 @@ class BaseDashboard(param.Parameterized):
         XREF: additional behavior changes happen when `model_weights_path` is changed,
         see `_on_model_weights_path_change`.
         """
-
         # get a list of model numbers as strings
         str_numbers = re.findall(r"\d+", event.obj.name)
         # convert string list to int list and get the max model number
@@ -689,7 +708,7 @@ class BaseDashboard(param.Parameterized):
             pn.Row(
                 pn.Spacer(width=self.width_subwidget_offset),
                 pn.Column(
-                    self.dataset_1_split_path,
+                    self.dataset_1_directory,
                     self.dataset_1_metadata_path,
                 ),
             ),
@@ -705,7 +724,7 @@ class BaseDashboard(param.Parameterized):
                 pn.Row(
                     pn.Spacer(width=self.width_subwidget_offset),
                     pn.Column(
-                        self.dataset_2_split_path,
+                        self.dataset_2_directory,
                         self.dataset_2_metadata_path,
                     ),
                 ),
@@ -716,20 +735,28 @@ class BaseDashboard(param.Parameterized):
     def load_datasets_from_widgets(self) -> bool:
         """Collect dataset metadata from widgets and instantiate
         dataset wrapper objects"""
-        # Load dataset(s)
+        # Load dataset 1 (always required)
         if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
             self.status_text = "Please select dataset type"
             return False
 
         module = importlib.import_module(f"jatic_ri.{self.task}.datasets")
         load_datasets = module.load_datasets
+        dataset_spec = module.DatasetSpecification
 
         # gather dataset information from the widgets
-        dataset_1_meta: DatasetSpecification = {  # noqa: F821
-            "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
-            "data_dir": self.dataset_1_split_path.value,
-            "metadata_path": self.dataset_1_metadata_path.value,
-        }
+        if self.task == "object_detection":
+            dataset_1_meta: dataset_spec = {
+                "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
+                "data_dir": self.dataset_1_directory.value,
+                "metadata_path": self.dataset_1_metadata_path.value,
+            }
+        else:
+            dataset_1_meta: dataset_spec = {
+                "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
+                "data_dir": self.dataset_1_directory.value,
+                "split_folder": self.dataset_1_metadata_path.value,
+            }
 
         dataset_meta = {"dataset_1": dataset_1_meta}
 
@@ -739,17 +766,89 @@ class BaseDashboard(param.Parameterized):
                 self.status_text = "Please select dataset 2 type"
                 return False
 
-            dataset_2_meta: DatasetSpecification = {  # noqa: F821
-                "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
-                "data_dir": self.dataset_2_split_path.value,
-                "metadata_path": self.dataset_2_metadata_path.value,
-            }
+            if self.task == "object_detection":
+                dataset_2_meta: dataset_spec = {
+                    "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
+                    "data_dir": self.dataset_2_directory.value,
+                    "metadata_path": self.dataset_2_metadata_path.value,
+                }
+            else:
+                dataset_2_meta: dataset_spec = {
+                    "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
+                    "data_dir": self.dataset_2_directory.value,
+                    "split_folder": self.dataset_2_metadata_path.value,
+                }
             dataset_meta["dataset_2"] = dataset_2_meta
 
         # load the datasets
         self.loaded_datasets = load_datasets(dataset_meta)
 
         return True
+
+    def _on_dataset_type_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
+        """Callback whenever either dataset 1 or dataset 2 type widget is changed.
+        Changes the visibility, name, placeholder, and description of the widgets
+        according to the dataset type.
+        """
+
+        def _set_widget_parameters(
+            widget: Widget, name: str, placeholder: str, description: str, disabled: bool
+        ) -> None:
+            widget.name = name
+            widget.placeholder = placeholder
+            widget.description = description
+            widget.disabled = disabled
+
+        # dataset 1 selector changed
+        if event.obj.name == "Dataset type":  # self.dataset_1_selector.name
+            path_widget = self.dataset_1_directory
+            metadata_widget = self.dataset_1_metadata_path
+        # dataset 2 selector changed
+        else:
+            path_widget = self.dataset_2_directory
+            metadata_widget = self.dataset_2_metadata_path
+
+        dataset_type = event.obj.value
+        if dataset_type == "COCO dataset":  # not sure about full filepath here
+            path_name = "Images directory"
+            path_placeholder = "Full path to images directory."
+            path_description = "Full filepath to the directory containing dataset images."
+            metadata_name = "Metadata filepath"
+            metadata_placeholder = "Full filepath to dataset metadata file."
+            metadata_description = "Full filepath to COCO-formatted annotation JSON file."
+            _set_widget_parameters(path_widget, path_name, path_placeholder, path_description, False)
+            _set_widget_parameters(metadata_widget, metadata_name, metadata_placeholder, metadata_description, False)
+
+        elif dataset_type == "YOLO dataset":
+            if self.task == "object_detection":
+                path_name = "Annotations directory"
+                path_placeholder = "Full filepath to annotations directory."
+                path_description = "Full filepath to the directory containing the YOLO annotation files."
+                metadata_name = "Metadata filepath"
+                metadata_placeholder = "Full filepath to dataset metadata file."
+                metadata_description = "Full filepath to YOLO-formatted metadata YAML file."
+            else:
+                path_name = "Root directory"
+                path_placeholder = "Full filepath to root dataset directory."
+                path_description = "Full filepath to root dataset directory containing split folders, each with their own category folders."  # noqa: E501
+                metadata_name = "Split folder"
+                metadata_placeholder = "Name of split foldername to load"
+                metadata_description = "Within the root dataset directory, this folder contains a directory for each category which holds the images."  # noqa: E501
+            _set_widget_parameters(path_widget, path_name, path_placeholder, path_description, False)
+            _set_widget_parameters(metadata_widget, metadata_name, metadata_placeholder, metadata_description, False)
+
+        elif dataset_type == "Visdrone dataset":
+            path_name = "Root directory"
+            path_placeholder = "Full filepath to root dataset directory."
+            path_description = "Full filepath to the directory containing the images/ and annotations/ directories."
+            _set_widget_parameters(path_widget, path_name, path_placeholder, path_description, False)
+            metadata_widget.disabled = True
+
+        elif dataset_type == "Select Dataset Type":
+            path_widget.disabled = True
+            metadata_widget.disabled = True
+        else:
+            raise RuntimeError("Dataset type selector not recognized.")
 
     def load_metric_from_widget(self) -> bool:
         """Collect input from widget and instantiate metric object, set the result
@@ -776,9 +875,17 @@ class BaseDashboard(param.Parameterized):
         return True
 
     def load_pipeline(self, configs: dict) -> bool:
-        """Instantiate test stage objects based on configurations
+        """Instantiate test stage objects based on configurations.
 
-        Example structure:
+        Parameters
+        ----------
+        configs: Contains the task definition and configurations for one or more test stages
+
+        Returns
+        -------
+        True/False indicating successful instantiation of the test stages from the provided configs.
+
+        Example configs structure:
         {
             'task': 'object_detection',
             'survivor': {
@@ -791,11 +898,10 @@ class BaseDashboard(param.Parameterized):
                 }
             }
 
-        Returns
-        -------
-        True if successful, False if there were issues.
         """
         logger.debug("load pipeline")
+        self.threshold_visible = False
+        self.dataset_2_visible = False
         self.test_stages = {}
         if "task" not in configs:
             self.status_text = "Task must be specified in the provided config."
@@ -810,13 +916,19 @@ class BaseDashboard(param.Parameterized):
                 logger.debug(f'Loading {config["TYPE"]}')
                 if self.task == "object_detection":
                     stage = rehydrate_test_stage_od(config)
-                elif self.task == "image_classification":
+                else:
                     stage = rehydrate_test_stage_ic(config)
                 self.test_stages[stage_label] = stage
                 # allow multiple models for multi-model test stages
                 if config["TYPE"] == "RealLabelTestStage" or config["TYPE"] == "SurvivorTestStage":
                     # trigger addition of the "add model" button
                     self.multi_model_visible = True
+                # enable dataset 2 for shift as needed
+                elif config["TYPE"] == "DatasetShiftTestStage":
+                    self.dataset_2_visible = True
+
+                if isinstance(stage, ThresholdPlugin):
+                    self.threshold_visible = True
 
         self.status_text = "Configuration file loaded"
 
@@ -1050,6 +1162,7 @@ class BaseDashboard(param.Parameterized):
                                 name="Target Threshold",
                                 width=175,
                                 stylesheets=[self.css_dropdown],
+                                disabled=not (self.threshold_visible),
                             ),
                         ),
                         sizing_mode="stretch_width",

@@ -52,10 +52,10 @@ def test_missing_data_split(fake_dataset):
 
 def test_load_datasets(fake_dataset):
     dataset_root, _, _, _ = fake_dataset
-    split_dir = dataset_root.resolve().joinpath("test")
     spec: DatasetSpecification = {
         "dataset_type": "YoloClassificationDataset",
-        "data_dir": split_dir,
+        "data_dir": str(dataset_root),
+        "split_folder": "test",
     }
     datasets = {
         "dataset1": spec,
