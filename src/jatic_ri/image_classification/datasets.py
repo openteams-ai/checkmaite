@@ -131,7 +131,9 @@ class DatasetSpecification(TypedDict):
     dataset_type: Literal["YoloClassificationDataset"]
     # Full filepath to the data directory to use. For yolo, this is the split dir.
     # The root directory of images is expected to be the parent of this directory.
-    data_dir: str | Path
+    data_dir: str
+    # Folder name of the split folder to load inside of the root dataset directory
+    split_folder: Literal["train", "test", "validation"]
 
 
 def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloClassificationDataset]:
@@ -140,12 +142,10 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloCl
     loaded = {}
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "YoloClassificationDataset":
-            split_dir = Path(dataset_metadata["data_dir"]).stem
-            root_path = Path(dataset_metadata["data_dir"]).parent.resolve()
             loaded[name] = YoloClassificationDataset(
-                dataset_id="_".join([str(root_path), str(split_dir)]),
-                root_dir=str(root_path),
-                split=str(split_dir),  # type: ignore
+                dataset_id="_".join([str(dataset_metadata["data_dir"]), dataset_metadata["split_folder"]]),
+                root_dir=dataset_metadata["data_dir"],
+                split=dataset_metadata["split_folder"],
             )
         else:
             raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")

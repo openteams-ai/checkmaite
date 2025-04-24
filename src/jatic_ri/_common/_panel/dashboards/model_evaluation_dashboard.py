@@ -26,9 +26,6 @@ class ModelEvaluationTestbed(BaseDashboard):
         # ensure we only visualize one model and don't allow removing that model
         self.multi_model_visible = False
 
-        # ME never needs two datasets
-        self.dataset_1_selector.name = "Dataset type"
-
     def _run_button_callback(self, event: Any) -> None:  # noqa: ARG002 # pragma: no cover
         """This function runs when `run_model_button` is clicked
         Call sequence:

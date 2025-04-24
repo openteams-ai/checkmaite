@@ -35,12 +35,12 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     coco_dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(
         Path("tests/testing_utilities/example_data/coco_resized_val2017")
     )
-    app.dataset_1_selector.value = "Coco dataset"
-    app.dataset_1_split_path.value = str(coco_dataset_dir)
+    app.dataset_1_selector.value = "COCO dataset"
+    app.dataset_1_directory.value = str(coco_dataset_dir)
     app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("single_image.json"))
 
-    app.dataset_2_selector.value = "Coco dataset"
-    app.dataset_2_split_path.value = str(coco_dataset_dir)
+    app.dataset_2_selector.value = "COCO dataset"
+    app.dataset_1_directory.value = str(coco_dataset_dir)
     app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath("single_image.json"))
 
     # Set up model
@@ -111,12 +111,12 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
             img = Image.new("RGB", img_shape, color=(i, i, i))
             img.save(class_dir / f"{i}_{class_name}.jpg")
 
-    app.dataset_1_selector.value = "Yolo dataset"
-    app.dataset_1_split_path.value = str(root_dir.joinpath(split))
+    app.dataset_1_selector.value = "YOLO dataset"
+    app.dataset_1_directory.value = str(root_dir.joinpath(split))
     app.dataset_1_metadata_path.value = str(root_dir.joinpath("ann_file.json"))
 
-    app.dataset_2_selector.value = "Yolo dataset"
-    app.dataset_2_split_path.value = str(root_dir)
+    app.dataset_2_selector.value = "YOLO dataset"
+    app.dataset_2_directory.value = str(root_dir)
     app.dataset_2_metadata_path.value = str(root_dir.joinpath("ann_file.json"))
 
     # Set up model
@@ -182,9 +182,11 @@ def test_model_evaluation_dashboard(tmp_cache_path):
     ## Test dataset loading
     # ensure dataset 2 is not visible to prevent errors
     app.dataset_2_visible = False
-    app.dataset_1_selector.value = "Coco dataset"
-    app.dataset_1_split_path.value = "tests/testing_utilities/example_data/coco_dataset"
+
+    app.dataset_1_selector.value = "COCO dataset"
+    app.dataset_1_directory.value = "tests/testing_utilities/example_data/coco_dataset"
     app.dataset_1_metadata_path.value = "tests/testing_utilities/example_data/coco_dataset/ann_file.json"
+
     load_success = app.load_datasets_from_widgets()
     assert load_success
     assert app.loaded_datasets
