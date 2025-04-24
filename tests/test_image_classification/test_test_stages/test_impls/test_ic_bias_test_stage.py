@@ -86,7 +86,7 @@ class TestICDatasetBiasRun:
         """Test output formats at each stage of the Bias test stage"""
         if not homogeneous_size:
             # Modify images to be non-homogenous (like VOC)
-            dummy_dataset_ic.data = [np.ones(shape=(3, i, i)) for i in range(1, 10)]
+            dummy_dataset_ic.data = [np.ones(shape=(3, i, i), dtype=np.float32) for i in range(1, 10)]
 
         test_stage = DatasetBiasTestStage()
         test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")

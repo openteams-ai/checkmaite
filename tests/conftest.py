@@ -1,5 +1,6 @@
 import contextlib
 import os
+import platform
 from collections.abc import Hashable, Sequence
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,8 @@ if tuple(int(v) for v in np.__version__.split(".")[:2]) >= (2, 1):
 else:
 
     def np_unstack(x: np.typing.NDArray, /, *, axis: int = 0) -> list[np.typing.NDArray]:
+        if platform.system() == "Darwin":
+            x = x.astype(np.float32)
         return [y.squeeze(axis) for y in np.split(x, x.shape[axis], axis=axis)]
 
 

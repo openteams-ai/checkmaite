@@ -1096,7 +1096,7 @@ dev = ["flake8", "markdown", "twine", "wheel"]
 
 [[package]]
 name = "gradient"
-version = "0.10.1"
+version = "0.10.2"
 description = "Library for visualization and powerpoint generation"
 optional = false
 python-versions = ">=3.9,<3.12"
@@ -1125,8 +1125,8 @@ zipp = ">=3.19.1"
 [package.source]
 type = "git"
 url = "https://gitlab.jatic.net/jatic/morse/gradient.git"
-reference = "0.10.1"
-resolved_reference = "b1ce7f134e2a979235c9e9ea6e897555ed7f77a9"
+reference = "0.10.2"
+resolved_reference = "1db4e86bc05183482adba8ae7284479e12839a6f"
 
 [[package]]
 name = "h11"
@@ -2069,7 +2069,7 @@ files = [
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_ppc64le.whl", hash = "sha256:aa837e6ee9534de8d63bc4c1249e83882a7ac22bd24523f83fad68e6ffdf41ae"},
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_s390x.whl", hash = "sha256:da4c9223319400b97a2acdfb10926b807e51b69eb7eb80aad4942c0516934858"},
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:dc0e9bdb3aa4d1de703a437576007d366b54f52c9897cae1a3716bb44fc1fc85"},
-    {file = "lxml-5.3.2-cp310-cp310-win32.whl", hash = "sha256:5f94909a1022c8ea12711db7e08752ca7cf83e5b57a87b59e8a583c5f35016ad"},
+    {file = "lxml-5.3.2-cp310-cp310-win32.win32.whl", hash = "sha256:dd755a0a78dd0b2c43f972e7b51a43be518ebc130c9f1a7c4480cf08b4385486"},
     {file = "lxml-5.3.2-cp310-cp310-win_amd64.whl", hash = "sha256:d64ea1686474074b38da13ae218d9fde0d1dc6525266976808f41ac98d9d7980"},
     {file = "lxml-5.3.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:9d61a7d0d208ace43986a92b111e035881c4ed45b1f5b7a270070acae8b0bfb4"},
     {file = "lxml-5.3.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:856dfd7eda0b75c29ac80a31a6411ca12209183e866c33faf46e77ace3ce8a79"},
@@ -4997,15 +4997,15 @@ tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
 name = "survivor"
-version = "0.3.1"
-description = "Library for Inference Cost Savings"
+version = "0.4.3"
+description = "Blizzard capability: Image difficulty analysis for AI datasets"
 optional = false
 python-versions = ">=3.9,<3.12"
 files = []
 develop = false
 
 [package.dependencies]
-maite = ">=0.5.0"
+maite = ">=0.7.1"
 numpy = ">=1.24.2,<2.1.0"
 pandas = ">=2.2.2"
 pyarrow = ">=14.0.1"
@@ -5015,8 +5015,8 @@ pyspark = ">=3.5.0"
 [package.source]
 type = "git"
 url = "https://gitlab.jatic.net/jatic/morse/survivor.git"
-reference = "0.3.1"
-resolved_reference = "d3af9c023e9860b9c127f7b3a5f168169e5a10ef"
+reference = "0.4.3"
+resolved_reference = "e3a41b97bcb513e4b4cfe9e069888509aa7bc80f"
 
 [[package]]
 name = "sympy"
@@ -6037,4 +6037,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <3.12"
-content-hash = "81eb41314b3afea378cac1e58d45e2ad6c6321156e8c31b025d7cd5c37f6051b"
+content-hash = "04e43c634d3222d63e7497cafe4ae15e03a3bde3d4c0dd0d7f9da3bed2cab545"
