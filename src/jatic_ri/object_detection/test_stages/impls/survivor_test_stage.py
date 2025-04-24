@@ -14,7 +14,7 @@ from gradient import Text
 from maite import protocols as pr
 from pyspark.sql import DataFrame, SparkSession
 from survivor.analysis import HistogramBarPlot
-from survivor.config import Config as SurvivorConfig
+from survivor.config import SurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri import cache_path
@@ -188,7 +188,7 @@ class SurvivorTestStage(
 
         # The returned name will be a bit variable since there's multiple histograms that are made,
         # we only need one, so we'll just standardize it.
-        _, cache_miss_output_img_path = histogram_plot.plot(results_df)[0]
+        _, cache_miss_output_img_path = histogram_plot.plot(results_df)[0][0]
         cache_miss_output_img_path = cache_miss_output_img_path.rename(
             cache_miss_output_img_path.parent / self.cache.cache_image_path,  # type: ignore
         )

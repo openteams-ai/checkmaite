@@ -238,7 +238,7 @@ def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
     survivor_test_stage_args fixture changes, then the hash in the expected_cache_id variable will need to be updated.
     """
     # Arrange
-    expected_cache_id = "survivor_od_cache_1fc5132b703f7ae1d6000e8c70eeccdff731f6f07bc133366640b6f0c7db170d"
+    expected_cache_id = "survivor_od_cache_8ab160adeefa267d656b7c37c4154a68659d19bf11bb1eb2684b1e7e7ebd5a4b"
 
     # Act
     actual_cache_id = test_stage.cache_id
