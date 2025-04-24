@@ -152,7 +152,7 @@ class TorchvisionODModel:
             self.index2label = get_default_index2label(torchvision_weights_constructor)
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
 
-        self.metadata = {"id": model_id}
+        self.metadata = {"id": model_id, "index2label": self.index2label}
         self.model.eval()  # sets model to inference mode rather than training mode
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:

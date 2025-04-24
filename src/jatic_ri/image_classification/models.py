@@ -123,7 +123,7 @@ class TorchvisionICModel:
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
 
         self.model.eval()  # sets model to inference mode rather than training mode
-        self.metadata = {"id": model_id}
+        self.metadata = {"id": model_id, "index2label": self.index2label}
 
     def __call__(self, input_batch: ic.InputBatchType) -> ic.TargetBatchType:
         """
