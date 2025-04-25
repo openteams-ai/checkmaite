@@ -7,13 +7,12 @@ from unittest import mock
 import pytest
 import torch
 
-import jatic_ri
-from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.dashboards.dataset_analysis_dashboard import DatasetAnalysisDashboard
 from jatic_ri.object_detection.models import TorchvisionODModel
 
 REPORT_PATH = "/report/path"
 REPORT_LINK = "<a href='report-link'>Report Link</a>"
+TEST_DIR = Path(__file__).parents[3]  # tests directory
 
 
 @pytest.mark.real_data
@@ -42,15 +41,14 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
 
     ## Set up dataset
     # for OD - use sample dataset in the test suite
-    coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
-        Path("tests/testing_utilities/example_data/coco_resized_val2017")
-    )
-    app.dataset_1_selector.value = "Coco dataset"
-    app.dataset_1_split_path.value = str(coco_dataset_dir)
+    coco_dataset_dir = TEST_DIR / "testing_utilities" / "example_data" / "coco_resized_val2017"
+
+    app.dataset_1_selector.value = "COCO dataset"
+    app.dataset_1_directory.value = str(coco_dataset_dir)
     app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json"))
 
-    app.dataset_2_selector.value = "Coco dataset"
-    app.dataset_2_split_path.value = str(coco_dataset_dir)
+    app.dataset_2_selector.value = "COCO dataset"
+    app.dataset_2_directory.value = str(coco_dataset_dir)
     app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json"))
 
     # Set up model
@@ -59,8 +57,8 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
     # Until issue 303 is implemented, dashboard will instantiate models by providing JSON config file
     # with same stem name (different extension)
     # Ref: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/303
-    config_path = "subdir/my_model.json"
-    pickle_path = "subdir/my_model.pt"
+    config_path = "tscache/my_model.json"
+    pickle_path = "tscache/my_model.pt"
 
     # save metadata and state_dict to disk
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -97,25 +95,23 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
         app.model_widgets["Model 1 type"]["model_selector"].value = "Select Model type"
         app.model_widgets["Model 1 type"]["model_weights_path"].value = ""
         app.model_widgets["Model 1 type"]["model_config_path"].value = ""
-        app.dataset_1_split_path.value = ""
+        app.dataset_1_directory.value = ""
         app.dataset_1_metadata_path.value = ""
         app.loaded_models = {}
         app.loaded_datasets = {}
 
     def _set_coco_dataset_1(app):
-        coco_dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(
-            Path("tests/testing_utilities/example_data/coco_resized_val2017")
-        )
-        app.dataset_1_selector.value = "Coco dataset"
-        app.dataset_1_split_path.value = str(coco_dataset_dir)
+        coco_dataset_dir = TEST_DIR / "testing_utilities" / "example_data" / "coco_resized_val2017"
+
+        app.dataset_1_selector.value = "COCO dataset"
+        app.dataset_1_directory.value = str(coco_dataset_dir)
         app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json"))
 
     def _set_visdrone_dataset_1(app):
-        dataset_dir = jatic_ri.PACKAGE_DIR.parent.parent.joinpath(
-            Path("tests/testing_utilities/example_data/visdrone_dataset")
-        )
+        dataset_dir = TEST_DIR / "testing_utilities" / "example_data" / "visdrone_dataset"
+
         app.dataset_1_selector.value = "Visdrone dataset"
-        app.dataset_1_split_path.value = str(dataset_dir)
+        app.dataset_1_directory.value = str(dataset_dir)
         app.dataset_1_metadata_path.value = ""
 
     # Set up model
@@ -224,7 +220,7 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
 @pytest.mark.filterwarnings(
     "ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning"
 )
-def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir):
+def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir, yolo_dataset):
     """Test running of the DA dashboard for image_classification."""
     app = DatasetAnalysisDashboard(
         task="image_classification",
@@ -237,31 +233,13 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
     # load in the config values
     app.config_file.value = json.dumps(json_config_da_ic)
 
-    ## Set up dataset
-    # for IC - create a fake dataset
-    from PIL import Image
+    app.dataset_1_selector.value = "YOLO dataset"
+    app.dataset_1_directory.value = str(yolo_dataset)
+    app.dataset_1_metadata_path.value = "test"
 
-    classes = ["cat", "dog"]
-    num_images_per_class = 3
-    img_shape = (64, 128)
-
-    root_dir = Path("temp_yolo_dataset").resolve()
-    split = "test"
-    os.makedirs(root_dir / split, exist_ok=True)
-    for class_name in classes:
-        class_dir = root_dir / split / class_name
-        os.makedirs(class_dir, exist_ok=True)
-        for i in range(num_images_per_class):
-            img = Image.new("RGB", img_shape, color=(i, i, i))
-            img.save(class_dir / f"{i}_{class_name}.jpg")
-
-    app.dataset_1_selector.value = "Yolo dataset"
-    app.dataset_1_split_path.value = str(root_dir.joinpath(split))
-    app.dataset_1_metadata_path.value = str(root_dir.joinpath("ann_file.json"))
-
-    app.dataset_2_selector.value = "Yolo dataset"
-    app.dataset_2_split_path.value = str(root_dir)
-    app.dataset_2_metadata_path.value = str(root_dir.joinpath("ann_file.json"))
+    app.dataset_2_selector.value = "YOLO dataset"
+    app.dataset_2_directory.value = str(yolo_dataset)
+    app.dataset_2_metadata_path.value = "test"
 
     # Set up model
     from jatic_ri.image_classification.models import TorchvisionICModel
@@ -272,8 +250,8 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
     # Until issue 303 is implemented, dashboard will instantiate models by providing JSON config file
     # with same stem name (different extension)
     # Ref: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/303
-    config_path = "subdir/my_model.json"
-    pickle_path = "subdir/my_model.pt"
+    config_path = "tscache/my_model.json"
+    pickle_path = "tscache/my_model.pt"
 
     # save metadata and state_dict to disk
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -324,13 +302,13 @@ def test_dataset_analysis_dashboard_od_mockrun_only(tmp_cache_path):
 
         ## Set up dataset
         # for OD - use sample dataset in the test suite
-        coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(Path("tests/testing_utilities/example_data/coco_dataset"))
-        app.dataset_1_selector.value = "Coco dataset"
-        app.dataset_1_split_path.value = str(coco_dataset_dir)
+        coco_dataset_dir = TEST_DIR / "testing_utilities" / "example_data" / "coco_dataset"
+        app.dataset_1_selector.value = "COCO dataset"
+        app.dataset_1_directory.value = str(coco_dataset_dir)
         app.dataset_1_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json"))
 
-        app.dataset_2_selector.value = "Coco dataset"
-        app.dataset_2_split_path.value = str(coco_dataset_dir)
+        app.dataset_2_selector.value = "COCO dataset"
+        app.dataset_2_directory.value = str(coco_dataset_dir)
         app.dataset_2_metadata_path.value = str(coco_dataset_dir.joinpath("ann_file.json"))
 
         # Set up model
@@ -340,8 +318,8 @@ def test_dataset_analysis_dashboard_od_mockrun_only(tmp_cache_path):
         # Until issue 303 is implemented, dashboard will instantiate models by providing JSON config file
         # with same stem name (different extension)
         # Ref: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/303
-        config_path = "subdir/my_model.json"
-        pickle_path = "subdir/my_model.pt"
+        config_path = "tscache/my_model.json"
+        pickle_path = "tscache/my_model.pt"
 
         # save metadata and state_dict to disk
         with open(config_path, "w") as f:
