@@ -18,6 +18,7 @@ import torch
 from maite.protocols import ArrayLike
 from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
 from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
+from PIL import Image
 
 import jatic_ri
 import jatic_ri.util
@@ -544,3 +545,24 @@ def dummy_cpu_image_batch():
         dtype=torch.uint8,
         device="cpu",
     )
+
+
+@pytest.fixture
+def yolo_dataset(artifact_dir):
+    """Generate yolo dataset one image and two classes"""
+    ## Set up dataset
+    classes = ["cat", "dog"]
+    num_images_per_class = 3
+    img_shape = (64, 128)
+
+    root_dir = Path(artifact_dir) / "temp_yolo_dataset"
+    split = "test"
+    os.makedirs(root_dir / split, exist_ok=True)
+    for class_name in classes:
+        class_dir = root_dir / split / class_name
+        os.makedirs(class_dir, exist_ok=True)
+        for i in range(num_images_per_class):
+            img = Image.new("RGB", img_shape, color=(i, i, i))
+            img.save(class_dir / f"{i}_{class_name}.jpg")
+
+    return root_dir
