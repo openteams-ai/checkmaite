@@ -47,11 +47,20 @@ def test_xaitk_test_stage(
 
     assert all(required_key in example_args for required_key in ("deck", "layout_name", "layout_arguments"))
 
-    assert example_args["layout_name"] == "OneImageText"
-    assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
-    assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nPred: date\nScore: 0.90\n"
-    assert example_args["layout_arguments"]["image_path"] == Path(
+    assert example_args["layout_name"] == "TwoImageTextNoHeader"
+    assert example_args["layout_arguments"]["title"] == (
+        "XAITK Saliency Map -- " f"Image ID: {fake_od_dataset_default[0][2]['id']}, " "Detection: 0"
+    )
+    assert example_args["layout_arguments"]["content_left"] == Path(
         f"{os.path.splitext(test.cache_path)[0]}/img_0/det_0.png"
+    )
+    assert example_args["layout_arguments"]["content_right"] == (
+        "**Model:** model\\_1\n"
+        "**Image ID**: some\\_string\n"
+        "**Prediction:** date\n"
+        "**Confidence:** 0.90\n\n\n"
+        "Note: The Confidence is the metric score that the given detection had in the original "
+        "(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."
     )
 
     filename = create_deck(output, artifact_dir, "xaitk")
