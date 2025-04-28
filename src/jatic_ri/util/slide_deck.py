@@ -36,7 +36,7 @@ def create_text_data_slide(
     text : str
         Main text content
     table : pd.DataFrame or None, default None
-        DataFrame contianing table values to display
+        DataFrame containing table values to display
     image_path : Path or None, default None
         Path to saved image for display
 

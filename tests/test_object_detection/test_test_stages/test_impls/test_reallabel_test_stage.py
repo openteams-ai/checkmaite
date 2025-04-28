@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import maite.protocols.object_detection as od
-import pyspark.sql.functions as sf
+import pandas as pd
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 from reallabel import ColumnNameConfig
@@ -14,16 +14,14 @@ from reallabel import ColumnNameConfig
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     _REALLABEL_CACHE_CONFIGURATION_PATH,
-    _REALLABEL_CACHE_CSV_PATH,
     _REALLABEL_CACHE_IMAGE_PATH,
+    _REALLABEL_CACHE_JSON_PATH,
     RealLabelCache,
     RealLabelConfig,
     RealLabelTestStage,
+    RealLabelTestStageResults,
 )
 from tests.fake_od_classes import FakeODDataset, FakeODModel
-from tests.testing_utilities.testing_utilities import (
-    assert_spark_dataframes_equal,
-)
 
 # This file is the expected output of RealLabel if using all the information found in the survivor_test_stage_args
 # fixture, and if any of the data, model, metric, or RealLabelConfig information used by that fixture changes,
@@ -117,26 +115,37 @@ def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage, tmp_cac
     # Arrange
     expected_cache_location = tmp_cache_path / test_stage.cache_id
 
-    expected_results_df_path = expected_cache_location / _REALLABEL_CACHE_CSV_PATH
-    expected_results_png_path = expected_cache_location / _REALLABEL_CACHE_IMAGE_PATH
+    expected_json_results_path = expected_cache_location / _REALLABEL_CACHE_JSON_PATH
     expected_results_config_path = expected_cache_location / _REALLABEL_CACHE_CONFIGURATION_PATH
 
     reallabel_cache = RealLabelCache()
 
     # Act
     test_stage.run(use_stage_cache=True)
+    actual_returned_results = test_stage.outputs
 
-    actual_cached_results_df, actual_cached_image = reallabel_cache.read_cache(cache_path=str(expected_cache_location))
+    actual_cached_results = reallabel_cache.read_cache(cache_path=str(expected_cache_location))
 
-    # Compare the read-from-cache dataframe against the actual dataframe returned from `run()`. Minor issues in type
-    # conversion but can't really be helped :/
-    assert expected_results_df_path.exists()
-    actual_returned_results_df = test_stage.outputs[0].withColumn("class", sf.col("class").cast("integer"))
-    assert_spark_dataframes_equal(
-        actual_returned_results_df, actual_cached_results_df.toPandas(), ["id", "box_group", "class"]
-    )
+    for field in RealLabelTestStageResults.model_fields:
+        if isinstance(getattr(actual_returned_results, field), pd.DataFrame):
+            returned_df = getattr(actual_returned_results, field)
+            cached_df = getattr(actual_cached_results, field)
+            # Pre-existing type conversion issues, so we need to cast the dataframes to the same types for the test
+            assert cached_df.equals(returned_df.astype(cached_df.dtypes.to_dict()))
+        elif isinstance(getattr(actual_returned_results, field), Path):
+            # load the files and compare contents
+            returned_path = getattr(actual_returned_results, field)
+            cached_path = getattr(actual_cached_results, field)
+            assert returned_path.exists()
+            assert cached_path.exists()
+            # Check that the file sizes are the same
+            assert returned_path.stat().st_size == cached_path.stat().st_size
+            with returned_path.open("rb") as returned_file, cached_path.open("rb") as cached_file:
+                assert returned_file.read() == cached_file.read()
+        else:
+            assert getattr(actual_returned_results, field) == getattr(actual_cached_results, field)
 
-    assert expected_results_png_path.exists()
+    assert expected_json_results_path.exists()
 
     # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
     assert expected_results_config_path.exists()
@@ -170,7 +179,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Arrange
     expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
-    expected_content_right = str(artifact_dir / test_stage.cache_id / _REALLABEL_CACHE_IMAGE_PATH)
+    expected_content_right = str(artifact_dir / test_stage.cache_path / _REALLABEL_CACHE_IMAGE_PATH)
     expected_title = "RealLabel Label Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -208,33 +217,6 @@ def test_reallabel_test_stage_collect_report_consumables_error(
     # Act and Assert
     with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_report_consumables()
-
-
-def test_reallabel_test_stage_collect_metrics_cached_data(
-    test_stage: RealLabelTestStage,
-) -> None:
-    """Test collect_metrics."""
-    # Arrange
-    expected_output = {"NUM_Re-Label": 3}
-
-    test_stage.run(use_stage_cache=False)
-
-    # Act
-    actual_output = test_stage.collect_metrics()
-
-    # Assert
-    assert actual_output == expected_output
-
-
-def test_reallabel_test_stage_collect_metrics_error(
-    test_stage: RealLabelTestStage,
-) -> None:
-    """Test collect_metrics error when run not called."""
-    # No Arrange
-
-    # Act and Assert
-    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
-        test_stage.collect_metrics()
 
 
 def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
