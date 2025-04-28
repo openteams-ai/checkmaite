@@ -1,25 +1,41 @@
 """Object Detection RealLabel test stage."""
 
 import copy
+import dataclasses
 import json
 import logging
 import shutil
+import textwrap
 import warnings
+from collections.abc import Hashable
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import (
+    Annotated,
+    Any,
+    Optional,
+    Union,
+)
 
 import maite.protocols.object_detection as od
 import numpy as np
+import pandas as pd
 import pyspark.sql.functions as sf
-import pyspark.sql.types as st
 import torch
 from gradient import SubText, Text
 from PIL import Image
 from pptx.dml.color import RGBColor
-from pyspark.errors import AnalysisException
-from pyspark.sql import DataFrame, SparkSession
-from reallabel import MAITERealLabel, RealLabelColumns, RealLabelConfig, plot_reallabel_results
+from pydantic import BaseModel, BeforeValidator, ConfigDict, field_serializer
+from pyspark.sql import DataFrame
+from reallabel import (
+    MAITERealLabel,
+    RealLabelColumns,
+    RealLabelConfig,
+    plot_reallabel_results,
+)
+from reallabel import (
+    RealLabelResults as RealLabelModuleResults,
+)
 
 from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -42,14 +58,120 @@ _REALLABEL_CACHE_MISS_OUTPUT_DIR = "reallabel_cache_miss_outputs"
 # These constants represent the expected names and locations of the RealLabel cache results to be found
 # under the cache_path() / test_stage.cache_id directory,
 # and should be used as `self.cache_base_dir/self.cache_id/_REALLABEL_CACHE_CSV_PATH`
-_REALLABEL_CACHE_CSV_PATH = "reallabel_standard_results.csv"
+_REALLABEL_CACHE_JSON_PATH = "reallabel_standard_results.json"
 _REALLABEL_CACHE_IMAGE_PATH = "reallabel_result_visualization.png"
 # This file will contain a json-ified list of the various parameters that went into generating the hash ID including
 # all model IDs, the dataset ID, and RealLabel Config values.
 _REALLABEL_CACHE_CONFIGURATION_PATH = "reallabel_cache_configuration.json"
 
 
-class RealLabelCache(Cache[tuple[DataFrame, Path]]):
+def parse_dataframe(value: Union[pd.DataFrame, dict]) -> pd.DataFrame:
+    """
+    Attempts to parse the input value into a pandas DataFrame.
+    Accepts either an existing DataFrame or a dictionary
+    in pandas 'split' orientation ({'index': ..., 'columns': ..., 'data': ...}).
+    """
+    if isinstance(value, pd.DataFrame):
+        # Return a copy to prevent mutation issues if the original df is reused
+        return value.copy()
+    if isinstance(value, dict):
+        try:
+            # Check for required keys for 'split' orientation
+            if not {"index", "columns", "data"}.issubset(value.keys()):
+                raise ValueError("Dictionary must contain 'index', 'columns', and 'data' keys for 'split' orientation.")
+            # Reconstruct DataFrame using the DataFrame constructor
+            return pd.DataFrame(data=value["data"], index=value["index"], columns=value["columns"])
+        except Exception as e:
+            raise ValueError(f"Failed to create DataFrame from dict: {e}") from e
+    raise TypeError(f"Expected a pandas.DataFrame or dict (split format), got {type(value)}")
+
+
+DataFrameType = Annotated[pd.DataFrame, BeforeValidator(parse_dataframe)]
+
+
+class RealLabelTestStageResults(BaseModel):
+    """Results class for RealLabelTestStage"""
+
+    example_image_path: Path
+    default_results: DataFrameType
+    classification_disagreements_df: Optional[DataFrameType] = None
+    verbose_df: Optional[DataFrameType] = None
+    sequence_priority_score_df: Optional[DataFrameType] = None
+    sequence_priority_score_balanced_df: Optional[DataFrameType] = None
+    wanrs_df: Optional[DataFrameType] = None
+    aggregated_confidence_df: Optional[DataFrameType] = None
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @field_serializer(
+        "default_results",
+        "classification_disagreements_df",
+        "verbose_df",
+        "sequence_priority_score_df",
+        "sequence_priority_score_balanced_df",
+        "wanrs_df",
+        "aggregated_confidence_df",
+        when_used="always",
+    )
+    def serialize_df(self: BaseModel, df: Union[pd.DataFrame, None]) -> Union[dict[Hashable, Any], None]:
+        """
+        Serializes the DataFrame to a dictionary in 'split' orientation.
+        Handles None for the optional field.
+        'when_used=always' ensures this runs for both model_dump (python) and model_dump_json (json).
+        """
+        if df is None:
+            return None
+        return df.to_dict(orient="split")
+
+    @classmethod
+    def from_real_label_module_results(
+        cls, reallabel_module_results: RealLabelModuleResults, example_image_path: Path
+    ) -> "RealLabelTestStageResults":
+        """Convert RealLabelModuleResults to RealLabelTestStageResults."""
+
+        # ignore these fields in RealLabelModuleResults
+        ignored_fields = {
+            "_run_with_ground_truth",
+        }
+        # fields with different names between RealLabelModuleResults and RealLabelTestStageResults
+        renamed_fields = {
+            "results": "default_results",
+        }
+        # additional fields not in RealLabelModuleResults
+        extra_fields: dict[str, Any] = {
+            "example_image_path": example_image_path,
+        }
+
+        real_label_test_stage_results_kwargs = extra_fields
+        for field in dataclasses.fields(RealLabelModuleResults):
+            if (
+                field.name not in cls.__annotations__
+                and field.name not in ignored_fields
+                and field.name not in renamed_fields
+            ):
+                # raise a warning
+                warnings.warn(
+                    f'Ignoring field "{field.name}" b/c not defined in RealLabelTestStageResults while '
+                    f'converting "{RealLabelModuleResults.__name__}" to "{cls.__name__}"',
+                    stacklevel=2,
+                )
+                continue
+            field_value = getattr(reallabel_module_results, field.name)
+            if isinstance(field_value, DataFrame):
+                # Convert Spark DataFrame to Pandas DataFrame
+                field_value = field_value.toPandas()
+
+            # rename fields
+            field_name = renamed_fields.get(field.name, field.name)
+
+            real_label_test_stage_results_kwargs[field_name] = field_value
+
+        return cls(
+            **real_label_test_stage_results_kwargs,
+        )
+
+
+class RealLabelCache(Cache[RealLabelTestStageResults]):
     """Cache implementation for RealLabelTestStage.
 
     The cache directory will, at minimum, contain two files: The RealLabelResults.results dataframe saved to a csv,
@@ -65,7 +187,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
         self.cache_configuration: Optional[dict[str, Any]] = configuration
         super().__init__()
 
-    def read_cache(self, cache_path: str) -> Optional[tuple[DataFrame, Path]]:
+    def read_cache(self, cache_path: str) -> Optional[RealLabelTestStageResults]:
         """Read in cache from cache_path.
 
         Args:
@@ -73,57 +195,60 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
 
         Returns:
             tuple:
-                [0]: The cached RealLabel results as a pyspark dataframe
+                [0]: The cached RealLabel results object with all dataframes
                 [1]: The path to the cached RealLabel result image.
         """
         logger.info(f"Checking for existing cache at {cache_path}")
-        cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
-        cached_results_img_file_path = Path(cache_path) / _REALLABEL_CACHE_IMAGE_PATH
-        if not (cached_results_csv_file_path.exists() and cached_results_img_file_path.exists()):
+        cache_dir = Path(cache_path)
+
+        # Check for the results file
+        if not (cache_dir / _REALLABEL_CACHE_JSON_PATH).exists():
             return None
 
-        try:
-            spark: SparkSession = SparkSession.builder.getOrCreate()  # type: ignore
-            cached_results_df = spark.read.csv(str(cached_results_csv_file_path), header=True, inferSchema=True).drop(
-                "_c0",
-            )
-            cached_results_df = cached_results_df.withColumn(
-                "group_winner_box_coords",
-                sf.from_json("group_winner_box_coords", st.ArrayType(st.IntegerType())),
-            )
-        except AnalysisException as e:  # pragma: no cover
-            warnings.warn(f"Cache could not be read: {e}", stacklevel=2)
+        # Load the results object
+        main_results_path = cache_dir / _REALLABEL_CACHE_JSON_PATH
+        with main_results_path.open() as file:
+            reallabel_results = RealLabelTestStageResults.model_validate_json(file.read())
 
+        if not reallabel_results.example_image_path.exists():
+            warnings.warn(
+                f"Cached image path {reallabel_results.example_image_path} does not exist.  Ignoring cached results.",
+                stacklevel=2,
+            )
             return None
 
-        return cached_results_df, cached_results_img_file_path
+        return reallabel_results
 
-    def write_cache(self, cache_path: str, data: tuple[DataFrame, Path]) -> None:
+    def write_cache(self, cache_path: str, data: RealLabelTestStageResults) -> None:
         """Write the given RealLabel result data to cache.
 
         Args:
             cache_path: path to cache
             data: data to write to cache consists of two elements:
-                [0]: The DataFrame of RealLabel results.
+                [0]: The RealLabelResults object with all dataframes.
                 [1]: The path to the image to cache.
         """
         logger.info(f"Writing cache to {cache_path}")
-        results_df, results_img = data
+        # reallabel_results = data
+        cache_dir = Path(cache_path)
 
-        cached_results_csv_file_path = Path(cache_path) / _REALLABEL_CACHE_CSV_PATH
-        cached_results_img_file_path = Path(cache_path) / _REALLABEL_CACHE_IMAGE_PATH
+        # Create cache directory
+        cache_dir.mkdir(parents=True, exist_ok=True)
 
-        cached_results_csv_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with cached_results_csv_file_path.open("w+") as file:
-            file.write(results_df.toPandas().to_csv())
-
-        if results_img:
+        # Save the results
+        data = data.model_copy(deep=True)  # Ensure we don't mutate the original data
+        if data.example_image_path:
+            cached_results_img_file_path = cache_dir / _REALLABEL_CACHE_IMAGE_PATH
             Path(cached_results_img_file_path).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(results_img, cached_results_img_file_path)
+            shutil.copy(data.example_image_path, cached_results_img_file_path)
+            data.example_image_path = cached_results_img_file_path
 
+        with (cache_dir / _REALLABEL_CACHE_JSON_PATH).open("w+") as file:
+            file.write(data.model_dump_json())
+
+        # Save configuration if available
         if self.cache_configuration:
-            cached_results_configuration_file_path = Path(cache_path) / _REALLABEL_CACHE_CONFIGURATION_PATH
+            cached_results_configuration_file_path = cache_dir / _REALLABEL_CACHE_CONFIGURATION_PATH
             with cached_results_configuration_file_path.open("w+") as file:
                 file.write(json.dumps(self.cache_configuration))
 
@@ -131,7 +256,7 @@ class RealLabelCache(Cache[tuple[DataFrame, Path]]):
 class RealLabelTestStage(
     MultiModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
-    TestStage[tuple[DataFrame, Path]],
+    TestStage[RealLabelTestStageResults],
     EvalToolPlugin,
 ):
     """RealLabel test stage.
@@ -184,7 +309,7 @@ class RealLabelTestStage(
         # A dictionary of identifying information that will be hashed into an ID
         self._cache_configuration: Optional[dict[str, Any]] = None
 
-        self.cache: Optional[Cache[tuple[DataFrame, Path]]] = RealLabelCache(self._cache_configuration)
+        self.cache: Optional[Cache[RealLabelTestStageResults]] = RealLabelCache(self._cache_configuration)
 
         super().__init__()
 
@@ -206,7 +331,7 @@ class RealLabelTestStage(
             "dataset_id": self.dataset_id,
             "reallabel_config": reallabel_config,
         }
-        self.cache: Optional[Cache[tuple[DataFrame, Path]]] = RealLabelCache(self._cache_configuration)
+        self.cache: Optional[Cache[RealLabelTestStageResults]] = RealLabelCache(self._cache_configuration)
 
     @property
     def cache_id(self) -> str:
@@ -230,7 +355,7 @@ class RealLabelTestStage(
             clean_predictions[model] = [x[0] for x in predictions]
         return clean_predictions
 
-    def _run(self) -> tuple[DataFrame, Path]:
+    def _run(self) -> RealLabelTestStageResults:
         """Run RealLabel test stage."""
         self.validate_plugins()
 
@@ -326,36 +451,22 @@ class RealLabelTestStage(
             image_name_map=most_populous_image_name_to_uuid_value_map,
         )
 
-        return default_reallabel_results, cache_miss_output_img_path
+        results = RealLabelTestStageResults.from_real_label_module_results(
+            reallabel_results,
+            cache_miss_output_img_path,
+        )
 
-    def collect_metrics(self) -> dict[str, float]:
-        """Collect metrics on total number of Re-labels found."""
-        results_df, _ = self.outputs
-        num_false_positives = results_df.where(
-            sf.col("reallabel_type") == "Likely Wrong",
-        ).count()
-        num_false_negatives = results_df.where(
-            sf.col("reallabel_type") == "Likely Missed",
-        ).count()
-
-        return {
-            "NUM_Re-Label": num_false_positives + num_false_negatives,
-        }
+        return results  # noqa: RET504
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables."""
-        results_df, results_img = self.outputs
+        reallabel_results = self.outputs
+        default_results_df = reallabel_results.default_results
 
         # Find RealLabel statistics
-        num_false_positives = results_df.where(
-            sf.col("reallabel_type") == "Likely Wrong",
-        ).count()
-        num_false_negatives = results_df.where(
-            sf.col("reallabel_type") == "Likely Missed",
-        ).count()
-        num_true_positives = results_df.where(
-            sf.col("reallabel_type") == "Likely Correct",
-        ).count()
+        num_false_positives = (default_results_df["reallabel_type"] == "Likely Wrong").sum()
+        num_false_negatives = (default_results_df["reallabel_type"] == "Likely Missed").sum()
+        num_true_positives = (default_results_df["reallabel_type"] == "Likely Correct").sum()
 
         sentence_formatting = {
             "fontsize": 18,
@@ -376,7 +487,7 @@ class RealLabelTestStage(
                 SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
             )
 
-        return [
+        slides = [
             {
                 "deck": self._deck,
                 "layout_name": "TwoImageTextNoHeader",
@@ -434,13 +545,65 @@ class RealLabelTestStage(
                             SubText("\n" * 1, **spaces_formatting),  # type: ignore
                             SubText(
                                 sanitize_gradient_markdown_text(
-                                    f"An example image ({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})}) is shown to the right"  # noqa: E501
+                                    "An example image "
+                                    f"({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})})"
+                                    " is shown to the right"
                                 ),
                                 fontsize=14,
                             ),
                         ]
                     ),
-                    "content_right": results_img,
+                    "content_right": reallabel_results.example_image_path,
                 },
             },
         ]
+
+        if self.outputs.wanrs_df is not None:
+            wanrs_description_prelink_text = textwrap.dedent(
+                "This table shows up to the top 10 images recommended for relabeling, ranked by "
+                "RealLabel's WANRS (Weighted Average Normalized Relative Scores) metric.\nWANRS "
+                "highlights images where the model is most likely to have labeling mistakes, based "
+                "on the confidence and RealLabel assignment (i.e. false positives and false negatives) "
+                "of each object detection. Images at the top of the list have a lower WANRS and are "
+                "expected to have the most problematic or uncertain labels. "
+                "See more info in the ".lstrip()
+            )
+            slides.append(
+                {
+                    "deck": self._deck,
+                    "layout_name": "TextData",
+                    "layout_arguments": {
+                        "title": "Reallabel - Top Candidate Images for Relabeling Efforts",
+                        "text_column_heading": "WANRS Ranking",
+                        "text_column_half": True,
+                        "text_column_body": [
+                            Text(
+                                content=[
+                                    wanrs_description_prelink_text,
+                                    SubText(
+                                        content="RealLabel Documentation",
+                                        hyperlink="https://jatic.pages.jatic.net/morse/reallabel/user_guide/explanation/how_reallabel_works.html#optional-output-dataframe-wanrs-output",
+                                    ),
+                                    ".",
+                                    "\n\n",
+                                ],
+                                fontsize=16,
+                            ),
+                            Text(
+                                "Note: The accuracy of this ranking depends on the quality of the model’s "
+                                "predictions. If the model is not well-calibrated or misses certain types of "
+                                "errors, some problematic images may not be prioritized.",
+                                fontsize=14,
+                            ),
+                        ],
+                        "data_column_table": self.outputs.wanrs_df.loc[:, ["id", "WANRS"]]
+                        .head(10)
+                        .reset_index()
+                        .assign(index=lambda df: df["index"] + 1)
+                        .assign(WANRS=lambda df: df.WANRS.apply(lambda x: f"{x:.3f}"))  # format with 3 decimal places
+                        .rename(columns={"index": "Priority", "id": "Image ID", "WANRS": "WANRS Score"}),
+                    },
+                }
+            )
+
+        return slides
