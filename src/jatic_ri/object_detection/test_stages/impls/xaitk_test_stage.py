@@ -71,8 +71,9 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
 
         return {
             "img" + str(i): {
-                "sal_map": TensorEncoder().default(sal_map),
+                "sal_maps": TensorEncoder().default(sal_map),
                 "img": TensorEncoder().default(self.prediction_dataset[i][0].numpy()),
+                "img_id": self.prediction_dataset[i][2]["id"],
                 "boxes": TensorEncoder().default(self.prediction_dataset[i][1].boxes),
                 "labels": TensorEncoder().default(self.prediction_dataset[i][1].labels),
                 "scores": TensorEncoder().default(self.prediction_dataset[i][1].scores),
@@ -98,7 +99,7 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
             labels = np.asarray(datum["labels"])
             bboxes = np.asarray(datum["boxes"])
             scores = np.asarray(datum["scores"])
-            sal_maps = datum["sal_map"]
+            sal_maps = datum["sal_maps"]
             if len(sal_maps) == 0:
                 logging.warning(f"No detections found for image id {idx}")
                 continue
@@ -130,24 +131,30 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                     ),
                 )
                 plt.imshow(sal_map, cmap="jet", alpha=0.3)
-                plt.colorbar()
+                cbar = plt.colorbar(location="bottom")
+                cbar.set_label("Pixel relevance to detection")
                 plt.savefig(sal_map_path, bbox_inches="tight")
                 plt.close(fig)
 
                 content = {
                     "deck": "object_detection_dataset_evaluation",
-                    "layout_name": "OneImageText",
+                    "layout_name": "TwoImageTextNoHeader",
                     "layout_arguments": {
-                        "title": f"**XAITK Saliency Map**: {sal_idx} \n",
-                        "text": (
-                            f"Model: {self.model_id}\nImage: {idx}\n"
-                            f"Pred: {self.model.metadata['index2label'][int(labels[sal_idx])]}\n"  # type: ignore
-                            f"Score: {float(scores[sal_idx]):.2f}\n"
+                        "title": (f"XAITK Saliency Map -- " f"Image ID: {datum['img_id']}, " f"Detection: {sal_idx}"),
+                        "content_left": sal_map_path,
+                        "content_right": (
+                            f"**Model:** {self.model_id}\n"
+                            f"**Image ID**: {datum['img_id']}\n"
+                            f"**Prediction:** {self.model.metadata['index2label'][int(labels[sal_idx])]}\n"  # type: ignore
+                            f"**Confidence:** {float(scores[sal_idx]):.2f}\n\n\n"
+                            f"Note: The Confidence is the metric score that the given detection had in the original "
+                            f"(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."
                         ),
-                        "image_path": sal_map_path,
                     },
                 }
-                content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
+                content["layout_arguments"]["content_right"] = content["layout_arguments"]["content_right"].replace(
+                    "_", r"\_"
+                )
                 gradient_slides.append(content)
 
         return gradient_slides
