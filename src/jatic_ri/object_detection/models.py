@@ -6,7 +6,7 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, cast
 
 import httpx
 import numpy as np
@@ -189,6 +189,7 @@ class VisdroneODModel:
     """
     Minimal MAITE-complaint wrapper of visdone wrapper packaged by Kitware.
 
+    This class wraps the `CenterNetVisdrone` detector from Kitware's SMQTK-Detection project.
     See https://github.com/Kitware/SMQTK-Detection/blob/master/smqtk_detection/impls/detect_image_objects/centernet.py
     for details.
     """
@@ -204,6 +205,7 @@ class VisdroneODModel:
         *,
         arch: str,
         model_pickle_dir: Optional[str] = None,  # noqa: UP007
+        model_name: Optional[str] = None,  # noqa: UP007
         device: None | str | torch.device = None,
         batch_size: int = 3,
         num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688
@@ -212,26 +214,33 @@ class VisdroneODModel:
     ) -> None:
         """
         Args:
-            arch: Model backbone to be used (allowed values are "res2net50", "resnet50", "resnet18")
-            model_pickle_dir: Directory where model pickle will be downloaded to.  Defaults to CWD.
-            device: Device to use (e.g., 'cpu', 'cuda'). If None, attempts to locate a GPU. If no GPU
-                is present, falls back to CPU.
-            batch_size: How many samples per batch to load.
-            num_workers: How many subprocesses to use for data loading.
-            0 means that the data will be loaded in the main process.
-            max_dets: Maximum number of detections returned.
-            model_id: unique identifier for this model
+            arch: Model backbone architecture. One of: "res2net50", "resnet50", "resnet18".
+            model_pickle_dir: Directory where the model weights are stored or will be downloaded.
+                Defaults to the current working directory if not provided.
+            model_name: Name of the file that contains the model weights.
+                Defaults to `centernet-{arch}` if not provided.
+            device: Device to use for inference (e.g., "cpu", "cuda").
+                If None, automatically detects a GPU if available, otherwise falls back to CPU.
+            batch_size: Number of samples to process per batch.
+            num_workers: Number of worker subprocesses used for data loading. `0` loads data in the main process.
+            max_dets: Maximum number of detections to return per image.
+            model_id: Unique identifier associated with this model instance.
         """
         from smqtk_detection.impls.detect_image_objects.centernet import (
             CenterNetVisdrone,
         )
 
+        if arch not in SUPPORTED_VISDRONE_MODELS:
+            raise ValueError(f"Model with backbone {arch} is not currently supported by the visdrone model.")
+
         if not model_pickle_dir:
             model_pickle_dir = os.getcwd()
 
-        if arch not in SUPPORTED_VISDRONE_MODELS:
-            raise ValueError(f"Model with backbone {arch} is not currently supported by the visdrone model.")
-        self._model_name = f"centernet-{arch}"
+        if model_name is None:
+            self._model_name = f"centernet-{arch}"
+        else:
+            self._model_name = model_name
+
         model_file = os.path.join(model_pickle_dir, f"{self._model_name}.pth")
         if not os.path.isfile(model_file):
             Path(model_pickle_dir).mkdir(parents=True, exist_ok=True)
@@ -243,14 +252,17 @@ class VisdroneODModel:
                     for chunk in response.iter_bytes():
                         file.write(chunk)
 
+        self.device = set_device(device)
+
         self.model = CenterNetVisdrone(
             arch=arch,
             model_file=model_file,
-            device=str(set_device(device)),
+            device=str(self.device),
             max_dets=max_dets,
             batch_size=batch_size,
             num_workers=num_workers,
-        )
+        )  # sets model to inference model (`.eval()`) internally
+        self._batch_size = batch_size
 
         self.index2label = {
             0: "ignored regions",
@@ -270,15 +282,27 @@ class VisdroneODModel:
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
         """
-        Make a model prediction for inputs in input batch. Elements of input batch
-        are expected in the shape `(C, H, W)`.
+        Run object detection on a batch of inputs.
+
+        Args:
+            input_batch: A batch of images, each with shape (C, H, W),
+                where C is the number of channels (typically 3 for RGB images).
+
+        Returns:
+            A batch of detection results, where each element contains:
+                - bounding boxes (N, 4) in [min_x, min_y, max_x, max_y] format,
+                - associated integer labels,
+                - and detection confidence scores.
         """
-        # required to convert to numpy array before passing to detect_objects ...
+        validate_input_batch(input_batch)
+
+        # required to convert to HWC numpy array before passing to `detect_objects` ...
         array_batch = [np.array(inp).transpose(1, 2, 0) for inp in input_batch]
 
+        # `detect_objects` internally breaks `array_batch` into batches of size `self._batch_size`
         predictions_batch = self.model.detect_objects(array_batch)
 
-        label2index = {v: k for k, v in self.index2label.items()}
+        label2index: dict[str, int] = {v: k for k, v in self.index2label.items()}
 
         output_batch = []
         for pred in predictions_batch:
@@ -294,8 +318,8 @@ class VisdroneODModel:
                     bbox.max_vertex,
                 )
                 bboxes[i] = [min_x, min_y, max_x, max_y]
-                label, score = max(label_map.items(), key=lambda x: x[1])
-                labels[i] = label2index[label]  # type: ignore
+                label, score = cast(tuple[str, float], max(label_map.items(), key=lambda x: x[1]))
+                labels[i] = label2index[label]
                 scores[i] = score
 
             output_batch.append(DetectionTarget(boxes=bboxes, labels=labels, scores=scores))
