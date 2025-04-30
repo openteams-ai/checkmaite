@@ -46,5 +46,5 @@ def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dumm
     assert isinstance(example_args["layout_arguments"]["data"], pd.DataFrame)
     assert example_args["layout_arguments"]["x_data_col"] == test.factory.theta_key
     assert example_args["layout_arguments"]["y_data_col"] == test.metric_id
-    assert example_args["layout_arguments"]["perturbation_type"] == test.factory.get_config()["perturber"]
+    assert example_args["layout_arguments"]["perturbation_type"] == "Average Blur Perturber"
     assert example_args["layout_arguments"]["model"] == test.model_id

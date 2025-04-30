@@ -3,6 +3,7 @@
 # Python generic imports
 from __future__ import annotations
 
+import re
 from abc import abstractmethod
 from typing import Any
 
@@ -131,23 +132,28 @@ class NRTKTestStageBase(
         df_perturbation = pd.DataFrame.from_dict(final_dict)
         df_perturbation["line_id"] = "item_response_curve"
 
+        # convert pert classname into semantic label
+        # (e.g. nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber into Brightness Perturber)
+        perturbation_classname = self.factory.get_config()["perturber"].split(".")[-1]
+        perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
+
         return [
             {
                 "deck": self._deck,
-                "layout_name": "NRTKEvaluation",
+                "layout_name": "NRTKEvaluation",  # specialized template in gradient codebase
                 "layout_arguments": {
                     "title": self.name,
                     "data": df_perturbation,
                     "line_col": "line_id",
                     "x_data_col": self.factory.theta_key,
                     "y_data_col": self.metric_id,
-                    "perturbation_type": self.factory.get_config()["perturber"],
+                    "perturbation_type": perturbation_label,
                     "lower_bound": 3.4,
                     "upper_bound": 5.3,
                     "model": self.model_id,
                     "plot_kwargs": {
                         "y_threshold_value": self.threshold,
-                        "title": "NRTK Item Response Curve",
+                        "title": "NRTK Robustness Curve",
                         "x_label": self.__labelx_gen(self.factory.get_config()["perturber"], self.factory.theta_key),
                         "y_label": self.__labely_gen(),
                     },
