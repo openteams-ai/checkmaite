@@ -334,18 +334,18 @@ class BaseDashboard(param.Parameterized):
         self.run_analysis_button.on_click(self._run_analysis_loading)
 
         self.dataset_1_selector = pn.widgets.Select(
-            options=["Select Dataset Type", *list(self.dataset_label_map.keys())],
+            options=["Define Dataset Type", *list(self.dataset_label_map.keys())],
             width=self.width_input_default,
             name="Dataset type",
             stylesheets=[self.css_dropdown],
-            value="Select Dataset Type",
+            value="Define Dataset Type",
         )
         self.dataset_2_selector = pn.widgets.Select(
-            options=["Select Dataset Type", *list(self.dataset_label_map.keys())],
+            options=["Define Dataset Type", *list(self.dataset_label_map.keys())],
             width=self.width_input_default,
             name="Comparison Dataset type",
             stylesheets=[self.css_dropdown],
-            value="Select Dataset Type",
+            value="Define Dataset Type",
         )
         # link a callback method to the dataset dropdown so that we
         # can change the placeholder text when the dataset type is changed
@@ -737,7 +737,7 @@ class BaseDashboard(param.Parameterized):
         dataset wrapper objects"""
         # Load dataset 1 (always required)
         if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
-            self.status_text = "Please select dataset type"
+            self.status_text = "Please define dataset type"
             return False
 
         module = importlib.import_module(f"jatic_ri.{self.task}.datasets")
@@ -763,7 +763,7 @@ class BaseDashboard(param.Parameterized):
         # load dataset 2 only if the widget is visualized
         if self.dataset_2_visible:  # pragma: no cover
             if self.dataset_2_selector.value not in self.dataset_label_map:
-                self.status_text = "Please select dataset 2 type"
+                self.status_text = "Please define dataset 2 type"
                 return False
 
             if self.task == "object_detection":
@@ -844,7 +844,7 @@ class BaseDashboard(param.Parameterized):
             _set_widget_parameters(path_widget, path_name, path_placeholder, path_description, False)
             metadata_widget.disabled = True
 
-        elif dataset_type == "Select Dataset Type":
+        elif dataset_type == "Define Dataset Type":
             path_widget.disabled = True
             metadata_widget.disabled = True
         else:
