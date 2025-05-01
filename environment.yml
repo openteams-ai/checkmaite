@@ -9,7 +9,7 @@ dependencies:
 - python>=3.9, <3.12
 # JATIC tools
 - dataeval=0.75.0                       # pinned for demo
-- maite=0.7.1                           # pinned for demo
+- maite=0.7.3                           # pinned for demo
 - nrtk=0.15.1                           # pinned for demo
 - pybsm=0.8.0                           # pinned for demo, optional dep for nrtk, required here
 - xaitk-jatic=0.5.1                     # pinned for demo

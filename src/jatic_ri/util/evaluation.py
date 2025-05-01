@@ -3,7 +3,7 @@
 from collections.abc import Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
 
-from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model  # type: ignore
+from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
 from maite.errors import InvalidArgument
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
