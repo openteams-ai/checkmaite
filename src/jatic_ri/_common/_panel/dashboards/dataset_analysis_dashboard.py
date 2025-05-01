@@ -40,7 +40,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
         if not success:
             msg = "Models failed to load from widget info"
             logger.error(msg)
-            self.status_text = msg
+            self.status_source.emit(msg)
             return
 
         model_names = "-".join(list(self.loaded_models.keys())).replace(" ", "_")
@@ -52,7 +52,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
         if not success:
             msg = "Datasets failed to load from widget info"
             logger.error(msg)
-            self.status_text = msg
+            self.status_source.emit(msg)
             return
 
         # =========================
@@ -62,7 +62,7 @@ class DatasetAnalysisDashboard(BaseDashboard):
         if not success:
             msg = "Metric failed to load from widget info"
             logger.error(msg)
-            self.status_text = msg
+            self.status_source.emit(msg)
             return
 
         # =========================

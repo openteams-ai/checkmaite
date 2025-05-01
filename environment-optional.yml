@@ -8,7 +8,7 @@ dependencies:
 # Required deps
 - python>=3.9, <3.12
 # JATIC tools
-- dataeval=0.75.0                       # pinned for demo 
+- dataeval=0.75.0                       # pinned for demo
 - maite=0.7.1                           # pinned for demo
 - nrtk=0.15.1                           # pinned for demo
 - pybsm=0.8.0                           # pinned for demo, optional dep for nrtk, required here
@@ -27,6 +27,7 @@ dependencies:
 - opencv-python-headless>=4.9.0.80      # arbitrary pin, pkg needed for pybsm
 - openjdk=17.0.9                        # necessary pin, pkg needed for pyspark in MORSE RealLabel and Survivor Test Stages.
 - panel>=1.4.5                          # arbitrary pin
+- streamz>=0.6.4                        # arbitrary pin, required for panel base dashboard
 - pillow>=11.0.0                        # arbitrary pin
 - pyspark>=3.5.3                        # arbitrary pin
 - pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)

@@ -18,6 +18,7 @@ import panel as pn
 import param
 from bokeh.models import HTMLTemplateFormatter
 from gradient.templates_and_layouts.create_deck import create_deck
+from streamz import Stream
 
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -146,9 +147,6 @@ class BaseDashboard(param.Parameterized):
 
     # Location for storing all output
     output_dir = param.Path(default=Path.cwd(), check_exists=False)
-
-    # Text of status bar
-    status_text = param.String("Waiting for input...")
 
     def __init__(self, **params: dict[str, Any]) -> None:
         super().__init__(**params)
@@ -396,6 +394,21 @@ class BaseDashboard(param.Parameterized):
         # create invisible container to put floatpanel "in", cannot be completely empty
         self.config_floatpanel_container = pn.Column(pn.widgets.Checkbox(visible=False))
 
+        # Create a Stream that will carry text updates
+        self.status_source = Stream()
+
+        # Create a Streamz pane that will display the status messages
+        self.status_pane = pn.pane.Streamz(
+            self.status_source,
+            always_watch=True,
+            sizing_mode="stretch_width",
+            styles={**self.style_text_body1, "color": self.color_blue_800},
+            stylesheets=[self.css_paragraph],
+        )
+
+        # Emit an initial message
+        self.status_source.emit("Waiting for input...")
+
     @abstractmethod
     def _run_button_callback(self, event: Any = None) -> None:
         """
@@ -444,7 +457,7 @@ class BaseDashboard(param.Parameterized):
         if success:
             self.run_analysis_button.disabled = False
         else:
-            self.status_text = "Configuration file failed to load properly."
+            self.status_source.emit("Configuration file failed to load properly.")
 
     def _on_view_config_callback(self, event: Any = None) -> None:  # noqa: ARG002
         """Callback that fires when the "view config" button is clicked.
@@ -626,7 +639,7 @@ class BaseDashboard(param.Parameterized):
             if widget_dict["model_selector"].value not in self.model_label_map:
                 # For as long as model dropdowns with 'Select Model type' appear in the UI in the case where no
                 # test stages require a model, this is a valid path.
-                self.status_text = f"Skipping model {model_number}, invalid type"
+                self.status_source.emit(f"Skipping model {model_number}, invalid type")
                 continue
             model_meta: model_meta_class = {"model_type": self.model_label_map[widget_dict["model_selector"].value]}
             # if torchvision
@@ -636,13 +649,13 @@ class BaseDashboard(param.Parameterized):
                     # map from the visual name of the model to a model key we can use to reference the class
                     # constructed without weights path by default, but appending model number for uniqueness
                     model_name = f"{widget_dict['model_selector'].value}-{model_number}"
-                    self.status_text = f"Using {model_name} with default weights and configuration."
+                    self.status_source.emit(f"Using {model_name} with default weights and configuration.")
                 # weights path
                 else:
                     model_meta["model_weights_path"] = widget_dict["model_weights_path"].value
                     # if no config path, warn and skip
                     if not widget_dict["model_config_path"].value:
-                        self.status_text = f"Skipping model {model_number}, config path must be set"
+                        self.status_source.emit(f"Skipping model {model_number}, config path must be set")
                         continue
                     model_meta["model_config_path"] = widget_dict["model_config_path"].value
 
@@ -665,7 +678,7 @@ class BaseDashboard(param.Parameterized):
             self.loaded_models = load_models(model_dict)
             return True
         except Exception as e:  # noqa: BLE001
-            self.status_text = f"An error occurred during model loading: {e}"
+            self.status_source.emit(f"An error occurred during model loading: {e}")
             return False
 
     @param.depends("redraw_models_trigger")
@@ -737,7 +750,7 @@ class BaseDashboard(param.Parameterized):
         dataset wrapper objects"""
         # Load dataset 1 (always required)
         if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
-            self.status_text = "Please define dataset type"
+            self.status_source.emit("Please define dataset type")
             return False
 
         module = importlib.import_module(f"jatic_ri.{self.task}.datasets")
@@ -763,7 +776,7 @@ class BaseDashboard(param.Parameterized):
         # load dataset 2 only if the widget is visualized
         if self.dataset_2_visible:  # pragma: no cover
             if self.dataset_2_selector.value not in self.dataset_label_map:
-                self.status_text = "Please define dataset 2 type"
+                self.status_source.emit("Please define dataset 2 type")
                 return False
 
             if self.task == "object_detection":
@@ -904,15 +917,15 @@ class BaseDashboard(param.Parameterized):
         self.dataset_2_visible = False
         self.test_stages = {}
         if "task" not in configs:
-            self.status_text = "Task must be specified in the provided config."
+            self.status_source.emit("Task must be specified in the provided config.")
             logger.debug("Task must be specified in the provided config.")
             return False
         if configs["task"] != self.task:
-            self.status_text = f"Mismatch between dashboard type, {self.task}, and provided config"
+            self.status_source.emit(f"Mismatch between dashboard type, {self.task}, and provided config")
             return False
         for stage_label, config in configs.items():
             if stage_label != "task":
-                self.status_text = f'Loading {config["TYPE"]}'
+                self.status_source.emit(f'Loading {config["TYPE"]}')
                 logger.debug(f'Loading {config["TYPE"]}')
                 if self.task == "object_detection":
                     stage = rehydrate_test_stage_od(config)
@@ -930,7 +943,7 @@ class BaseDashboard(param.Parameterized):
                 if isinstance(stage, ThresholdPlugin):
                     self.threshold_visible = True
 
-        self.status_text = "Configuration file loaded"
+        self.status_source.emit("Configuration file loaded")
 
         return True
 
@@ -938,7 +951,7 @@ class BaseDashboard(param.Parameterized):
         """Loads the inputs to a given test stage based on
         values set in the UI and in the class itself
         """
-        self.status_text = f"Loading inputs for {test_stage.__class__.__name__}"
+        self.status_source.emit(f"Loading inputs for {test_stage.__class__.__name__}")
         if isinstance(test_stage, TwoDatasetPlugin):
             test_stage.load_datasets(
                 self.loaded_datasets["dataset_1"],
@@ -948,7 +961,7 @@ class BaseDashboard(param.Parameterized):
             )
         elif isinstance(test_stage, SingleDatasetPlugin):
             if self.dataset_2_visible:
-                self.status_text = (
+                self.status_source.emit(
                     f"Dataset {self.dataset_2_selector.value} is unused for {test_stage.__class__.__name__}"
                 )
             test_stage.load_dataset(self.loaded_datasets["dataset_1"], self.loaded_datasets["dataset_1"].metadata["id"])
@@ -963,7 +976,7 @@ class BaseDashboard(param.Parameterized):
             if len(self.loaded_models) == 0:
                 raise RuntimeError("No model loaded. Please select model.")
             if len(self.loaded_models) != 1:
-                self.status_text = (
+                self.status_source.emit(
                     f"Model(s) {list(self.loaded_models.keys())[1:]} unused for {test_stage.__class__.__name__}"
                 )
             model_1 = self.loaded_models[list(self.loaded_models.keys())[0]]
@@ -985,7 +998,7 @@ class BaseDashboard(param.Parameterized):
         Common across IC/OD usecases.
         Should be triggered in `_run_button_callback` implementation
         """
-        self.status_text = "Processing. Please wait..."
+        self.status_source.emit("Processing. Please wait...")
 
         self.eval_tool: EvaluationTool
         if not self.use_caches:
@@ -1009,7 +1022,7 @@ class BaseDashboard(param.Parameterized):
         report_title = self._construct_report_filename()
         report = create_deck(slides, report_path, deck_name=report_title)
 
-        self.status_text = f"Report saved to {report}"
+        self.status_source.emit(f"Report saved to {report}")
 
         return (
             str(report_title)
@@ -1042,8 +1055,8 @@ class BaseDashboard(param.Parameterized):
         )
 
     def view_status_bar(self) -> pn.Column:
-        """View of status bar. Change the text on the status bar by modifying
-        the `self.status_text` variable.
+        """View of status bar. Change the text on the status bar by calling
+        the `self.status_source.emit` method.
         DO NOT OVERWRITE THIS METHOD
         """
         return pn.Row(
@@ -1055,12 +1068,7 @@ class BaseDashboard(param.Parameterized):
                     styles={**self.style_text_body1, "color": self.color_blue_900},
                     stylesheets=[self.css_paragraph],
                 ),
-                pn.pane.Markdown(
-                    self.status_text,
-                    sizing_mode="stretch_width",
-                    styles={**self.style_text_body1, "color": self.color_blue_800},
-                    stylesheets=[self.css_paragraph],
-                ),
+                self.status_pane,
                 pn.Spacer(height=4),
                 styles={
                     "background": self.color_blue_100,
