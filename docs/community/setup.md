@@ -23,7 +23,17 @@ conda activate jatic_env
 <details>
 <summary>Setup poetry environment</summary>
 
-TODO add poetry setup instructions
+To set up poetry, install `poetry`, the current supported version is 1.8.5.
+
+osx / linux / bashonwindows command:
+```bash
+curl -sSL https://install.python-poetry.org | python3 - --version 1.8.5
+```
+
+windows powershell command:
+```bash
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py - --version 1.8.5
+```
 
 </details>
 
