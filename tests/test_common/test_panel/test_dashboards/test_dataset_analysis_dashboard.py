@@ -154,7 +154,7 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     # can't fully test until https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/346 is resolved
     _clear_app(app)
     app.load_models_from_widgets()
-    assert "invalid type" in app.status_text
+    assert "invalid type" in app.status_source.current_value
     assert not app.loaded_models
 
     # torchvision
@@ -187,8 +187,8 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     _set_model_1_weights(app, pickle_path)
     _set_model_1_config(app, config_path)
     app.run_analysis_button.clicks += 1
-    # testing can be improved by checking status_text
-    assert "Report saved to" in app.status_text
+    # testing can be improved by checking app.status_source.current_value
+    assert "Report saved to" in app.status_source.current_value
     assert app.loaded_models
 
     # visdrone
@@ -198,7 +198,7 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     _set_visdrone_dataset_1(app)
     _set_model_1(app, "resnet18")
     app.run_analysis_button.clicks += 1
-    assert "Report saved to" in app.status_text
+    assert "Report saved to" in app.status_source.current_value
     assert app.loaded_models
 
     # visdrone
@@ -210,7 +210,7 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     _set_model_1_weights(app, str(artifact_dir))
     _set_model_1_config(app, config_path)
     app.run_analysis_button.clicks += 1
-    assert "Report saved to" in app.status_text
+    assert "Report saved to" in app.status_source.current_value
     assert app.loaded_models
 
 
