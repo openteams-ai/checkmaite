@@ -103,15 +103,15 @@ def dummy_model_od() -> od.Model:
 
 
 @pytest.fixture
-def dummy_linting_dataset_od():
+def dummy_cleaning_dataset_od():
     """Creates and returns a dummy maite-compliant dataset"""
 
-    def _dummy_linting_dataset_od(offset_box: bool = True) -> od.Dataset:
-        class LintingObjectDetectionTarget:
+    def _dummy_cleaning_dataset_od(offset_box: bool = True) -> od.Dataset:
+        class CleaningObjectDetectionTarget:
             def __init__(self, ind: int):
                 self.ind = ind
 
-            """Linting OD Target"""
+            """Cleaning OD Target"""
 
             @property
             def boxes(self) -> ArrayLike:
@@ -132,6 +132,8 @@ def dummy_linting_dataset_od():
         class DummyDataset:
             """Dataset with 50 1x32x32 CHW images"""
 
+            metadata = {"id": "Dummy_OD_Dataset"}
+
             images = torch.tensor(RNG.random((50, 1, 32, 32)))
             images[10] = images[0]  # add duplicate
             images[15] = 0.0  # add outliers
@@ -142,11 +144,11 @@ def dummy_linting_dataset_od():
                 return len(self.images)
 
             def __getitem__(self, ind: int):
-                return self.images[ind], LintingObjectDetectionTarget(ind), {"id": ind, "dummy": torch.ones((5,))}
+                return self.images[ind], CleaningObjectDetectionTarget(ind), {"id": ind, "dummy": torch.ones((5,))}
 
         return DummyDataset()
 
-    return _dummy_linting_dataset_od
+    return _dummy_cleaning_dataset_od
 
 
 @pytest.fixture
@@ -392,15 +394,15 @@ def bias_config_ic(bias_config_od):
 
 
 @pytest.fixture(scope="session")
-def linting_config_od():
+def cleaning_config_od():
     return {
-        "TYPE": "DatasetLintingTestStage",
+        "TYPE": "DatasetCleaningTestStage",
     }
 
 
 @pytest.fixture(scope="session")
-def linting_config_ic(linting_config_od):
-    return linting_config_od
+def cleaning_config_ic(cleaning_config_od):
+    return cleaning_config_od
 
 
 @pytest.fixture(scope="session")

@@ -13,7 +13,7 @@ def pipeline_config_od(
     xaitk_config_od,
     feasibility_config_od,
     bias_config_od,
-    linting_config_od,
+    cleaning_config_od,
     shift_config_od,
     baseline_eval_config_od,
 ):
@@ -25,7 +25,7 @@ def pipeline_config_od(
         "xaitk_config": xaitk_config_od,
         "feasibility_config": feasibility_config_od,
         "bias_config": bias_config_od,
-        "linting_config": linting_config_od,
+        "cleaning_config": cleaning_config_od,
         "shift_config": shift_config_od,
         "baseline_eval_config": baseline_eval_config_od,
     }
@@ -38,7 +38,7 @@ def pipeline_config_ic(
     xaitk_config_ic,
     feasibility_config_ic,
     bias_config_ic,
-    linting_config_ic,
+    cleaning_config_ic,
     shift_config_ic,
     baseline_eval_config_ic,
 ):
@@ -49,7 +49,7 @@ def pipeline_config_ic(
         "xaitk_config": xaitk_config_ic,
         "feasibility_config": feasibility_config_ic,
         "bias_config": bias_config_ic,
-        "linting_config": linting_config_ic,
+        "cleaning_config": cleaning_config_ic,
         "shift_config": shift_config_ic,
         "baseline_eval_config": baseline_eval_config_ic,
     }
