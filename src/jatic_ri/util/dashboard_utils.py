@@ -12,11 +12,11 @@ from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import 
 from jatic_ri.image_classification.test_stages.impls.dataeval_bias_test_stage import (
     DatasetBiasTestStage as DatasetBiasTestStageIC,
 )
+from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stage import (
+    DatasetCleaningTestStage as DatasetCleaningTestStageIC,
+)
 from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage import (
     DatasetFeasibilityTestStage as DatasetFeasibilityTestStageIC,
-)
-from jatic_ri.image_classification.test_stages.impls.dataeval_linting_test_stage import (
-    DatasetLintingTestStage as DatasetLintingTestStageIC,
 )
 from jatic_ri.image_classification.test_stages.impls.dataeval_shift_test_stage import (
     DatasetShiftTestStage as DatasetShiftTestStageIC,
@@ -28,11 +28,11 @@ from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import Base
 from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import (
     DatasetBiasTestStage as DatasetBiasTestStageOD,
 )
+from jatic_ri.object_detection.test_stages.impls.dataeval_cleaning_test_stage import (
+    DatasetCleaningTestStage as DatasetCleaningTestStageOD,
+)
 from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage import (
     DatasetFeasibilityTestStage as DatasetFeasibilityTestStageOD,
-)
-from jatic_ri.object_detection.test_stages.impls.dataeval_linting_test_stage import (
-    DatasetLintingTestStage as DatasetLintingTestStageOD,
 )
 from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage import (
     DatasetShiftTestStage as DatasetShiftTestStageOD,
@@ -53,7 +53,7 @@ def rehydrate_test_stage_od(  # noqa: C901
     | SurvivorTestStageOD
     | XAITKTestStageOD
     | DatasetShiftTestStageOD
-    | DatasetLintingTestStageOD
+    | DatasetCleaningTestStageOD
     | DatasetBiasTestStageOD
     | DatasetFeasibilityTestStageOD
 ):
@@ -75,8 +75,8 @@ def rehydrate_test_stage_od(  # noqa: C901
         return DatasetFeasibilityTestStageOD()
     if config["TYPE"] == "DatasetBiasTestStage":
         return DatasetBiasTestStageOD()
-    if config["TYPE"] == "DatasetLintingTestStage":
-        return DatasetLintingTestStageOD()
+    if config["TYPE"] == "DatasetCleaningTestStage":
+        return DatasetCleaningTestStageOD()
     if config["TYPE"] == "DatasetShiftTestStage":
         return DatasetShiftTestStageOD()
 
@@ -91,7 +91,7 @@ def rehydrate_test_stage_ic(
     | SurvivorTestStageIC
     | XAITKTestStageIC
     | DatasetShiftTestStageIC
-    | DatasetLintingTestStageIC
+    | DatasetCleaningTestStageIC
     | DatasetBiasTestStageIC
     | DatasetFeasibilityTestStageIC
 ):
@@ -110,8 +110,8 @@ def rehydrate_test_stage_ic(
         return DatasetFeasibilityTestStageIC()
     if config["TYPE"] == "DatasetBiasTestStage":
         return DatasetBiasTestStageIC()
-    if config["TYPE"] == "DatasetLintingTestStage":
-        return DatasetLintingTestStageIC()
+    if config["TYPE"] == "DatasetCleaningTestStage":
+        return DatasetCleaningTestStageIC()
     if config["TYPE"] == "DatasetShiftTestStage":
         return DatasetShiftTestStageIC()
 

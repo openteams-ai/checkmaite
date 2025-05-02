@@ -90,7 +90,7 @@ def dataset_od_mini():
             marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")],
         ),
         pytest.param(
-            "linting_config_od",
+            "cleaning_config_od",
             marks=[
                 pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning"),
                 pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning"),

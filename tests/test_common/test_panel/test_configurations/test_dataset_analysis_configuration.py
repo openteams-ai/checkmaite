@@ -20,7 +20,7 @@ def _reset_da_config_app(app: DatasetAnalysisConfigApp):
     # ensure all the toggles are False
     app.pipeline._state.bias.value = False
     app.pipeline._state.shift.value = False
-    app.pipeline._state.linting.value = False
+    app.pipeline._state.cleaning.value = False
     app.pipeline._state.feasibility.value = False
     app.pipeline._state.show_survivor_config = False
     app.pipeline._state.show_reallabel_config = False
@@ -151,7 +151,7 @@ def test_da_config_dynamic_stages_survivor_not_reallabel(task):
     assert "survivor_test_stage" in content.keys()
 
 
-def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
+def test_da_config_dynamic_stages_reallabel_survivor_and_cleaning():
     """Test the dynamic nature of the pipeline"""
     task = "object_detection"
     # instantiate the pipeline
@@ -162,7 +162,7 @@ def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
     # toggle reallabel and survivor to true
     app.pipeline._state.show_reallabel_config = True
     app.pipeline._state.show_survivor_config = True
-    app.pipeline._state.linting.value = True
+    app.pipeline._state.cleaning.value = True
 
     # with only bias true, the next stage should be 'reallabel'
     assert app.pipeline._next_stage == "Configure Reallabel"
@@ -189,7 +189,7 @@ def test_da_config_dynamic_stages_reallabel_survivor_and_linting():
     assert len(content) == 4
     assert "reallabel_test_stage" in content.keys()
     assert "survivor_test_stage" in content.keys()
-    assert "linting" in content.keys()
+    assert "cleaning" in content.keys()
 
 
 def test_da_config_dynamic_stages_ic():

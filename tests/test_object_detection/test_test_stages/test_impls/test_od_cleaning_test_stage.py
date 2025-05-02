@@ -1,12 +1,12 @@
-"""Test Object Detection Linting Test Stage"""
+"""Test Object Detection Cleaning Test Stage"""
 
 from unittest.mock import MagicMock
 
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.object_detection.test_stages.impls.dataeval_linting_test_stage import (
-    DatasetLintingTestStage,
+from jatic_ri.object_detection.test_stages.impls.dataeval_cleaning_test_stage import (
+    DatasetCleaningTestStage,
 )
 
 
@@ -22,29 +22,29 @@ def ignore_degenerate_data_warnings(test_fn):
 
 
 @ignore_degenerate_data_warnings
-def test_od_linting(dummy_linting_dataset_od) -> None:
-    """Test Linting implementation"""
+def test_od_cleaning(dummy_cleaning_dataset_od) -> None:
+    """Test Cleaning implementation"""
 
-    test = DatasetLintingTestStage()
-    test.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
+    test = DatasetCleaningTestStage()
+    test.load_dataset(dataset=dummy_cleaning_dataset_od(), dataset_id="dummy_cleaning")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert output
-    assert len(output) == 4
+    assert len(output) == 12
 
 
 @ignore_degenerate_data_warnings
-def test_od_linting_with_cached_values(dummy_linting_dataset_od) -> None:
+def test_od_cleaning_with_cached_values(dummy_cleaning_dataset_od) -> None:
     """Verify cached"""
-    test1 = DatasetLintingTestStage()
-    test1.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
+    test1 = DatasetCleaningTestStage()
+    test1.load_dataset(dataset=dummy_cleaning_dataset_od(), dataset_id="dummy_cleaning")
     test1.run()
     output1 = test1.collect_report_consumables()
 
-    test2 = DatasetLintingTestStage()
+    test2 = DatasetCleaningTestStage()
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.load_dataset(dataset=dummy_linting_dataset_od(), dataset_id="dummy_linting")
+    test2.load_dataset(dataset=dummy_cleaning_dataset_od(), dataset_id="dummy_cleaning")
     test2.run()
     output2 = test2.collect_report_consumables()
 
@@ -56,14 +56,14 @@ def test_od_linting_with_cached_values(dummy_linting_dataset_od) -> None:
 
 @ignore_degenerate_data_warnings
 @pytest.mark.parametrize("offset_box", [True, False])
-def test_od_linting_create_deck(offset_box, dummy_linting_dataset_od, artifact_dir) -> None:
+def test_od_cleaning_create_deck(offset_box, dummy_cleaning_dataset_od, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
-    test = DatasetLintingTestStage()
-    test.load_dataset(dataset=dummy_linting_dataset_od(offset_box), dataset_id="dummy_linting")
+    test = DatasetCleaningTestStage()
+    test.load_dataset(dataset=dummy_cleaning_dataset_od(offset_box), dataset_id="dummy_cleaning")
     test.run()
 
     slides = test.collect_report_consumables()
-    filename = create_deck(slides, artifact_dir, "TestLintingDeck")
+    filename = create_deck(slides, artifact_dir, "TestCleaningDeck")
     assert filename.exists()
 
 
@@ -86,7 +86,7 @@ def test_coco():
         ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
     )
 
-    stage = DatasetLintingTestStage()
+    stage = DatasetCleaningTestStage()
 
     stage.load_dataset(dataset=coco_dataset, dataset_id="asd")
 

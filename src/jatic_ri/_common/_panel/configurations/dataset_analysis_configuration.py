@@ -48,8 +48,8 @@ class ConfigurationLandingPage(BaseApp):
         self.bias = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
         # shift - Out-of-distributation (AE, VAE) and drift (CMV, MMD, KS)
         self.shift = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
-        # linting - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
-        self.linting = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        # cleaning - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
+        self.cleaning = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
         # feasibility
         self.feasibility = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
 
@@ -113,11 +113,11 @@ class ConfigurationLandingPage(BaseApp):
                     },
                 }
             )
-        if self.linting.value:
+        if self.cleaning.value:
             self.output_test_stages.update(
                 {
-                    "linting": {
-                        "TYPE": "DatasetLintingTestStage",
+                    "cleaning": {
+                        "TYPE": "DatasetCleaningTestStage",
                         "CONFIG": {},
                     },
                 }
@@ -163,7 +163,7 @@ class ConfigurationLandingPage(BaseApp):
         """ "view of the core analysis row of the app"""
         tool_viewable = pn.Column(
             pn.Spacer(height=24),
-            self._generate_checkbox_subsection(self.linting, "Linting", "Identify potential image quality issues."),
+            self._generate_checkbox_subsection(self.cleaning, "Cleaning", "Identify potential image quality issues."),
             pn.Spacer(height=12),
             self._generate_checkbox_subsection(
                 self.shift, "Shift", "Estimate the dataset drift and out-of-distribution fraction."

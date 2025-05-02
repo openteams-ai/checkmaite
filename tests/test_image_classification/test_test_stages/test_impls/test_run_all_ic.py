@@ -51,7 +51,7 @@ def dataset_ic(fake_dataset):
             marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")],
         ),
         pytest.param(
-            "linting_config_ic",
+            "cleaning_config_ic",
             marks=[
                 pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning"),
                 pytest.mark.filterwarnings(
