@@ -9,7 +9,12 @@ from maite.protocols import object_detection as od
 from torchmetrics import Metric as TorchMetric
 from torchmetrics.detection import MeanAveragePrecision
 
-__all__ = ["TorchODMetric", "map50_torch_metric_factory"]
+__all__ = [
+    "TorchODMetric",
+    "TorchODMultiClassMap50",
+    "map50_torch_metric_factory",
+    "multiclass_map50_torch_metric_factory",
+]
 
 
 class MissingTorchMetricKeyError(Exception):
@@ -28,7 +33,7 @@ class TorchODMetric:
 
     def __init__(self, od_metric: TorchMetric, return_key: Optional[str] = None, *, metric_id: str = "torchOD") -> None:
         self._od_metric = od_metric
-        self.return_key = return_key
+        self.return_key: Optional[str] = return_key
         self.metadata = MetricMetadata(id=metric_id)
 
     @staticmethod
@@ -64,8 +69,55 @@ class TorchODMetric:
         self._od_metric.reset()
 
 
+class TorchODMultiClassMap50(TorchODMetric):
+    """
+    A MAITE-compliant wrapper for the Torchmetrics MeanAveragePrecision metric with multi-class scores.
+
+    In order to return values in a format compliant with the RI standards, each element returned by compute must be
+    safely convertable to a float.  Therefore, the compute() method is overridden.
+
+    See the RI conventional for more details:
+    https://jatic.pages.jatic.net/reference-implementation/reference-implementation/reference/conventions.html
+
+    Also note that the Metric object does not have access to class names (i.e. index2label), so returning class numbers
+    for keys is the best that can be done.
+    """
+
+    def __init__(
+        self,
+        _class_map50: MeanAveragePrecision,
+        return_key: Optional[str] = "map_50_classwise",
+        *,
+        metric_id: str = "mAP_per_class",
+    ) -> None:
+        super().__init__(od_metric=_class_map50, return_key=return_key, metric_id=metric_id)
+
+    def compute(self) -> dict[str, Any]:
+        """
+        Compute metric value(s) for currently cached predictions and targets.
+
+        NOTE: MeanAveragePrecision.compute() returns a key 'map_per_class' which is a list of mAP per class and
+        another key 'classes' which is a list of corresponding class IDs.  The dict comprehension in the return
+        statement restructures these into an RI-compliant format of dict[str, num]
+        """
+        all_results = cast(dict[str, Any], self._od_metric.compute())
+        if not self.return_key:
+            return all_results
+        return (
+            {self.return_key: all_results["map_50"]}
+            | {
+                # Added to the return key are entries with the class id as key and the mAP for that class as value
+                # Class values are Tensor((1,), dtype=torch.int32) so must cast as int then str to get desired output
+                str(int(all_results["classes"][i])): all_results["map_per_class"][i]
+                for i in range(len(all_results["map_per_class"]))
+                if all_results["map_per_class"][i] >= 0.0  # Metric returns -1.0 for classes not present in the dataset
+            }
+            | {"per_class_flag": 1}
+        )  # Added to indicate that the per-class mAP is present in the output
+
+
 def map50_torch_metric_factory() -> od.Metric:
-    "Factory for create a MAITE-compliant wrapper of the MAP-50 torchmetric."
+    "Factory for creating a MAITE-compliant wrapper of the MAP-50 torchmetric with reasonable defaults."
     _tm_map50 = MeanAveragePrecision(
         box_format="xyxy",
         iou_type="bbox",
@@ -76,4 +128,19 @@ def map50_torch_metric_factory() -> od.Metric:
         extended_summary=False,
         average="macro",
     )
-    return TorchODMetric(_tm_map50, return_key="map_50")
+    return TorchODMetric(_tm_map50, return_key="map_50", metric_id="mAP_50")
+
+
+def multiclass_map50_torch_metric_factory() -> od.Metric:
+    "Factory for creating a MAITE-compliant wrapper of the multi-class MAP-50 torchmetric with reasonable defaults."
+    _class_map50 = MeanAveragePrecision(
+        box_format="xyxy",
+        iou_type="bbox",
+        iou_thresholds=[0.5],
+        rec_thresholds=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        max_detection_thresholds=[1, 10, 100],
+        class_metrics=True,
+        extended_summary=False,
+        average="macro",
+    )
+    return TorchODMultiClassMap50(_class_map50, return_key="map_50_classwise")

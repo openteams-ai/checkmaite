@@ -3,7 +3,7 @@ from typing import Any
 
 import maite.protocols.object_detection as od
 import torch
-from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata, ModelMetadata
+from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata, MetricMetadata, ModelMetadata
 from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
 
 from jatic_ri.object_detection.datasets import DetectionTarget
@@ -84,6 +84,9 @@ DEFAULT_OD_MODEL_PREDICTIONS: Sequence[od.ObjectDetectionTarget] = [
     )
 ]
 
+DEFAULT_OD_METRIC_METADATA: MetricMetadata = MetricMetadata(
+    id="fake_od_metric",
+)
 # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
 DEFAULT_OD_METRIC_RESPONSE: dict[str, Any] = {
     "fake_metric": torch.Tensor([0.12]),
@@ -199,10 +202,12 @@ class FakeODMetric(od.Metric):
     def __init__(
         self,
         calculated_metrics: dict[str, Any] = DEFAULT_OD_METRIC_RESPONSE,
+        metric_metadata: MetricMetadata = DEFAULT_OD_METRIC_METADATA,
         return_key: str = DEFAULT_OD_METRIC_RETURN_KEY,
     ):
         self.calculated_metrics: dict[str, Any] = calculated_metrics
         self.return_key: str = return_key
+        self.metadata: MetricMetadata = metric_metadata
 
     def update(self, preds: Sequence[od.ObjectDetectionTarget], targets: Sequence[od.ObjectDetectionTarget]) -> None:
         pass

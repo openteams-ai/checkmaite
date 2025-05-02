@@ -78,6 +78,7 @@ DATASET_LABEL_MAP_IC = {
 
 METRICS_LABEL_MAP_OD = {
     "mAP": "map50_torch_metric_factory",
+    "mAP (per class)": "multiclass_map50_torch_metric_factory",
 }
 
 METRICS_LABEL_MAP_IC = {
