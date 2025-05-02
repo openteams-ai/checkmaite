@@ -4,7 +4,7 @@ from typing import Any
 import maite.protocols.image_classification as ic
 import torch
 from maite._internals.protocols import ArrayLike
-from maite.protocols import DatasetMetadata, ModelMetadata
+from maite.protocols import DatasetMetadata, MetricMetadata, ModelMetadata
 from torchvision.models import ResNeXt50_32X4D_Weights, resnext50_32x4d
 
 DEFAULT_IC_MODEL_PREDICTIONS: Sequence[torch.Tensor] = [
@@ -89,6 +89,10 @@ DEFAULT_IC_DATASET_METADATA = DatasetMetadata(
         9: "iceberg lettuce",
         10: "jackfruit",
     },
+)
+
+DEFAULT_IC_METRIC_METADATA: MetricMetadata = MetricMetadata(
+    id="fake_ic_metric",
 )
 
 # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
@@ -229,9 +233,11 @@ class FakeICMetric(ic.Metric):
     def __init__(
         self,
         calculated_metrics: dict[str, Any] = DEFAULT_IC_METRIC_RESPONSE,
+        metric_metadata: MetricMetadata = DEFAULT_IC_METRIC_METADATA,
         return_key: str = DEFAULT_IC_METRIC_RETURN_KEY,
     ):
         self.calculated_metrics: dict[str, Any] = calculated_metrics
+        self.metadata: MetricMetadata = metric_metadata
         self.return_key: str = return_key
 
     def update(self, preds: ic.TargetBatchType, targets: ic.TargetBatchType) -> None:

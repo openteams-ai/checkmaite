@@ -72,7 +72,7 @@ def create_metrics_bar_plot(
 
     # plot the individual bars
     for idx, (key, value) in enumerate(metrics.items()):
-        color = metric_color if key is metric_key else default_color
+        color = metric_color if key == metric_key else default_color
         ax.bar(index[idx], value, width, color=color)
 
     # plot the threshold line
@@ -81,7 +81,8 @@ def create_metrics_bar_plot(
     # set title and xtick labels
     ax.set_title("Computed metrics")
     ax.set_xticks(index, metrics.keys())
-    ax.set_xlim(-0.5, 0.5)  # required in order to set width
+    if len(metrics) == 1:
+        ax.set_xlim(-0.5, 0.5)  # required in order to set width if only one bar
     fig.tight_layout()
 
     return fig

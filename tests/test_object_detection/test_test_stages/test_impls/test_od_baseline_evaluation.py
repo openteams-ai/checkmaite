@@ -8,38 +8,38 @@ from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import (
 
 
 def test_baseline_evaluation_dummy_od(
-    dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache
+    fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, default_eval_tool_no_cache
 ) -> None:
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
-    test.load_model(model=dummy_model_od, model_id="model_1")
-    test.load_metric(metric=dummy_metric_od, metric_id="metric_1")
+    test.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
+    test.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test.load_threshold(threshold=0.5)
-    test.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
+    test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test.run(use_stage_cache=False)
     test.collect_report_consumables()
 
 
 def test_baseline_evaluation_dummy_od_with_cache(
-    dummy_model_od, dummy_dataset_od, dummy_metric_od, default_eval_tool_no_cache
+    fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, default_eval_tool_no_cache
 ) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
-    test1.load_model(model=dummy_model_od, model_id="model_1")
-    test1.load_metric(metric=dummy_metric_od, metric_id="metric_1")
+    test1.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
+    test1.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test1.load_threshold(threshold=0.5)
-    test1.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
+    test1.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test1.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test1.run(use_stage_cache=True)
     output1 = test1.collect_report_consumables()
 
     test2 = BaselineEvaluation()
-    test2.load_model(model=dummy_model_od, model_id="model_1")
-    test2.load_metric(metric=dummy_metric_od, metric_id="metric_1")
+    test2.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
+    test2.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test2.load_threshold(threshold=0.5)
-    test2.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
+    test2.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test2.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test2._run = MagicMock()  # mock out _run to ensure cache hit
     test2.run(use_stage_cache=True)
