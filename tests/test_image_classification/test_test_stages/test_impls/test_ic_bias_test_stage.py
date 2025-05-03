@@ -98,7 +98,7 @@ class TestICDatasetBiasRun:
             assert "image" in outputs["coverage"]
 
         output = test_stage.collect_report_consumables()
-        assert len(output) == 4
+        assert len(output) == 3
 
 
 class TestICBiasCache:

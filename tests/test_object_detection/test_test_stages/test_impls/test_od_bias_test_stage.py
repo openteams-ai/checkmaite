@@ -93,7 +93,7 @@ class TestODDatasetBiasRun:
             assert "image" in outputs["coverage"]
 
         output = test_stage.collect_report_consumables()
-        assert len(output) == 4
+        assert len(output) == 3
 
     @pytest.mark.filterwarnings(
         r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
