@@ -108,7 +108,7 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             self.BALANCE_KEY: self._report_balance,
             self.COVERAGE_KEY: self._report_coverage,
             self.DIVERSITY_KEY: self._report_diversity,
-            self.PARITY_KEY: self._report_parity,
+            # self.PARITY_KEY: self._report_parity,
         }
 
         # Iterate over all bias methods and append to slide list
