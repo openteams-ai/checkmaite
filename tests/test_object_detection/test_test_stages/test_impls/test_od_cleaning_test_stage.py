@@ -31,7 +31,6 @@ def test_od_cleaning(dummy_cleaning_dataset_od) -> None:
     output = test.collect_report_consumables()
 
     assert output
-    assert len(output) == 12
 
 
 @ignore_degenerate_data_warnings

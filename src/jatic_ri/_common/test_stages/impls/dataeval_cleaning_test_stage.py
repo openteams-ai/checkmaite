@@ -18,7 +18,7 @@ from dataeval.metrics.stats import (
     VisualStatsOutput,
 )
 from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts import TextData, TextTableImages
+from gradient.templates_and_layouts.generic_layouts import TableText, TextData, TextTableImages
 from matplotlib import patches
 from matplotlib import pyplot as plt
 from more_itertools import take
@@ -43,17 +43,16 @@ VISUAL_LIST = [
     "contrast",
     "darkness",
     "missing",
-    "sharpness",
     "zeros",
+    "sharpness",
 ]
 RATIO_LIST = [
-    "left",
-    "top",
     "width",
     "height",
     "size",
+    "left",
+    "top",
     "aspect_ratio",
-    "distance",
 ]
 IMAGE_ARGKEYS = [
     [
@@ -350,11 +349,13 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
     def _label_table(self, labelstat: dict[str, Any]) -> tuple[list[str], pd.DataFrame]:
         """Creates strings for the resulting counts and per class table from the labelstats"""
         # Display basic counts
-        count_str = ["**Result:**"]
-        count_str += [f"Class Count:    {labelstat['class_count']}"]
-        count_str += [f"Label Count:    {labelstat['label_count']}"]
-        count_str += [f"Image Count:   {labelstat['image_count']}"]
-        count_str += [f"Average # of\nLabels per Image:  {round(np.mean(labelstat['label_counts_per_image']), 1)}"]
+        count_str = []
+        count_str += [f"**Class Count:**    {labelstat['class_count']}"]
+        count_str += [f"**Label Count:**    {labelstat['label_count']}"]
+        count_str += [f"**Image Count:**   {labelstat['image_count']}"]
+        count_str += [
+            f"**Average number of labels per image:**  {round(np.mean(labelstat['label_counts_per_image']), 1)}"
+        ]
 
         # Display counts per class in a table
         table_df = pd.DataFrame(
@@ -391,7 +392,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         if text.startswith("ratio_"):
             title = self._adjust_plot_title(text[6:]).title()
             if title == "Aspect Ratio":
-                title = "Target:Image Ratio\nof Aspect Ratio"
+                title = "Target:Image Ratio of Aspect Ratio"
         else:
             title = self._adjust_plot_title(text).title()
         return title
@@ -399,15 +400,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
     def _adjust_plot_title(self, metric: str) -> str:
         """Creates histogram plot titles for specific metrics"""
         if metric == "zeros":
-            title = "% of Pixels with Value 0"
+            title = "Zero Pixel Images"
         elif metric == "missing":
-            title = "% of Pixels Missing"
+            title = "Missing Pixels"
         elif metric == "top":
-            title = "Target Location to\nImage Height Ratio"
+            title = "Target Location:Image Height"
         elif metric == "left":
-            title = "Target Location to\nImage Width Ratio"
+            title = "Target Location:Image Width"
         elif metric == "distance":
-            title = "Target Center Distance\nFrom Image Center"
+            title = "Target Center Distance From Image Center"
         else:
             title = metric.replace("_", " ")
 
@@ -443,18 +444,14 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         fig, axs = plt.subplots(num_rows, num_cols, figsize=(num_cols * 3, num_rows * 3))
         axes = axs.flat
 
-        for ax, (metric, counts, bins, top_cutoff, bot_cutoff, ratio) in zip(axes, plot_list):
+        for ax, (metric, counts, bins, top_cutoff, bot_cutoff, _) in zip(axes, plot_list):
             ax.stairs(counts, bins, fill=True)
             ax.set_yscale("log")
             if top_cutoff > 0:
                 ax.axvline(x=top_cutoff, color="r", linestyle="--", linewidth=2)
             if bot_cutoff >= 0:
                 ax.axvline(x=bot_cutoff, color="r", linestyle="--", linewidth=2)
-            title = self._adjust_plot_title(metric).title()
-            if metric == "aspect_ratio" and ratio:
-                title = "Target:Image Ratio of\n" + title
-            elif metric in RATIO_LIST and ratio:
-                title = "Target:Image " + title + " Ratio"
+            title = self._to_title(metric)
             ax.set_title(title)
         for j in range(len(plot_list), len(axes)):
             axes[j].set_visible(False)
@@ -641,17 +638,12 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         category_list = list(all_categories)
         return [category_list[i : i + chunk_size] for i in range(0, len(category_list), chunk_size)]
 
-    def _create_category_dataframe_data(
-        self, categories_subset: list, all_categories: dict, category_means: dict, total: int
-    ) -> dict:
+    def _create_category_dataframe_data(self, categories_subset: list, all_categories: dict, total: int) -> dict:
         """Create dataframe data for a subset of categories."""
-        df_data = {"Category": ["% of Total", "# of Images", "Mean"]}
+        df_data = {"": ["Percentage of Images", "Number of Images"]}
         df_data.update(
             {
-                self._to_title(k): [
-                    *self._to_pct_2(len(v), total),
-                    f"{MU} = {category_means[k]:.2f}",
-                ]
+                self._to_title(k): [f"{len(v)/total:.2%}", f"{len(v)}"]
                 for k, v in all_categories.items()
                 if k in categories_subset
             }
@@ -772,49 +764,33 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         duplicates_df = pd.DataFrame(
             {
-                "Duplicate Type": ["% of Total Images", "# Duplicates/Total Images", "# of Unique Images"],
-                "Exact duplicates": [
-                    *self._to_pct_2(total_ed, len_ds),
-                    f"{len(exact)} unique",
+                "": ["Percentage of Images", "Number of Images"],
+                "Exact Duplicates": [
+                    f"{total_ed/len_ds:.2%}",
+                    f"{total_ed}",
                 ],
-                "Near duplicates": [
-                    *self._to_pct_2(total_nd, len_ds),
-                    f"{len(near)} unique",
+                "Near Duplicates": [
+                    f"{total_nd/len_ds:.2%}",
+                    f"{total_nd}",
                 ],
             }
         )
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-        heading = "Duplicates"
-        content = [
-            Text(t, fontsize=14)
-            for t in (
-                "**Result:**",
-                f"- Total Duplicates: {self._to_pct_1(total, len_ds)}",
-                "**Tests for:**",
-                "- Uncleaned data",
-                "**Risks:**",
-                "- Leakage",
-                "- Lack of robustness",
-                "- Poor generalization",
-                "**Action:**",
-                f"- {'No action required' if total == 0 else 'Evaluate duplicates and clean data'}",
-                "",
-                "Near duplicates uses a perceptual hash which detects rescaling/noise/smoothing,"
-                " but cannot detect rotation, skew, large transformations or large crops.",
-            )
-        ]
+        content = Text(
+            "**Image Duplicate Analysis:** Identify images which are identical or almost identical.\n",
+            fontsize=22,
+        )
 
         # Set up Gradient slide
         return {
             "deck": self._deck,
-            "layout_name": "TextData",
+            "layout_name": "TableText",
             "layout_arguments": {
-                TextData.ArgKeys.TITLE.value: title,
-                TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                TextData.ArgKeys.DATA_COLUMN_TABLE.value: duplicates_df,
+                TableText.ArgKeys.TITLE.value: title,
+                TableText.ArgKeys.TABLE.value: duplicates_df,
+                TableText.ArgKeys.TEXT.value: content,
             },
         }
 
@@ -842,12 +818,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             histogram_paths["target"] = self._plot_stat_metrics("boxstats", box_hist_list)
 
         result_content, label_df = self._label_table(labelstats)
-        additional_content = [
-            "",
-            "**Label Distribution Check:**",
-            "- Use slide for a quick check on the result\n   of the label counts across classes and images.",
-            "- Helps with understanding your dataset",
-        ]
+        additional_content = []
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
@@ -873,12 +844,11 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             title = f"Dataset: {self.dataset_id} | Category: Cleaning"
             heading = f"**{str(group).capitalize()} Property Histograms**\n"
             content = [
-                Text(t, fontsize=14)
+                Text(t, fontsize=22)
                 for t in (
-                    "**Distribution Check:**",
-                    "- Red vertical lines are the Outlier Thresholds",
-                    "- Use slide to check threshold placement",
-                    "- Values outside of the vertical lines will be flagged as outliers",
+                    "Visual overview of potential outliers in image properties.",
+                    "\n" * 3,
+                    "**Note:** Vertical lines are the outlier thresholds (computed internally). Values outside of the vertical lines will be flagged as outliers",  # noqa: E501
                 )
             ]
 
@@ -1084,38 +1054,23 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-        heading = "Basic Image Check\n"
-        action_text = "No action required" if total_sanity == 0 else "Recommended removing the images"
-        content = [
-            Text(t, fontsize=14)
-            for t in (
-                "**Tests for:**",
-                "- Data processing errors",
-                "**Risks:**",
-                "- Lack of robustness",
-                "- Poor real-world performance",
-                "- Poor generalization",
-                "**Action:**",
-                f"- {action_text}",
-            )
-        ]
 
         if box_stats:
             result_df = pd.DataFrame(
                 {
-                    "Category": [
-                        "% of Total",
-                        "# of Images",
+                    "": [
+                        "Percentage of Images",
+                        "Number of Images",
                     ],
                     "Missing Bounding Boxes": [
                         self._to_pct_2(len(sanity_check["no_boxes"]), total_imgs)[0],
                         len(sanity_check["no_boxes"]),
                     ],
-                    "Large % of 0 Values": [
+                    "High Percentage of Zero Values": [
                         self._to_pct_2(len(sanity_check["zeros"]), total_imgs)[0],
                         len(sanity_check["zeros"]),
                     ],
-                    "Large % of Missing Values": [
+                    "High Percentage of Missing Values": [
                         self._to_pct_2(len(sanity_check["missing"]), total_imgs)[0],
                         len(sanity_check["missing"]),
                     ],
@@ -1133,15 +1088,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         else:
             result_df = pd.DataFrame(
                 {
-                    "Category": [
-                        "% of Total",
-                        "# of Images",
+                    "": [
+                        "Percentage of Images",
+                        "Number of Images",
                     ],
-                    "Large % of 0 Values": [
+                    "High Percentage of Zero Values": [
                         self._to_pct_2(len(sanity_check["zeros"]), total_imgs)[0],
                         len(sanity_check["zeros"]),
                     ],
-                    "Large % of Missing Values": [
+                    "High Percentage of Missing Values": [
                         self._to_pct_2(len(sanity_check["missing"]), total_imgs)[0],
                         len(sanity_check["missing"]),
                     ],
@@ -1160,12 +1115,14 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         outlier_slide = [
             {
                 "deck": self._deck,
-                "layout_name": "TextData",
+                "layout_name": "TableText",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_TABLE.value: result_df,
+                    TableText.ArgKeys.TITLE.value: title,
+                    TableText.ArgKeys.TEXT.value: Text(
+                        "**Basic Image Analysis:** Identify missing and/or extreme values on a per-image basis.",
+                        fontsize=21,
+                    ),
+                    TableText.ArgKeys.TABLE.value: result_df,
                 },
             }
         ]
@@ -1178,40 +1135,30 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         for k in all_categories:
             category_means[k] = float(np.mean(as_numpy(img_stats[k]).astype(float)))
 
-        category_chunks = self._split_data_into_chunks(all_categories, 6)
-        for chunk in category_chunks:
-            df_data = self._create_category_dataframe_data(chunk, all_categories, category_means, total_imgs)
+        category_chunks = self._split_data_into_chunks(all_categories, 4)
+        for idx, chunk in enumerate(category_chunks):
+            df_data = self._create_category_dataframe_data(chunk, all_categories, total_imgs)
             outliers_df = pd.DataFrame(df_data)
 
             # Gradient slide kwargs
             title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-            heading = "Image Outliers\n"
-            content = [
-                Text(t, fontsize=14)
-                for t in (
-                    "**Result:**",
-                    f"- Total Outliers: {self._to_pct_1(total_out, total_imgs)}",
-                    "**Tests for:**",
-                    "- Uncleaned data",
-                    "**Risks:**",
-                    "- Lack of robustness",
-                    "- Poor real-world performance",
-                    "- Poor generalization",
-                    "**Action:**",
-                    f"- {'No action required' if total_out == 0 else 'Evaluate outliers and clean data'}",
-                )
-            ]
+
+            demonstratives = ["the subsequent slides", "both the previous and subsequent slides", "the previous slides"]
 
             # Set up Gradient slide
             outlier_slide.append(
                 {
                     "deck": self._deck,
-                    "layout_name": "TextData",
+                    "layout_name": "TableText",
                     "layout_arguments": {
-                        TextData.ArgKeys.TITLE.value: title,
-                        TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                        TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                        TextData.ArgKeys.DATA_COLUMN_TABLE.value: outliers_df,
+                        TableText.ArgKeys.TITLE.value: title,
+                        TableText.ArgKeys.TEXT.value: Text(
+                            f"**Image Outlier Analysis ({idx+1})** \n"
+                            "Numerical analysis of potential outliers in image properties. \n"
+                            f"The results are summarized across this and {demonstratives[idx]}.",
+                            fontsize=21,
+                        ),
+                        TableText.ArgKeys.TABLE.value: outliers_df,
                     },
                 }
             )
@@ -1239,8 +1186,8 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             Text(t, fontsize=14)
             for t in (
                 "**Result:**",
-                f"- Extreme % of 0 Values:    {len(sanity_check['zeros'])}",
-                f"- Extreme % of Missing Values: {len(sanity_check['missing'])}",
+                f"- Extreme Percentage of Zero Values:    {len(sanity_check['zeros'])}",
+                f"- Extreme Percentage of Missing Values: {len(sanity_check['missing'])}",
                 f"- Target:Image Extreme Sizes: {len(sanity_check['ratio_size'])}",
                 f"- Extreme Target Sizes:     {len(sanity_check['size'])}",
                 f"- Extreme Target Aspect Ratios: {len(sanity_check['aspect_ratio'])}",
@@ -1363,7 +1310,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         # Format the issues for use
         source_index: list[tuple[int, int | None, int | None]] = box_stats["source_index"]
-        categories = list(box_stats) + [f"ratio_{cat}" for cat in ratio_stats]
+        categories = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
         issues: dict[str, list[tuple[int, int | None, float]]] = {}
         for i, issue in outliers.items():
             img_num, box_num, _ = source_index[int(i)]
@@ -1386,74 +1333,51 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-        heading = "Basic Target Check\n"
-        action_text = (
-            "No action required" if total_sanity == 0 else "Evaluate Target boxes and remove or adjust as needed"
-        )
-        content = [
-            Text(t, fontsize=14)
-            for t in (
-                "**Result:**",
-                f"- Extreme % of 0 Values:    {len(sanity_check['zeros'])}",
-                f"- Extreme % of Missing Values: {len(sanity_check['missing'])}",
-                f"- Target:Image Extreme Sizes: {len(sanity_check['ratio_size'])}",
-                f"- Extreme Target Sizes:     {len(sanity_check['size'])}",
-                f"- Extreme Target Aspect Ratios: {len(sanity_check['aspect_ratio'])}",
-                f"- Targets Outside of Image:   {len(sanity_check['ratio_top'])}",
-                "**Tests for:**",
-                "- Data processing errors",
-                "**Risks:**",
-                "- Lack of robustness",
-                "- Poor real-world performance",
-                "- Poor generalization",
-                "**Action:**",
-                f"- {action_text}",
-            )
-        ]
 
         result_df = pd.DataFrame(
             {
-                "Category": [
-                    "% of Total",
-                    "# of Images",
+                "": [
+                    "Percentage of Images",
+                    "Number of Images",
                 ],
-                "Large % of 0 Values": [
+                "High Percentage of Zero Values": [
                     self._to_pct_2(len(sanity_check["zeros"]), total_targets)[0],
                     len(sanity_check["zeros"]),
                 ],
-                "Large % of Missing Values": [
+                "High Percentage of Missing Values": [
                     self._to_pct_2(len(sanity_check["missing"]), total_targets)[0],
                     len(sanity_check["missing"]),
                 ],
-                "Target:Image Extreme Size": [
+                "Extreme Target:Image Ratio": [
                     self._to_pct_2(len(sanity_check["ratio_size"]), total_targets)[0],
                     len(sanity_check["ratio_size"]),
                 ],
-                "Extreme Image Size": [
+                "Extreme Size": [
                     self._to_pct_2(len(sanity_check["size"]), total_targets)[0],
                     len(sanity_check["size"]),
                 ],
-                "Extreme Image Aspect Ratio": [
+                "Extreme Aspect Ratio": [
                     self._to_pct_2(len(sanity_check["aspect_ratio"]), total_targets)[0],
                     len(sanity_check["aspect_ratio"]),
                 ],
-                "Targets Outside of Image": [
+                "Target Outside Image": [
                     self._to_pct_2(len(sanity_check["ratio_top"]), total_targets)[0],
                     len(sanity_check["ratio_top"]),
                 ],
             }
         )
 
-        # Set up gradient slide
         outlier_slide = [
             {
                 "deck": self._deck,
-                "layout_name": "TextData",
+                "layout_name": "TableText",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_TABLE.value: result_df,
+                    TableText.ArgKeys.TITLE.value: title,
+                    TableText.ArgKeys.TEXT.value: Text(
+                        "**Basic Target Analysis:** Identify missing and/or extreme values on a per-target basis.",
+                        fontsize=21,
+                    ),
+                    TableText.ArgKeys.TABLE.value: result_df,
                 },
             }
         ]
@@ -1471,40 +1395,34 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                 else float(np.mean(as_numpy(box_stats[k]).astype(float)))
             )
 
-        category_chunks = self._split_data_into_chunks(all_categories, 6)
-        for chunk in category_chunks:
-            df_data = self._create_category_dataframe_data(chunk, all_categories, category_means, total_targets)
+        category_chunks = self._split_data_into_chunks(all_categories, 5)
+        for idx, chunk in enumerate(category_chunks):
+            df_data = self._create_category_dataframe_data(chunk, all_categories, total_targets)
             outliers_df = pd.DataFrame(df_data)
 
             # Gradient slide kwargs
             title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-            heading = "Target Outliers\n"
-            content = [
-                Text(t, fontsize=14)
-                for t in (
-                    "**Result:**",
-                    f"- Total Outliers: {self._to_pct_1(total_out, total_targets)}",
-                    "**Tests for:**",
-                    "- Uncleaned data",
-                    "**Risks:**",
-                    "- Lack of robustness",
-                    "- Poor real-world performance",
-                    "- Poor generalization",
-                    "**Action:**",
-                    f"- {'No action required' if total_out == 0 else 'Evaluate outliers and clean data'}",
-                )
+
+            demonstratives = [
+                "the subsequent slides",
+                "both the previous and subsequent slides",
+                "both the previous and subsequent slides",
+                "the previous slides",
             ]
 
-            # Set up Gradient slide
             outlier_slide.append(
                 {
                     "deck": self._deck,
-                    "layout_name": "TextData",
+                    "layout_name": "TableText",
                     "layout_arguments": {
-                        TextData.ArgKeys.TITLE.value: title,
-                        TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                        TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                        TextData.ArgKeys.DATA_COLUMN_TABLE.value: outliers_df,
+                        TableText.ArgKeys.TITLE.value: title,
+                        TableText.ArgKeys.TEXT.value: Text(
+                            f"**Target Outlier Analysis ({idx+1})**\n"
+                            "Numerical analysis of potential outliers in target properties. \n"
+                            f"The results are summarized across this and {demonstratives[idx]}.",
+                            fontsize=21,
+                        ),
+                        TableText.ArgKeys.TABLE.value: outliers_df,
                     },
                 }
             )
@@ -1530,16 +1448,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         content = [
             Text(t, fontsize=14)
             for t in (
-                "- Remove the images/targets flagged in the Basic Check reports",
+                "Below are the recommended next steps to resolving or investigating issues that may arise during analysis.",  # noqa: E501
+                "**In general:**",
+                "- Remove the images/targets flagged in the Basic Check reports for images and targets",
                 "- Manually review the images/targets flagged in the Outlier reports",
-                "",
-                "For images:",
+                "**For images:**",
                 "- Check if images come up in multiple outlier categories. If so, remove.",
                 "- Make sure images are representative of their respective environment/class. If not, remove.",
-                "",
-                "For targets:",
-                "- Need to run bias, with bounding box stats to make sure there"
-                " are no correlations between a statistic and a class",
+                "**For targets:**",
+                "- Run bias analysis with bounding box stats and ensure there are no correlations between a statistic and a class",  # noqa: E501
                 "- Make sure targets are representative of their respective class. If not, remove.",
             )
         ]
@@ -1566,17 +1483,19 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             target_list = self._generate_target_outliers_report()
 
             ordered_list: list[dict[str, Any]] = [
-                stat_list[0],
                 duplicates,
                 image_list[0],
                 stat_list[1],
                 image_list[1],
                 image_list[2],
+                image_list[3],
+                stat_list[0],
                 target_list[0],
                 stat_list[2],
                 target_list[1],
                 target_list[2],
                 target_list[3],
+                target_list[4],
                 self._generate_next_steps_report(),
             ]
 
