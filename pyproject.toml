@@ -2,21 +2,22 @@
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry]
+[project]
 name = "jatic-ri"
-description = "JATIC Reference Implementation"
-authors = ["JATIC Developers"]
 version = "0.0.1"
+description = "JATIC Reference Implementation"
 readme = "README.md"
-packages =[{include="jatic_ri", from="src"}]
+license = { text = "TBD" }
+authors = [
+    { name = "JATIC Developers" },
+]
 keywords = [
     "jatic",
     "artificial intelligence",
     "testing and evaluation",
     "object detection",
     "image classification",
-    ]
-license = "TBD"
+]
 classifiers = [
     "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3",
@@ -24,66 +25,62 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
+requires-python = ">=3.9, <3.12"                    # required by SDP
 
-[tool.poetry.dependencies]
-python = ">=3.9, <3.12"                                     # required by SDP
+dependencies = [
+    "dataeval>=0.75",
+    "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.10.2",
+    "maite==0.7.3",                                 # could be >=0.7.0,<0.8.0, but 0.7.3 is latest available through conda
+    "heart-library @ git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0",
+    "nrtk[headless]==0.15.1",
+    "pybsm==0.8.0",                                 # optional dep for nrtk, required here
+    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.2",
+    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.3",
+    "xaitk-saliency==0.12.0",
+    "xaitk-jatic==0.5.1",
+    # external deps
+    "holoviews>=1.20.0",                            # arbitrary, required for panel pipelines
+    "httpx>=0.28.1",                                # arbitrary, needed to run visdrone model
+    "jupyterlab>=4.3.5",                            # arbitrary, required for serving panel notebooks via CLI
+    "matplotlib>=3.8.4",                            # arbitrary, required by panel
+    "more-itertools>=10.0",                         # arbitrary, used by linting test stage
+    "nbconvert>=7.16.6",                            # arbitrary, required for serving panel notebooks via CLI
+    "numba>=0.60.0",                                # arbitrary, needed to run visdrone model
+    "opencv-python-headless>=4.9.0.80",             # necessary lower pin, required by nrtk usage here
+    "panel>=1.4.5",                                 # arbitrary
+    "Pillow>=11.0.0",                               # arbitrary
+    "pydantic>=2.0.0",                              # arbitrary
+    "streamz>=0.6.4",                               # arbitrary
+    "torch>=2.2.0",                                 # necessary lower pin (at least >=2.2.0 for security)
+    "torchmetrics>=1.4.0",                          # arbitrary, required for metric computation
+    "torchvision>=0.17.0",                          # arbitrary, required for models
+    "zstandard>=0.23.0",                            # arbitrary, used for zip compression of json
+    "smqtk-detection>=0.21.0",                      # necessary lower pin for running VisDrone model on Mac
+    "transformers[timm]>=4.48.0,!=4.51.0",          # necessary lower pin for xaitk panel app for security vulnerability
+]
 
-# jatic tools
-dataeval = {version = "0.75"}
-gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.10.2"}
-maite = {version = "==0.7.3"}                     # could be >=0.7.0,<0.8.0, but 0.7.3 is latest available through conda
-heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", tag="0.5.0"}
-nrtk = {version = "==0.15.1", extras = ["headless"]}
-pybsm = "==0.8.0"                                 # optional dep for nrtk, required here
-reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.2"}
-survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.3"}
-xaitk-saliency = "==0.12.0"
-xaitk-jatic = "==0.5.1"
-# external deps
-holoviews = ">=1.20.0"                                      # arbitrary pin, required for panel pipelines
-httpx = ">=0.28.1"                                          # arbitrary, needed to run visdrone model
-jupyterlab = "4.3.5"                                        # arbitrary pin
-matplotlib = ">=3.8.4"                                      # arbitrary, required by panel
-more-itertools = ">=10.0"                                   # arbitrary, used by linting test stage
-nbconvert = "7.16.6"                                        # arbitrary pin, required for serving panel notebooks via CLI
-numba = ">=0.60.0"                                          # arbitrary, needed to run visdrone model
-opencv-python-headless = {version = ">=4.9.0.80"}           # necessary pin, required by nrtk usage here
-panel = ">=1.4.5"                                           # arbitrary pin
-streamz = ">=0.6.4"                                          # arbitrary pin, required by base dashboard
-Pillow = ">=11.0.0"                                         # arbitrary
-pydantic = ">=2.0.0"                                        # arbitrary
-torch = ">=2.2.0"                                           # necessary pin (at least >=2.2.0 for security)
-torchmetrics = ">=1.4.0"                                    # arbitrary pin, required for metric computation
-torchvision = ">=0.17.0"                                    # arbitrary pin, required for models
-zstandard = "^0.23.0"                                       # arbitrary, used for zip compression of json
-smqtk-detection = ">=0.21.0"                                # required for running VisDrone model on Mac
-transformers = {version = ">=4.48.0,!=4.51.0", extras = ["timm"]}    # required for xaitk panel app, pin for security vulnerability
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.0.0",                            # arbitrary
+    "pyright[nodejs]>=1.1.400",                     # necessary, typechecker will fail for earlier versions
+    "pyspark>=3.5.3",                               # arbitrary
+    "pytest>=8.3.0",                                # necessary lower pin for compatibility
+    "pytest-cov>=4.0.0",                            # arbitrary
+    "pytest-mock>=3.6.1",                           # arbitrary, need to test heart_app
+    # This is not needed by us, but required to avoid a critical vulnerability warning
+    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
+    "virtualenv>=20.26.6",
+]
+docs = [
+    "mkdocs>=1.6.1",                                # arbitrary
+    "mkdocs-jupyter>=0.25",                         # arbitrary
+    "mkdocs-material>=9.6.4",                       # arbitrary
+    "pymdown-extensions>=10.14.3",                  # arbitrary
+]
 
-
-# development dependencies
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.0.0"                                      # arbitrary pin
-pyright = {version = ">=1.1.400", extras = ["nodejs"]}      # necessary, typechecker will fail for earlier versions
-pyspark = '>=3.5.3'                                         # arbitrary pin
-pytest = ">=8.3.0"                                          # necessary pin for compatibility
-pytest-cov = ">=4.0.0"                                      # arbitrary pin
-pytest-mock = ">=3.6.1"                                     # arbitrary, needed to test heart_app
-# This is not needed by us, but required to avoid a critical vulnerability warning
-# See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
-virtualenv = ">=20.26.6"
-
-# documentation dependencies
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-mkdocs = ">=1.6.1"                      # arbitrary
-mkdocs-jupyter = ">=0.25"               # arbitrary
-mkdocs-material = ">=9.6.4"             # arbitrary
-pymdown-extensions = ">=10.14.3"        # arbitrary
+# Poetry-specific configuration (things not covered by PEP 621)
+[tool.poetry]
+packages =[{include="jatic_ri", from="src"}]
 
 [tool.bandit]
 exclude_dirs = [
@@ -101,18 +98,14 @@ exclude = [
     "**/_panel",
 ]
 
-# Ruff rules - https://docs.astral.sh/ruff/rules/
 [tool.ruff]
 exclude = [
   "environment*",
 ]
 
-line-length = 120  # feel free to change line length per [line length guidelines](#cr-1-pep-8).
+line-length = 120
 indent-width = 4
-
-# Assume Python 3.9
 target-version = "py39"
-
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
@@ -120,13 +113,9 @@ select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", 
           "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
           "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "FIX", "PD", "FLY", "NPY", "RUF027",
           "RUF100", "PERF"]
-
 ignore = ["ANN101", "ANN102", "ANN401", "COM812", "ISC001"]
-
-# Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
-
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
@@ -155,10 +144,6 @@ docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
 known-first-party = ["jatic_ri"]
-
-# [tool.ruff.lint.mccabe]
-# # Flag errors (`C901`) whenever the complexity level exceeds 5.
-# max-complexity = 5
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
