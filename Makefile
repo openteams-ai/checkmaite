@@ -6,7 +6,7 @@ SHELL := /bin/bash
 .PHONY: init
 #: initialize project
 init:
-	poetry install --with dev
+	poetry install --extras dev
 	poetry run pre-commit install
 	poetry env info
 	$(HIDE)echo "Created virtual environment"

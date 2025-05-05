@@ -1,12 +1,13 @@
 # Setup Guide
-Set up your environment. Both a poetry-based environment and conda-based environment options. 
+
+## Creating an environment
+
+We provide both poetry-based environment and conda-based environment options: 
 
 <details>
 <summary>Setup conda environment</summary>
 
-To set up a conda environment, install `conda` (or `mamba`, but these 
-instructions are based on conda) on your machine and build the 
-environment by running:
+To set up a conda environment, install `conda` on your machine and build the environment by running:
 
 ```bash
 conda env create -f environment.yml -n jatic_env
@@ -18,68 +19,72 @@ Then activate the environment
 conda activate jatic_env
 ```
 
-</details>
-
-<details>
-<summary>Setup poetry environment</summary>
-
-To set up poetry, install `poetry`, the current supported version is 1.8.5.
-
-osx / linux / bashonwindows command:
-```bash
-curl -sSL https://install.python-poetry.org | python3 - --version 1.8.5
-```
-
-windows powershell command:
-```bash
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py - --version 1.8.5
-```
-
-</details>
-
-Install the package itself
-
-```bash
-pip install -e .
-```
-
-This project utilized `pre-commit` for linting and formatting. Install the 
-`pre-commit` hooks using: 
+This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using: 
 
 ```bash
 pre-commit install
 ```
 
-Alternatively, if you have `poetry` and `make` installed on your machine, you can build the environment by running: 
+Finally, install the package itself
 
 ```bash
-make init
+pip install -e .
 ```
 
-This will create a virtual environment with all regular dependencies, developer dependencies,
-and pre-commit hooks installed. This environment can be found at can be found at `[your cloned RI directory]/.venv/`
-and can be manually activated by running:
+</details>
+
+<details>
+<summary>Setup poetry environment</summary>
+
+To set up a poetry environment, install `poetry` (the minimum supported version is `2.0.0`):
+
+**osx / linux / bash on windows command**
 ```bash
-source ./venv/bin/activate
+curl -sSL https://install.python-poetry.org | python3 - --version 2.1.2
 ```
+
+**windows powershell command**
+```bash
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py - --version 2.1.2
+```
+
+You can build the environment by running:
+
+```bash
+poetry install --extras dev
+```
+
+This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using: 
+
+```bash
+poetry run pre-commit install
+```
+
+Finally, install the package itself
+
+```bash
+poetry run pip install -e .
+```
+</details>
 
 ## Testing
+
+(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
 
 This project uses `pytest` for it's test suite. Run the full test suite with:
 
 ```bash
-pytest tests -svv
+poetry run pytest tests -svv
 ```
 
 There are also tests which run on real data. These are time consuming to run so they are skipped by default. 
 You can run them manually with:
 
 ```bash
-pytest tests -svv -m real_data
+poetry run pytest tests -svv -m real_data
 ```
 
-NOTE:
-If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
 directory to run tests with coverage:
 ```bash
 make test
@@ -87,33 +92,36 @@ make test
 
 ## Linting and formatting
 
+(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
+
 Linting and formatting are automated via `pre-commit` hooks. However, if you'd like to run them directly, you can run:
 
 ```bash
-pre-commit run --all-files --verbose
+poetry run pre-commit run --all-files --verbose
 ```
 
-NOTE:
-If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI 
 directory to run all pre-commit hooks:
 ```bash
 make format
 ```
 
-Type checking is performed by `pyright`. The CI must report a type-completeness score of 100% for the public API. This can be run using:
+Type checking is performed by `pyright`. This can be run using:
 
 ```bash
-pyright --ignoreexternal --verifytypes jatic_ri
+poetry run pyright src
 ```
 
 ## Building the docs
+
+(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
 
 The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. The RI also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
 
 The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
 
 ```bash
-mkdocs serve
+poetry run mkdocs serve
 ```
 
 This will create a live server running on the local machine. Any changes made to the document will be live-reloaded in the local website. 
@@ -121,7 +129,7 @@ This will create a live server running on the local machine. Any changes made to
 Alternately, the docs can be built locally as a static site similar to the process in CI by running:
 
 ```bash
-mkdocs build --site-dir public
+poetry run mkdocs build --site-dir public
 ```
 
 The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command. 

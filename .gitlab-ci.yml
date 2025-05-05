@@ -67,10 +67,8 @@ stages:
     - *git_config
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
-    - pip install --user -U poetry==1.8.5
+    - pip install --user -U poetry==2.1.2
     - apt-get update && apt-get install -y openjdk-17-jre
-    - poetry config --local virtualenvs.in-project true
-    - poetry config --local virtualenvs.prefer-active-python true
     - poetry config repositories.gradient https://gitlab.jatic.net/jatic/morse/gradient.git
     - poetry config repositories.reallabel https://gitlab.jatic.net/jatic/morse/reallabel.git
     - poetry config repositories.survivor https://gitlab.jatic.net/jatic/morse/survivor.git
@@ -93,7 +91,7 @@ test:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
     - git lfs pull     # Pull large files using git-lfs
-    - poetry install --with dev
+    - poetry install --extras dev
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
     - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
@@ -151,7 +149,7 @@ pyright-internal:
   stage: pyright
   needs: []
   script:
-    - poetry install --with dev
+    - poetry install --extras dev
     - poetry run pyright src/
 
 # DOCUMENTATION
@@ -169,7 +167,7 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - poetry install --with docs
+    - poetry install --extras docs
     - poetry run mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
@@ -187,7 +185,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   image: python:3.9
   stage: docs
   script:
-    - poetry install --with docs
+    - poetry install --extras docs
     - poetry run mkdocs build -d public --no-directory-urls
   artifacts:
     paths:
@@ -258,5 +256,3 @@ export-merged-sbom:
   artifacts:
     paths:
       - "gl-sbom-merged-*.cdx.json"
-
-# Fake comment to trigger another pipeline run
