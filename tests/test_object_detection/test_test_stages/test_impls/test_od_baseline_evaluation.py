@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+from jatic_ri.object_detection.metrics import multiclass_map50_torch_metric_factory
 from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import (
     BaselineEvaluation,
 )
@@ -19,7 +20,36 @@ def test_baseline_evaluation_dummy_od(
     test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test.run(use_stage_cache=False)
+    print(fake_od_dataset_default.metadata["index2label"].items())
+
+    # Assert outputs contain label2index, needed for multiclass metric display
+    for k, v in fake_od_dataset_default.metadata["index2label"].items():
+        assert test.outputs[f"class_{v}"] == k
+
     test.collect_report_consumables()
+
+
+def test_baseline_evaluation_multiclass(
+    fake_od_model_default, fake_od_dataset_default, default_eval_tool_no_cache
+) -> None:
+    """Test BaselineEvaluation with multiclass metrics that include per_class_flag"""
+
+    test = BaselineEvaluation()
+    test.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
+    metric = multiclass_map50_torch_metric_factory()
+    test.load_metric(metric=metric, metric_id=metric.metadata["id"])
+    test.load_threshold(threshold=0.5)
+    test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
+    test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
+    test.run(use_stage_cache=False)
+
+    assert "per_class_flag" in test.outputs
+
+    results = test.collect_report_consumables()
+
+    # Assert classes not found in dummy dataset are added to output slide text
+    for text in ("ignored regions", "apple", "eggplant"):
+        assert text in results[0]["layout_arguments"]["text"]
 
 
 def test_baseline_evaluation_dummy_od_with_cache(

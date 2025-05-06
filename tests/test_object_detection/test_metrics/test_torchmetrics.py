@@ -7,7 +7,11 @@ import pytest
 import torch
 from maite.protocols import ArrayLike
 
-from jatic_ri.object_detection.metrics import TorchODMetric, map50_torch_metric_factory
+from jatic_ri.object_detection.metrics import (
+    TorchODMetric,
+    map50_torch_metric_factory,
+    multiclass_map50_torch_metric_factory,
+)
 
 
 @pytest.fixture
@@ -21,14 +25,14 @@ def dummy_data():
         scores: ArrayLike
 
     pred = DetectionTarget(
-        boxes=np.array([[10, 10, 50, 50]]),
-        scores=np.array([0.9]),
-        labels=np.array([1]),
+        boxes=np.array([[10, 10, 50, 50], [20, 20, 60, 60]]),
+        scores=np.array([0.9, 0.8]),
+        labels=np.array([1, 1]),
     )
     target = DetectionTarget(
-        boxes=np.array([[10, 10, 50, 50]]),
-        scores=np.array([1.0]),
-        labels=np.array([1]),
+        boxes=np.array([[10, 10, 50, 50], [20, 20, 60, 60]]),
+        scores=np.array([1.0, 1.0]),
+        labels=np.array([1, 2]),
     )
 
     return [pred], [target]
@@ -113,3 +117,17 @@ def test_map50_torch_metric_reset(dummy_data):
 
     # no data returns -1
     assert result["map_50"] == -1, "Expected 'map_50' to be -1 after reset"
+
+
+def test_multiclass_map50_torch_metric_compute(dummy_data):
+    """Test compute method returns the expected mAP@0.5 value."""
+
+    preds, targets = dummy_data
+    mc_map50_torch_metric = multiclass_map50_torch_metric_factory()
+    mc_map50_torch_metric.update(preds, targets)
+    result = mc_map50_torch_metric.compute()
+    print(result)
+    assert "map_50_classwise" in result, "Expected 'map_50' key in result"
+    assert "per_class_flag" in result, "Expected 'per_class_flag' key in result"
+    assert result["2"] == torch.tensor([0.0]), "Expected class '2' to have mAP of 0"
+    assert 0.0 <= result["map_50_classwise"] <= 1.0, "Expected mAP@0.5 to be between 0 and 1"
