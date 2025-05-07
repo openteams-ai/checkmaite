@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: cced953f782d691f9ca252ff3acae2001cc46837bf8e8ab3fc9ef4f9fae04de4
+    linux-64: 5b6bcc4a6ba3e54f77820dda6cceb65bdb9065147a337d9895889c70d807a108
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -6907,7 +6907,7 @@ package:
   category: main
   optional: false
 - name: survivor
-  version: 0.4.3
+  version: 0.4.4
   manager: pip
   platform: linux-64
   dependencies:
@@ -6917,12 +6917,12 @@ package:
     pyarrow: '>=14.0.1'
     pydantic: '>=2.6.4'
     pyspark: '>=3.5.0'
-  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e3a41b97bcb513e4b4cfe9e069888509aa7bc80f
+  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
   hash:
-    sha256: e3a41b97bcb513e4b4cfe9e069888509aa7bc80f
+    sha256: e1af31c2454da4d2e2112346de21bca873acea58
   source:
     type: url
-    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e3a41b97bcb513e4b4cfe9e069888509aa7bc80f
+    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
   category: main
   optional: false
 - name: typing-inspection
