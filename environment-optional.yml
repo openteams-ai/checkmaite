@@ -46,6 +46,7 @@ dependencies:
 # test
 - pytest>=8.3.0                         # necessary pin for compatibility
 - pytest-cov>=4.0.0                     # arbitrary pin
+- pytest-mock>=3.6.1                    # arbitrary pin
 # linting and formatting
 - pre-commit>=3.0.0                     # arbitrary pin
 - pyright>=1.1.400                      # arbitrary pin
