@@ -79,9 +79,9 @@ class TorchvisionODModel:
         self,
         *,
         model_name: str,
-        device: Optional[str] = None,  # noqa: UP007
-        weights_path: Optional[str] = None,  # noqa: UP007
-        config_path: Optional[str] = None,  # noqa: UP007
+        device: Optional[str] = None,
+        weights_path: Optional[str] = None,
+        config_path: Optional[str] = None,
         index2label_key: str = "index2label",
         model_id: str = "torchvisionOD",
         **kwargs: dict[str, Any],
@@ -204,8 +204,8 @@ class VisdroneODModel:
         self,
         *,
         arch: str,
-        model_pickle_dir: Optional[str] = None,  # noqa: UP007
-        model_name: Optional[str] = None,  # noqa: UP007
+        model_pickle_dir: Optional[str] = None,
+        model_name: Optional[str] = None,
         device: None | str | torch.device = None,
         batch_size: int = 3,
         num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688

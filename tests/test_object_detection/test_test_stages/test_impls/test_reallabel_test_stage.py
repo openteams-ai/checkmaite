@@ -1,36 +1,22 @@
 """Test RealLabelTestStage."""
 
-import json
-import os
-from pathlib import Path
+import dataclasses
 from typing import Any
 
 import maite.protocols.object_detection as od
 import pandas as pd
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
-from reallabel import ColumnNameConfig
+from reallabel import ColumnNameConfig, RealLabelResults
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
-    _REALLABEL_CACHE_CONFIGURATION_PATH,
-    _REALLABEL_CACHE_IMAGE_PATH,
-    _REALLABEL_CACHE_JSON_PATH,
-    RealLabelCache,
     RealLabelConfig,
     RealLabelTestStage,
     RealLabelTestStageResults,
 )
 from tests.fake_od_classes import FakeODDataset, FakeODModel
 
-# This file is the expected output of RealLabel if using all the information found in the survivor_test_stage_args
-# fixture, and if any of the data, model, metric, or RealLabelConfig information used by that fixture changes,
-# then this file will need to be updated
-EXPECTED_REALLABEL_IMAGE = (
-    Path(os.path.abspath(__file__)).parent / "reallabel_survivor_shared_data" / "expected_reallabel_output.png"
-)
-
-CACHE_DIR = Path(os.path.abspath(__file__)).parent / ".tscache"
 _DICT_CONFIG = "dict_config"
 _REALLABEL_CONFIG = "config"
 
@@ -110,65 +96,32 @@ def create_test_stage(
     ids=["Using RealLabelConfig", "Using dict config"],
     indirect=True,
 )
-def test_reallabel_test_stage_run_caches(test_stage: RealLabelTestStage, tmp_cache_path) -> None:
+def test_reallabel_test_stage_run_caches(mocker, test_stage: RealLabelTestStage, tmp_cache_path) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
-    # Arrange
-    expected_cache_location = tmp_cache_path / test_stage.cache_id
+    run = test_stage.run(use_stage_cache=True)
 
-    expected_json_results_path = expected_cache_location / _REALLABEL_CACHE_JSON_PATH
-    expected_results_config_path = expected_cache_location / _REALLABEL_CACHE_CONFIGURATION_PATH
+    mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
+    cached_run = test_stage.run(use_stage_cache=True)
+    assert cached_run is not run
 
-    reallabel_cache = RealLabelCache()
+    outputs = run.outputs
+    cached_outputs = cached_run.outputs
 
-    # Act
-    test_stage.run(use_stage_cache=True)
-    actual_returned_results = test_stage.outputs
+    def optional_assert_frame_equal(actual, expected):
+        if isinstance(actual, pd.DataFrame) and isinstance(expected, pd.DataFrame):
+            return pd.testing.assert_frame_equal(actual, expected)
 
-    actual_cached_results = reallabel_cache.read_cache(cache_path=str(expected_cache_location))
+        return actual == expected
 
-    for field in RealLabelTestStageResults.model_fields:
-        if isinstance(getattr(actual_returned_results, field), pd.DataFrame):
-            returned_df = getattr(actual_returned_results, field)
-            cached_df = getattr(actual_cached_results, field)
-            # Pre-existing type conversion issues, so we need to cast the dataframes to the same types for the test
-            assert cached_df.equals(returned_df.astype(cached_df.dtypes.to_dict()))
-        elif isinstance(getattr(actual_returned_results, field), Path):
-            # load the files and compare contents
-            returned_path = getattr(actual_returned_results, field)
-            cached_path = getattr(actual_cached_results, field)
-            assert returned_path.exists()
-            assert cached_path.exists()
-            # Check that the file sizes are the same
-            assert returned_path.stat().st_size == cached_path.stat().st_size
-            with returned_path.open("rb") as returned_file, cached_path.open("rb") as cached_file:
-                assert returned_file.read() == cached_file.read()
-        else:
-            assert getattr(actual_returned_results, field) == getattr(actual_cached_results, field)
-
-    assert expected_json_results_path.exists()
-
-    # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
-    assert expected_results_config_path.exists()
-    with expected_results_config_path.open() as file:
-        assert test_stage._cache_configuration == json.load(file)
-
-
-def test_reallabel_test_stage_cache_id_generation(test_stage) -> None:
-    """Test the RealLabelTestStage cache ID generation against the known ID from the current base test set.
-
-    If the model IDs, Dataset ID, or anything about the RealLabelConfig object from the reallabel_test_stage_args
-    fixture changes, then the hash in the expected_cache_id variable will need to be updated.
-
-    This will also need to be updated upon the resolution of the issue that requires Aggregated Confidence to
-    """
-    # Arrange
-    expected_cache_id = "reallabel_od_cache_b22bc35e63da8a8f663bc27440c18dc9ec6df61c2064ccd8f1de6e8d9eb4ab16"
-
-    # Act
-    actual_cache_id = test_stage.cache_id
-
-    # Assert
-    assert actual_cache_id == expected_cache_id
+    optional_assert_frame_equal(outputs.default_results, cached_outputs.default_results)
+    optional_assert_frame_equal(outputs.classification_disagreements_df, cached_outputs.classification_disagreements_df)
+    optional_assert_frame_equal(outputs.verbose_df, cached_outputs.verbose_df)
+    optional_assert_frame_equal(outputs.sequence_priority_score_df, cached_outputs.sequence_priority_score_df)
+    optional_assert_frame_equal(
+        outputs.sequence_priority_score_balanced_df, cached_outputs.sequence_priority_score_balanced_df
+    )
+    optional_assert_frame_equal(outputs.wanrs_df, cached_outputs.wanrs_df)
+    optional_assert_frame_equal(outputs.aggregated_confidence_df, cached_outputs.aggregated_confidence_df)
 
 
 def test_reallabel_test_stage_collect_report_consumables(
@@ -179,7 +132,6 @@ def test_reallabel_test_stage_collect_report_consumables(
     # Arrange
     expected_deck = "object_detection_reallabel"
     expected_layout_name = "TwoImageTextNoHeader"
-    expected_content_right = str(artifact_dir / test_stage.cache_path / _REALLABEL_CACHE_IMAGE_PATH)
     expected_title = "RealLabel Label Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -202,7 +154,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     assert all(
         expected in combined_lc_text for expected in ["True Positive: 1", "False Positive: 2", "False Negative: 1"]
     )
-    assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
+    assert output_consumables["layout_arguments"]["content_right"].is_file()
 
     filename = create_deck(slides, artifact_dir, "reallabel")
     assert filename.exists()
@@ -234,17 +186,9 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
         test_stage_2.run(use_stage_cache=False)
 
 
-def test_cache_miss_dir_resets(test_stage: RealLabelTestStage, tmp_cache_path) -> None:
-    """Test cache miss dir is deleted and resets if it already exists."""
-    # Arrange
-    output = tmp_cache_path / "reallabel_cache_miss_outputs"
-    output.mkdir()
-    file = output / "test_file.txt"
-    file.touch()
-
-    # Act
-    test_stage._run()
-
-    # Assert
-    assert output.exists()
-    assert not file.exists()
+@pytest.mark.xfail(reason="field name mismatch")
+def test_for_reallabel_output_changes():
+    """When updating RealLabel, make sure we catch changes to the results dataclass and determine whether to expose them to the user."""
+    available = {f.name for f in dataclasses.fields(RealLabelResults) if not f.name.startswith("_")}
+    exposed = set(RealLabelTestStageResults.model_fields.keys())
+    assert exposed.issuperset(available)

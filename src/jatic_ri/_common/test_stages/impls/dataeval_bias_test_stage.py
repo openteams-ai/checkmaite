@@ -1,27 +1,82 @@
 """DataEval Bias Common Test Stage"""
 
-import os
 from abc import abstractmethod
-from pathlib import Path
 from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
+import pydantic
 import torch
 from dataeval.metrics.bias import balance, coverage, diversity, parity
 from dataeval.utils.metadata import Metadata
 from numpy.typing import NDArray
+from pydantic import Field
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.util.cache import JSONCache, NumpyEncoder
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    ConfigBase,
+    OutputsBase,
+    RunBase,
+    TestStage,
+)
+from jatic_ri.util._types import Device, Image
 from jatic_ri.util.slide_deck import create_text_data_slide, create_text_table_data_slide
+from jatic_ri.util.utils import temp_image_file
 
 from ._dataeval_utils import EmbeddingNet, extract_embeddings
 
 
-class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TDataset]):
+class DataevalBiasConfig(ConfigBase):
+    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
+    device: Device = Field(default_factory=lambda: set_device(None))
+
+
+class DataevalBiasBalanceOutputs(OutputsBase):
+    balance: np.ndarray
+    factors: np.ndarray
+    classwise: np.ndarray
+    factor_names: list[str]
+    class_list: list[int]
+    image: Image
+
+
+class DataevalBiasDiversityOutputs(OutputsBase):
+    diversity_index: np.ndarray
+    classwise: np.ndarray
+    factor_names: list[str]
+    class_list: list[int]
+    image: Image
+
+
+class DataevalBiasParityOutputs(OutputsBase):
+    score: np.ndarray
+    p_value: np.ndarray
+    metadata_names: list[str]
+
+
+class DataevalBiasCoverageOutputs(OutputsBase):
+    total: int
+    indices: np.ndarray
+    radii: np.ndarray
+    critical_value: float
+    image: Optional[Image] = None
+
+
+class DataevalBiasOutputs(pydantic.BaseModel):
+    balance: DataevalBiasBalanceOutputs
+    diversity: DataevalBiasDiversityOutputs
+    parity: DataevalBiasParityOutputs
+    coverage: DataevalBiasCoverageOutputs
+
+
+class DataevalBiasRun(RunBase):
+    config: DataevalBiasConfig
+    outputs: DataevalBiasOutputs
+
+
+class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlugin[TDataset]):
     """
     Measures four aspects of bias in a single dataset and programmatically generates a Gradient report
     with the measurements of bias, potential risks, and any actions required to reduce bias if found
@@ -32,37 +87,22 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
     between metadata factors and class labels, while coverage is calculated using only the images
     """
 
-    cache: Optional[Cache[dict[str, Any]]] = JSONCache(encoder=NumpyEncoder)
+    _RUN_TYPE = DataevalBiasRun
+
     device: Union[str, torch.device] = set_device(None)
-    COVERAGE_KEY = "coverage"
-    BALANCE_KEY = "balance"
-    DIVERSITY_KEY = "diversity"
-    PARITY_KEY = "parity"
 
     def __init__(self) -> None:
         super().__init__()
         self._embedding_net = EmbeddingNet()
 
-    @property
-    def cache_id(self) -> str:
-        """Bias Test Stage cache identifier"""
-        return f"bias_{self._task}_{self.dataset_id}.json"
-
-    @property
-    def image_folder(self) -> Path:
-        """Image folder path for storing temporary image examples"""
-
-        # Remove .json from cache file, create cache_id folder, save images
-        # Used by all report functions. Run ensures self.cache_path exists
-        folder = Path(os.path.splitext(self.cache_path)[0])
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder
+    def _create_config(self) -> ConfigBase:
+        return DataevalBiasConfig(device=self.device)  # type: ignore[reportArgumentType]
 
     @abstractmethod
     def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
         """Aggregate dataset into images, labels and metadata_factors"""
 
-    def _run(self) -> dict[str, Any]:
+    def _run(self) -> DataevalBiasOutputs:
         """Run bias analysis using coverage and parity"""
 
         images, labels, metadata = self._get_images_labels_factors()
@@ -70,65 +110,48 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
 
         bal_out = balance(metadata)
         bal_dict = bal_out.dict()
-        bal_img_path = str(self.image_folder / "balance_heatmap.png")
-        bal_fig = bal_out.plot()
-        bal_fig.savefig(bal_img_path, format="png")
-        bal_dict["image"] = bal_img_path
+        bal_dict["image"] = bal_out.plot()
 
         div_out = diversity(metadata)
         div_dict = div_out.dict()
-        div_img_path = str(self.image_folder / "diversity_heatmap.png")
-        div_fig = div_out.plot()
-        div_fig.savefig(div_img_path, format="png")
-        div_dict["image"] = div_img_path
+        div_dict["image"] = div_out.plot()
 
         par_out = parity(metadata)
         par_dict = par_out.dict()
 
         cov_out = coverage(embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
         cov_dict = cov_out.dict()
+        cov_dict["total"] = len(self.dataset)
 
         if len({image.shape for image in images}) == 1:
-            cov_img_path = str(self.image_folder / "coverage_plot.png")
-            cov_fig = cov_out.plot(images)
-            cov_fig.savefig(cov_img_path)
-            cov_dict["image"] = cov_img_path
+            cov_dict["image"] = cov_out.plot(images)
 
-        return {
-            self.BALANCE_KEY: bal_dict,
-            self.DIVERSITY_KEY: div_dict,
-            self.PARITY_KEY: par_dict,
-            self.COVERAGE_KEY: cov_dict,
-        }
+        return DataevalBiasOutputs.model_validate(
+            {"balance": bal_dict, "diversity": div_dict, "parity": par_dict, "coverage": cov_dict}
+        )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect consumables"""
-
-        method_map = {
-            self.BALANCE_KEY: self._report_balance,
-            self.COVERAGE_KEY: self._report_coverage,
-            self.DIVERSITY_KEY: self._report_diversity,
-            # self.PARITY_KEY: self._report_parity,
-        }
-
-        # Iterate over all bias methods and append to slide list
+        if self._stored_run is None:
+            raise RuntimeError("Can only collect consumables after run() was called")
+        dataset_id = self._stored_run.dataset_ids[0]
+        outputs: DataevalBiasOutputs = self._stored_run.outputs
         return [
-            report_func(self.outputs[method_key])
-            for method_key, report_func in method_map.items()
-            if method_key in self.outputs
+            self._report_balance(outputs.balance, dataset_id),
+            self._report_coverage(outputs.coverage, dataset_id),
+            self._report_diversity(outputs.diversity, dataset_id),
+            # self._report_parity(outputs.parity, dataset_id),
         ]
 
-    def _report_coverage(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _report_coverage(self, coverage: DataevalBiasCoverageOutputs, dataset_id: str) -> dict[str, Any]:
         """Format coverage results for Gradient consumption"""
         # Gradient specific kwargs
-        title = f"Dataset: {self.dataset_id} | Category Bias"
+        title = f"Dataset: {dataset_id} | Category Bias"
         heading = "Metric: Coverage"
 
         # Calculate results from coverage outputs
-        indices = outputs["indices"]
-        total_length = len(self.dataset)
-        uncovered_count = len(indices)
-        uncovered_percent = round(uncovered_count / total_length, 1)
+        uncovered_count = len(coverage.indices)
+        uncovered_percent = round(uncovered_count / coverage.total, 1)
 
         action_str = (
             "Increase representation of rare but relevant samples in areas of poor coverage"
@@ -150,30 +173,27 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
 
         cov_df = pd.DataFrame(
             {
-                "Poor Coverage": [f"{uncovered_count} of {total_length} ({uncovered_percent*100}%)"],
-                "Threshold": [round(outputs["critical_value"], 2)],
+                "Poor Coverage": [f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"],
+                "Threshold": [round(coverage.critical_value, 2)],
             },
         )
 
         # Gradient slide creation
         slide_kwargs = {"deck": self._deck, "title": title, "heading": heading, "text": text, "table": cov_df}
         # Image is only available if the input dataset had homogeneous-sized images
-        image_path = outputs.get("image")
-        if image_path is None:
-            return create_text_data_slide(**slide_kwargs)
-        return create_text_table_data_slide(
-            **slide_kwargs,
-            image_path=Path(image_path),
-        )
+        if coverage.image is not None:
+            return create_text_table_data_slide(
+                **slide_kwargs,
+                image_path=temp_image_file(coverage.image),
+            )
+        return create_text_data_slide(**slide_kwargs)
 
-    def _report_balance(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _report_balance(self, outputs: DataevalBiasBalanceOutputs, dataset_id: str) -> dict[str, Any]:
         """Format balance results for Gradient consumption"""
-        title = f"Dataset: {self.dataset_id} | Category Bias"
+        title = f"Dataset: {dataset_id} | Category Bias"
         heading = "Metric: Balance"
 
-        factors = outputs["factors"]
-
-        rollup = np.sum(np.array(factors)[0, 1:] > 0.5)
+        rollup = np.sum(outputs.factors[0, 1:] > 0.5)
 
         text = [
             "**Result:**",
@@ -189,22 +209,20 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
-        image_path = Path(outputs["image"])
-
         return create_text_data_slide(
             deck=self._deck,
             title=title,
             heading=heading,
             text=text,
-            image_path=image_path,
+            image_path=temp_image_file(outputs.image),
         )
 
-    def _report_diversity(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _report_diversity(self, outputs: DataevalBiasDiversityOutputs, dataset_id: str) -> dict[str, Any]:
         """Format diversity results for Gradient consumption"""
-        title = f"Dataset: {self.dataset_id} | Category Bias"
+        title = f"Dataset: {dataset_id} | Category Bias"
         heading = "Metric: Diversity"
 
-        rollup = np.sum(np.array(outputs["diversity_index"]) < 0.5)
+        rollup = np.sum(outputs.diversity_index < 0.5)
 
         text = [
             "**Result:**",
@@ -220,30 +238,26 @@ class DatasetBiasTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TD
             f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
-        image_path = Path(outputs["image"])
-
         return create_text_data_slide(
             deck=self._deck,
             title=title,
             heading=heading,
             text=text,
-            image_path=image_path,
+            image_path=temp_image_file(outputs.image),
         )
 
-    def _report_parity(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _report_parity(self, outputs: DataevalBiasParityOutputs, dataset_id: str) -> dict[str, Any]:
         """Format parity results for Gradient consumption"""
-        title = f"Dataset: {self.dataset_id} | Category Bias"
+        title = f"Dataset: {dataset_id} | Category Bias"
         heading = "Metric: Parity"
 
-        metadata_factors = np.array(outputs["metadata_names"])
-        metadata_chisquares = np.round(np.array(outputs["score"]), 2)
-        metadata_pvalues = np.round(np.array(outputs["p_value"]), 3)
+        metadata_pvalues = np.round(outputs.p_value, 3)
         rollup = np.sum(metadata_pvalues < 0.05)
 
         metadata_parity_table = pd.DataFrame(
             {
-                "Metadata Factor": metadata_factors,
-                "Chi-Square": metadata_chisquares,
+                "Metadata Factor": outputs.metadata_names,
+                "Chi-Square": np.round(outputs.score, 2),
                 "P-value": metadata_pvalues,
             },
         )
