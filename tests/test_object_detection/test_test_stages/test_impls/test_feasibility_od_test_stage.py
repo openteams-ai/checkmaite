@@ -53,6 +53,8 @@ class TestFeasibilityTestStage:
         test_stage = DatasetFeasibilityTestStage()
         test_stage.load_threshold(threshold)
         test_stage.load_dataset(None, "DUMMY_ID")  # type: ignore
+        test_stage.load_model(None, "model")
+        test_stage.load_eval_tool(None)
         test_stage.outputs = {"uap": uap}
 
         slides = test_stage.collect_report_consumables()
@@ -84,9 +86,14 @@ class TestFeasibilityTestStage:
 def test_feasibility_gradient_pptx(artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     teststage: DatasetFeasibilityTestStage = DatasetFeasibilityTestStage()
-    teststage.load_dataset(None, "VOC")  # type: ignore -> Only needs a dataset_id
+
+    # we only need the IDs here
+    teststage.load_dataset(None, "VOC")
+    teststage.load_model(None, "model")
+    teststage.load_eval_tool(None)
+    teststage.load_threshold(0.5)
+
     teststage.outputs = {"uap": 0.75}
-    teststage.threshold = 0.5
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()
     filename = create_deck(slides, path=artifact_dir, deck_name="feasibility")

@@ -2,7 +2,6 @@
 
 import os
 
-import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import (
@@ -41,10 +40,7 @@ MC_RISE_ARGS = {
 }
 
 
-@pytest.mark.parametrize("use_stage_cache", [True, False])
-def test_xaitk_test_stage_rise(
-    use_stage_cache, dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir
-) -> None:
+def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(RISE_ARGS)
@@ -53,7 +49,7 @@ def test_xaitk_test_stage_rise(
     test.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
     test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
-    test.run(use_stage_cache=use_stage_cache)
+    test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert len(output) == len(dummy_dataset_ic) * dummy_dataset_ic[0][1].shape[0]
@@ -74,10 +70,7 @@ def test_xaitk_test_stage_rise(
     assert filename.exists()
 
 
-@pytest.mark.parametrize("use_stage_cache", [True, False])
-def test_xaitk_test_stage_mc_rise(
-    use_stage_cache, dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir
-) -> None:
+def test_xaitk_test_stage_mc_rise(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(MC_RISE_ARGS)
@@ -86,7 +79,7 @@ def test_xaitk_test_stage_mc_rise(
     test.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
     test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
-    test.run(use_stage_cache=use_stage_cache)
+    test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert (

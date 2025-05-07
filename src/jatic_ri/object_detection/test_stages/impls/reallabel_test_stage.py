@@ -1,17 +1,10 @@
 """Object Detection RealLabel test stage."""
 
-import copy
-import dataclasses
-import json
-import logging
-import shutil
+import tempfile
 import textwrap
 import warnings
-from collections.abc import Hashable
-from hashlib import sha256
 from pathlib import Path
 from typing import (
-    Annotated,
     Any,
     Optional,
     Union,
@@ -19,238 +12,54 @@ from typing import (
 
 import maite.protocols.object_detection as od
 import numpy as np
-import pandas as pd
+import PIL.Image
+import pydantic
 import pyspark.sql.functions as sf
 import torch
 from gradient import SubText, Text
-from PIL import Image
 from pptx.dml.color import RGBColor
-from pydantic import BaseModel, BeforeValidator, ConfigDict, field_serializer
-from pyspark.sql import DataFrame
 from reallabel import (
     MAITERealLabel,
     RealLabelColumns,
-    RealLabelConfig,
     plot_reallabel_results,
 )
-from reallabel import (
-    RealLabelResults as RealLabelModuleResults,
-)
+from reallabel import RealLabelConfig as _NativeRealLabelConfig
 
-from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.util.utils import sanitize_gradient_markdown_text
-
-logger = logging.getLogger()
-
-# This constant represents the expected location of the RealLabel output directory under the cache_path()
-# directory where the RealLabelTestStage.run() function can store visualizations in the event of a cache miss. Since
-# these results may be needed past the lifetime of the TestStage, these results will just be left until deleted by the
-# user. NOTE: There should only ever be one file in here at a time since the image file will just be overwritten by
-# the next cache miss.
-_REALLABEL_CACHE_MISS_OUTPUT_DIR = "reallabel_cache_miss_outputs"
-
-# These constants represent the expected names and locations of the RealLabel cache results to be found
-# under the cache_path() / test_stage.cache_id directory,
-# and should be used as `self.cache_base_dir/self.cache_id/_REALLABEL_CACHE_CSV_PATH`
-_REALLABEL_CACHE_JSON_PATH = "reallabel_standard_results.json"
-_REALLABEL_CACHE_IMAGE_PATH = "reallabel_result_visualization.png"
-# This file will contain a json-ified list of the various parameters that went into generating the hash ID including
-# all model IDs, the dataset ID, and RealLabel Config values.
-_REALLABEL_CACHE_CONFIGURATION_PATH = "reallabel_cache_configuration.json"
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.util._types import DataFrame, Image
+from jatic_ri.util.utils import sanitize_gradient_markdown_text, temp_image_file
 
 
-def parse_dataframe(value: Union[pd.DataFrame, dict]) -> pd.DataFrame:
-    """
-    Attempts to parse the input value into a pandas DataFrame.
-    Accepts either an existing DataFrame or a dictionary
-    in pandas 'split' orientation ({'index': ..., 'columns': ..., 'data': ...}).
-    """
-    if isinstance(value, pd.DataFrame):
-        # Return a copy to prevent mutation issues if the original df is reused
-        return value.copy()
-    if isinstance(value, dict):
-        try:
-            # Check for required keys for 'split' orientation
-            if not {"index", "columns", "data"}.issubset(value.keys()):
-                raise ValueError("Dictionary must contain 'index', 'columns', and 'data' keys for 'split' orientation.")
-            # Reconstruct DataFrame using the DataFrame constructor
-            return pd.DataFrame(data=value["data"], index=value["index"], columns=value["columns"])
-        except Exception as e:
-            raise ValueError(f"Failed to create DataFrame from dict: {e}") from e
-    raise TypeError(f"Expected a pandas.DataFrame or dict (split format), got {type(value)}")
-
-
-DataFrameType = Annotated[pd.DataFrame, BeforeValidator(parse_dataframe)]
-
-
-class RealLabelTestStageResults(BaseModel):
+class RealLabelTestStageResults(OutputsBase):
     """Results class for RealLabelTestStage"""
 
-    example_image_path: Path
-    default_results: DataFrameType
-    classification_disagreements_df: Optional[DataFrameType] = None
-    verbose_df: Optional[DataFrameType] = None
-    sequence_priority_score_df: Optional[DataFrameType] = None
-    sequence_priority_score_balanced_df: Optional[DataFrameType] = None
-    wanrs_df: Optional[DataFrameType] = None
-    aggregated_confidence_df: Optional[DataFrameType] = None
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    @field_serializer(
-        "default_results",
-        "classification_disagreements_df",
-        "verbose_df",
-        "sequence_priority_score_df",
-        "sequence_priority_score_balanced_df",
-        "wanrs_df",
-        "aggregated_confidence_df",
-        when_used="always",
-    )
-    def serialize_df(self: BaseModel, df: Union[pd.DataFrame, None]) -> Union[dict[Hashable, Any], None]:
-        """
-        Serializes the DataFrame to a dictionary in 'split' orientation.
-        Handles None for the optional field.
-        'when_used=always' ensures this runs for both model_dump (python) and model_dump_json (json).
-        """
-        if df is None:
-            return None
-        return df.to_dict(orient="split")
-
-    @classmethod
-    def from_real_label_module_results(
-        cls, reallabel_module_results: RealLabelModuleResults, example_image_path: Path
-    ) -> "RealLabelTestStageResults":
-        """Convert RealLabelModuleResults to RealLabelTestStageResults."""
-
-        # ignore these fields in RealLabelModuleResults
-        ignored_fields = {
-            "_run_with_ground_truth",
-        }
-        # fields with different names between RealLabelModuleResults and RealLabelTestStageResults
-        renamed_fields = {
-            "results": "default_results",
-        }
-        # additional fields not in RealLabelModuleResults
-        extra_fields: dict[str, Any] = {
-            "example_image_path": example_image_path,
-        }
-
-        real_label_test_stage_results_kwargs = extra_fields
-        for field in dataclasses.fields(RealLabelModuleResults):
-            if (
-                field.name not in cls.__annotations__
-                and field.name not in ignored_fields
-                and field.name not in renamed_fields
-            ):
-                # raise a warning
-                warnings.warn(
-                    f'Ignoring field "{field.name}" b/c not defined in RealLabelTestStageResults while '
-                    f'converting "{RealLabelModuleResults.__name__}" to "{cls.__name__}"',
-                    stacklevel=2,
-                )
-                continue
-            field_value = getattr(reallabel_module_results, field.name)
-            if isinstance(field_value, DataFrame):
-                # Convert Spark DataFrame to Pandas DataFrame
-                field_value = field_value.toPandas()
-
-            # rename fields
-            field_name = renamed_fields.get(field.name, field.name)
-
-            real_label_test_stage_results_kwargs[field_name] = field_value
-
-        return cls(
-            **real_label_test_stage_results_kwargs,
-        )
+    default_results: DataFrame
+    example_image: Image
+    classification_disagreements_df: Optional[DataFrame] = None
+    verbose_df: Optional[DataFrame] = None
+    sequence_priority_score_df: Optional[DataFrame] = None
+    sequence_priority_score_balanced_df: Optional[DataFrame] = None
+    wanrs_df: Optional[DataFrame] = None
+    aggregated_confidence_df: Optional[DataFrame] = None
 
 
-class RealLabelCache(Cache[RealLabelTestStageResults]):
-    """Cache implementation for RealLabelTestStage.
+# reallabel already provides a pydantic model for its configuration so we just mix in our base
+class RealLabelConfig(_NativeRealLabelConfig, ConfigBase):
+    """Config class for RealLabelTestStage"""
 
-    The cache directory will, at minimum, contain two files: The RealLabelResults.results dataframe saved to a csv,
-    and the png image with the most bounding boxes updated to include ReallLabel results visualized on top.
+    pass
 
-    Attributes:
-        cache_configuration: A dictionary of information relating to the configuration of the
-            RealLabelTestStage providing data to the cache. If set, when write_cache() is called, an additional
-            json file will be added to the cache with the configuration information.
-    """
 
-    def __init__(self, configuration: Optional[dict[str, Any]] = None) -> None:
-        self.cache_configuration: Optional[dict[str, Any]] = configuration
-        super().__init__()
+class RealLabelRun(RunBase):
+    """Run class for RealLabelTestStage"""
 
-    def read_cache(self, cache_path: str) -> Optional[RealLabelTestStageResults]:
-        """Read in cache from cache_path.
-
-        Args:
-            cache_path: path to RealLabel results cache
-
-        Returns:
-            tuple:
-                [0]: The cached RealLabel results object with all dataframes
-                [1]: The path to the cached RealLabel result image.
-        """
-        logger.info(f"Checking for existing cache at {cache_path}")
-        cache_dir = Path(cache_path)
-
-        # Check for the results file
-        if not (cache_dir / _REALLABEL_CACHE_JSON_PATH).exists():
-            return None
-
-        # Load the results object
-        main_results_path = cache_dir / _REALLABEL_CACHE_JSON_PATH
-        with main_results_path.open() as file:
-            reallabel_results = RealLabelTestStageResults.model_validate_json(file.read())
-
-        if not reallabel_results.example_image_path.exists():
-            warnings.warn(
-                f"Cached image path {reallabel_results.example_image_path} does not exist.  Ignoring cached results.",
-                stacklevel=2,
-            )
-            return None
-
-        return reallabel_results
-
-    def write_cache(self, cache_path: str, data: RealLabelTestStageResults) -> None:
-        """Write the given RealLabel result data to cache.
-
-        Args:
-            cache_path: path to cache
-            data: data to write to cache consists of two elements:
-                [0]: The RealLabelResults object with all dataframes.
-                [1]: The path to the image to cache.
-        """
-        logger.info(f"Writing cache to {cache_path}")
-        # reallabel_results = data
-        cache_dir = Path(cache_path)
-
-        # Create cache directory
-        cache_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save the results
-        data = data.model_copy(deep=True)  # Ensure we don't mutate the original data
-        if data.example_image_path:
-            cached_results_img_file_path = cache_dir / _REALLABEL_CACHE_IMAGE_PATH
-            Path(cached_results_img_file_path).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(data.example_image_path, cached_results_img_file_path)
-            data.example_image_path = cached_results_img_file_path
-
-        with (cache_dir / _REALLABEL_CACHE_JSON_PATH).open("w+") as file:
-            file.write(data.model_dump_json())
-
-        # Save configuration if available
-        if self.cache_configuration:
-            cached_results_configuration_file_path = cache_dir / _REALLABEL_CACHE_CONFIGURATION_PATH
-            with cached_results_configuration_file_path.open("w+") as file:
-                file.write(json.dumps(self.cache_configuration))
+    config: RealLabelConfig
+    outputs: RealLabelTestStageResults
 
 
 class RealLabelTestStage(
@@ -271,24 +80,22 @@ class RealLabelTestStage(
 
     Attributes:
         config: The RealLabel Config object that should be used when running Reallabel.
-        cache: The RealLabelCache object used to read from and write to cache locations.
-        outputs: A tuple of RealLabel results with the layout:
-            [0]: The RealLabelResults.results dataframe.
-            [1]: A Path to the visualization of the RealLabelResults on the image with the most bounding boxes.
-                NOTE: The use of "the image with the most bounding boxes" is pretty arbitrary and just chosen
-                      to show something interesting. Potentially configurable.
+        outputs: A `RealLabelTestStageResults` object containing the results of the RealLabel analysis,
+            including DataFrames and an example visualization image path.
         models: The dictionary of model names to their MAITE-wrapped model objects whose
             inference should be used when running RealLabel.
         dataset: The MAITE-wrapped dataset object on which the models should run inference
             and produce results.
     """
 
+    _RUN_TYPE = RealLabelRun
+
     _deck: str = "object_detection_reallabel"
     _task: str = "od"
 
     def __init__(
         self,
-        config: Union[RealLabelConfig, dict[str, Any]],
+        config: Union[_NativeRealLabelConfig, dict[str, Any]],
     ) -> None:
         """Initialize the RealLabel test stage.
 
@@ -296,50 +103,19 @@ class RealLabelTestStage(
             config (Union[Config, dict[str, Any]]): The RealLabel Config object that should be used when running
                 Reallabel. Or a dict representing a RealLabel config in a json readable format.
         """
-        self.config: RealLabelConfig = RealLabelConfig(**config) if isinstance(config, dict) else config
-        # Need AC for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
-        # that we need to fix.
-        if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self.config.additional_columns_clean_results:
-            self.config.additional_columns_clean_results.append(RealLabelColumns.AGGREGATED_CONFIDENCE.value)
-
-        # self.outputs is where we store `run()` results. It is a tuple containing the following:
-        #  [0]: pyspark DataFrame containing output results
-        #  [1]: Path object pointing to image of a bar plot showing distribution of RealLabel results
-
-        # A dictionary of identifying information that will be hashed into an ID
-        self._cache_configuration: Optional[dict[str, Any]] = None
-
-        self.cache: Optional[Cache[RealLabelTestStageResults]] = RealLabelCache(self._cache_configuration)
-
         super().__init__()
 
-    def _generate_cache_config(self) -> None:
-        """Examines the RealLabel config, the MAITE-models, and MAITE-dataset to update self._cache_configuration.
+        if isinstance(config, pydantic.BaseModel):
+            config = config.model_dump()
+        self._config = RealLabelConfig.model_validate(config)
 
-        Also updates the cache configuration of this instance's RealLabelCache().
-        """
-        self.validate_plugins()
+        # Need AC for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
+        # that we need to fix.
+        if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self._config.additional_columns_clean_results:
+            self._config.additional_columns_clean_results.append(RealLabelColumns.AGGREGATED_CONFIDENCE.value)
 
-        sorted_model_ids = list(self.models.keys())
-        sorted_model_ids.sort()
-        reallabel_config = copy.deepcopy(self.config.__dict__)
-        # column_names is a ColumnNameConfig which also needs to be unpacked.
-        reallabel_config["column_names"] = reallabel_config["column_names"].__dict__
-
-        self._cache_configuration = {
-            "model_ids": sorted_model_ids,
-            "dataset_id": self.dataset_id,
-            "reallabel_config": reallabel_config,
-        }
-        self.cache: Optional[Cache[RealLabelTestStageResults]] = RealLabelCache(self._cache_configuration)
-
-    @property
-    def cache_id(self) -> str:
-        """Generate the cache ID for this instance based on the Model IDs, Dataset ID, and RealLabel Config."""
-        self._generate_cache_config()
-        config_hash_string = sha256(json.dumps(self._cache_configuration).encode("utf-8")).hexdigest()
-
-        return f"reallabel_{self._task}_cache_{config_hash_string}"
+    def _create_config(self) -> RealLabelConfig:
+        return self._config
 
     def __run_metrics(self) -> dict[str, list]:  # pragma: no cover
         """Generate metrics from maite models."""
@@ -365,7 +141,7 @@ class RealLabelTestStage(
         # Create MAITERealLabel wrapper
         reallabel = MAITERealLabel(
             model_inference_results=model_inference_result,
-            config=self.config,
+            config=self._config,
             link_unique_identifier_columns_and_metadata=True,
             ground_truth_dataset=self.dataset,
         )
@@ -384,22 +160,10 @@ class RealLabelTestStage(
         if default_reallabel_results.isEmpty():
             raise RuntimeError("Reallabel result pyspark df is empty!")
 
-        # Clear out the cache miss dir in preparation for our new results.
-        cache_miss_output_img_path = cache_path() / _REALLABEL_CACHE_MISS_OUTPUT_DIR / _REALLABEL_CACHE_IMAGE_PATH
-        if cache_miss_output_img_path.parent.exists():
-            shutil.rmtree(cache_miss_output_img_path.parent)
-        cache_miss_output_img_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create a directory where we can save the tensor image for the image with the most bounding boxes.
-        most_populous_image_temp_dir_path = (
-            cache_path() / _REALLABEL_CACHE_MISS_OUTPUT_DIR / "directory_for_visualization_input_base_images"
-        )
-        most_populous_image_temp_dir_path.mkdir()
-
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
         self._example_image_unique_id = (
-            default_reallabel_results.groupBy(self.config.column_names.unique_identifier_columns)
+            default_reallabel_results.groupBy(self._config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
             .drop("count")
@@ -422,13 +186,10 @@ class RealLabelTestStage(
 
         # Since we aren't guaranteed an actual file name metadata field (not all datasets have them),
         # make a new file name with the raw UUID values
-        most_populous_image_file_name = "_".join(value for value in self._example_image_unique_id.values()) + ".jpeg"
+        most_populous_image_file_name = "_".join(value for value in self._example_image_unique_id.values()) + ".png"
         # Ensure we have a mapping of this portmanteau file name to the actual UUID values that
         # will be found in the dataframe.
         most_populous_image_name_to_uuid_value_map = {most_populous_image_file_name: self._example_image_unique_id}
-
-        # Save the image to the temporary directory (workaround for potentially not knowing the original datapath)
-        most_populous_image_final_path = most_populous_image_temp_dir_path / most_populous_image_file_name
 
         # PIL stores as HWC, but MAITE and the RI requires CHW
         if isinstance(most_populous_image_array, torch.Tensor):
@@ -440,23 +201,33 @@ class RealLabelTestStage(
                 f"Reallabel Test Stage Error: image array type not understood ({type(most_populous_image_array)})"
             )
 
-        Image.fromarray(most_populous_image_numpy).save(most_populous_image_final_path)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            p = Path(tmp_dir)
 
-        # Plot the RealLabel results
-        plot_reallabel_results(
-            image_location=most_populous_image_final_path,
-            reallabel_results_df=results_for_most_populous_image_df,
-            output_location=cache_miss_output_img_path,
-            reallabel_config=self.config,
-            image_name_map=most_populous_image_name_to_uuid_value_map,
-        )
+            image_location = p / most_populous_image_file_name
+            PIL.Image.fromarray(most_populous_image_numpy).save(image_location)
 
-        results = RealLabelTestStageResults.from_real_label_module_results(
-            reallabel_results,
-            cache_miss_output_img_path,
-        )
+            output_location = p / "output.png"
 
-        return results  # noqa: RET504
+            # Plot the RealLabel results
+            plot_reallabel_results(
+                image_location=image_location,
+                reallabel_results_df=results_for_most_populous_image_df,
+                output_location=output_location,
+                reallabel_config=self._config,
+                image_name_map=most_populous_image_name_to_uuid_value_map,
+            )
+
+            return RealLabelTestStageResults(
+                default_results=default_reallabel_results,  # type: ignore[reportArgumentType]
+                example_image=image_location,  # type: ignore[reportArgumentType]
+                classification_disagreements_df=reallabel_results.classification_disagreements_df,  # type: ignore[reportArgumentType]
+                verbose_df=reallabel_results.verbose_df,  # type: ignore[reportArgumentType]
+                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # type: ignore[reportArgumentType]
+                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,  # type: ignore[reportArgumentType]
+                wanrs_df=reallabel_results.wanrs_df,  # type: ignore[reportArgumentType]
+                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,  # type: ignore[reportArgumentType]
+            )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables."""
@@ -553,7 +324,7 @@ class RealLabelTestStage(
                             ),
                         ]
                     ),
-                    "content_right": reallabel_results.example_image_path,
+                    "content_right": temp_image_file(reallabel_results.example_image),
                 },
             },
         ]

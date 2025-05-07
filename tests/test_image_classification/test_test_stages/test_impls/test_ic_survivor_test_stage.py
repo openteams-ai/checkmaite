@@ -1,36 +1,18 @@
 """Test image classification survivor test stage."""
 
-import json
-import os
-from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 from gradient import Text
+from gradient.templates_and_layouts.create_deck import create_deck
 from maite.protocols import image_classification as ic
+from survivor import SurvivorConfig
 from survivor.enums import ScoreConversionType
 
-from jatic_ri._common.test_stages.impls.survivor_test_stage_cache import (
-    _SURVIVOR_CACHE_CONFIGURATION_PATH,
-    SurvivorCache,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorConfig, SurvivorTestStage
+from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorTestStage
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
-from tests.testing_utilities.testing_utilities import assert_spark_dataframes_equal
-
-# This file is the expected output of Survivor if using all the information found in the survivor_test_stage_args
-# fixture, and if any of the data, model, metric, or SurvivorConfig information used by that fixture changes,
-# then this file will need to be updated
-
-# KNOWN ISSUES:
-# (1) Per the comment above, the expected survivor image file SHOULD need updating given fixtures have changed.  However,
-# the tests still passed.  RI issue #232 is tracking
-# (2) Higher fidelity tests (i.e. Survivor-relevant variance in the faked model/dataset/metric) are being solutioned - RI issue #229
-
-EXPECTED_SURVIVOR_IMAGE = (
-    Path(os.path.abspath(__file__)).parent / "test_data" / "expected_survivor_result_visualization.png"
-)
 
 _DICT_CONFIG = "dict_config"
 _SURVIVOR_CONFIG = "config"
@@ -98,57 +80,22 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
     ids=["Using SurvivorConfig", "Using dict config"],
     indirect=True,
 )
-def test_survivor_test_stage_run_caches(test_stage: SurvivorTestStage, tmp_cache_path) -> None:
+def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, tmp_cache_path) -> None:
     """Test SurvivorTestStage generates a cache object that can be read correctly."""
-    # Arrange
-    expected_cache_location = tmp_cache_path / test_stage.cache_id
-    expected_results_df_path = expected_cache_location / "survivor_standard_results.csv"
-    expected_results_png_path = expected_cache_location / "survivor_result_visualization.png"
-    expected_results_config_path = expected_cache_location / _SURVIVOR_CACHE_CONFIGURATION_PATH
 
-    survivor_cache = SurvivorCache()
+    run = test_stage.run(use_stage_cache=True)
 
-    # Act - Build the cache
-    test_stage.run(use_stage_cache=True)
+    mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
+    cached_run = test_stage.run(use_stage_cache=True)
+    assert cached_run is not run
 
-    actual_cached_results_df, actual_cached_image = survivor_cache.read_cache(cache_path=str(expected_cache_location))
+    df, _ = run.outputs
+    cached_df, _ = cached_run.outputs
 
-    # Assert
-
-    # Compare the read-from-cache dataframe against the actual dataframe returned from `run()`. Minor issues in type
-    # conversion but can't really be helped :/
-    assert expected_results_df_path.exists()
-    # 'timestamp' column was part of the USA_SUMMER_DATASET in initial tests, but does not exist in our default FakeODDataset
-    actual_returned_results_df = test_stage.outputs[
-        0
-    ]  # .withColumn("timestamp", sf.col("timestamp").cast("timestamp"))
-    assert_spark_dataframes_equal(actual_returned_results_df, actual_cached_results_df.toPandas())
-
-    assert expected_results_png_path.exists()
-
-    # Manually check that the cache config was saved properly well since the config isn't returned by read_cache()
-    assert expected_results_config_path.exists()
-    with expected_results_config_path.open() as file:
-        assert test_stage._cache_configuration == json.load(file)
+    pd.testing.assert_frame_equal(cached_df, df)
 
 
-def test_survivor_test_stage_cache_id_generation(test_stage) -> None:
-    """Test the SurvivorLabelTestStage cache ID generation against the known ID from the current base test set.
-
-    If the model IDs, Dataset ID, Metric ID, or anything about the SurvivorConfig object from the
-    survivor_test_stage_args fixture changes, then the hash in the expected_cache_id variable will need to be updated.
-    """
-    # Arrange
-    expected_cache_id = "survivor_ic_cache_1a79e54caa6e2f06f03979414c635f0503535a5c02cccbcce724af3b69903ac5"
-
-    # Act
-    actual_cache_id = test_stage.cache_id
-
-    # Assert
-    assert actual_cache_id == expected_cache_id
-
-
-def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, tmp_cache_path) -> None:
+def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, artifact_dir) -> None:
     """Test collect_report_consumables."""
     # Arrange
     expected_deck = "image_classification_survivor"
@@ -164,7 +111,6 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, tmp_
         "0.0% On the Bubble data.",
         fontsize=22,
     )
-    expected_content_right = str(tmp_cache_path / test_stage.cache_id / "survivor_result_visualization.png")
     expected_title = "Survivor Dataset Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -174,6 +120,7 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, tmp_
     test_stage.run(use_stage_cache=True)
 
     # Act
+    slide_content = test_stage.collect_report_consumables()
     output_consumables = test_stage.collect_report_consumables()[0]
 
     # Assert
@@ -181,7 +128,10 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, tmp_
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
     assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
-    assert output_consumables["layout_arguments"]["content_right"].as_posix() == expected_content_right
+    assert output_consumables["layout_arguments"]["content_right"].is_file()
+
+    filename = create_deck(slide_content, artifact_dir, "survivor")
+    assert filename.exists()
 
 
 def test_survivor_test_stage_collect_report_consumables_error(
@@ -193,33 +143,6 @@ def test_survivor_test_stage_collect_report_consumables_error(
     # Act and Assert
     with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_report_consumables()
-
-
-def test_survivor_test_stage_collect_metrics(
-    test_stage: SurvivorTestStage,
-) -> None:
-    """Test collect_metrics."""
-    # Arrange
-    expected_output = {"Low_Val_Data": 1.0}
-
-    test_stage.run(use_stage_cache=False)
-
-    # Act
-    actual_output = test_stage.collect_metrics()
-
-    # Assert
-    assert actual_output == expected_output
-
-
-def test_survivor_test_stage_collect_metrics_error(
-    test_stage: SurvivorTestStage,
-) -> None:
-    """Test collect_metrics error when run not called."""
-    # No Arrange
-
-    # Act and Assert
-    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
-        test_stage.collect_metrics()
 
 
 def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
@@ -243,19 +166,3 @@ def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
 
     with pytest.raises(RIValidationError, match=r"'metric' not set! Please use `load_metric\(\)` function"):
         test_stage_3.run(use_stage_cache=False)
-
-
-def test_cache_miss_dir_resets(test_stage: SurvivorTestStage, tmp_cache_path) -> None:
-    """Test cache miss dir is deleted and resets if it already exists."""
-    # Arrange
-    output = tmp_cache_path / "survivor_cache_miss_outputs"
-    output.mkdir()
-    file = output / "test_file.txt"
-    file.touch()
-
-    # Act
-    test_stage._run()
-
-    # Assert
-    assert output.exists()
-    assert not file.exists()

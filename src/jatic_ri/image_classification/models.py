@@ -59,9 +59,9 @@ class TorchvisionICModel:
         self,
         *,
         model_name: str,
-        device: Optional[str] = None,  # noqa: UP007
-        weights_path: Optional[str] = None,  # noqa: UP007
-        config_path: Optional[str] = None,  # noqa: UP007
+        device: Optional[str] = None,
+        weights_path: Optional[str] = None,
+        config_path: Optional[str] = None,
         index2label_key: str = "index2label",
         model_id: str = "torchvisionIC",
         **kwargs: dict[str, Any],

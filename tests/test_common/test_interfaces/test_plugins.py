@@ -200,6 +200,5 @@ def test_test_stage_no_default_cache() -> None:
             return super().collect_report_consumables()
 
     stage = TestImpl()
-
-    assert not stage.cache_path
+    assert not stage.cache_id
     assert not stage.cache

@@ -3,11 +3,13 @@
 import io
 import re
 import tempfile
+from pathlib import Path
 from typing import Any, Union
 
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
+import PIL.Image
 
 
 def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
@@ -35,6 +37,12 @@ def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
     buf.close()
 
     return filename
+
+
+def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:  # noqa: D103
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        image.save(f)
+        return Path(f.name)
 
 
 def create_metrics_bar_plot(

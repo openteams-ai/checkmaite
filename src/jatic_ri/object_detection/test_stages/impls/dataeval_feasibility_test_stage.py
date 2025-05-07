@@ -12,7 +12,6 @@ from gradient.templates_and_layouts.generic_layouts.text_data import TextData
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
-    MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     ThresholdPlugin,
@@ -25,7 +24,6 @@ class DatasetFeasibilityTestStage(
     TestStage[dict[str, float]],
     SingleModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
-    MetricPlugin[od.Metric],
     ThresholdPlugin,
     EvalToolPlugin,
 ):

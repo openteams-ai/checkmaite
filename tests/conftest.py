@@ -176,7 +176,11 @@ def dummy_dataset_od() -> od.Dataset:
     class DummyDataset:
         """Dataset with 10 3x16x16 CHW images"""
 
-        images = torch.ones(size=(10, 3, 16, 16))
+        def __init__(self):
+            # FIXME: this should be private to avoid using internals
+            self.images = torch.ones(size=(10, 3, 16, 16))
+            # FIXME: this needs a index2label entry
+            self.metadata = {"id": type(self).__name__}
 
         def __len__(self) -> int:
             return len(self.images)
@@ -227,19 +231,21 @@ def dummy_dataset_ic() -> ic.Dataset:
         def __init__(self):
             n = 10
 
+            # FIXME all instance attributes should be private to avoid depending on anything non-MAITE compliant
             self.data = np_unstack(RNG.random((n, 3, 16, 16)))
 
             self.targets = np_unstack(RNG.random((n, 2)))
             for data_index in range(n):
                 self.targets[data_index][data_index % 2] = 1
 
-            self.metadata = [{"some_metadata": i} for i in range(n)]
+            self._metadata = [{"some_metadata": i} for i in range(n)]
+            self.metadata = {"id": type(self).__name__}
 
         def __len__(self) -> int:
             return len(self.data)
 
         def __getitem__(self, ind: int) -> tuple[np.ndarray, np.ndarray, dict]:
-            return self.data[ind], self.targets[ind], self.metadata[ind]
+            return self.data[ind], self.targets[ind], self._metadata[ind]
 
     return DummyDataset()
 
