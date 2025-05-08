@@ -329,9 +329,11 @@ class DatasetSpecification(TypedDict):
     # full path to the metadata file. For Coco datasets, this is the annotation file. For
     # yolo datasets, this is the yaml file.
     metadata_path: str | Path
-    # full path to the directory containing either the annotation files for yolo or
-    # the split directory for coco
-    data_dir: str | Path | None
+    # full path to the directory containing
+    #   - the annotation files for yolo,
+    #   - the split directory for coco, or
+    #   - the root data directory for visdrone
+    data_dir: str | Path
 
 
 def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDetectionDataset | YoloDetectionDataset]:
@@ -343,18 +345,18 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDe
             loaded[name] = CocoDetectionDataset(
                 root=str(dataset_metadata["data_dir"]),
                 ann_file=str(dataset_metadata["metadata_path"]),
-                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
+                dataset_id=Path(dataset_metadata["data_dir"]).name,
             )
         elif dataset_metadata["dataset_type"] == "YoloDetectionDataset":
             loaded[name] = YoloDetectionDataset(
                 yaml_dataset=str(dataset_metadata["metadata_path"]),
                 ann_dir=str(dataset_metadata["data_dir"]),
-                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
+                dataset_id=Path(dataset_metadata["data_dir"]).name,
             )
         elif dataset_metadata["dataset_type"] == "VisdroneDetectionDataset":
             loaded[name] = VisdroneDetectionDataset(
                 root=str(dataset_metadata["data_dir"]),
-                dataset_id=str(dataset_metadata["data_dir"]).split("/")[-1],
+                dataset_id=Path(dataset_metadata["data_dir"]).name,
             )
         else:
             raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")

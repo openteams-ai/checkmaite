@@ -77,6 +77,7 @@ class NRTKTestStageBase(
         perturber = perturber.rpartition(".")[-1].replace("Perturber", "")
         theta_key_map = {
             "factor": "Factor",
+            "ksize": "Kernel Size",
             "s_x": "Root Mean Squared",
             "s_y": "Root Mean Squared",
             "p_x": "Pitch in X Direction",
