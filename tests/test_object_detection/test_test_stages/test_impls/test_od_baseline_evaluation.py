@@ -19,12 +19,10 @@ def test_baseline_evaluation_dummy_od(
     test.load_threshold(threshold=0.5)
     test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
-    test.run(use_stage_cache=False)
-    print(fake_od_dataset_default.metadata["index2label"].items())
 
-    # Assert outputs contain label2index, needed for multiclass metric display
-    for k, v in fake_od_dataset_default.metadata["index2label"].items():
-        assert test.outputs[f"class_{v}"] == k
+    run = test.run(use_stage_cache=False)
+
+    assert run.outputs.class_metrics is None
 
     test.collect_report_consumables()
 
@@ -41,9 +39,10 @@ def test_baseline_evaluation_multiclass(
     test.load_threshold(threshold=0.5)
     test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
     test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
-    test.run(use_stage_cache=False)
 
-    assert "per_class_flag" in test.outputs
+    run = test.run(use_stage_cache=False)
+
+    assert run.outputs.class_metrics is not None
 
     results = test.collect_report_consumables()
 
