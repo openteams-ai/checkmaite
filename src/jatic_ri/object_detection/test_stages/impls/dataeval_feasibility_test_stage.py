@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from dataeval.metrics.estimators import uap
 from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.text_data import TextData
+from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
@@ -97,12 +97,12 @@ class DatasetFeasibilityTestStage(
         # Set up Gradient slide
         feasibility_slide_args = {
             "deck": "object_detection_dataset_evaluation",
-            "layout_name": "TextData",
+            "layout_name": "SectionByItem",
             "layout_arguments": {
-                TextData.ArgKeys.TITLE.value: title,
-                TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                TextData.ArgKeys.DATA_COLUMN_TABLE.value: feasibility_df,
+                SectionByItem.ArgKeys.TITLE.value: title,
+                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
             },
         }
 

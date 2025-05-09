@@ -159,14 +159,11 @@ class BaselineEvaluationBase(
         return [
             {
                 "deck": self._deck,
-                "layout_name": "OneImageText",
+                "layout_name": "ItemByNarrowText",
                 "layout_arguments": {
                     "title": "Basic Evaluation with MAITE",
-                    # non-styling related underscores are not permitted by gradient
-                    # this doesn't account for underscores that have already been escaped!
-                    # and removes even the styling related underscores :/
-                    "text": text.replace("_", r"\_"),
-                    "image_path": Path(save_figure_to_tempfile(fig)),
+                    "text": text,
+                    "item": Path(save_figure_to_tempfile(fig)),
                 },
             },
         ]

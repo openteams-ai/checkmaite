@@ -221,15 +221,15 @@ class TestDrift:
         assert "DummyDataset1" in results["title"]
         assert "DummyDataset2" in results["title"]
 
-        assert results["text_column_heading"] == "Metric: Drift"
+        assert results["line_section_heading"] == "Metric: Drift"
 
         # Confirms variable string set to drifted versions
         # Access str through List -> Text -> List -> Subtext -> content
-        text_content = results["text_column_body"]
+        text_content = results["line_section_body"]
         assert "has drifted" in text_content[1].content[0].content
         assert "Retrain model (augmentation, transfer learning)" in text_content[-1].content[0].content
 
-        result_df = results["data_column_table"]
+        result_df = results["item_section_body"]
 
         assert all(result_df["Has drifted?"] == ["No", "Yes", "No"])
         assert all(result_df["Test statistic"] == [-1, 0, 1])
@@ -303,15 +303,15 @@ class TestOOD:
         assert "DummyDataset1" in results["title"]
         assert "DummyDataset2" in results["title"]
 
-        assert results["text_column_heading"] == "Metric: Out-of-distribution (OOD)"
+        assert results["line_section_heading"] == "Metric: Out-of-distribution (OOD)"
 
         # Confirms variable string set to drifted versions
         # Access str through List -> Text -> List -> Subtext -> content
-        text_content = results["text_column_body"]
+        text_content = results["line_section_body"]
         assert "66.7" in text_content[1].content[0].content
         assert "Retrain model (augmentation, transfer learning)" in text_content[-2].content[0].content
 
-        result_df = results["data_column_table"]
+        result_df = results["item_section_body"]
 
         assert all(result_df["OOD Count"] == [2])
         assert all(result_df["OOD Percent"] == [66.7])

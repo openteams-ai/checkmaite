@@ -17,8 +17,9 @@ from dataeval.metrics.stats import (
     LabelStatsOutput,
     VisualStatsOutput,
 )
+from gradient import SubText
 from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts import TableText, TextData, TextTableImages
+from gradient.templates_and_layouts.generic_layouts import SectionByItem, SectionByTableOverArray, TableText
 from matplotlib import patches
 from matplotlib import pyplot as plt
 from more_itertools import take
@@ -53,48 +54,6 @@ RATIO_LIST = [
     "left",
     "top",
     "aspect_ratio",
-]
-IMAGE_ARGKEYS = [
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_1_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_1_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_1_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_2_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_3_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_3_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_3_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_4_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_4_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_4_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_5_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_5_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_5_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_6_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_6_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_6_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_7_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_7_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_7_IMAGE_3.value,
-    ],
-    [
-        TextTableImages.ArgKeys.DATA_COLUMN_8_IMAGE_1.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_8_IMAGE_2.value,
-        TextTableImages.ArgKeys.DATA_COLUMN_8_IMAGE_3.value,
-    ],
 ]
 
 
@@ -350,12 +309,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         """Creates strings for the resulting counts and per class table from the labelstats"""
         # Display basic counts
         count_str = []
-        count_str += [f"**Class Count:**    {labelstat['class_count']}"]
-        count_str += [f"**Label Count:**    {labelstat['label_count']}"]
-        count_str += [f"**Image Count:**   {labelstat['image_count']}"]
-        count_str += [
-            f"**Average number of labels per image:**  {round(np.mean(labelstat['label_counts_per_image']), 1)}"
-        ]
+        count_str.append([SubText("Class Count:", bold=True), f"    {labelstat['class_count']}"])
+        count_str.append([SubText("Label Count:", bold=True), f"    {labelstat['label_count']}"])
+        count_str.append([SubText("Image Count:", bold=True), f"   {labelstat['image_count']}"])
+        count_str.append(
+            [
+                SubText("Average number of labels per image:", bold=True),
+                f"  {round(np.mean(labelstat['label_counts_per_image']), 1)}",
+            ]
+        )
 
         # Display counts per class in a table
         table_df = pd.DataFrame(
@@ -381,7 +343,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
     def _to_pct_2(self, dividend: float, divisor: float) -> tuple[str, str]:
         """Format a dividend and divisor as tuple of 'percent%' 'dividend/divisor'"""
-        return f"{dividend/divisor:.2%}", f"{dividend}/{divisor}"
+        return f"{dividend / divisor:.2%}", f"{dividend}/{divisor}"
 
     def _to_pct_1(self, dividend: float, divisor: float) -> str:
         """Format a dividend and divisor as a single string of 'percent% dividend/divisor'"""
@@ -643,7 +605,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         df_data = {"": ["Percentage of Images", "Number of Images"]}
         df_data.update(
             {
-                self._to_title(k): [f"{len(v)/total:.2%}", f"{len(v)}"]
+                self._to_title(k): [f"{len(v) / total:.2%}", f"{len(v)}"]
                 for k, v in all_categories.items()
                 if k in categories_subset
             }
@@ -666,7 +628,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         Generate the duplicates report which consists of a single slide with both
         exact duplicates and near duplicates.
 
-        - Slide Format: `TextTableImages`
+        - Slide Format: `SectionByTableOverArray`
         - Text Content: Explanation of test, risks and action item
         - Table Content: Table of exact and near duplicates
         - Image Content: Sample images of identified exact and near duplicates
@@ -704,8 +666,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             self.cache_contents_path.mkdir(parents=True, exist_ok=True)
 
             near_dp_kwargs = {}
+            grid_items = []
             for i, nd in enumerate(examples):
-                for j, dl in enumerate(nd):
+                grid_item_row = []
+                for dl in nd:
                     filepath = Path(self.cache_contents_path, f"dupe_{i}_{dl[0]}_{len(dl)}.png")
                     if not filepath.exists():
                         for di, ax in zip(dl, axes):
@@ -718,7 +682,8 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                             ax.imshow(np.moveaxis(as_numpy(image), 0, -1))
                         fig.tight_layout(pad=0.3)
                         fig.savefig(str(filepath))
-                    near_dp_kwargs[IMAGE_ARGKEYS[i][j]] = filepath
+                        grid_item_row.append(filepath)
+                grid_items.append(grid_item_row)
 
             plt.close(fig)
 
@@ -728,15 +693,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             content = [
                 Text(t, fontsize=14)
                 for t in (
-                    "**Result:**",
+                    [SubText("Result:", bold=True)],
                     f"- Total Duplicates: {self._to_pct_1(total, len_ds)}",
-                    "**Tests for:**",
+                    [SubText("Tests for:", bold=True)],
                     "- Uncleaned data",
-                    "**Risks:**",
+                    [SubText("Risks:", bold=True)],
                     "- Leakage",
                     "- Lack of robustness",
                     "- Poor generalization",
-                    "**Action:**",
+                    [SubText("Action:", bold=True)],
                     f"- {'No action required' if total == 0 else 'Evaluate duplicates and clean data'}",
                     "",
                     "Near duplicates uses a perceptual hash which detects rescaling/noise/smoothing,"
@@ -749,15 +714,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             # Set up Gradient slide
             return {
                 "deck": self._deck,
-                "layout_name": "TextTableImages",
+                "layout_name": "SectionByTableOverArray",
                 "layout_arguments": {
-                    TextTableImages.ArgKeys.TITLE.value: title,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextTableImages.ArgKeys.DATA_COLUMN_TABLE.value: duplicates_df,
-                    TextTableImages.ArgKeys.IMAGE_WIDTH.value: img_size,
-                    TextTableImages.ArgKeys.IMAGE_HEIGHT.value: img_size / 2,
-                    TextTableImages.ArgKeys.IMAGE_Y_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.TITLE.value: title,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_HEADING.value: heading,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_BODY.value: content,
+                    SectionByTableOverArray.ArgKeys.ITEM_SECTION_TABLE.value: duplicates_df,
+                    SectionByTableOverArray.ArgKeys.ITEM_X_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_HEIGHT.value: img_size / 2,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_PADDING.value: 0.01,
                     **near_dp_kwargs,
                 },
             }
@@ -766,11 +731,11 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             {
                 "": ["Percentage of Images", "Number of Images"],
                 "Exact Duplicates": [
-                    f"{total_ed/len_ds:.2%}",
+                    f"{total_ed / len_ds:.2%}",
                     f"{total_ed}",
                 ],
                 "Near Duplicates": [
-                    f"{total_nd/len_ds:.2%}",
+                    f"{total_nd / len_ds:.2%}",
                     f"{total_nd}",
                 ],
             }
@@ -779,7 +744,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
         content = Text(
-            "**Image Duplicate Analysis:** Identify images which are identical or almost identical.\n",
+            [
+                SubText("Image Duplicate Analysis: ", bold=True),
+                SubText("Identify images which are identical or almost identical.\n"),
+            ],
             fontsize=22,
         )
 
@@ -799,7 +767,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         Generate the statistics report which consists of two slides with
         histogram plots from the statistic results.
 
-        - Slide Format: `OneImageText`
+        - Slide Format: `SectionByItem`
         - Text Content: Explanation of slide
         - Image Content: Histogram plots
         """
@@ -822,19 +790,19 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-        heading = "**Label Analysis**\n"
+        heading = Text([SubText("Label Analysis", bold=True), "\n"])
         content = [Text(t, fontsize=14) for t in result_content + additional_content]
 
         # Set up Gradient slide
         stat_slides = [
             {
                 "deck": self._deck,
-                "layout_name": "TextData",
+                "layout_name": "SectionByItem",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_TABLE.value: label_df,
+                    SectionByItem.ArgKeys.TITLE.value: title,
+                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: label_df,
                 },
             }
         ]
@@ -842,13 +810,16 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         for group in histogram_paths:
             # Gradient slide kwargs
             title = f"Dataset: {self.dataset_id} | Category: Cleaning"
-            heading = f"**{str(group).capitalize()} Property Histograms**\n"
+            heading = Text([SubText(f"{str(group).capitalize()} Property Histograms", bold=True), "\n"])
             content = [
                 Text(t, fontsize=22)
                 for t in (
                     "Visual overview of potential outliers in image properties.",
                     "\n" * 3,
-                    "**Note:** Vertical lines are the outlier thresholds (computed internally). Values outside of the vertical lines will be flagged as outliers",  # noqa: E501
+                    [
+                        SubText("Note:", bold=True),
+                        " Vertical lines are the outlier thresholds (computed internally). Values outside of the vertical lines will be flagged as outliers",  # noqa: E501
+                    ],
                 )
             ]
 
@@ -856,12 +827,12 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             stat_slides.append(
                 {
                     "deck": self._deck,
-                    "layout_name": "TextData",
+                    "layout_name": "SectionByItem",
                     "layout_arguments": {
-                        TextData.ArgKeys.TITLE.value: title,
-                        TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                        TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                        TextData.ArgKeys.DATA_COLUMN_IMAGE.value: histogram_paths[group],
+                        SectionByItem.ArgKeys.TITLE.value: title,
+                        SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                        SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                        SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: histogram_paths[group],
                     },
                 }
             )
@@ -889,15 +860,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             content = [
                 Text(t, fontsize=14)
                 for t in (
-                    "**Result:**",
+                    [SubText("Result:", bold=True)],
                     f"- Images without Targets:   {len(sanity_check['no_boxes'])}",
                     f"- Extreme % of 0 Values:    {len(sanity_check['zeros'])}",
                     f"- Extreme % of Missing Values: {len(sanity_check['missing'])}",
                     f"- Extreme Target Sizes:     {len(sanity_check['size'])}",
                     f"- Extreme Target Aspect Ratios: {len(sanity_check['aspect_ratio'])}",
-                    "**Tests for:**",
+                    [SubText("Tests for:", bold=True)],
                     "- Data processing errors",
-                    "**Action:**",
+                    [SubText("Action:", bold=True)],
                     f"- {action_text}",
                 )
             ]
@@ -905,14 +876,14 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             content = [
                 Text(t, fontsize=14)
                 for t in (
-                    "**Result:**",
+                    [SubText("Result:", bold=True)],
                     f"- Extreme % of 0 Values:    {len(sanity_check['zeros'])}",
                     f"- Extreme % of Missing Values: {len(sanity_check['missing'])}",
                     f"- Extreme Target Sizes:     {len(sanity_check['size'])}",
                     f"- Extreme Target Aspect Ratios: {len(sanity_check['aspect_ratio'])}",
-                    "**Tests for:**",
+                    [SubText("Tests for:", bold=True)],
                     "- Data processing errors",
-                    "**Action:**",
+                    [SubText("Action:", bold=True)],
                     f"- {action_text}",
                 )
             ]
@@ -921,12 +892,12 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         outlier_slide = [
             {
                 "deck": self._deck,
-                "layout_name": "TextData",
+                "layout_name": "SectionByItem",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_IMAGE.value: sanity_plot,
+                    SectionByItem.ArgKeys.TITLE.value: title,
+                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: sanity_plot,
                 },
             }
         ]
@@ -954,11 +925,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         images = self._plot_outlier_images("image", issues)
 
-        image_kwargs = {
-            IMAGE_ARGKEYS[i][j]: img_path
-            for i, img_list in enumerate(images.values())
-            for j, img_path in enumerate(img_list)
-        }
+        image_kwargs = [
+            list(img_list)  # Creates a list of paths for each category
+            for img_list in images.values()
+        ]
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
@@ -966,15 +936,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         content = [
             Text(t, fontsize=14)
             for t in (
-                "**Result:**",
+                [SubText("Result:", bold=True)],
                 f"- Total Outliers: {self._to_pct_1(total_out, total_imgs)}",
-                "**Tests for:**",
+                [SubText("Tests for:", bold=True)],
                 "- Uncleaned data",
-                "**Risks:**",
+                [SubText("Risks:", bold=True)],
                 "- Lack of robustness",
                 "- Poor real-world performance",
                 "- Poor generalization",
-                "**Action:**",
+                [SubText("Action:", bold=True)],
                 f"- {'No action required' if total_out == 0 else 'Evaluate outliers and clean data'}",
                 "",
                 "",
@@ -989,16 +959,16 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         outlier_slide.append(
             {
                 "deck": self._deck,
-                "layout_name": "TextTableImages",
+                "layout_name": "SectionByTableOverArray",
                 "layout_arguments": {
-                    TextTableImages.ArgKeys.TITLE.value: title,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextTableImages.ArgKeys.DATA_COLUMN_TABLE.value: outliers_df,
-                    TextTableImages.ArgKeys.IMAGE_WIDTH.value: img_size,
-                    TextTableImages.ArgKeys.IMAGE_HEIGHT.value: img_size,
-                    TextTableImages.ArgKeys.IMAGE_Y_PADDING.value: 0.01,
-                    **image_kwargs,
+                    SectionByTableOverArray.ArgKeys.TITLE.value: title,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_HEADING.value: heading,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_BODY.value: content,
+                    SectionByTableOverArray.ArgKeys.ITEM_SECTION_TABLE.value: outliers_df,
+                    SectionByTableOverArray.ArgKeys.ITEM_X_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_HEIGHT.value: img_size,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.GRID_ITEMS: image_kwargs,
                 },
             }
         )
@@ -1012,7 +982,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         The second slide then displays the top (up to 8) outlier categories
         from `DimensionStatsOutput` and `VisualStatsOutput`.
 
-        - Slide Format: `TextTableImages`
+        - Slide Format: `SectionByTableOverArray`
         - Text Content: Explanation of test, risks and action item
         - Table Content: Table of outliers identified for the analysis performed
         - Image Content: Sample images of identified outliers with labels
@@ -1119,7 +1089,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                 "layout_arguments": {
                     TableText.ArgKeys.TITLE.value: title,
                     TableText.ArgKeys.TEXT.value: Text(
-                        "**Basic Image Analysis:** Identify missing and/or extreme values on a per-image basis.",
+                        [
+                            SubText("Basic Image Analysis:", bold=True),
+                            " Identify missing and/or extreme values on a per-image basis.",
+                        ],
                         fontsize=21,
                     ),
                     TableText.ArgKeys.TABLE.value: result_df,
@@ -1153,9 +1126,11 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                     "layout_arguments": {
                         TableText.ArgKeys.TITLE.value: title,
                         TableText.ArgKeys.TEXT.value: Text(
-                            f"**Image Outlier Analysis ({idx+1})** \n"
-                            "Numerical analysis of potential outliers in image properties. \n"
-                            f"The results are summarized across this and {demonstratives[idx]}.",
+                            [
+                                SubText(f"Image Outlier Analysis ({idx + 1})", bold=True),
+                                " \nNumerical analysis of potential outliers in image properties. \n"
+                                f"The results are summarized across this and {demonstratives[idx]}.",
+                            ],
                             fontsize=21,
                         ),
                         TableText.ArgKeys.TABLE.value: outliers_df,
@@ -1185,16 +1160,16 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         content = [
             Text(t, fontsize=14)
             for t in (
-                "**Result:**",
+                [SubText("Result:", bold=True)],
                 f"- Extreme Percentage of Zero Values:    {len(sanity_check['zeros'])}",
                 f"- Extreme Percentage of Missing Values: {len(sanity_check['missing'])}",
                 f"- Target:Image Extreme Sizes: {len(sanity_check['ratio_size'])}",
                 f"- Extreme Target Sizes:     {len(sanity_check['size'])}",
                 f"- Extreme Target Aspect Ratios: {len(sanity_check['aspect_ratio'])}",
                 f"- Targets Outside of Image:   {len(sanity_check['ratio_top'])}",
-                "**Tests for:**",
+                [SubText("Tests for:", bold=True)],
                 "- Data processing errors",
-                "**Action:**",
+                [SubText("Action:", bold=True)],
                 f"- {action_text}",
             )
         ]
@@ -1203,12 +1178,12 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         outlier_slide = [
             {
                 "deck": self._deck,
-                "layout_name": "TextData",
+                "layout_name": "SectionByItem",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_IMAGE.value: sanity_plot,
+                    SectionByItem.ArgKeys.TITLE.value: title,
+                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: sanity_plot,
                 },
             }
         ]
@@ -1241,11 +1216,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         images = self._plot_outlier_images("target", issues)
 
-        image_kwargs = {
-            IMAGE_ARGKEYS[i][j]: img_path
-            for i, img_list in enumerate(images.values())
-            for j, img_path in enumerate(img_list)
-        }
+        image_kwargs = [
+            list(img_list)  # Creates a list of paths for each category
+            for img_list in images.values()
+        ]
 
         # Gradient slide kwargs
         title = f"Dataset: {self.dataset_id} | Category: Cleaning"
@@ -1253,15 +1227,15 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         content = [
             Text(t, fontsize=14)
             for t in (
-                "**Result:**",
+                [SubText("Result:", bold=True)],
                 f"- Total Outliers: {self._to_pct_1(total_out, total_targets)}",
-                "**Tests for:**",
+                [SubText("Tests for:", bold=True)],
                 "- Uncleaned data",
-                "**Risks:**",
+                [SubText("Risks:", bold=True)],
                 "- Lack of robustness",
                 "- Poor real-world performance",
                 "- Poor generalization",
-                "**Action:**",
+                [SubText("Action:", bold=True)],
                 f"- {'No action required' if total_out == 0 else 'Evaluate outliers and clean data'}",
                 "",
                 "",
@@ -1276,16 +1250,16 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         outlier_slide.append(
             {
                 "deck": self._deck,
-                "layout_name": "TextTableImages",
+                "layout_name": "SectionByTableOverArray",
                 "layout_arguments": {
-                    TextTableImages.ArgKeys.TITLE.value: title,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextTableImages.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextTableImages.ArgKeys.DATA_COLUMN_TABLE.value: outliers_df,
-                    TextTableImages.ArgKeys.IMAGE_WIDTH.value: img_size,
-                    TextTableImages.ArgKeys.IMAGE_HEIGHT.value: img_size,
-                    TextTableImages.ArgKeys.IMAGE_Y_PADDING.value: 0.01,
-                    **image_kwargs,
+                    SectionByTableOverArray.ArgKeys.TITLE.value: title,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_HEADING.value: heading,
+                    SectionByTableOverArray.ArgKeys.TEXT_SECTION_BODY.value: content,
+                    SectionByTableOverArray.ArgKeys.ITEM_SECTION_TABLE.value: outliers_df,
+                    SectionByTableOverArray.ArgKeys.ITEM_X_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_HEIGHT.value: img_size,
+                    SectionByTableOverArray.ArgKeys.ITEM_Y_PADDING.value: 0.01,
+                    SectionByTableOverArray.ArgKeys.GRID_ITEMS: image_kwargs,
                 },
             }
         )
@@ -1299,7 +1273,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         The second slide then displays the top (up to 8) outlier categories
         from `DimensionStatsOutput` and `VisualStatsOutput`.
 
-        - Slide Format: `TextTableImages`
+        - Slide Format: `TableText`
         - Text Content: Explanation of test, risks and action item
         - Table Content: Table of outliers identified for the analysis performed
         - Image Content: Sample images of identified outliers with labels
@@ -1374,7 +1348,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                 "layout_arguments": {
                     TableText.ArgKeys.TITLE.value: title,
                     TableText.ArgKeys.TEXT.value: Text(
-                        "**Basic Target Analysis:** Identify missing and/or extreme values on a per-target basis.",
+                        [
+                            SubText("Basic Target Analysis:", bold=True),
+                            " Identify missing and/or extreme values on a per-target basis.",
+                        ],
                         fontsize=21,
                     ),
                     TableText.ArgKeys.TABLE.value: result_df,
@@ -1417,9 +1394,11 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                     "layout_arguments": {
                         TableText.ArgKeys.TITLE.value: title,
                         TableText.ArgKeys.TEXT.value: Text(
-                            f"**Target Outlier Analysis ({idx+1})**\n"
-                            "Numerical analysis of potential outliers in target properties. \n"
-                            f"The results are summarized across this and {demonstratives[idx]}.",
+                            [
+                                SubText(f"Target Outlier Analysis ({idx + 1})", bold=True),
+                                "\nNumerical analysis of potential outliers in target properties. \n"
+                                f"The results are summarized across this and {demonstratives[idx]}.",
+                            ],
                             fontsize=21,
                         ),
                         TableText.ArgKeys.TABLE.value: outliers_df,
@@ -1433,7 +1412,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         """
         Generate conclustion slide.
 
-        - Slide Format: `TextData`
+        - Slide Format: `SectionByItem`
         - Text Content: Next setps
         - Image Content: Blank Image
         """
@@ -1449,13 +1428,13 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             Text(t, fontsize=14)
             for t in (
                 "Below are the recommended next steps to resolving or investigating issues that may arise during analysis.",  # noqa: E501
-                "**In general:**",
+                [SubText("In general:", bold=True)],
                 "- Remove the images/targets flagged in the Basic Check reports for images and targets",
                 "- Manually review the images/targets flagged in the Outlier reports",
-                "**For images:**",
+                [SubText("For images:", bold=True)],
                 "- Check if images come up in multiple outlier categories. If so, remove.",
                 "- Make sure images are representative of their respective environment/class. If not, remove.",
-                "**For targets:**",
+                [SubText("For targets:", bold=True)],
                 "- Run bias analysis with bounding box stats and ensure there are no correlations between a statistic and a class",  # noqa: E501
                 "- Make sure targets are representative of their respective class. If not, remove.",
             )
@@ -1464,13 +1443,13 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         # Set up Gradient slide
         return {
             "deck": self._deck,
-            "layout_name": "TextData",
+            "layout_name": "SectionByItem",
             "layout_arguments": {
-                TextData.ArgKeys.TITLE.value: title,
-                TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                TextData.ArgKeys.TEXT_COLUMN_HALF.value: True,
-                TextData.ArgKeys.DATA_COLUMN_IMAGE.value: filepath,
+                SectionByItem.ArgKeys.TITLE.value: title,
+                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
             },
         }
 

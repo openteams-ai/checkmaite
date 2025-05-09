@@ -62,10 +62,10 @@ class TestFeasibilityTestStage:
         slide = slides[0]
 
         assert slide["deck"] == "image_classification_dataset_evaluation"
-        assert slide["layout_name"] == "TextData"
+        assert slide["layout_name"] == "SectionByItem"
 
         layout_args = slide["layout_arguments"]
-        table: pd.DataFrame = layout_args["data_column_table"]
+        table: pd.DataFrame = layout_args["item_section_body"]
         assert table["Feasible"][0] == "True"
         assert table["Bayes Error Rate"][0] == 0.75
         assert table["Lower Bayes Error Rate"][0] == 0.529

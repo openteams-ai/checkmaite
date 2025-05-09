@@ -14,7 +14,9 @@ import numpy as np
 import pandas as pd
 from dataeval.metrics.estimators import BEROutput, ber
 from dataeval.utils.dataset import read_dataset
-from gradient.templates_and_layouts.generic_layouts.text_data import TextData
+from gradient import SubText
+from gradient.slide_deck.shapes import Text
+from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, ThresholdPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
@@ -57,27 +59,30 @@ class DatasetFeasibilityTestStage(
         title = f"Dataset: {self.dataset_id} | Category: Feasibility"
         heading = "Metric: Bayes Error Rate"
         content = [
-            "**Result:**",
-            f"Performance goal of {self.threshold} {'is' if is_feasible else 'is NOT'} feasible.",
-            "Tests for:",
-            " * Achievability of performance goal",
-            "Risk(s):",
-            " * Performance goal cannot be achieved by any model (problem too hard)",
-            " * Models that report performance above the goal are overfit and \
+            Text(t)
+            for t in (
+                [SubText("Result:", bold=True)],
+                f"Performance goal of {self.threshold} {'is' if is_feasible else 'is NOT'} feasible.",
+                [SubText("Tests for:", bold=True)],
+                " * Achievability of performance goal",
+                [SubText("Risk(s):", bold=True)],
+                " * Performance goal cannot be achieved by any model (problem too hard)",
+                " * Models that report performance above the goal are overfit and \
                 will not generalize to real-world problems",
-            "Action:",
-            f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
+                [SubText("Action:", bold=True)],
+                f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
+            )
         ]
 
         return [
             {
                 "deck": "image_classification_dataset_evaluation",
-                "layout_name": "TextData",
+                "layout_name": "SectionByItem",
                 "layout_arguments": {
-                    TextData.ArgKeys.TITLE.value: title,
-                    TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                    TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                    TextData.ArgKeys.DATA_COLUMN_TABLE.value: feasibility_df,
+                    SectionByItem.ArgKeys.TITLE.value: title,
+                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
                 },
             },
         ]

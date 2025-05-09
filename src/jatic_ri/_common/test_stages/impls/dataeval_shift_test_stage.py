@@ -14,8 +14,9 @@ from dataeval.detectors.ood import OOD_AE
 from dataeval.utils.torch.models import AE
 
 # report_consumable imports
+from gradient import SubText
 from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.text_data import TextData
+from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.interfaces.plugins import TDataset, TwoDatasetPlugin
@@ -132,7 +133,7 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         Returns
         -------
         dict
-            Single `TextData` slide containing drift text and corresponding dataframe
+            Single `SectionByItem` slide containing drift text and corresponding dataframe
         """
         any_drift = any(d["is_drift"] for d in outputs.values())
 
@@ -149,27 +150,27 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         title = f"Dataset 1: {self.dataset_1_id} - Dataset 2: {self.dataset_2_id} | Category: Dataset Shift"
         heading = "Metric: Drift"
         text = [
-            "**Result:**",
-            f"* {self.dataset_2_id} has{' ' if any_drift else ' not '}drifted from {self.dataset_1_id}",
-            "**Tests for:**",
-            "* Covariate shift",
-            "**Risks:**",
-            "* Degradation of model performance",
-            "* Real-world performance no longer meets performance requirements",
-            "**Action:**",
-            f"* {'Retrain model (augmentation, transfer learning)' if any_drift else 'No action required'}",
+            [SubText("Result:", bold=True)],
+            f"• {self.dataset_2_id} has{' ' if any_drift else ' not '}drifted from {self.dataset_1_id}",
+            [SubText("Tests for:", bold=True)],
+            "• Covariate shift",
+            [SubText("Risks:", bold=True)],
+            "• Degradation of model performance",
+            "• Real-world performance no longer meets performance requirements",
+            [SubText("Action:", bold=True)],
+            f"• {'Retrain model (augmentation, transfer learning)' if any_drift else 'No action required'}",
         ]
         content = [Text(t, fontsize=16) for t in text]
 
         # Set up Gradient slide
         return {
             "deck": self._deck,
-            "layout_name": "TextData",
+            "layout_name": "SectionByItem",
             "layout_arguments": {
-                TextData.ArgKeys.TITLE.value: title,
-                TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                TextData.ArgKeys.DATA_COLUMN_TABLE.value: drift_df,
+                SectionByItem.ArgKeys.TITLE.value: title,
+                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: drift_df,
             },
         }
 
@@ -188,7 +189,7 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         Returns
         -------
         dict
-            Single `TextData` slide containing OOD text and corresponding dataframe
+            Single `SectionByItem` slide containing OOD text and corresponding dataframe
         """
 
         percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in outputs.values()])
@@ -213,28 +214,28 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         title = f"Dataset 1: {self.dataset_1_id} - Dataset 2: {self.dataset_2_id} | Category: Dataset Shift"
         heading = "Metric: Out-of-distribution (OOD)"
         text = [
-            "**Result:**",
-            f"* {max(percents)}% OOD images were found in {self.dataset_2_id}",
-            "**Tests for:**",
-            f"* {self.dataset_2_id} data that is OOD from {self.dataset_1_id}",
-            "**Risks:**",
-            "* Degradation of model performance",
-            "* Real-world performance no longer meets requirements",
-            "**Action:**",
-            f"* {'Retrain model (augmentation, transfer learning)' if sum(percents) else 'No action required'}",
-            f"{'* Examine OOD samples to learn source of covariate shift' if sum(percents) else ''}",
+            [SubText("Result:", bold=True)],
+            f"• {max(percents)}% OOD images were found in {self.dataset_2_id}",
+            [SubText("Tests for:", bold=True)],
+            f"• {self.dataset_2_id} data that is OOD from {self.dataset_1_id}",
+            [SubText("Risks:", bold=True)],
+            "• Degradation of model performance",
+            "• Real-world performance no longer meets requirements",
+            [SubText("Action:", bold=True)],
+            f"• {'Retrain model (augmentation, transfer learning)' if sum(percents) else 'No action required'}",
+            f"{'• Examine OOD samples to learn source of covariate shift' if sum(percents) else ''}",
         ]
 
         content = [Text(t, fontsize=16) for t in text]
 
         return {
             "deck": self._deck,
-            "layout_name": "TextData",
+            "layout_name": "SectionByItem",
             "layout_arguments": {
-                TextData.ArgKeys.TITLE.value: title,
-                TextData.ArgKeys.TEXT_COLUMN_HALF.value: True,
-                TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-                TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-                TextData.ArgKeys.DATA_COLUMN_TABLE.value: ood_df,
+                SectionByItem.ArgKeys.TITLE.value: title,
+                SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
             },
         }

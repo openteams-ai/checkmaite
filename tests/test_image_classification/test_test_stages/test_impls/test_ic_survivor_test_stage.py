@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from gradient import Text
+from gradient import SubText, Text
 from gradient.templates_and_layouts.create_deck import create_deck
 from maite.protocols import image_classification as ic
 from survivor import SurvivorConfig
@@ -99,16 +99,18 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, arti
     """Test collect_report_consumables."""
     # Arrange
     expected_deck = "image_classification_survivor"
-    expected_layout_name = "TwoImageTextNoHeader"
+    expected_layout_name = "TwoItem"
     expected_content_left = Text(
-        content="**Types of Data**\n"
-        "• Easy: Models score the same and perform well.\n"
-        "• Hard: Models score the same and perform poorly.\n"
-        "• On the Bubble: Models score differently.\n\n"
-        "• Ideally, a dataset would be primarily On the Bubble, so all data is helping distinguish between model "
-        "performance.\n\n"
-        "• This dataset had 0.0% Easy, 100.0% Hard, and "
-        "0.0% On the Bubble data.",
+        content=[
+            SubText("Types of Data\n", bold=True),
+            "• Easy: Models score the same and perform well.\n"
+            "• Hard: Models score the same and perform poorly.\n"
+            "• On the Bubble: Models score differently.\n\n"
+            "• Ideally, a dataset would be primarily On the Bubble, so all data is helping distinguish between model "
+            "performance.\n\n"
+            "• This dataset had 0.0% Easy, 100.0% Hard, and "
+            "0.0% On the Bubble data.",
+        ],
         fontsize=22,
     )
     expected_title = "Survivor Dataset Breakdown"
@@ -127,8 +129,8 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, arti
     assert output_consumables["deck"] == expected_deck
     assert output_consumables["layout_name"] == expected_layout_name
     assert output_consumables["layout_arguments"]["title"] == expected_title
-    assert output_consumables["layout_arguments"]["content_left"].content == expected_content_left.content
-    assert output_consumables["layout_arguments"]["content_right"].is_file()
+    assert output_consumables["layout_arguments"]["left_item"].content == expected_content_left.content
+    assert output_consumables["layout_arguments"]["right_item"].is_file()
 
     filename = create_deck(slide_content, artifact_dir, "survivor")
     assert filename.exists()

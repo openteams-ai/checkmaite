@@ -142,11 +142,11 @@ class TestODBiasCollectReportConsumables:
         layout_args = slide["layout_arguments"]
 
         # Check rollup calculation and associated action
-        assert "0 factors" in layout_args["text_column_body"][1].content[0].content
-        assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
+        assert "0 factors" in layout_args["line_section_body"][1].content[0].content
+        assert layout_args["line_section_body"][-1].content[0].content == "• No action required"
 
         # Check if image was saved
-        img_path = layout_args["data_column_image"]
+        img_path = layout_args["item_section_body"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=artifact_dir, deck_name="test_report_balance")
@@ -162,15 +162,16 @@ class TestODBiasCollectReportConsumables:
 
         # Check text and visual slide arguments
         assert layout_args["title"] == f"Dataset: {run.dataset_ids[0]} | Category Bias"
-        assert layout_args["text_column_heading"] == "Metric: Coverage"
-        assert layout_args["text_column_half"]
+        assert layout_args["line_section_heading"] == "Metric: Coverage"
+        assert layout_args["line_section_half"]
+
         assert (
-            layout_args["text_column_body"][-1].content[0].content
-            == "* Increase representation of rare but relevant samples in areas of poor coverage"
+            layout_args["line_section_body"][-1].content[0].content
+            == "• Increase representation of rare but relevant samples in areas of poor coverage"
         )
 
         # Test calculated dataframe values
-        cov_df: pd.DataFrame = layout_args["data_column_table"]
+        cov_df: pd.DataFrame = layout_args["item_section_table"]
 
         assert tuple(cov_df.columns) == ("Poor Coverage", "Threshold")
         assert cov_df.shape == (1, 2)  # One row, 2 columns
@@ -178,7 +179,7 @@ class TestODBiasCollectReportConsumables:
         assert cov_df["Threshold"][0] == round(run.outputs.coverage.critical_value, 2)
 
         # Check if image was saved
-        img_path = layout_args["data_column_image"]
+        img_path = layout_args["item_section_bottom"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=artifact_dir, deck_name="test_report_coverage")
@@ -193,14 +194,14 @@ class TestODBiasCollectReportConsumables:
         layout_args = slide["layout_arguments"]
 
         # Check rollup calculation and associated action
-        assert "2 factors" in layout_args["text_column_body"][1].content[0].content
+        assert "2 factors" in layout_args["line_section_body"][1].content[0].content
         assert (
-            layout_args["text_column_body"][-1].content[0].content
-            == "* Ensure balanced representation of all classes for all metadata"
+            layout_args["line_section_body"][-1].content[0].content
+            == "• Ensure balanced representation of all classes for all metadata"
         )
 
         # Check if image was saved
-        img_path = layout_args["data_column_image"]
+        img_path = layout_args["item_section_body"]
         assert img_path.exists()
 
         filename = create_deck([slide], path=artifact_dir, deck_name="test_report_diversity")
@@ -215,8 +216,8 @@ class TestODBiasCollectReportConsumables:
         layout_args = slide["layout_arguments"]
 
         # Check rollup calculation and associated action
-        assert "0 factors" in layout_args["text_column_body"][1].content[0].content
-        assert layout_args["text_column_body"][-1].content[0].content == "* No action required"
+        assert "0 factors" in layout_args["line_section_body"][1].content[0].content
+        assert layout_args["line_section_body"][-1].content[0].content == "• No action required"
 
         filename = create_deck([slide], path=Path(artifact_dir), deck_name="test_report_parity")
         assert filename.exists()

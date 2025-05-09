@@ -64,11 +64,11 @@ class TestFeasibilityTestStage:
 
         # Check slide metadata
         assert slide["deck"] == "object_detection_dataset_evaluation"
-        assert slide["layout_name"] == "TextData"
+        assert slide["layout_name"] == "SectionByItem"
 
         # Check table populated with results
         layout_args = slide["layout_arguments"]
-        table: pd.DataFrame = layout_args["data_column_table"]
+        table: pd.DataFrame = layout_args["item_section_body"]
         assert table["Performance Goal"][0] == threshold
         assert table["Upperbound Average Precision"][0] == uap
         assert table["Feasible"][0] == str(uap >= threshold)
