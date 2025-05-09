@@ -9,6 +9,7 @@ import pydantic
 import torch
 from dataeval.metrics.bias import balance, coverage, diversity, parity
 from dataeval.utils.metadata import Metadata
+from gradient import SubText
 from numpy.typing import NDArray
 from pydantic import Field
 
@@ -21,7 +22,7 @@ from jatic_ri._common.test_stages.interfaces.test_stage import (
     TestStage,
 )
 from jatic_ri.util._types import Device, Image
-from jatic_ri.util.slide_deck import create_text_data_slide, create_text_table_data_slide
+from jatic_ri.util.slide_deck import create_section_by_item_slide, create_section_by_stacked_items_slide
 from jatic_ri.util.utils import temp_image_file
 
 from ._dataeval_utils import EmbeddingNet, extract_embeddings
@@ -159,16 +160,16 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             else "No action required"
         )
         text = [
-            "**Result:**",
+            [SubText("Result:", bold=True)],
             f"Coverage: {uncovered_percent*100}% uncovered images in dataset",
-            "**Tests for:**",
-            "* Adequate sampling of data",
-            "**Risks**:",
-            "* Poor real-world performance",
-            "* Lack of robustness",
-            "* Poor generalization",
-            "**Actions:**",
-            f"* {action_str}",
+            [SubText("Tests for:", bold=True)],
+            "• Adequate sampling of data",
+            [SubText("Risks:", bold=True)],
+            "• Poor real-world performance",
+            "• Lack of robustness",
+            "• Poor generalization",
+            [SubText("Actions:", bold=True)],
+            f"• {action_str}",
         ]
 
         cov_df = pd.DataFrame(
@@ -182,11 +183,11 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         slide_kwargs = {"deck": self._deck, "title": title, "heading": heading, "text": text, "table": cov_df}
         # Image is only available if the input dataset had homogeneous-sized images
         if coverage.image is not None:
-            return create_text_table_data_slide(
+            return create_section_by_stacked_items_slide(
                 **slide_kwargs,
                 image_path=temp_image_file(coverage.image),
             )
-        return create_text_data_slide(**slide_kwargs)
+        return create_section_by_item_slide(**slide_kwargs)
 
     def _report_balance(self, outputs: DataevalBiasBalanceOutputs, dataset_id: str) -> dict[str, Any]:
         """Format balance results for Gradient consumption"""
@@ -196,20 +197,20 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         rollup = np.sum(outputs.factors[0, 1:] > 0.5)
 
         text = [
-            "**Result:**",
-            f"Balance: {rollup} factors co-occuring with class label",
-            "**Tests for:**",
-            "* Spurious correlations",
-            "**Risks:**",
-            "* Model trained with data are not equitable (not fair)",
-            "* Models learn shortcuts",
-            "* Poor real-world performance",
-            "* Lack of robustness / poor generalization",
-            "**Action:**",
-            f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+            [SubText("Result:", bold=True)],
+            f"Balance: {rollup} factors co-occurring with class label",
+            [SubText("Tests for:", bold=True)],
+            "• Spurious correlations",
+            [SubText("Risks:", bold=True)],
+            "• Model trained with data are not equitable (not fair)",
+            "• Models learn shortcuts",
+            "• Poor real-world performance",
+            "• Lack of robustness / poor generalization",
+            [SubText("Action:", bold=True)],
+            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
-        return create_text_data_slide(
+        return create_section_by_item_slide(
             deck=self._deck,
             title=title,
             heading=heading,
@@ -225,20 +226,20 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         rollup = np.sum(outputs.diversity_index < 0.5)
 
         text = [
-            "**Result:**",
+            [SubText("Result:", bold=True)],
             f"Diversity: {rollup} factors with low diversity",
-            "**Tests for:**",
-            "* Evenness of distribution of factors",
-            "**Risks:**",
-            "* Model trained with data are not equitable (not fair)",
-            "* Models learn shortcuts",
-            "* Poor real-world performance",
-            "* Lack of robustness / poor generalization",
-            "**Action:**",
-            f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+            [SubText("Tests for:", bold=True)],
+            "• Evenness of distribution of factors",
+            [SubText("Risks:", bold=True)],
+            "• Model trained with data are not equitable (not fair)",
+            "• Models learn shortcuts",
+            "• Poor real-world performance",
+            "• Lack of robustness / poor generalization",
+            [SubText("Action:", bold=True)],
+            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
-        return create_text_data_slide(
+        return create_section_by_item_slide(
             deck=self._deck,
             title=title,
             heading=heading,
@@ -263,20 +264,20 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
         text = [
-            "**Result:**",
+            [SubText("Result:", bold=True)],
             f"Parity: {rollup} factors correlated with labels",
-            "**Tests for:**",
-            " * Evenness of distribution of factors",
-            "**Risks:**",
-            " * Model trained with data are not equitable (not fair)",
-            " * Models learn shortcuts",
-            " * Poor real-world performance",
-            " * Lack of robustness / poor generalization",
-            "**Action:**",
-            f"* {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+            [SubText("Tests for:", bold=True)],
+            " • Evenness of distribution of factors",
+            [SubText("Risks:", bold=True)],
+            " • Model trained with data are not equitable (not fair)",
+            " • Models learn shortcuts",
+            " • Poor real-world performance",
+            " • Lack of robustness / poor generalization",
+            [SubText("Action:", bold=True)],
+            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
         ]
 
-        return create_text_data_slide(
+        return create_section_by_item_slide(
             deck=self._deck,
             title=title,
             heading=heading,

@@ -138,11 +138,11 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
 
                 content = {
                     "deck": "object_detection_dataset_evaluation",
-                    "layout_name": "TwoImageTextNoHeader",
+                    "layout_name": "TwoItem",
                     "layout_arguments": {
                         "title": (f"XAITK Saliency Map -- " f"Image ID: {datum['img_id']}, " f"Detection: {sal_idx}"),
-                        "content_left": sal_map_path,
-                        "content_right": (
+                        "left_item": sal_map_path,
+                        "right_item": (
                             f"**Model:** {self.model_id}\n"
                             f"**Image ID**: {datum['img_id']}\n"
                             f"**Prediction:** {self.model.metadata['index2label'][int(labels[sal_idx])]}\n"  # type: ignore
@@ -152,9 +152,6 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
                         ),
                     },
                 }
-                content["layout_arguments"]["content_right"] = content["layout_arguments"]["content_right"].replace(
-                    "_", r"\_"
-                )
                 gradient_slides.append(content)
 
         return gradient_slides

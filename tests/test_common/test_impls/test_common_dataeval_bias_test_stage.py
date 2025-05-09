@@ -7,8 +7,8 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
-    create_text_data_slide,
-    create_text_table_data_slide,
+    create_section_by_item_slide,
+    create_section_by_stacked_items_slide,
 )
 from jatic_ri.util.utils import save_figure_to_tempfile
 
@@ -26,8 +26,8 @@ class TestCommonBiasUtilityFunctions:
     """Test private helper functions used by Bias"""
 
     @pytest.mark.parametrize("with_table", [True, False])
-    def test_create_text_data_slide(self, with_table: bool, fake_image):
-        """Tests TextData arguments are correctly populated with and without a DataFrame"""
+    def test_create_section_by_item_slide(self, with_table: bool, fake_image):
+        """Tests SectionByItem arguments are correctly populated with and without a DataFrame"""
         if with_table:
             table = pd.DataFrame({"dummy": [0]})
             image_path = None
@@ -35,7 +35,7 @@ class TestCommonBiasUtilityFunctions:
             table = None
             image_path = Path(fake_image)
 
-        result_template = create_text_data_slide(
+        result_template = create_section_by_item_slide(
             deck="DECK",
             title="TITLE",
             heading="HEADING",
@@ -44,25 +44,27 @@ class TestCommonBiasUtilityFunctions:
             image_path=image_path,
         )
         assert result_template["deck"] == "DECK"
-        assert result_template["layout_name"] == "TextData"
+        assert result_template["layout_name"] == "SectionByItem"
 
         layout_args = result_template["layout_arguments"]
         assert layout_args["title"] == "TITLE"
-        assert layout_args["text_column_heading"] == "HEADING"
-        assert layout_args["text_column_half"]
-        assert isinstance(layout_args["text_column_body"], list)
-        assert ("data_column_table" in layout_args) == with_table
-        assert ("data_column_image" in layout_args) != with_table
+        assert layout_args["line_section_heading"] == "HEADING"
+        assert layout_args["line_section_half"]
+        assert isinstance(layout_args["line_section_body"], list)
+        if with_table:
+            assert isinstance(layout_args["item_section_body"], pd.DataFrame)
+        else:
+            assert isinstance(layout_args["item_section_body"], Path)
 
         create_deck(
             [result_template], path=Path("artifacts"), deck_name=f"test_create_text_data_slide_table={str(with_table)}"
         )
 
-    def test_create_text_table_data_slide(self, fake_image):
-        """Tests TextTableData arguments are correctly populated"""
+    def test_create_section_by_stacked_items_slide(self, fake_image):
+        """Tests SectionByStackedItems arguments are correctly populated"""
         table = pd.DataFrame({"dummy": [0]})
         image_path = Path(fake_image)
-        result_template = create_text_table_data_slide(
+        result_template = create_section_by_stacked_items_slide(
             deck="DECK",
             title="TITLE",
             heading="HEADING",
@@ -71,14 +73,14 @@ class TestCommonBiasUtilityFunctions:
             image_path=image_path,
         )
         assert result_template["deck"] == "DECK"
-        assert result_template["layout_name"] == "TextTableData"
+        assert result_template["layout_name"] == "SectionByStackedItems"
 
         layout_args = result_template["layout_arguments"]
         assert layout_args["title"] == "TITLE"
-        assert layout_args["text_column_heading"] == "HEADING"
-        assert layout_args["text_column_half"]
-        assert isinstance(layout_args["text_column_body"], list)
-        assert isinstance(layout_args["data_column_table"], pd.DataFrame)
-        assert isinstance(layout_args["data_column_image"], Path)
+        assert layout_args["line_section_heading"] == "HEADING"
+        assert layout_args["line_section_half"]
+        assert isinstance(layout_args["line_section_body"], list)
+        assert isinstance(layout_args["item_section_table"], pd.DataFrame)
+        assert isinstance(layout_args["item_section_bottom"], Path)
 
         create_deck([result_template], path=Path("artifacts"), deck_name="test_create_text_table_data_slide")

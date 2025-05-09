@@ -5,11 +5,11 @@ from typing import Any
 
 import pandas as pd
 from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.text_data import TextData
-from gradient.templates_and_layouts.generic_layouts.text_table_data import TextTableData
+from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
+from gradient.templates_and_layouts.generic_layouts.section_by_stacked_items import SectionByStackedItems
 
 
-def create_text_data_slide(
+def create_section_by_item_slide(
     deck: str,
     title: str,
     heading: str,
@@ -18,7 +18,7 @@ def create_text_data_slide(
     image_path: Path | None = None,
 ) -> dict[str, Any]:
     """
-    Fills in TextData Gradient template with values
+    Fills in SectionByItem Gradient template with values
 
     The content slide automatically uses a half-text/half-data layout.
     This template can only display either a table or an image. If both are supplied,
@@ -45,30 +45,32 @@ def create_text_data_slide(
     dict[str, Any]
         Dictionary with Gradient template arguments
     """
+    if all([table is not None, image_path is not None]):
+        raise ValueError("Both table and image_path cannot be provided.")
 
     content = [Text(t, fontsize=16) for t in text]
 
     template = {
         "deck": deck,
-        "layout_name": "TextData",
+        "layout_name": "SectionByItem",
         "layout_arguments": {
-            TextData.ArgKeys.TITLE.value: title,
+            SectionByItem.ArgKeys.TITLE.value: title,
             # Text arguments
-            TextData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-            TextData.ArgKeys.TEXT_COLUMN_HALF.value: True,
-            TextData.ArgKeys.TEXT_COLUMN_BODY.value: content,
+            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
         },
     }
 
     if table is not None:
-        template["layout_arguments"].update({TextData.ArgKeys.DATA_COLUMN_TABLE.value: table})
+        template["layout_arguments"].update({SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: table})
     elif image_path is not None:
-        template["layout_arguments"].update({TextData.ArgKeys.DATA_COLUMN_IMAGE.value: image_path})
+        template["layout_arguments"].update({SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: image_path})
 
     return template
 
 
-def create_text_table_data_slide(
+def create_section_by_stacked_items_slide(
     deck: str,
     title: str,
     heading: str,
@@ -77,7 +79,7 @@ def create_text_table_data_slide(
     image_path: Path,
 ) -> dict[str, Any]:
     """
-    Fills in TextTableData Gradient template with values
+    Fills in SectionByStackedItems Gradient template with values
 
     The content slide automatically uses a half-text/half-data layout.
     This template can display both a table and an image. Both a table
@@ -109,16 +111,16 @@ def create_text_table_data_slide(
 
     return {
         "deck": deck,
-        "layout_name": "TextTableData",
+        "layout_name": "SectionByStackedItems",
         "layout_arguments": {
-            TextTableData.ArgKeys.TITLE.value: title,
+            SectionByStackedItems.ArgKeys.TITLE.value: title,
             # Text arguments
-            TextTableData.ArgKeys.TEXT_COLUMN_HEADING.value: heading,
-            TextTableData.ArgKeys.TEXT_COLUMN_BODY.value: content,
-            TextTableData.ArgKeys.TEXT_COLUMN_HALF.value: True,
+            SectionByStackedItems.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByStackedItems.ArgKeys.LINE_SECTION_BODY.value: content,
+            SectionByStackedItems.ArgKeys.LINE_SECTION_HALF.value: True,
             # DataFrame arguments
-            TextTableData.ArgKeys.DATA_COLUMN_TABLE.value: table,
+            SectionByStackedItems.ArgKeys.ITEM_SECTION_TABLE.value: table,
             # Image arguments
-            TextTableData.ArgKeys.DATA_COLUMN_IMAGE.value: image_path,
+            SectionByStackedItems.ArgKeys.ITEM_SECTION_BOTTOM.value: image_path,
         },
     }

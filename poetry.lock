@@ -1147,7 +1147,7 @@ dev = ["flake8", "markdown", "twine", "wheel"]
 
 [[package]]
 name = "gradient"
-version = "0.10.2"
+version = "0.12.2"
 description = "Library for visualization and powerpoint generation"
 optional = false
 python-versions = ">=3.9,<3.12"
@@ -1160,7 +1160,8 @@ adjustText = ">=0.7.3"
 beautifulsoup4 = ">=4.12.2"
 blockdiag = ">=3.0.0"
 colour = ">=0.1.5"
-jinja2 = ">=3.1.4"
+cycler = ">=0.10"
+jinja2 = ">=3.1.5"
 matplotlib = ">=3.7.1"
 mdutils = ">=1.6.0"
 mistune = ">=3.0.2"
@@ -1172,13 +1173,14 @@ python-pptx = ">=0.6.21"
 pyyaml = ">=6.0.1"
 seaborn = ">=0.11.0"
 setuptools = ">=70.0.0"
+typing-extensions = ">=4.9.0"
 zipp = ">=3.19.1"
 
 [package.source]
 type = "git"
 url = "https://gitlab.jatic.net/jatic/morse/gradient.git"
-reference = "0.10.2"
-resolved_reference = "1db4e86bc05183482adba8ae7284479e12839a6f"
+reference = "0.12.2"
+resolved_reference = "19c4261c63eb118a3b9db90cab736be3264ad9dc"
 
 [[package]]
 name = "h11"
@@ -6372,4 +6374,4 @@ docs = ["mkdocs", "mkdocs-jupyter", "mkdocs-material", "pymdown-extensions"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9, <3.12"
-content-hash = "7274be1f05f66844a1abf305fbe03f0c7cf39d471dd4e4dc49efbd16d2b16f0f"
+content-hash = "9ce2bb282334d4dc8f6552b940a6b1902f67341c598915b2f522512f7627a189"

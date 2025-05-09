@@ -9,7 +9,7 @@ import numpy as np
 import pydantic
 import pyspark.sql
 import pyspark.sql.functions as sf
-from gradient import Text
+from gradient import SubText, Text
 from maite import protocols as pr
 from pyspark.sql import SparkSession
 from survivor.analysis import HistogramBarPlot
@@ -162,24 +162,26 @@ class SurvivorTestStageBase(
 
         # Simply return the title of the section and the data to be plotted
         definition_text = Text(
-            content=f"**Types of Data**\n"
-            f"• Easy: Models score the same and perform well.\n"
-            f"• Hard: Models score the same and perform poorly.\n"
-            f"• On the Bubble: Models score differently.\n\n"
-            f"• Ideally, a dataset would be primarily On the Bubble, so all data is helping distinguish between model "
-            f"performance.\n\n"
-            f"• This dataset had {easy_proportion * 100:.1f}% Easy, {hard_proportion * 100:.1f}% Hard, and "
-            f"{otb_proportion * 100:.1f}% On the Bubble data.",
+            [
+                SubText("Types of Data\n", bold=True),
+                f"• Easy: Models score the same and perform well.\n"
+                f"• Hard: Models score the same and perform poorly.\n"
+                f"• On the Bubble: Models score differently.\n\n"
+                f"• Ideally, a dataset would be primarily On the Bubble, "
+                "so all data is helping distinguish between model performance.\n\n"
+                f"• This dataset had {easy_proportion * 100:.1f}% Easy, {hard_proportion * 100:.1f}% Hard, and "
+                f"{otb_proportion * 100:.1f}% On the Bubble data.",
+            ],
             fontsize=22,
         )
         return [
             {
                 "deck": self._deck,
-                "layout_name": "TwoImageTextNoHeader",
+                "layout_name": "TwoItem",
                 "layout_arguments": {
                     "title": "Survivor Dataset Breakdown",
-                    "content_left": definition_text,
-                    "content_right": temp_image_file(output_image),
+                    "left_item": definition_text,
+                    "right_item": temp_image_file(output_image),
                 },
             },
         ]

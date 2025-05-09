@@ -32,7 +32,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
 from jatic_ri.util._types import DataFrame, Image
-from jatic_ri.util.utils import sanitize_gradient_markdown_text, temp_image_file
+from jatic_ri.util.utils import temp_image_file
 
 
 class RealLabelTestStageResults(OutputsBase):
@@ -261,16 +261,16 @@ class RealLabelTestStage(
         slides = [
             {
                 "deck": self._deck,
-                "layout_name": "TwoImageTextNoHeader",
+                "layout_name": "TwoItem",
                 "layout_arguments": {
                     "title": "RealLabel Label Breakdown",
-                    "content_left": Text(
+                    "left_item": Text(
                         content=[
                             # Paragraph 1
                             SubText(
                                 "RealLabel aids re-labeling efforts by "
                                 "using model ensembling to determine if a label is a:\n",
-                                **sentence_formatting,  # type: ignore
+                                **sentence_formatting,
                             ),
                             *bullet_point("True Positive: (Probably Correct Label)\n"),
                             *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
@@ -315,16 +315,14 @@ class RealLabelTestStage(
                             ),
                             SubText("\n" * 1, **spaces_formatting),  # type: ignore
                             SubText(
-                                sanitize_gradient_markdown_text(
-                                    "An example image "
-                                    f"({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})})"
-                                    " is shown to the right"
-                                ),
+                                "An example image "
+                                f"({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})})"
+                                " is shown to the right",
                                 fontsize=14,
                             ),
                         ]
                     ),
-                    "content_right": temp_image_file(reallabel_results.example_image),
+                    "right_item": temp_image_file(reallabel_results.example_image),
                 },
             },
         ]
@@ -342,12 +340,12 @@ class RealLabelTestStage(
             slides.append(
                 {
                     "deck": self._deck,
-                    "layout_name": "TextData",
+                    "layout_name": "SectionByItem",
                     "layout_arguments": {
                         "title": "Reallabel - Top Candidate Images for Relabeling Efforts",
-                        "text_column_heading": "WANRS Ranking",
-                        "text_column_half": True,
-                        "text_column_body": [
+                        "line_section_heading": "WANRS Ranking",
+                        "line_section_half": True,
+                        "line_section_body": [
                             Text(
                                 content=[
                                     wanrs_description_prelink_text,
@@ -367,7 +365,7 @@ class RealLabelTestStage(
                                 fontsize=14,
                             ),
                         ],
-                        "data_column_table": self.outputs.wanrs_df.loc[:, ["id", "WANRS"]]
+                        "item_section_body": self.outputs.wanrs_df.loc[:, ["id", "WANRS"]]
                         .head(10)
                         .reset_index()
                         .assign(index=lambda df: df["index"] + 1)

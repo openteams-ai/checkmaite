@@ -131,7 +131,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     """Test collect_report_consumables with cached data enabled."""
     # Arrange
     expected_deck = "object_detection_reallabel"
-    expected_layout_name = "TwoImageTextNoHeader"
+    expected_layout_name = "TwoItem"
     expected_title = "RealLabel Label Breakdown"
 
     # Run test stage once to ensure cache is present
@@ -144,7 +144,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     slides = test_stage.collect_report_consumables()
     output_consumables = slides[0]
     combined_lc_text = "".join(
-        [subtext.content for subtext in output_consumables["layout_arguments"]["content_left"].content]
+        [subtext.content for subtext in output_consumables["layout_arguments"]["left_item"].content]
     )
 
     # Assert
@@ -154,7 +154,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     assert all(
         expected in combined_lc_text for expected in ["True Positive: 1", "False Positive: 2", "False Negative: 1"]
     )
-    assert output_consumables["layout_arguments"]["content_right"].is_file()
+    assert output_consumables["layout_arguments"]["right_item"].is_file()
 
     filename = create_deck(slides, artifact_dir, "reallabel")
     assert filename.exists()
