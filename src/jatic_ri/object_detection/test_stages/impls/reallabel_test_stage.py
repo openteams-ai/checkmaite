@@ -35,10 +35,10 @@ from jatic_ri.util._types import DataFrame, Image
 from jatic_ri.util.utils import temp_image_file
 
 
-class RealLabelTestStageResults(OutputsBase):
+class RealLabelOutputs(OutputsBase):
     """Results class for RealLabelTestStage"""
 
-    default_results: DataFrame
+    results: DataFrame
     example_image: Image
     classification_disagreements_df: Optional[DataFrame] = None
     verbose_df: Optional[DataFrame] = None
@@ -59,13 +59,13 @@ class RealLabelRun(RunBase):
     """Run class for RealLabelTestStage"""
 
     config: RealLabelConfig
-    outputs: RealLabelTestStageResults
+    outputs: RealLabelOutputs
 
 
 class RealLabelTestStage(
     MultiModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
-    TestStage[RealLabelTestStageResults],
+    TestStage[RealLabelOutputs],
     EvalToolPlugin,
 ):
     """RealLabel test stage.
@@ -131,7 +131,7 @@ class RealLabelTestStage(
             clean_predictions[model] = [x[0] for x in predictions]
         return clean_predictions
 
-    def _run(self) -> RealLabelTestStageResults:
+    def _run(self) -> RealLabelOutputs:
         """Run RealLabel test stage."""
         self.validate_plugins()
 
@@ -218,8 +218,8 @@ class RealLabelTestStage(
                 image_name_map=most_populous_image_name_to_uuid_value_map,
             )
 
-            return RealLabelTestStageResults(
-                default_results=default_reallabel_results,  # type: ignore[reportArgumentType]
+            return RealLabelOutputs(
+                results=default_reallabel_results,  # type: ignore[reportArgumentType]
                 example_image=image_location,  # type: ignore[reportArgumentType]
                 classification_disagreements_df=reallabel_results.classification_disagreements_df,  # type: ignore[reportArgumentType]
                 verbose_df=reallabel_results.verbose_df,  # type: ignore[reportArgumentType]
@@ -232,7 +232,7 @@ class RealLabelTestStage(
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables."""
         reallabel_results = self.outputs
-        default_results_df = reallabel_results.default_results
+        default_results_df = reallabel_results.results
 
         # Find RealLabel statistics
         num_false_positives = (default_results_df["reallabel_type"] == "Likely Wrong").sum()
