@@ -12,8 +12,8 @@ from reallabel import ColumnNameConfig, RealLabelResults
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
     RealLabelConfig,
+    RealLabelOutputs,
     RealLabelTestStage,
-    RealLabelTestStageResults,
 )
 from tests.fake_od_classes import FakeODDataset, FakeODModel
 
@@ -113,7 +113,7 @@ def test_reallabel_test_stage_run_caches(mocker, test_stage: RealLabelTestStage,
 
         return actual == expected
 
-    optional_assert_frame_equal(outputs.default_results, cached_outputs.default_results)
+    optional_assert_frame_equal(outputs.results, cached_outputs.results)
     optional_assert_frame_equal(outputs.classification_disagreements_df, cached_outputs.classification_disagreements_df)
     optional_assert_frame_equal(outputs.verbose_df, cached_outputs.verbose_df)
     optional_assert_frame_equal(outputs.sequence_priority_score_df, cached_outputs.sequence_priority_score_df)
@@ -186,9 +186,8 @@ def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
         test_stage_2.run(use_stage_cache=False)
 
 
-@pytest.mark.xfail(reason="field name mismatch")
 def test_for_reallabel_output_changes():
     """When updating RealLabel, make sure we catch changes to the results dataclass and determine whether to expose them to the user."""
     available = {f.name for f in dataclasses.fields(RealLabelResults) if not f.name.startswith("_")}
-    exposed = set(RealLabelTestStageResults.model_fields.keys())
+    exposed = set(RealLabelOutputs.model_fields.keys())
     assert exposed.issuperset(available)
