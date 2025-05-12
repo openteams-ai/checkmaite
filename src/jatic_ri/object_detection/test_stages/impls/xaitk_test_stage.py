@@ -32,7 +32,7 @@ from jatic_ri.object_detection.datasets import DetectionTarget
 from jatic_ri.util.cache import TensorEncoder
 
 
-class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
+class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset]):
     """
     XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
 
@@ -61,7 +61,7 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
         self.prediction_dataset = self.XAITKDetectionBaselineDataset(self.dataset, self.model)
         if "index2label" not in self.model.metadata:
             raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
-        img_sal_maps, _ = sal_on_dets(
+        all_dataset_sal_maps, _ = sal_on_dets(
             dataset=self.prediction_dataset,
             sal_generator=self.sal_generator,
             detector=self.model,
@@ -71,14 +71,14 @@ class XAITKTestStage(XAITKTestStageBase[od.Model, od.Dataset, od.Metric]):
 
         return {
             "img" + str(i): {
-                "sal_maps": TensorEncoder().default(sal_map),
+                "sal_maps": TensorEncoder().default(datum_sal_maps),
                 "img": TensorEncoder().default(self.prediction_dataset[i][0].numpy()),
                 "img_id": self.prediction_dataset[i][2]["id"],
                 "boxes": TensorEncoder().default(self.prediction_dataset[i][1].boxes),
                 "labels": TensorEncoder().default(self.prediction_dataset[i][1].labels),
                 "scores": TensorEncoder().default(self.prediction_dataset[i][1].scores),
             }
-            for i, sal_map in enumerate(img_sal_maps)
+            for i, datum_sal_maps in enumerate(all_dataset_sal_maps)
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:

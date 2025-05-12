@@ -27,16 +27,12 @@ ARGS = {
 
 @pytest.mark.parametrize("use_stage_cache", [True, False])
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
-def test_xaitk_test_stage(
-    use_stage_cache, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, artifact_dir
-) -> None:
+def test_xaitk_test_stage(use_stage_cache, fake_od_model_default, fake_od_dataset_default, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(ARGS)
     # load the maite compliant model
     test.load_model(model=fake_od_model_default, model_id="model_1")
-    test.load_metric(metric=fake_od_metric_default, metric_id="metric_1")
-    test.load_threshold(threshold=10)
     test.load_dataset(dataset=fake_od_dataset_default, dataset_id="dataset_1")
     test.run(use_stage_cache=use_stage_cache)
     output = test.collect_report_consumables()

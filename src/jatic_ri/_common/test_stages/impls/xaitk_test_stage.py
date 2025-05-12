@@ -7,12 +7,9 @@ from typing import Any
 
 # Local imports
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     TDataset,
-    ThresholdPlugin,
-    TMetric,
     TModel,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
@@ -23,8 +20,6 @@ class XAITKTestStageBase(
     TestStage[dict[str, Any]],
     SingleModelPlugin[TModel],
     SingleDatasetPlugin[TDataset],
-    MetricPlugin[TMetric],
-    ThresholdPlugin,
 ):
     """
     XAITK Test Stage that takes in the necessary arguements to demo saliency map generation.

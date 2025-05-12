@@ -29,7 +29,7 @@ from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBa
 from jatic_ri.util.cache import NumpyEncoder
 
 
-class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset, ic.Metric]):
+class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
     """
     XAITKTestStage will generate saliency maps for each model target across all images in the dataset.
 
