@@ -40,14 +40,12 @@ MC_RISE_ARGS = {
 }
 
 
-def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir) -> None:
+def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(RISE_ARGS)
     # load the maite compliant model
     test.load_model(model=dummy_model_ic, model_id="model_1")
-    test.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
-    test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
@@ -70,14 +68,12 @@ def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic
     assert filename.exists()
 
 
-def test_xaitk_test_stage_mc_rise(dummy_model_ic, dummy_dataset_ic, dummy_metric_ic, artifact_dir) -> None:
+def test_xaitk_test_stage_mc_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(MC_RISE_ARGS)
     # load the maite compliant model
     test.load_model(model=dummy_model_ic, model_id="model_1")
-    test.load_metric(metric=dummy_metric_ic, metric_id="metric_1")
-    test.load_threshold(threshold=10)
     test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()

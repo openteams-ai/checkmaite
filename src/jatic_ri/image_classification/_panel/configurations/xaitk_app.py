@@ -29,6 +29,7 @@ from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise import RISEStac
 # local imports
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.xaitk_app_common import BaseXAITKApp
+from jatic_ri._common.models import set_device
 
 mpl.use("agg")
 
@@ -89,10 +90,7 @@ class XAITKApp(BaseXAITKApp):
     def __init__(self, **params: dict[str, object]) -> None:
         #   model initialization
         model_name = "aaraki/vit-base-patch16-224-in21k-finetuned-cifar10"
-        self.jatic_classifier: ic.Model = HuggingFaceClassifier(
-            model_name=model_name,
-            device="cuda" if torch.cuda.is_available() else "cpu",
-        )
+        self.jatic_classifier: ic.Model = HuggingFaceClassifier(model_name=model_name, device=set_device(None))
         self.classifier = JATICImageClassifier(
             classifier=self.jatic_classifier,
             ids=sorted(self.jatic_classifier.index2label),
@@ -266,7 +264,6 @@ class XAITKApp(BaseXAITKApp):
             )
             fill = [95, 96, 93]
             saliency_generator.fill = fill
-
         return saliency_generator(np.asarray(img), self.classifier)
 
     def saliency_gen_button_callback(self, _event: object) -> None:

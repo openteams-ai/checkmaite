@@ -34,6 +34,7 @@ from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import DRISESta
 # local imports
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.xaitk_app_common import BaseXAITKApp
+from jatic_ri._common.models import set_device
 
 mpl.use("agg")
 
@@ -127,9 +128,7 @@ class XAITKApp(BaseXAITKApp):
         #   model initialization
         model_name = "facebook/detr-resnet-50"
         self.jatic_detector: od.Model = HuggingFaceDetector(
-            model_name=model_name,
-            threshold=0.5,
-            device="cuda" if torch.cuda.is_available() else "cpu",
+            model_name=model_name, threshold=0.5, device=set_device(None)
         )
         self.detector = JATICDetector(
             detector=self.jatic_detector,
