@@ -122,6 +122,7 @@ def test_reallabel_test_stage_run_caches(mocker, test_stage: RealLabelTestStage,
     )
     optional_assert_frame_equal(outputs.wanrs_df, cached_outputs.wanrs_df)
     optional_assert_frame_equal(outputs.aggregated_confidence_df, cached_outputs.aggregated_confidence_df)
+    assert outputs.example_image.id == cached_outputs.example_image.id
 
 
 def test_reallabel_test_stage_collect_report_consumables(
