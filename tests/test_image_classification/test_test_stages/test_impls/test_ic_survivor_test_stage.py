@@ -89,10 +89,10 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, t
     cached_run = test_stage.run(use_stage_cache=True)
     assert cached_run is not run
 
-    df, _ = run.outputs
-    cached_df, _ = cached_run.outputs
+    reallabel_outputs = run.outputs
+    cached_realabel_outputs = cached_run.outputs
 
-    pd.testing.assert_frame_equal(cached_df, df)
+    pd.testing.assert_frame_equal(cached_realabel_outputs.results, reallabel_outputs.results)
 
 
 def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, artifact_dir) -> None:

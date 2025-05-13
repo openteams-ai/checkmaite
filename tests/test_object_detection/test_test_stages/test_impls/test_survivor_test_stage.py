@@ -3,6 +3,7 @@
 from typing import Any
 
 import pandas as pd
+import PIL
 import pytest
 import torch
 from gradient import SubText, Text
@@ -11,6 +12,7 @@ from maite.protocols import object_detection as od
 from survivor.config import SurvivorConfig
 from survivor.enums import ScoreConversionType
 
+from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorOutputs
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
 from tests.fake_od_classes import FakeODDataset, FakeODModel
@@ -56,7 +58,7 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
         def compute(self) -> dict[str, Any]:
             if not self._can_compute:
                 raise ValueError(
-                    "FakeSurvivorMetric requires exactly one image. " "Please call .update before computing again."
+                    "FakeSurvivorMetric requires exactly one image. Please call .update before computing again."
                 )
 
             self._can_compute = False
@@ -85,11 +87,11 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
         def update(self, preds, targets) -> None:
             if self._can_compute:
                 raise ValueError(
-                    "FakeSurvivorMetric requires exactly one image. " "Please call .compute before updating again."
+                    "FakeSurvivorMetric requires exactly one image. Please call .compute before updating again."
                 )
             if self._needs_reset:
                 raise ValueError(
-                    "FakeSurvivorMetric requires exactly one image. " "Please call .reset before updating again."
+                    "FakeSurvivorMetric requires exactly one image. Please call .reset before updating again."
                 )
 
             self._can_compute = True
@@ -97,7 +99,7 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
         def reset(self) -> None:
             if self._can_compute:
                 raise ValueError(
-                    "FakeSurvivorMetric requires exactly one image. " "Please call .compute before resetting again."
+                    "FakeSurvivorMetric requires exactly one image. Please call .compute before resetting again."
                 )
 
             self._needs_reset = False
@@ -189,10 +191,16 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, t
     cached_run = test_stage.run(use_stage_cache=True)
     assert cached_run is not run
 
-    df, _ = run.outputs
-    cached_df, _ = cached_run.outputs
-
-    pd.testing.assert_frame_equal(cached_df, df)
+    for field in SurvivorOutputs.model_fields:
+        cached_attr = getattr(cached_run.outputs, field)
+        run_attr = getattr(run.outputs, field)
+        if isinstance(run_attr, pd.DataFrame):
+            pd.testing.assert_frame_equal(run_attr, cached_attr)
+        elif isinstance(run_attr, PIL.Image.Image):
+            # images are a visualization of the data, so comparing dataframe is sufficient
+            continue
+        else:
+            assert run_attr == cached_attr, f'Field "{field}" does not match between cached and run outputs'
 
 
 def test_survivor_collect_report_consumables(
