@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Union
 
@@ -35,19 +34,6 @@ class SurvivorConfig(_NativeSurvivorConfig, ConfigBase):
 class SurvivorOutputs(OutputsBase):
     results: DataFrame
     image: Image
-
-    # TODO: remove this if all consumers are adapted to the new outputs type
-    def __getitem__(self, index: int) -> Any:
-        if index == 0:
-            return self.results
-        if index == 1:
-            return self.image
-        raise IndexError("index out of range")
-
-    # TODO: remove this if all consumers are adapted to the new outputs type
-    def __iter__(self) -> Iterator[Any]:  # type: ignore
-        yield self.results
-        yield self.image
 
 
 class SurvivorRun(RunBase):
@@ -151,9 +137,7 @@ class SurvivorTestStageBase(
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect report consumables for the SurvivorTestStage."""
-        survivor_results_pd, output_image = self.outputs
-
-        survivor_results = pyspark.sql.SparkSession.active().createDataFrame(survivor_results_pd)
+        survivor_results = pyspark.sql.SparkSession.active().createDataFrame(self.outputs.results)
 
         total = survivor_results.count()
         hard_proportion = survivor_results.where(sf.col("suid_label") == "Hard").count() / total
@@ -181,7 +165,7 @@ class SurvivorTestStageBase(
                 "layout_arguments": {
                     "title": "Survivor Dataset Breakdown",
                     "left_item": definition_text,
-                    "right_item": temp_image_file(output_image),
+                    "right_item": temp_image_file(self.outputs.image),
                 },
             },
         ]
