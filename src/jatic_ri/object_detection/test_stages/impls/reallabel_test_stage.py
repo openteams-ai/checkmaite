@@ -35,11 +35,18 @@ from jatic_ri.util._types import DataFrame, Image
 from jatic_ri.util.utils import temp_image_file
 
 
+class RealLabelImageOutput(OutputsBase):
+    """Example image result for RealLabelTestStageResults."""
+
+    image: Image
+    id: dict[str, Any]
+
+
 class RealLabelOutputs(OutputsBase):
     """Results class for RealLabelTestStage"""
 
     results: DataFrame
-    example_image: Image
+    example_image: RealLabelImageOutput
     classification_disagreements_df: Optional[DataFrame] = None
     verbose_df: Optional[DataFrame] = None
     sequence_priority_score_df: Optional[DataFrame] = None
@@ -162,7 +169,7 @@ class RealLabelTestStage(
 
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
-        self._example_image_unique_id = (
+        example_image_unique_id = (
             default_reallabel_results.groupBy(self._config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
@@ -172,13 +179,13 @@ class RealLabelTestStage(
         )
 
         results_for_most_populous_image_df = default_reallabel_results.filter(
-            *[sf.col(key) == value for key, value in self._example_image_unique_id.items()]
+            *[sf.col(key) == value for key, value in example_image_unique_id.items()]
         )
 
         # Iterate through the dataset until we find the index with the matching UUID. Get the Image tensor from it.
         most_populous_image_array = None
         for image_tensor, _, image_metadata in self.dataset:
-            if all(str(image_metadata[key]) == str(value) for key, value in self._example_image_unique_id.items()):
+            if all(str(image_metadata[key]) == str(value) for key, value in example_image_unique_id.items()):
                 most_populous_image_array = image_tensor
                 break
         if most_populous_image_array is None:
@@ -186,10 +193,10 @@ class RealLabelTestStage(
 
         # Since we aren't guaranteed an actual file name metadata field (not all datasets have them),
         # make a new file name with the raw UUID values
-        most_populous_image_file_name = "_".join(value for value in self._example_image_unique_id.values()) + ".png"
+        most_populous_image_file_name = "_".join(value for value in example_image_unique_id.values()) + ".png"
         # Ensure we have a mapping of this portmanteau file name to the actual UUID values that
         # will be found in the dataframe.
-        most_populous_image_name_to_uuid_value_map = {most_populous_image_file_name: self._example_image_unique_id}
+        most_populous_image_name_to_uuid_value_map = {most_populous_image_file_name: example_image_unique_id}
 
         # PIL stores as HWC, but MAITE and the RI requires CHW
         if isinstance(most_populous_image_array, torch.Tensor):
@@ -220,7 +227,7 @@ class RealLabelTestStage(
 
             return RealLabelOutputs(
                 results=default_reallabel_results,  # type: ignore[reportArgumentType]
-                example_image=image_location,  # type: ignore[reportArgumentType]
+                example_image=RealLabelImageOutput(image=image_location, id=example_image_unique_id),  # type: ignore[reportArgumentType]
                 classification_disagreements_df=reallabel_results.classification_disagreements_df,  # type: ignore[reportArgumentType]
                 verbose_df=reallabel_results.verbose_df,  # type: ignore[reportArgumentType]
                 sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # type: ignore[reportArgumentType]
@@ -316,13 +323,13 @@ class RealLabelTestStage(
                             SubText("\n" * 1, **spaces_formatting),  # type: ignore
                             SubText(
                                 "An example image "
-                                f"({','.join({f'{k}: {v}' for k, v in self._example_image_unique_id.items()})})"
+                                f"({','.join({f'{k}: {v}' for k, v in reallabel_results.example_image.id.items()})})"
                                 " is shown to the right",
                                 fontsize=14,
                             ),
                         ]
                     ),
-                    "right_item": temp_image_file(reallabel_results.example_image),
+                    "right_item": temp_image_file(reallabel_results.example_image.image),
                 },
             },
         ]
