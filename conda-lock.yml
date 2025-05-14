@@ -6787,12 +6787,12 @@ package:
     setuptools: '>=70.0.0'
     typing-extensions: '>=4.9.0'
     zipp: '>=3.19.1'
-  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
+  url: git+https://gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
   hash:
     sha256: 19c4261c63eb118a3b9db90cab736be3264ad9dc
   source:
     type: url
-    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
+    url: git+https://gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
   category: main
   optional: false
 - name: heart-library
@@ -6807,12 +6807,12 @@ package:
     setuptools: '>=75,<76'
     six: '>=1,<2'
     tqdm: '>=4,<5'
-  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@1adb87e38f4240397e6451db847c9ce73e3204df
+  url: git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@1adb87e38f4240397e6451db847c9ce73e3204df
   hash:
     sha256: 1adb87e38f4240397e6451db847c9ce73e3204df
   source:
     type: url
-    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@1adb87e38f4240397e6451db847c9ce73e3204df
+    url: git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@1adb87e38f4240397e6451db847c9ce73e3204df
   category: main
   optional: false
 - name: lxml
@@ -6889,12 +6889,12 @@ package:
     pydantic: '>=2.5.1'
     pyspark: '>=3.2.0'
     pyyaml: '>=6.0.1'
-  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@ef992f5b1bd7953e9774b63da78feedc6f9aff7d
+  url: git+https://gitlab.jatic.net/jatic/morse/reallabel.git@ef992f5b1bd7953e9774b63da78feedc6f9aff7d
   hash:
     sha256: ef992f5b1bd7953e9774b63da78feedc6f9aff7d
   source:
     type: url
-    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/reallabel.git@ef992f5b1bd7953e9774b63da78feedc6f9aff7d
+    url: git+https://gitlab.jatic.net/jatic/morse/reallabel.git@ef992f5b1bd7953e9774b63da78feedc6f9aff7d
   category: main
   optional: false
 - name: seaborn
@@ -6921,12 +6921,12 @@ package:
     pyarrow: '>=14.0.1'
     pydantic: '>=2.6.4'
     pyspark: '>=3.5.0'
-  url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
+  url: git+https://gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
   hash:
     sha256: e1af31c2454da4d2e2112346de21bca873acea58
   source:
     type: url
-    url: git+https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
+    url: git+https://gitlab.jatic.net/jatic/morse/survivor.git@e1af31c2454da4d2e2112346de21bca873acea58
   category: main
   optional: false
 - name: typing-inspection
