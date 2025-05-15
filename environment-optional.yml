@@ -31,6 +31,7 @@ dependencies:
 - pillow>=11.0.0                        # arbitrary pin
 - pyspark>=3.5.3                        # arbitrary pin
 - pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)
+- smqtk-detection>=0.22.0               # necessary pin, needed for running centernet model on mac
 - timm>=1.0.7                           # arbitrary pin, required for nrtk panel app
 - torchmetrics>=1.4.0                   # arbitrary pin, pkg needed to run tests using example MAITE-wrapped objects.
 - torchvision>=0.17.0                   # necessary pin, pkg needed to run tests using example MAITE-wrapped objects.
