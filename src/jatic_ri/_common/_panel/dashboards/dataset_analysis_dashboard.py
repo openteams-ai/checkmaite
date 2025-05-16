@@ -7,16 +7,17 @@ from typing import Any
 import pandas as pd
 import panel as pn
 
-from jatic_ri._common._panel.dashboards.base_dashboard import BaseDashboard
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling
+from jatic_ri._common._panel.dashboards.base_dashboard import BaseTestbed
 
 logger = logging.getLogger()
 
 
-class DatasetAnalysisDashboard(BaseDashboard):
+class DatasetAnalysisDashboard(BaseTestbed):
     """Dataset Analysis Dashboard"""
 
-    def __init__(self, **params: dict[str, Any]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
+        super().__init__(styles, **params)
         self.title = "Dataset Analysis Testbed"
 
         self.run_analysis_button.disabled = True
@@ -101,15 +102,15 @@ class DatasetAnalysisDashboard(BaseDashboard):
                 pn.Column(
                     pn.pane.Markdown(
                         section_title,
-                        styles=self.style_text_h3,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h3,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Row(
                         pn.Spacer(width=12),  # padding to align this with title text above
                         pn.pane.Markdown(
                             "Select models to analyze.",
-                            styles=self.style_text_body2,
-                            stylesheets=[self.css_paragraph],
+                            styles=self.styles.style_text_body2,
+                            stylesheets=[self.styles.css_paragraph],
                             width=395,
                         ),
                     ),
@@ -123,8 +124,8 @@ class DatasetAnalysisDashboard(BaseDashboard):
                         pn.Row(pn.Spacer(width=12), self._view_dataset_1_selectors),
                         pn.Spacer(height=18),
                         styles={
-                            "background": self.color_white,
-                            "border-color": self.color_blue_300,
+                            "background": self.styles.color_white,
+                            "border-color": self.styles.color_blue_300,
                             "border-width": "thin",
                             "border-style": "solid",
                             "border-radius": "5px",
@@ -148,11 +149,11 @@ class DatasetAnalysisDashboard(BaseDashboard):
                 self.model_widgets["Model 1 type"]["remove_button"],
             ),
             pn.Row(
-                pn.Spacer(width=self.width_subwidget_offset),
+                pn.Spacer(width=self.styles.width_subwidget_offset),
                 self.model_widgets["Model 1 type"]["model_weights_path"],
             ),
             pn.Row(
-                pn.Spacer(width=self.width_subwidget_offset),
+                pn.Spacer(width=self.styles.width_subwidget_offset),
                 self.model_widgets["Model 1 type"]["model_config_path"],
             ),
         )
@@ -174,15 +175,15 @@ class DatasetAnalysisDashboard(BaseDashboard):
                 pn.Column(
                     pn.pane.Markdown(
                         "3. Define test input artifacts",
-                        styles=self.style_text_h3,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h3,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Row(
                         pn.Spacer(width=12),  # padding to align this with title text above
                         pn.pane.Markdown(
                             "Set metric type and comparison dataset and/or model type and location",
-                            styles=self.style_text_body2,
-                            stylesheets=[self.css_paragraph],
+                            styles=self.styles.style_text_body2,
+                            stylesheets=[self.styles.css_paragraph],
                             width=395,
                         ),
                     ),
@@ -199,8 +200,8 @@ class DatasetAnalysisDashboard(BaseDashboard):
                         pn.Spacer(height=18),
                     ),
                     styles={
-                        "background": self.color_white,
-                        "border-color": self.color_blue_300,
+                        "background": self.styles.color_white,
+                        "border-color": self.styles.color_blue_300,
                         "border-width": "thin",
                         "border-style": "solid",
                         "border-radius": "5px",

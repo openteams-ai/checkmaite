@@ -28,13 +28,12 @@ from xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise import RISEStac
 
 # local imports
 from jatic_ri import PACKAGE_DIR
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling
 from jatic_ri._common._panel.configurations.xaitk_app_common import BaseXAITKApp
 from jatic_ri._common.models import set_device
 
 mpl.use("agg")
 
-pn.extension("tabulator")
-pn.extension("jsoneditor")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
 TEST_IMAGE = IMAGE_DIR / "example_car_img.jpg"
@@ -84,10 +83,8 @@ class XAITKApp(BaseXAITKApp):
     """App for building XAITKTestStages for image classification"""
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")
-    title_font_size = param.Integer(default=24)
-    status_text = param.String("Waiting for detection image input...")
 
-    def __init__(self, **params: dict[str, object]) -> None:
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         #   model initialization
         model_name = "aaraki/vit-base-patch16-224-in21k-finetuned-cifar10"
         self.jatic_classifier: ic.Model = HuggingFaceClassifier(model_name=model_name, device=set_device(None))
@@ -101,7 +98,7 @@ class XAITKApp(BaseXAITKApp):
 
         self.stack_select = pn.widgets.Select(name="Choose generator", options=STACK_OPTIONS)
 
-        super().__init__(**params)
+        super().__init__(styles, **params)
 
         self.stack_select.link(self.stack_select, callbacks={"value": self.stack_select_callback})
 
@@ -109,10 +106,10 @@ class XAITKApp(BaseXAITKApp):
         self.select_widget = pn.widgets.Select(
             name="Choose Class",
             options={v: k for k, v in self.id2label.items()},
-            stylesheets=[self.widget_stylesheet],
+            stylesheets=[self.styles.widget_stylesheet],
         )
         self.saliency_gen_button.on_click(self.saliency_gen_button_callback)
-        self.stack_select.stylesheets = [self.widget_stylesheet]
+        self.stack_select.stylesheets = [self.styles.widget_stylesheet]
 
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(), tight=True)
 
@@ -121,7 +118,7 @@ class XAITKApp(BaseXAITKApp):
             pn.Card(
                 self.add_saliency_gen_config_widget(),
                 title="Saliency Generation Parameters",
-                header_color=self.color_gray_900,
+                header_color=self.styles.color_gray_900,
                 width=self.left_column_width,
             )
         ]
@@ -137,19 +134,19 @@ class XAITKApp(BaseXAITKApp):
                 start=50,
                 end=1200,
                 step=50,
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
             pn.widgets.Select(
                 name="Occlusion Grid Size",
                 options=["(7,7)", "(5,5)", "(10,10)"],
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
             pn.widgets.IntInput(
                 name="Image Batch Size",
                 value=1,
                 start=1,
                 step=1,
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
         )
         if generator_type == "MC-RISE":
@@ -158,7 +155,7 @@ class XAITKApp(BaseXAITKApp):
                     name="Fill Colors",
                     value=[[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255], [0, 0, 0]],
                     type=list,
-                    stylesheets=[self.widget_stylesheet],
+                    stylesheets=[self.styles.widget_stylesheet],
                 )
             )
         basic_component.append(
@@ -166,7 +163,7 @@ class XAITKApp(BaseXAITKApp):
                 f"""
                     <style>
                     * {{
-                        color: {self.color_gray_900};
+                        color: {self.styles.color_gray_900};
                     }}
                     </style>
                     The sample saliency generation uses the [in21k](https://huggingface.co/aaraki/vit-base-patch16-224-in21k-finetuned-cifar10)
@@ -181,7 +178,8 @@ class XAITKApp(BaseXAITKApp):
         return basic_component
 
     def _run_export(self) -> None:
-        """This function runs when `export_button` is clicked"""
+        """This function collects all configurations in a dictionary object
+        that is shared across app pages."""
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
         generator_type = self.stack_select.value
@@ -276,9 +274,9 @@ class XAITKApp(BaseXAITKApp):
         gray_img = np.asarray(Image.open(self.test_img).convert("L"))
         generator_type = self.stack_select.value
 
-        self.status_text = "Generating saliency maps..."
+        self.status_source.emit("Generating saliency maps...")
         sal_maps = self.generate_saliency(img)
-        self.status_text = "Saliency maps created"
+        self.status_source.emit("Saliency maps created")
 
         if generator_type == "MC-RISE":
             sal_map = sal_maps[:, self.select_widget.value, :, :]
@@ -297,7 +295,7 @@ class XAITKApp(BaseXAITKApp):
                 self.create_sal_plot(img=gray_img, sal_array=sal_map), tight=True, visible=False
             )
         self.augmented_plot.visible = True
-        self.status_text = "Saliency generation test completed"
+        self.status_source.emit("Saliency generation test completed")
 
     def create_sal_plot_mc_rise(self, img: np.ndarray, sal_array: np.ndarray, title: str) -> Figure:
         """Return matplotlib figure of the original sample image with a saliency map"""
@@ -342,7 +340,7 @@ class XAITKApp(BaseXAITKApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Choose Sample Detection
@@ -354,7 +352,7 @@ class XAITKApp(BaseXAITKApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Saliency Generation Output
@@ -366,8 +364,8 @@ class XAITKApp(BaseXAITKApp):
             pn.layout.Divider(),
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )
 
 

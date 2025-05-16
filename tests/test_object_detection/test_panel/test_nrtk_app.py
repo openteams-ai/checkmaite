@@ -42,15 +42,13 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     # it can't be viewed this way, but it will allow us to catch some errors
     nrtk_app.panel()
 
-    initial_status_text = nrtk_app.status_text
-    # click the export button
-    #    this calls `export_button_callback` which then calls
-    #    `_run_export` and updates the `status_text`
-    nrtk_app.export_button.clicks += 1
+    initial_status_text = nrtk_app.status_source.current_value
+
+    nrtk_app._run_export()
     # ensure _run_export is called
     assert len(nrtk_app.output_test_stages) == 0
     # ensure status text changed
-    assert nrtk_app.status_text != initial_status_text
+    assert nrtk_app.status_source.current_value != initial_status_text
 
     # test the panel stage output
     _, config_output, _ = nrtk_app.output()
@@ -105,7 +103,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
 
     # test test_perturber_button_callback
     nrtk_app.test_perturber_button_callback(None)
-    assert nrtk_app.status_text == "Finished Perturbing"
+    assert nrtk_app.status_source.current_value == "Finished Perturbing"
 
     # test clear_test_stage_callback
     nrtk_app.clear_test_stage_callback(None)

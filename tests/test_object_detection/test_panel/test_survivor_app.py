@@ -77,7 +77,7 @@ def test_parse_bin_string(input_str: str, exp_output: Optional[Union[int, list[f
 
     # Assert
     assert app._bins == exp_output
-    assert app.status_text == ("Invalid Bins argument" if exp_fail else "Waiting for input...")
+    assert app.status_source.current_value == ("Invalid Bins argument" if exp_fail else "Waiting for input...")
 
 
 @pytest.mark.parametrize(

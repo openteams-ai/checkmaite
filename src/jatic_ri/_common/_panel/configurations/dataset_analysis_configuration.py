@@ -14,12 +14,19 @@ from typing import Any
 import panel as pn
 import param
 
-from jatic_ri._common._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 from jatic_ri.util.dashboard_utils import _center_horizontally, _center_vertically
 
 
 class ConfigurationLandingPage(BaseApp):
-    """Initial landing page for the DA OD configuration app"""
+    """Initial landing page for the DA OD configuration app
+    Attributes passed to the next stage:
+    next_parameter
+    task
+    output_test_stages
+    local
+
+    """
 
     task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
 
@@ -37,21 +44,21 @@ class ConfigurationLandingPage(BaseApp):
         default="Configure Reallabel", objects=["Configure Reallabel", "Configure Survivor", "Finalize"]
     )
 
-    def __init__(self, **params: dict[str, Any]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
+        super().__init__(styles, **params)
         self.title = f"Dataset analysis configuration: {self.task.replace('_', ' ').title()}"
         # make sure that the next stage matches the defaults
         self._update_next_parameter()
 
         # dataeval configuration
         # bias - parity, coverage, diversity, balance
-        self.bias = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        self.bias = pn.widgets.Checkbox(stylesheets=[self.styles.css_checkbox])
         # shift - Out-of-distributation (AE, VAE) and drift (CMV, MMD, KS)
-        self.shift = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        self.shift = pn.widgets.Checkbox(stylesheets=[self.styles.css_checkbox])
         # cleaning - duplicates detection and outlier detection (dimensional stats, pixel stats, visual stats)
-        self.cleaning = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        self.cleaning = pn.widgets.Checkbox(stylesheets=[self.styles.css_checkbox])
         # feasibility
-        self.feasibility = pn.widgets.Checkbox(stylesheets=[self.css_checkbox])
+        self.feasibility = pn.widgets.Checkbox(stylesheets=[self.styles.css_checkbox])
 
     @param.depends("show_reallabel_config", "show_survivor_config", watch=True)
     def _update_next_parameter(self) -> None:
@@ -144,18 +151,18 @@ class ConfigurationLandingPage(BaseApp):
                     pn.Spacer(height=4),
                     pn.pane.Markdown(
                         label,
-                        styles=self.style_text_subtitle,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_subtitle,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.pane.Markdown(
                         description,
-                        styles=self.style_text_body2,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_body2,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                 ),
                 width=649,
                 height=section_height,  # style guide departure to account for line height
-                styles=self.style_border,
+                styles=self.styles.style_border,
             ),
         )
 
@@ -172,8 +179,8 @@ class ConfigurationLandingPage(BaseApp):
             self._generate_checkbox_subsection(self.bias, "Bias", "Measure sampling bias and correlation."),
             pn.Spacer(height=24),
             styles={
-                "background-color": self.color_white,
-                "border-color": self.color_border,
+                "background-color": self.styles.color_white,
+                "border-color": self.styles.color_border,
                 "border-width": "thin",
                 "border-style": "solid",
                 "border-radius": "8px",
@@ -195,7 +202,7 @@ class ConfigurationLandingPage(BaseApp):
         survivor_checkbox = pn.widgets.Checkbox.from_param(
             self.param.show_survivor_config,
             name="",
-            stylesheets=[self.css_checkbox],
+            stylesheets=[self.styles.css_checkbox],
         )
         tool_viewable = pn.Column(
             pn.Spacer(height=24),
@@ -209,8 +216,8 @@ class ConfigurationLandingPage(BaseApp):
             pn.Spacer(height=12),
             pn.Spacer(height=24),
             styles={
-                "background-color": self.color_white,
-                "border-color": self.color_border,
+                "background-color": self.styles.color_white,
+                "border-color": self.styles.color_border,
                 "border-width": "thin",
                 "border-style": "solid",
                 "border-radius": "8px",
@@ -221,7 +228,7 @@ class ConfigurationLandingPage(BaseApp):
             reallabel_checkbox = pn.widgets.Checkbox.from_param(
                 self.param.show_reallabel_config,
                 name="",
-                stylesheets=[self.css_checkbox],
+                stylesheets=[self.styles.css_checkbox],
             )
             tool_viewable.insert(
                 3,
@@ -239,20 +246,20 @@ class ConfigurationLandingPage(BaseApp):
         title_row = pn.Column(
             pn.pane.Markdown(
                 self.task.replace("_", " ").title(),
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 "Dataset Analysis Configuration",
-                styles=self.style_text_h2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_h2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 "Setup your dataset analysis configuration to include tools from various JATIC "
                 "products. Once complete, you will be able to download the configuration file to "
                 "test your models and datasets",
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
         )
 
@@ -260,15 +267,15 @@ class ConfigurationLandingPage(BaseApp):
             pn.Column(
                 pn.pane.Markdown(
                     "Core analysis tools",
-                    styles=self.style_text_h3,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_h3,
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
                     "Select from a set of JATIC analysis tools designed to assess the quality, "
                     "consistency, and structure of your dataset. These tools require no additional "
                     "configuration.",
-                    styles=self.style_text_body2,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_body2,
+                    stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
             ),
@@ -280,14 +287,14 @@ class ConfigurationLandingPage(BaseApp):
             pn.Column(
                 pn.pane.Markdown(
                     "Configurable analysis tools",
-                    styles=self.style_text_h3,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_h3,
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
                     "Explore these configurable JATIC analysis tools that address unique dataset "
                     "challenges. These will be configured on the following pages.",
-                    styles=self.style_text_body2,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_body2,
+                    stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
             ),
@@ -312,8 +319,8 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 pn.Spacer(width=24),
             ),
-            styles={"background": self.color_main_bg},
-            width=self.app_width,
+            styles={"background": self.styles.color_main_bg},
+            width=self.styles.app_width,
         )
 
 
@@ -330,13 +337,13 @@ class FinalPage(BaseApp):
     # is used in the final stage to generate the json file
     output_test_stages = param.Dict({})
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
         self.filename = Path("config.json")
         self.writeout_button = pn.widgets.FileDownload(
             filename=str(self.filename),
             callback=self._get_filestream,
-            stylesheets=[self.css_button],
+            stylesheets=[self.styles.css_button],
         )
 
     def _get_filestream(self) -> StringIO:
@@ -367,11 +374,13 @@ class FinalPage(BaseApp):
                 _center_horizontally(
                     pn.pane.Markdown(
                         "You're all set! Your .json configuration file is located at",
-                        stylesheets=[self.css_paragraph],
+                        stylesheets=[self.styles.css_paragraph],
                     )
                 ),
-                _center_horizontally(pn.pane.Markdown(f"{self.filename.resolve()}", stylesheets=[self.css_paragraph])),
-                styles={**self.style_border, "padding": "15px"},
+                _center_horizontally(
+                    pn.pane.Markdown(f"{self.filename.resolve()}", stylesheets=[self.styles.css_paragraph])
+                ),
+                styles={**self.styles.style_border, "padding": "15px"},
             )
         else:
             summary_view = pn.Column(
@@ -381,14 +390,14 @@ class FinalPage(BaseApp):
                 _center_horizontally(
                     pn.pane.Markdown(
                         "You're all set! Download your .json file below to",
-                        stylesheets=[self.css_paragraph],
+                        stylesheets=[self.styles.css_paragraph],
                     )
                 ),
                 _center_horizontally(
-                    pn.pane.Markdown("continue your evaluation pipeline.", stylesheets=[self.css_paragraph])
+                    pn.pane.Markdown("continue your evaluation pipeline.", stylesheets=[self.styles.css_paragraph])
                 ),
                 _center_horizontally(self.writeout_button),
-                styles={**self.style_border, "padding": "15px"},
+                styles={**self.styles.style_border, "padding": "15px"},
             )
         return pn.Column(
             self.view_header,
@@ -399,7 +408,7 @@ class FinalPage(BaseApp):
                             _center_horizontally(
                                 pn.pane.Markdown(
                                     "Success!",
-                                    styles=self.style_text_h1,
+                                    styles=self.styles.style_text_h1,
                                 )
                             ),
                             summary_view,
@@ -407,8 +416,8 @@ class FinalPage(BaseApp):
                     ),
                 ),
             ),
-            styles={"background-color": self.color_main_bg},
-            width=self.app_width,
+            styles={"background-color": self.styles.color_main_bg},
+            width=self.styles.app_width,
             height=400,
         )
 
@@ -433,15 +442,15 @@ class DatasetAnalysisConfigApp(BaseApp):
     >>> app.panel()
     """
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
 
         # setup panel pipeline by adding individual apps and connecting them together
         self.pipeline = pn.pipeline.Pipeline(inherit_params=False, debug=True)
 
         self.pipeline.add_stage(
             "Introduction",
-            ConfigurationLandingPage(**params),
+            ConfigurationLandingPage(styles, **params),
             next_parameter="next_parameter",
         )
 
@@ -478,18 +487,20 @@ class DatasetAnalysisConfigApp(BaseApp):
 
     def panel(self) -> pn.Column:
         """Visualize the DA OD configuration app"""
-        return pn.Column(
-            self.pipeline.stage,
-            pn.Row(
-                pn.HSpacer(),
+        return pn.panel(
+            pn.Column(
+                self.pipeline.stage,
                 pn.Row(
-                    self.pipeline.prev_button,
-                    self.pipeline.next_button,
+                    pn.HSpacer(),
+                    pn.Row(
+                        self.pipeline.prev_button,
+                        self.pipeline.next_button,
+                    ),
+                    pn.Spacer(width=48),
                 ),
-                pn.Spacer(width=48),
-            ),
-            styles={"background": self.color_main_bg},
-            width=self.app_width,
+                styles={"background": self.styles.color_main_bg},
+                width=self.styles.app_width,
+            )
         )
 
 

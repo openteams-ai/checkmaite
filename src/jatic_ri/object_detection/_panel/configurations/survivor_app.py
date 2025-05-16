@@ -12,7 +12,7 @@ import panel as pn
 import param
 from bokeh.resources import INLINE
 
-from jatic_ri._common._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 
 class SurvivorApp(BaseApp):
@@ -42,8 +42,8 @@ class SurvivorApp(BaseApp):
     # Background parsed bins string gets updated every time there is a new input
     _bins: Union[int, list[float]] = [0, 0.25, 0.5, 1.0]
 
-    def __init__(self, **params: dict[str, Any]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
+        super().__init__(styles, **params)
 
     @param.depends("bins", watch=True)
     def _parse_bin_string(self) -> None:
@@ -53,13 +53,13 @@ class SurvivorApp(BaseApp):
         """
         just_number = re.compile(r"^\d+$")
         list_of_numbers = re.compile(r"^(\d+(\.\d*)?,(\s)?)*(\d+(\.\d*)?)$")
-        self.status_text = "Waiting for input..."
+        self.status_source.emit("Waiting for input...")
         if just_number.match(self.bins):
             self._bins = int(self.bins)
         elif list_of_numbers.match(self.bins):
             self._bins = [float(bin_edge) for bin_edge in self.bins.split(",")]
         else:
-            self.status_text = "Invalid Bins argument"
+            self.status_source.emit("Invalid Bins argument")
 
     def _run_export(self) -> None:
         """Exports a dictionary representation of the SurvivorConfig entered by the user.
@@ -102,26 +102,26 @@ class SurvivorApp(BaseApp):
             self.view_title,
             pn.widgets.FloatInput.from_param(
                 self.param.otb_threshold,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="Upper threshold of model agreement for data to be considered 'On the Bubble'.",
                 format="0.00",
             ),
             pn.widgets.FloatInput.from_param(
                 self.param.easy_hard_threshold,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="Threshold of model score for data to be considered 'Easy' or 'Hard'.",
                 format="0.00",
             ),
             pn.widgets.Select.from_param(
                 self.param.similarity_strategy,
                 name="Similarity Strategy",
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="Strategy to use to discretize model metrics.",
             ),
-            width=self.page_width,
+            width=self.styles.app_width,
         )
 
     @param.depends("similarity_strategy")
@@ -134,19 +134,19 @@ class SurvivorApp(BaseApp):
             self._parse_bin_string()
             return pn.widgets.TextInput.from_param(
                 self.param.bins,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 margin=(0, 40),  # (vert, horiz) margins for visual offset,
                 description="Edges of the bins to sort model metrics into. "
                 "Should all be within metric range i.e (0-1), (1-100)",
             )
-        self.status_text = "Waiting for input..."
+        self.status_source.emit("Waiting for input...")
         # if rounded is selected, display the round precision widget
         if self.similarity_strategy == "Rounded":
             return pn.widgets.IntInput.from_param(
                 self.param.round_precision,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 margin=(0, 40),  # (vert, horiz) margins for visual offset
                 description="Number of decimal places to round model metrics to.",
             )
@@ -159,8 +159,8 @@ class SurvivorApp(BaseApp):
             self.settings_pane,
             self.similarity_option_pane,
             self.view_status_bar,
-            width=self.app_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )
 
 
