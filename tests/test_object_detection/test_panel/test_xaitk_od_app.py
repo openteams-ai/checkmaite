@@ -16,9 +16,8 @@ def test_run_export() -> None:
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
 
-    xaitk_app.export_button.clicks = 1
+    xaitk_app._run_export()
 
-    assert xaitk_app.status_text == "Configuration saved"
     assert "XAITKApp_0" in xaitk_app.output_test_stages
     test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
 
@@ -67,7 +66,7 @@ def test_saliency_generation() -> None:
     xaitk_app.saliency_widget[0].objects[0].objects[0].value = 1
 
     xaitk_app.saliency_gen_button.clicks = 1
-    assert xaitk_app.status_text == "Saliency generation test completed"
+    assert xaitk_app.status_source.current_value == "Saliency generation test completed"
 
 
 def test_random_grid_export() -> None:
@@ -75,7 +74,7 @@ def test_random_grid_export() -> None:
     xaitk_app = XAITKApp()
     xaitk_app.panel()
     xaitk_app.stack_select.value = "RandomGrid"
-    xaitk_app.export_button.clicks = 1
+    xaitk_app._run_export()
 
     test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
     # Test saliency generator config

@@ -33,13 +33,12 @@ from xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise import DRISESta
 
 # local imports
 from jatic_ri import PACKAGE_DIR
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling
 from jatic_ri._common._panel.configurations.xaitk_app_common import BaseXAITKApp
 from jatic_ri._common.models import set_device
 
 mpl.use("agg")
 
-pn.extension("tabulator")
-pn.extension("jsoneditor")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
 TEST_IMAGE = IMAGE_DIR / "XAITK_Visdrone_example_img.jpg"
@@ -121,10 +120,8 @@ class XAITKApp(BaseXAITKApp):
     """App for building XAITKTestStages for object detection"""
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")
-    title_font_size = param.Integer(default=24)
-    status_text = param.String("Waiting for detection image input...")
 
-    def __init__(self, **params: dict[str, object]) -> None:
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         #   model initialization
         model_name = "facebook/detr-resnet-50"
         self.jatic_detector: od.Model = HuggingFaceDetector(
@@ -153,20 +150,21 @@ class XAITKApp(BaseXAITKApp):
                 refer to the [XAITK Documentation](https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation).
                 """
 
-        super().__init__(**params)
+        super().__init__(styles, **params)
 
         self.test_img = TEST_IMAGE
         self.select_widget = pn.widgets.Select(
             name="Choose Detection (from top-10 detections)",
             options=self.get_top_10_detections(),
-            stylesheets=[self.widget_stylesheet],
+            stylesheets=[self.styles.widget_stylesheet],
         )
         self.saliency_gen_button.on_click(self.saliency_gen_button_callback)
 
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(bboxes=None), tight=True)
 
     def _run_export(self) -> None:
-        """This function runs when `export_button` is clicked"""
+        """This function collects all configurations in a dictionary object
+        that is shared across app pages."""
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
         generator_type = self.stack_select.value
@@ -292,9 +290,9 @@ class XAITKApp(BaseXAITKApp):
         img = np.asarray(Image.open(self.test_img))
         gray_img = np.asarray(Image.open(self.test_img).convert("L"))
 
-        self.status_text = "Generating saliency maps..."
+        self.status_source.emit("Generating saliency maps...")
         sal_maps, bboxes = self.generate_saliency(img)
-        self.status_text = "Saliency maps created"
+        self.status_source.emit("Saliency maps created")
 
         sal_map = sal_maps[0]
         x1, y1, x2, y2 = bboxes[0]
@@ -312,7 +310,7 @@ class XAITKApp(BaseXAITKApp):
         self.original_plot.visible = True
         self.augmented_plot.object = self.create_sal_plot(img=grayscale_img_crop, sal_array=sal_crop)
         self.augmented_plot.visible = True
-        self.status_text = "Saliency generation test completed"
+        self.status_source.emit("Saliency generation test completed")
 
     def create_det_plot(self, img: PilImg | None) -> Figure:
         """Return matplotlib figure of the detction from the original sample image"""
@@ -360,7 +358,7 @@ class XAITKApp(BaseXAITKApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Choose Sample Detection
@@ -372,7 +370,7 @@ class XAITKApp(BaseXAITKApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Saliency Generation Output
@@ -384,8 +382,8 @@ class XAITKApp(BaseXAITKApp):
             pn.layout.Divider(),
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )
 
 

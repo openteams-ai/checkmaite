@@ -8,6 +8,8 @@ import sys
 import panel as pn
 from bokeh.resources import INLINE
 
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling
+
 # Local imports
 from jatic_ri._common._panel.configurations.heart_app_common import HeartBaseApp
 
@@ -15,8 +17,8 @@ from jatic_ri._common._panel.configurations.heart_app_common import HeartBaseApp
 class HeartODApp(HeartBaseApp):
     """App for building Heart Object Detection Panel"""
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
         self.task = "object_detection"
 
 

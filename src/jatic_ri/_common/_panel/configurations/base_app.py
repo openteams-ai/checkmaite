@@ -3,8 +3,12 @@ This module contains the BaseApp class, which serves as the base class for all i
 It provides common methods and visualization elements that can be utilized by the individual pages.
 """
 
+from typing import Optional
+
 import panel as pn
 import param
+from pydantic import BaseModel, ConfigDict, model_validator
+from streamz import Stream
 
 from jatic_ri import PACKAGE_DIR
 
@@ -16,19 +20,206 @@ JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
 pn.extension("tabulator")
 
 
+class AppStyling(BaseModel):
+    """Pydantic v2 model for styling parameters."""
+
+    # Allow us to set attributes in the validator
+    model_config = ConfigDict(validate_assignment=False)
+
+    # Base settings
+    app_width: int = 1280
+
+    # Color palette
+    color_blue_900: str = "#001B4D"
+    color_blue_800: str = "#0F388A"
+    color_blue_700: str = "#1550C1"
+    color_blue_600: str = "#195FE6"
+    color_blue_500: str = "#5284E5"
+    color_blue_400: str = "#770FEE"
+    color_blue_300: str = "#A3BEF5"
+    color_blue_200: str = "#D5E0F6"
+    color_blue_100: str = "#EDF2FD"
+    color_white: str = "#FFFFFF"
+    color_gray_900: str = "#00050A"
+    color_gray_800: str = "#1E2C3E"
+    color_gray_700: str = "#415062"
+    color_gray_600: str = "#788BA5"
+    color_gray_500: str = "#BBC9DD"
+    color_gray_400: str = "#DDE4EE"
+    color_gray_300: str = "#F1F4F9"
+    color_gray_200: str = "#F8FAFC"
+
+    # Widget defaults
+    widget_width: int = 140
+    widget_height: str = "20px"
+    width_input_default: int = 580
+    width_subwidget_offset: int = 20
+
+    # Derived fields — initialize to None here
+    color_main_bg: Optional[str] = None
+    color_maintext: Optional[str] = None
+    color_subtext: Optional[str] = None
+    color_border: Optional[str] = None
+    font_family: Optional[str] = None
+
+    style_text_h1: Optional[dict[str, str]] = None
+    style_text_h2: Optional[dict[str, str]] = None
+    style_text_h3: Optional[dict[str, str]] = None
+    style_text_subtitle: Optional[dict[str, str]] = None
+    style_text_body1: Optional[dict[str, str]] = None
+    style_text_body2: Optional[dict[str, str]] = None
+
+    style_border: Optional[dict[str, str]] = None
+
+    widget_stylesheet: Optional[str] = None
+    button_bgcolor: Optional[str] = None
+    button_textcolor: Optional[str] = None
+    button_stylesheet: Optional[str] = None
+
+    text_color_styling: Optional[str] = None
+    info_button_style: Optional[str] = None
+
+    css_paragraph: Optional[str] = None
+    css_checkbox: Optional[str] = None
+    css_button: Optional[str] = None
+    css_switch: Optional[str] = None
+    css_dropdown: Optional[str] = None
+    css_config_input: Optional[str] = None
+    css_tabulator_table: Optional[str] = None
+
+    @model_validator(mode="after")
+    def compute_derived(self):  # noqa: ANN201
+        """Compute derived fields based on the base settings."""
+        # alias locals for readability
+        cg200 = self.color_gray_200
+        cg900 = self.color_gray_900
+        cg700 = self.color_gray_700
+        cg500 = self.color_gray_500
+        cwhite = self.color_white
+        cb500 = self.color_blue_500
+        cb200 = self.color_blue_200
+        cb400 = self.color_blue_400
+
+        # simple mappings
+        self.color_main_bg = cg200
+        self.color_maintext = cg900
+        self.color_subtext = cg700
+        self.color_border = cg500
+        self.font_family = "'Helvetica Neue', 'Arial'"
+
+        # text styles
+        ff = self.font_family
+        self.style_text_h1 = {"font-size": "24px", "font-family": ff, "font-weight": "bold", "color": cg900}
+        self.style_text_h2 = {"font-size": "18px", "font-family": ff, "font-weight": "bold", "color": cg900}
+        self.style_text_h3 = {"font-size": "13px", "font-family": ff, "font-weight": "bold", "color": cg900}
+        self.style_text_subtitle = {"font-size": "12px", "font-family": ff, "font-weight": "semibold", "color": cg900}
+        self.style_text_body1 = {"font-size": "13px", "font-family": ff, "color": cg900}
+        self.style_text_body2 = {"font-size": "12px", "font-family": ff, "color": cg700}
+
+        # border style
+        self.style_border = {
+            "background-color": cwhite,
+            "border-color": cg500,
+            "border-width": "thin",
+            "border-style": "solid",
+            "border-radius": "8px",
+        }
+
+        # widget stylesheet
+        self.widget_stylesheet = f"""
+            :host {{
+                color: {cg700};
+            }}
+            select:not([multiple]).bk-input, select:not([size]).bk-input {{
+                height: {self.widget_height};
+                color: {cg900};
+            }}
+            .bk-input {{
+                height: {self.widget_height};
+                color: {cg900};
+            }}
+            """
+        # buttons
+        self.button_bgcolor = cb500
+        self.button_textcolor = cwhite
+        self.button_stylesheet = f"""
+            :host(.solid) .bk-btn.bk-btn-primary {{
+                background-color: {cb500};
+            }}
+            .bk-btn-primary {{
+                color: {cwhite};
+            }}
+            """
+
+        # other CSS snippets...
+        self.text_color_styling = f"*, *:before, *:after {{ color: {cg700}; }}"
+        self.info_button_style = f".bk-description > .bk-icon {{ background-color: {cg700}; }}"
+
+        self.css_paragraph = """
+            :host p {
+                margin: 0px;
+                font-family: "Helvetica Neue", "Arial";
+            }"""
+        self.css_checkbox = "input { height: 16px; width: 16px; }"
+        self.css_button = f"""
+            :host(.solid) .bk-btn.bk-btn-default {{
+                background-color: {cb500};
+                color: {cwhite};
+            }}"""
+        self.css_switch = f"""
+            :host(.active) .knob {{
+                background-color: {cb500};
+            }}
+            :host(.active) .bar {{
+                background-color: {cb200};
+            }}"""
+        self.css_dropdown = f"""
+            label {{
+                color: {cg700};
+            }}
+            select:not([multiple]).bk-input, select:not([size]).bk-input {{
+                height: {self.widget_height};
+                color: {cg900};
+            }}"""
+        self.css_config_input = f"""
+            .bk-input {{
+                color: {cg900};
+            }}
+            input[type='file'] {{
+                height: 40px;
+                border: 1px dashed;
+                padding: 0;
+            }}"""
+        self.css_tabulator_table = f"""
+            .tabulator-row.tabulator-selectable:hover {{
+                background-color: {cb200} !important;
+            }}
+            host: .tabulator-row.tabulator-selected {{
+                background-color: {cb400} !important;
+            }}
+            .tabulator-row {{
+                background-color: {cwhite} !important;
+                border: none !important;
+            }}"""
+        return self
+
+
+DEFAULT_STYLING = AppStyling()
+
+
 class BaseApp(param.Parameterized):
     """Base class for all the individual configuration pages.
     This class holds common methods and visualization elements.
 
     The individual pages should utilize:
     * a custom title
-    * call `self.view_status_bar` for the status bar visualiation
+    * call `self.view_status_bar` for the status bar visualization
       * to change the text on the status bar, use `self.status_text`
     * call `self.view_title` for the title visualization
     * apply dropdown/float/int widget input styling like this `pn.widgets.Select.from_param(self.param.model,
       width=self.widget_width, name='Model', stylesheets=[self.widget_stylesheet])`
     * apply width to the high level viewable (the outermost element returned from the `panel` method)
-       - width=self.page_width
+       - width=self.app_width
     * apply the navy background to the overall page `styles=dict(background=self.color_main_bg)`
     * apply the button stylesheets, button_type must be set to "primary"
     * visualize the export button and implement the _run_export method to run/collect metrics, etc
@@ -40,13 +231,8 @@ class BaseApp(param.Parameterized):
     * self.css_*: css styling applied via `css` input to Panel widgets, e.g. `css=[self.css_foo]`
     """
 
-    page_width: int = param.Integer(800)
-    page_height: int = param.Integer(800)
-    title_font_size: int = param.Integer(default=24)
-    status_text: str = param.String("Waiting for input...")
     task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
     summary_text_size: int = param.Integer(default=18)
-    export_button: pn.widgets.Button
 
     ##################################################
     # Pipeline specific parameters
@@ -63,158 +249,23 @@ class BaseApp(param.Parameterized):
     title: str = param.String(default="Base class title: please update")
     ##################################################
 
-    def __init__(self, **params: dict[str, object]) -> None:
+    def __init__(self, styles: AppStyling, **params: dict[str, object]) -> None:
         super().__init__(**params)
-        self.app_width = 1280
-        # style guide
-        self.color_blue_900 = "#001B4D"  # blue-900
-        self.color_blue_800 = "#0F388A"  # blue-800
-        self.color_blue_700 = "#1550C1"  # blue-700
-        self.color_blue_600 = "#195FE6"  # blue-600
-        self.color_blue_500 = "#5284E5"  # blue-500
-        self.color_blue_400 = "#770FEE"  # blue-400
-        self.color_blue_300 = "#A3BEF5"  # blue-300
-        self.color_blue_200 = "#D5E0F6"  # blue-200
-        self.color_blue_100 = "#EDF2FD"  # blue-100
-        self.color_white = "#FFFFFF"  # pure-white
-        self.color_gray_900 = "#00050A"  # gray-900
-        self.color_gray_800 = "#1E2C3E"  # gray-800
-        self.color_gray_700 = "#415062"  # gray-700
-        self.color_gray_600 = "#788BA5"  # gray-600
-        self.color_gray_500 = "#BBC9DD"  # gray-500
-        self.color_gray_400 = "#DDE4EE"  # gray-400
-        self.color_gray_300 = "#F1F4F9"  # gray-300
-        self.color_gray_200 = "#F8FAFC"  # gray-200
-        self.color_main_bg = self.color_gray_200
-
-        self.color_maintext = self.color_gray_900  # gray-900
-        self.color_subtext = self.color_gray_700  # gray-700
-        self.color_border = self.color_gray_500  # gray-500
-
-        self.font_family = "'Helvetica Neue', 'Arial'"
-        self.style_text_h1 = {
-            "font-size": "24px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_maintext,
-        }
-        self.style_text_h2 = {
-            "font-size": "18px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_maintext,
-        }
-        self.style_text_h3 = {
-            "font-size": "13px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_maintext,
-        }
-        self.style_text_subtitle = {
-            "font-size": "12px",
-            "font-family": self.font_family,
-            "font-weight": "semibold",
-            "color": self.color_maintext,
-        }
-        self.style_text_body1 = {
-            "font-size": "13px",
-            "font-family": self.font_family,
-            "color": self.color_maintext,
-        }
-        self.style_text_body2 = {
-            "font-size": "12px",
-            "font-family": self.font_family,
-            "color": self.color_subtext,
-        }
-
-        self.style_border = {
-            "background-color": self.color_white,
-            "border-color": self.color_border,
-            "border-width": "thin",
-            "border-style": "solid",
-            "border-radius": "8px",
-        }
-
-        # removes paragraph margins and overrides font-family
-        self.css_paragraph = """
-            :host p {
-              margin: 0px;
-              font-family: "Helvetica Neue", "Arial";
-            }
-            """
-        # adjust the dimensions of a checkbox widget
-        self.css_checkbox = """
-            input {
-                height: 16px;
-                width: 16px;
-            }
-            """
-        # adjust button styling
-        self.css_button = f"""
-            :host(.solid) .bk-btn.bk-btn-default {{
-              background-color: {self.color_blue_500};
-              color: #FFFFFF;
-            }}
-            """
-        # adjust switch toggle styling
-        self.css_switch = f"""
-            :host(.active) .knob {{
-                background-color:{self.color_blue_500};
-            }}
-            :host(.active) .bar {{
-                background-color: {self.color_blue_200};
-            }}
-            """
-        self.widget_width = (
-            140  # the widget construct is overriding this via css so we'll specify on the widget object instead
-        )
-        self.widget_height = "20px"
-        self.widget_stylesheet = f"""
-            :host {{
-              color: {self.color_gray_700}; /* label text color */
-            }}
-
-            select:not([multiple]).bk-input, select:not([size]).bk-input {{
-              height: {self.widget_height}; /* dropdown widget height */
-              color: {self.color_gray_900} /* text color on value of Dropdown widgets */
-            }}
-
-            .bk-input {{
-              height: {self.widget_height};  /* FloatInput widget height */
-              color: {self.color_gray_900} /* text color on value of FloatInput widgets */
-            }}
-            """
-        self.button_bgcolor = self.color_blue_500
-        self.button_textcolor = self.color_white
-        self.button_stylesheet = f"""
-            :host(.solid) .bk-btn.bk-btn-primary {{
-              background-color: {self.button_bgcolor}
-            }}
-
-            .bk-btn-primary {{
-              color: {self.button_textcolor}
-            }}
-            """
-        self.text_color_styling = f"""
-            *, *:before, *:after  {{
-              color: {self.color_gray_700};
-            }}
-            """
-        self.info_button_style = f"""
-            .bk-description > .bk-icon {{
-              background-color: {self.color_gray_700};
-            }}
-            """
-
-        # create export button and connect it to a callback method
-        self.export_button = pn.widgets.Button(
-            name="Export Configuration",
-            button_type="primary",
-            stylesheets=[self.button_stylesheet],
-        )
-        self.export_button.on_click(self.export_button_callback)
-
+        self.styles = styles
         self.output_path = ""
+
+        # Create a Stream that will carry text updates
+        self.status_source = Stream()
+        # Create a Streamz pane that will display the status messages
+        self.status_pane = pn.pane.Streamz(
+            self.status_source,
+            always_watch=True,
+            sizing_mode="stretch_width",
+            styles={**self.styles.style_text_body1, "color": self.styles.color_blue_800},
+            stylesheets=[self.styles.css_paragraph],
+        )
+        # Emit an initial message
+        self.status_source.emit("Waiting for input...")
 
     def _run_export(self) -> None:
         """Individual implementation of export process.
@@ -222,24 +273,17 @@ class BaseApp(param.Parameterized):
         {tool_name: test_stage_dict}. The dictionary you provide should
         be JSON serializable and should be readable by your individual
         TestStage class.
-        EVERY TEAM SHOULD OVERWRITE THIS METHOD.
+        EVERY IMPLEMENTATION SHOULD OVERWRITE THIS METHOD.
         """
-        print("THIS SHOULD BE IMPLEMENTED IN THE HIGHER LEVEL CLASS")
-        # for testing and demo purposes only:
+        # for demo purposes only:
         self.output_test_stages[self.__class__.__name__] = {"TYPE": "base app test"}
+        raise NotImplementedError("THIS SHOULD BE IMPLEMENTED IN THE LOWER LEVEL CLASS")
 
     @param.output(task=param.Selector, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
         """Output handler for passing variables from one pipeline page to another"""
         self._run_export()
         return self.task, self.output_test_stages, self.local
-
-    def export_button_callback(self, _event: object) -> None:
-        """Method to take the configuration and save to disk.
-        DO NOT OVERWRITE THIS METHOD.
-        """
-        self._run_export()
-        self.status_text = "Configuration saved"
 
     def horizontal_line(self) -> pn.pane.HTML:
         """Creates a horizontal line in an HTML element.
@@ -254,27 +298,26 @@ class BaseApp(param.Parameterized):
                 "display": "block",
                 "height": "1px",
                 "border": "0",
-                "border-top": f"1px solid {self.color_border}",
+                "border-top": f"1px solid {self.styles.color_border}",
                 "margin": "0em 0",
                 "padding": "0",
             },
-            width=self.app_width - 48,
+            width=self.styles.app_width - 48,
         )
 
     def view_status_bar(self) -> pn.Column:
         """View of status bar. Change the text on the status bar by modifying
-        the `self.status_text` variable.
+        the `self.status_source.emit` method.
         DO NOT OVERWRITE THIS METHOD
         """
         return pn.Column(
             pn.Spacer(height=20),
             self.horizontal_line(),
             pn.Row(
-                pn.pane.Markdown("Status:", styles=self.style_text_body1),
-                pn.pane.Markdown(
-                    self.status_text,
-                    sizing_mode="stretch_width",
-                    styles=self.style_text_body1,
+                pn.pane.Markdown("Status:", styles=self.styles.style_text_body1),
+                pn.Column(
+                    pn.Spacer(height=13),
+                    self.status_pane,
                 ),
             ),
         )
@@ -285,25 +328,13 @@ class BaseApp(param.Parameterized):
         """
         return pn.pane.Markdown(
             self.title,
-            styles=self.style_text_h1,
+            styles=self.styles.style_text_h1,
         )
 
     def view_header(self) -> pn.Row:
         """View header row with JATIC logo"""
         return pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
-            styles={"background": self.color_blue_900},
-            width=self.app_width,
-        )
-
-    def panel(self) -> pn.Column:
-        """Example usage of this base class
-        EVERY TEAM SHOULD  OVERWRITE THIS METHOD
-        """
-        return pn.Column(
-            self.view_header,
-            self.view_title,
-            self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_main_bg},
+            styles={"background": self.styles.color_blue_900},
+            width=self.styles.app_width,
         )

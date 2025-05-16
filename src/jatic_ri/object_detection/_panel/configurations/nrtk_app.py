@@ -16,6 +16,7 @@ import panel as pn
 import param
 from bokeh.resources import INLINE
 
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling
 from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
 
 
@@ -23,16 +24,15 @@ class NRTKApp(NRTKBaseApp):
     """App for building NRTKTestStages"""
 
     title = param.String(default="Configure Natural Robustness Testing")
-    title_font_size = param.Integer(default=24)
-    status_text = param.String("Waiting for input...")
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
 
     def _run_export(self) -> None:
-        """This function runs when `export_button` is clicked"""
+        """This function collects all configurations in a dictionary object
+        that is shared across app pages."""
         if len(self.test_stages) == 0:
-            self.status_text = "No configurations found. Press Add Test Stage to add a configuration."
+            self.status_source.emit("No configurations found. Press Add Test Stage to add a configuration.")
             return
         for idx, stage in enumerate(self.test_stages):
             stage_name = stage["name"]

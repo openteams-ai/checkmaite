@@ -21,6 +21,7 @@ from gradient.templates_and_layouts.create_deck import create_deck
 from streamz import Stream
 
 from jatic_ri import PACKAGE_DIR
+from jatic_ri._common._panel.configurations.base_app import AppStyling
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
     MetricPlugin,
@@ -90,13 +91,12 @@ EVAL_TOOL_CACHE_DIR = ".eval_tool"
 TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 
 
-class BaseDashboard(param.Parameterized):
-    """Base Dashboard/Testbed. This class is inherited by the
-    dataset analysis and model evaluation dashboard classes. It contains
+class BaseTestbed(param.Parameterized):
+    """Base Testbed. This class is inherited by the
+    dataset analysis and model evaluation testbed classes. It contains
     css styling, common widgets, and common functions"""
 
     title = param.String(default="Object Detection Testing Pipeline")
-    title_font_size = param.Integer(default=24)
     task = param.String(default="object_detection")
 
     # flag for local deployment
@@ -149,170 +149,17 @@ class BaseDashboard(param.Parameterized):
     # Location for storing all output
     output_dir = param.Path(default=Path.cwd(), check_exists=False)
 
-    def __init__(self, **params: dict[str, Any]) -> None:
+    def __init__(self, styles: AppStyling, **params: dict[str, Any]) -> None:
         super().__init__(**params)
+        self.styles = styles
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-
-        self.app_width = 1280
-        # style guide
-        self.color_blue_900 = "#001B4D"  # blue-900
-        self.color_blue_800 = "#0F388A"  # blue-800
-        self.color_blue_700 = "#1550C1"  # blue-700
-        self.color_blue_600 = "#195FE6"  # blue-600
-        self.color_blue_500 = "#5284E5"  # blue-500
-        self.color_blue_400 = "#770FEE"  # blue-400
-        self.color_blue_300 = "#A3BEF5"  # blue-300
-        self.color_blue_200 = "#D5E0F6"  # blue-200
-        self.color_blue_100 = "#EDF2FD"  # blue-100
-        self.color_white = "#FFFFFF"  # pure-white
-        self.color_gray_900 = "#00050A"  # gray-900
-        self.color_gray_800 = "#1E2C3E"  # gray-800
-        self.color_gray_700 = "#415062"  # gray-700
-        self.color_gray_600 = "#788BA5"  # gray-600
-        self.color_gray_500 = "#BBC9DD"  # gray-500
-        self.color_gray_400 = "#DDE4EE"  # gray-400
-        self.color_gray_300 = "#F1F4F9"  # gray-300
-        self.color_gray_200 = "#F8FAFC"  # gray-200
-        self.color_main_bg = self.color_gray_200
-
-        self.font_family = "'Helvetica Neue', 'Arial'"
-        self.style_text_h1 = {
-            "font-size": "24px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_gray_900,
-        }
-        self.style_text_h2 = {
-            "font-size": "18px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_gray_900,
-        }
-        self.style_text_h3 = {
-            "font-size": "13px",
-            "font-family": self.font_family,
-            "font-weight": "bold",
-            "color": self.color_gray_900,
-        }
-        self.style_text_subtitle = {
-            "font-size": "12px",
-            "font-family": self.font_family,
-            "font-weight": "semibold",
-            "color": self.color_gray_900,
-        }
-        self.style_text_body1 = {
-            "font-size": "13px",
-            "font-family": self.font_family,
-            "color": self.color_gray_900,
-        }
-        self.style_text_body2 = {
-            "font-size": "12px",
-            "font-family": self.font_family,
-            "color": self.color_gray_700,
-        }
-
-        self.style_border = {
-            "background-color": self.color_white,
-            "border-color": self.color_gray_500,
-            "border-width": "thin",
-            "border-style": "solid",
-            "border-radius": "8px",
-        }
-
-        # removes paragraph margins and overrides font-family
-        self.css_paragraph = """
-            :host p {
-              margin: 0px;
-              font-family: "Helvetica Neue", "Arial";
-            }
-            """
-        # adjust the dimensions of a checkbox widget
-        self.css_checkbox = """
-            input {
-                height: 16px;
-                width: 16px;
-            }
-            """
-        # adjust button styling
-        self.css_button = f"""
-            :host(.solid) .bk-btn.bk-btn-default {{
-              background-color: {self.color_blue_500};
-              color: #FFFFFF;
-            }}
-            """
-        # adjust switch toggle styling
-        self.css_switch = f"""
-            :host(.active) .knob {{
-                background-color:{self.color_blue_500};
-            }}
-            :host(.active) .bar {{
-                background-color: {self.color_blue_200};
-            }}
-            """
-
-        self.width_input_default = 580
-        self.width_subwidget_offset = 20  # path widget offset from type dropdown
-        self.dropdown_height = "20px"
-        self.css_dropdown = f"""
-                label {{
-                  color: {self.color_gray_700};  /* widget title color */
-                }}
-
-                select:not([multiple]).bk-input, select:not([size]).bk-input {{
-                  height: {self.dropdown_height};  /* height of selection box */
-                  color: {self.color_gray_900};  /* color of text in selection box */
-                }}
-                """
-
-        self.css_config_input = f"""
-                .bk-input {{
-                  color: {self.color_gray_900} /* text color */
-                }}
-
-                input[type='file'] {{
-                    height: 40px;  /* widget height */
-                    border: 1px dashed;
-                    padding: 0;  /* this is not being obeyed */
-                }}
-                """
-
-        self.css_tabulator_table = f"""
-                .tabulator-row.tabulator-selectable:hover {{
-                  background-color: {self.color_blue_200} !important;  /* bg color for row hover */
-                }}
-                host: .tabulator-row.tabulator-selected {{
-                  background-color: {self.color_blue_400} !important; /* bg color for row selection */
-                }}
-                .tabulator-row {{
-                  background-color: {self.color_white} !important; /* bg color for all other rows */
-                  border: none !important;  /* horizontal border between rows */
-                }}
-                .tabulator .tabulator-header .tabulator-col {{
-                  background-color: {self.color_gray_300} !important; /* header bg color */
-                  color: {self.color_gray_900} !important; /* header font color */
-                  font-size: 13px; !important;  /* header font size */
-                  font-family: "Helvetica Neue", "Arial";  /* header font types */
-                  font-weight: 500;
-                  border-bottom: 1px solid {self.color_gray_500};
-                }}
-                /* table outer border styles */
-                :host .tabulator {{
-                  border-color: {self.color_gray_500} !important;
-                  border-width: 1px !important;
-                  border-style: solid;
-                  border-radius: 5px;
-                }}
-                .tabulator-row .tabulator-cell {{
-                  border: none !important;  /* vertical border between cells */
-                }}
-                """
 
         # metric dropdown widget, options populated in _update_task_related_objects()
         self.metric_selector = pn.widgets.Select(
             name="Evaluation Metric",
-            width=self.width_input_default,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default,
+            stylesheets=[self.styles.css_dropdown],
         )
         self._update_task_related_objects()
         # holder for the model widgets (for dynamic handling of the number of models)
@@ -326,7 +173,7 @@ class BaseDashboard(param.Parameterized):
         self.add_model_button_callback(None)  # trigger on init to build the first set
 
         # this is set here to avoid a race condition since both config_file and config_input is in `self`
-        self.config_file.stylesheets = [self.css_config_input]
+        self.config_file.stylesheets = [self.styles.css_config_input]
 
         # button to run the analysis
         self.run_analysis_button = pn.widgets.Button(name="Run Analysis", button_type="primary", disabled=False)
@@ -334,16 +181,16 @@ class BaseDashboard(param.Parameterized):
 
         self.dataset_1_selector = pn.widgets.Select(
             options=["Define Dataset Type", *list(self.dataset_label_map.keys())],
-            width=self.width_input_default,
+            width=self.styles.width_input_default,
             name="Dataset type",
-            stylesheets=[self.css_dropdown],
+            stylesheets=[self.styles.css_dropdown],
             value="Define Dataset Type",
         )
         self.dataset_2_selector = pn.widgets.Select(
             options=["Define Dataset Type", *list(self.dataset_label_map.keys())],
-            width=self.width_input_default,
+            width=self.styles.width_input_default,
             name="Comparison Dataset type",
-            stylesheets=[self.css_dropdown],
+            stylesheets=[self.styles.css_dropdown],
             value="Define Dataset Type",
         )
         # link a callback method to the dataset dropdown so that we
@@ -354,32 +201,32 @@ class BaseDashboard(param.Parameterized):
             name="Images directory",
             placeholder="Full path to images directory.",
             description="Full filepath to the directory containing dataset images.",
-            width=self.width_input_default - self.width_subwidget_offset,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default - self.styles.width_subwidget_offset,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
         )
         self.dataset_2_directory = pn.widgets.TextInput(
             name="Images directory",
             placeholder="Full path to images directory.",
             description="Full filepath to the directory containing dataset images.",
-            width=self.width_input_default - self.width_subwidget_offset,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default - self.styles.width_subwidget_offset,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
         )
         self.dataset_1_metadata_path = pn.widgets.TextInput(
             name="Metadata filepath",
             placeholder="Full filepath to dataset metadata file.",
             description="Full filepath to dataset metadata file.",
-            width=self.width_input_default - self.width_subwidget_offset,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default - self.styles.width_subwidget_offset,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
         )
         self.dataset_2_metadata_path = pn.widgets.TextInput(
             name="Metadata filepath",
             placeholder="Full filepath to dataset metadata file.",
             description="Full filepath to dataset metadata file.",
-            width=self.width_input_default - self.width_subwidget_offset,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default - self.styles.width_subwidget_offset,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
         )
 
@@ -391,22 +238,20 @@ class BaseDashboard(param.Parameterized):
             disabled=False,
             styles={"color": "black"},
         )
-        self.view_config_btn.on_click(self._on_view_config_callback)
+        # self.view_config_btn.on_click(self._on_view_config_callback)
         # create invisible container to put floatpanel "in", cannot be completely empty
         self.config_floatpanel_container = pn.Column(pn.widgets.Checkbox(visible=False))
 
         # Create a Stream that will carry text updates
         self.status_source = Stream()
-
         # Create a Streamz pane that will display the status messages
         self.status_pane = pn.pane.Streamz(
             self.status_source,
             always_watch=True,
             sizing_mode="stretch_width",
-            styles={**self.style_text_body1, "color": self.color_blue_800},
-            stylesheets=[self.css_paragraph],
+            styles={**self.styles.style_text_body1, "color": self.styles.color_blue_800},
+            stylesheets=[self.styles.css_paragraph],
         )
-
         # Emit an initial message
         self.status_source.emit("Waiting for input...")
 
@@ -477,7 +322,7 @@ class BaseDashboard(param.Parameterized):
                 },
                 "resizeit": False,
             },
-            theme=f"{self.color_blue_300} filledLight",
+            theme=f"{self.styles.color_blue_300} filledLight",
         )
         floatpanel.param.watch(self._on_config_panel_close_callback, "status")
         self.config_floatpanel_container.append(floatpanel)
@@ -573,23 +418,23 @@ class BaseDashboard(param.Parameterized):
         model_selector = pn.widgets.Select(
             name=selector_label,
             options=["Select Model type", *list(self.model_label_map.keys())],
-            width=self.width_input_default,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default,
+            stylesheets=[self.styles.css_dropdown],
             value="Select Model type",
         )
         model_weights_path = pn.widgets.TextInput(
             name="Path to model weights",
             placeholder="Path to weights file",
-            width=self.width_input_default,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
             description=f"Model {new_model_no} weights pickle file containing the model state dictionary.",
         )
         model_config_path = pn.widgets.TextInput(
             name="Path to model config",
             placeholder="Path to config file",
-            width=self.width_input_default,
-            stylesheets=[self.css_dropdown],
+            width=self.styles.width_input_default,
+            stylesheets=[self.styles.css_dropdown],
             disabled=True,
             description=(
                 "JSON-formatted configuration file with translation from index to category "
@@ -702,13 +547,13 @@ class BaseDashboard(param.Parameterized):
                 )
                 view.append(
                     pn.Row(
-                        pn.Spacer(width=self.width_subwidget_offset),
+                        pn.Spacer(width=self.styles.width_subwidget_offset),
                         value["model_weights_path"],
                     )
                 )
                 view.append(
                     pn.Row(
-                        pn.Spacer(width=self.width_subwidget_offset),
+                        pn.Spacer(width=self.styles.width_subwidget_offset),
                         value["model_config_path"],
                     )
                 )
@@ -720,7 +565,7 @@ class BaseDashboard(param.Parameterized):
         return pn.Column(
             self.dataset_1_selector,
             pn.Row(
-                pn.Spacer(width=self.width_subwidget_offset),
+                pn.Spacer(width=self.styles.width_subwidget_offset),
                 pn.Column(
                     self.dataset_1_directory,
                     self.dataset_1_metadata_path,
@@ -736,7 +581,7 @@ class BaseDashboard(param.Parameterized):
             return pn.Column(
                 self.dataset_2_selector,
                 pn.Row(
-                    pn.Spacer(width=self.width_subwidget_offset),
+                    pn.Spacer(width=self.styles.width_subwidget_offset),
                     pn.Column(
                         self.dataset_2_directory,
                         self.dataset_2_metadata_path,
@@ -1048,11 +893,11 @@ class BaseDashboard(param.Parameterized):
                 "display": "block",
                 "height": "1px",
                 "border": "0",
-                "border-top": f"1px solid {self.color_gray_500}",
+                "border-top": f"1px solid {self.styles.color_gray_500}",
                 "margin": "0em 0",
                 "padding": "0",
             },
-            width=self.app_width - 48,
+            width=self.styles.app_width - 48,
         )
 
     def view_status_bar(self) -> pn.Column:
@@ -1066,14 +911,14 @@ class BaseDashboard(param.Parameterized):
                 pn.Spacer(height=4),
                 pn.pane.Markdown(
                     "Status",
-                    styles={**self.style_text_body1, "color": self.color_blue_900},
-                    stylesheets=[self.css_paragraph],
+                    styles={**self.styles.style_text_body1, "color": self.styles.color_blue_900},
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 self.status_pane,
                 pn.Spacer(height=4),
                 styles={
-                    "background": self.color_blue_100,
-                    "border-color": self.color_blue_300,
+                    "background": self.styles.color_blue_100,
+                    "border-color": self.styles.color_blue_300,
                     "border-width": "thin",
                     "border-style": "solid",
                     "border-radius": "3px",
@@ -1087,8 +932,8 @@ class BaseDashboard(param.Parameterized):
         """View header row with JATIC logo"""
         return pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
-            styles={"background": self.color_blue_900},
-            width=self.app_width,
+            styles={"background": self.styles.color_blue_900},
+            width=self.styles.app_width,
         )
 
     def view_config_input(self) -> pn.Row:
@@ -1100,15 +945,15 @@ class BaseDashboard(param.Parameterized):
                 pn.Column(
                     pn.pane.Markdown(
                         "1. Upload configuration file",
-                        styles=self.style_text_h3,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h3,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Row(
                         pn.Spacer(width=12),  # padding to align this with title text above
                         pn.pane.Markdown(
                             "Upload for JSON configuration file (*.json)",
-                            styles=self.style_text_body2,
-                            stylesheets=[self.css_paragraph],
+                            styles=self.styles.style_text_body2,
+                            stylesheets=[self.styles.css_paragraph],
                             width=395,
                         ),
                     ),
@@ -1126,8 +971,8 @@ class BaseDashboard(param.Parameterized):
                     ),
                     pn.Spacer(height=18),
                     styles={
-                        "background": self.color_white,
-                        "border-color": self.color_blue_300,
+                        "background": self.styles.color_white,
+                        "border-color": self.styles.color_blue_300,
                         "border-width": "thin",
                         "border-style": "solid",
                         "border-radius": "5px",
@@ -1150,8 +995,8 @@ class BaseDashboard(param.Parameterized):
                 pn.Column(
                     pn.pane.Markdown(
                         "Advanced (optional)",
-                        styles=self.style_text_h3,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h3,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Row(
                         pn.Spacer(width=15),  # padding on the left inside of the blue box
@@ -1160,7 +1005,7 @@ class BaseDashboard(param.Parameterized):
                             pn.widgets.Switch.from_param(
                                 self.param.use_caches,
                                 name="",
-                                stylesheets=[self.css_switch],
+                                stylesheets=[self.styles.css_switch],
                             ),
                             pn.Spacer(height=10),  # padding for the bottom of the blue box
                         ),
@@ -1170,14 +1015,14 @@ class BaseDashboard(param.Parameterized):
                                 self.param.threshold,
                                 name="Target Threshold",
                                 width=175,
-                                stylesheets=[self.css_dropdown],
+                                stylesheets=[self.styles.css_dropdown],
                                 disabled=not (self.threshold_visible),
                             ),
                         ),
                         sizing_mode="stretch_width",
                         styles={
-                            "background": self.color_blue_100,
-                            "border-color": self.color_blue_300,
+                            "background": self.styles.color_blue_100,
+                            "border-color": self.styles.color_blue_300,
                             "border-width": "thin",
                             "border-style": "solid",
                             "border-radius": "3px",
@@ -1207,7 +1052,7 @@ class BaseDashboard(param.Parameterized):
         return pn.widgets.Tabulator(
             self.results_df,
             show_index=False,
-            stylesheets=[self.css_tabulator_table],
+            stylesheets=[self.styles.css_tabulator_table],
             disabled=True,
             formatters=formatters,
             widths=column_widths,
@@ -1222,8 +1067,8 @@ class BaseDashboard(param.Parameterized):
                     pn.Spacer(width=10),  # padding to the left of Test Results title
                     pn.pane.Markdown(
                         "Test Results",
-                        styles=self.style_text_h3,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h3,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                 ),
                 self._view_df_tabulator,
@@ -1247,18 +1092,18 @@ class BaseDashboard(param.Parameterized):
             pn.Spacer(height=10),
             pn.pane.Markdown(
                 self.task.replace("_", " ").title(),
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 self.title,
-                styles=self.style_text_h2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_h2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 "Configure your test setup to begin the analysis. You can view your results below",
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
         )
 
@@ -1276,8 +1121,8 @@ class BaseDashboard(param.Parameterized):
                     pn.Spacer(height=12),
                     pn.pane.Markdown(
                         "Test Setup",
-                        styles=self.style_text_h2,
-                        stylesheets=[self.css_paragraph],
+                        styles=self.styles.style_text_h2,
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Spacer(height=10),
                     self.view_config_input,
@@ -1292,6 +1137,6 @@ class BaseDashboard(param.Parameterized):
                     pn.layout.Spacer(height=50),
                 ),
             ),
-            styles={"background": self.color_main_bg},
-            width=self.app_width,
+            styles={"background": self.styles.color_main_bg},
+            width=self.styles.app_width,
         )

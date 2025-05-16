@@ -20,7 +20,7 @@ from PIL.Image import Image as PilImg
 
 # local imports
 from jatic_ri import PACKAGE_DIR
-from jatic_ri._common._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 mpl.use("agg")
 
@@ -33,19 +33,19 @@ class BaseXAITKApp(BaseApp):
 
     md_text: str = param.String()
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
 
         self.saliency_gen_button = pn.widgets.Button(
             name="Test Saliency Map Generation Settings",
             button_type="primary",
-            stylesheets=[self.button_stylesheet],
+            stylesheets=[self.styles.button_stylesheet],
             align="end",
         )
         self.select_widget = pn.widgets.Select(
             name="Choose Class",
             options=[],
-            stylesheets=[self.widget_stylesheet],
+            stylesheets=[self.styles.widget_stylesheet],
         )
 
         self.original_plot = pn.pane.Matplotlib(
@@ -56,13 +56,11 @@ class BaseXAITKApp(BaseApp):
         )
 
         self.left_column_width = 410
-        self.right_column_width = 610
-        self.page_width = self.left_column_width + self.right_column_width
         self.saliency_widget = [
             pn.Card(
                 self.add_saliency_gen_config_widget(),
                 title="Saliency Generation Parameters",
-                header_color=self.color_gray_900,
+                header_color=self.styles.color_gray_900,
                 width=self.left_column_width,
             ),
         ]
@@ -99,25 +97,25 @@ class BaseXAITKApp(BaseApp):
                 start=50,
                 end=1200,
                 step=50,
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
             pn.widgets.Select(
                 name="Occlusion Grid Size",
                 options=["(7,7)", "(5,5)", "(10,10)"],
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
             pn.widgets.IntInput(
                 name="Image Batch Size",
                 value=1,
                 start=1,
                 step=1,
-                stylesheets=[self.widget_stylesheet],
+                stylesheets=[self.styles.widget_stylesheet],
             ),
             pn.pane.Markdown(
                 f"""
                 <style>
                 * {{
-                    color: {self.color_gray_900};
+                    color: {self.styles.color_gray_900};
                 }}
                 </style>
                 {self.md_text}
@@ -145,7 +143,7 @@ class BaseXAITKApp(BaseApp):
             str(XAITK_LOGO),
             width=140,
             styles={"display": "block", "float": "right", "background-color": "rgba(255, 255, 255, 1.0)"},
-            stylesheets=[self.text_color_styling],
+            stylesheets=[self.styles.text_color_styling],
         )
 
     def panel(self) -> pn.Column:
@@ -160,7 +158,7 @@ class BaseXAITKApp(BaseApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Choose Sample Detection
@@ -172,7 +170,7 @@ class BaseXAITKApp(BaseApp):
                         f"""
                             <style>
                             * {{
-                                color: {self.color_gray_900};
+                                color: {self.styles.color_gray_900};
                             }}
                             </style>
                             <h2> Saliency Generation Output
@@ -184,6 +182,6 @@ class BaseXAITKApp(BaseApp):
             pn.layout.Divider(),
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )

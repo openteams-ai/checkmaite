@@ -12,9 +12,7 @@ import param
 import reallabel
 from bokeh.resources import INLINE
 
-from jatic_ri._common._panel.configurations.base_app import BaseApp
-
-pn.extension()
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 
 class RealLabelApp(BaseApp):
@@ -56,8 +54,8 @@ class RealLabelApp(BaseApp):
     # in this case, its set by output from previous stage
     next_parameter = param.Selector(default="Configure Survivor", objects=["Configure Survivor", "Finalize"])
 
-    def __init__(self, **params: dict[str, Any]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
+        super().__init__(styles, **params)
 
     def _run_export(self) -> None:
         """Exports a dictionary representation of the RealLabelConfig entered by the user.
@@ -99,42 +97,42 @@ class RealLabelApp(BaseApp):
             self.view_title,
             pn.widgets.FloatInput.from_param(
                 self.param.iou_threshold,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="Intersection over union threshold to use for NMS deduplication algorithm.",
             ),
             pn.Row(
                 pn.widgets.StaticText(
                     value=self.param.class_agnostic.label,
-                    styles=self.style_text_body1,
+                    styles=self.styles.style_text_body1,
                 ),
                 pn.widgets.TooltipIcon(
                     value="Whether to consider inference classes in the RealLabel run",
-                    styles=self.style_text_body1,
+                    styles=self.styles.style_text_body1,
                 ),
             ),
             pn.widgets.Switch.from_param(
                 self.param.class_agnostic,
-                stylesheets=[self.css_switch],
+                stylesheets=[self.styles.css_switch],
             ),
             pn.Row(
                 pn.widgets.StaticText(
                     value=self.param.run_with_ground_truth.label,
-                    styles=self.style_text_body1,
+                    styles=self.styles.style_text_body1,
                 ),
                 pn.widgets.TooltipIcon(
                     value="Whether to use ground truth as part of the RealLabel run",
-                    styles=self.style_text_body1,
+                    styles=self.styles.style_text_body1,
                 ),
             ),
             pn.widgets.Switch.from_param(
                 self.param.run_with_ground_truth,
-                stylesheets=[self.css_switch],
+                stylesheets=[self.styles.css_switch],
             ),
             pn.widgets.FloatInput.from_param(
                 self.param.likely_missed_min_confidence,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="The aggregated confidence value above which a model ensemble ground truth "
                 "disagreement will be interpreted as a potentially missing label.",
                 step=0.01,
@@ -142,14 +140,14 @@ class RealLabelApp(BaseApp):
             ),
             pn.widgets.FloatInput.from_param(
                 self.param.likely_wrong_max_confidence,
-                width=self.widget_width,
-                styles=self.style_text_body1,
+                width=self.styles.widget_width,
+                styles=self.styles.style_text_body1,
                 description="The aggregated confidence value below which a model ensemble ground truth "
                 "disagreement will be interpreted as a likely either extraneous or incorrect.",
                 step=0.01,
                 format="*.00",
             ),
-            width=self.page_width,
+            width=self.styles.app_width,
         )
 
     def panel(self) -> pn.Column:
@@ -158,8 +156,8 @@ class RealLabelApp(BaseApp):
             self.view_header,
             self.settings_pane,
             self.view_status_bar,
-            width=self.app_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )
 
 

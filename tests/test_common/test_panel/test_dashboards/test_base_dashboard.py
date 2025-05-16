@@ -2,7 +2,8 @@ import os
 
 import pytest
 
-from jatic_ri._common._panel.dashboards.base_dashboard import BaseDashboard
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING
+from jatic_ri._common._panel.dashboards.base_dashboard import BaseTestbed
 
 
 @pytest.fixture(scope="session")
@@ -61,7 +62,7 @@ def test_basedashboard_multi_model(pipeline_config, request):
     config = request.getfixturevalue(pipeline_config)
     task = config["task"]
 
-    app = BaseDashboard()
+    app = BaseTestbed(styles=DEFAULT_STYLING)
     app.task = task
 
     # test adding models
@@ -103,7 +104,7 @@ def test_basedashboard_single_model(nrtk_config_ic):
         "task": "image_classification",
         "nrtk1": nrtk_config_ic,
     }
-    app = BaseDashboard()
+    app = BaseTestbed(styles=DEFAULT_STYLING)
     app.task = task
 
     # ensure multi-model mode is deselected
@@ -120,6 +121,6 @@ def test_basedashboard_output_dir():
     """Test the output dir gets generated"""
     temp_dir = "deleteme"
     assert not os.path.isdir(temp_dir)
-    BaseDashboard(output_dir=temp_dir)
+    BaseTestbed(output_dir=temp_dir, styles=DEFAULT_STYLING)
     assert os.path.isdir(temp_dir)
     os.rmdir(temp_dir)

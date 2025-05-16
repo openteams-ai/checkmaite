@@ -25,10 +25,7 @@ from smqtk_core.configuration import from_config_dict
 
 # local imports
 from jatic_ri import PACKAGE_DIR
-from jatic_ri._common._panel.configurations.base_app import BaseApp
-
-pn.extension("tabulator")
-pn.extension("jsoneditor")
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs"
 EXAMPLE_IMG = IMAGE_DIR / "nrtk_test_image.jpeg"
@@ -39,11 +36,9 @@ class NRTKBaseApp(BaseApp):
     """App for building NRTKTestStages"""
 
     title = param.String(default="Configure Natural Robustness Testing")
-    title_font_size = param.Integer(default=24)
-    status_text = param.String("Waiting for input...")
     next_parameter = param.Selector(default="Configure XAITK", objects=["Configure XAITK", "Finalize"])
 
-    def __init__(self, **params: dict[str, object]) -> None:
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         from nrtk.interfaces.perturb_image import PerturbImage
 
         self.add_button = pn.widgets.Button(
@@ -61,16 +56,16 @@ class NRTKBaseApp(BaseApp):
             value=avail_perturbers[next(iter(avail_perturbers))],
         )
 
-        super().__init__(**params)
-        self.add_button.stylesheets = [self.button_stylesheet]
-        self.clear_button.stylesheets = [self.button_stylesheet]
-        self.perturber_select.stylesheets = [self.widget_stylesheet]
+        super().__init__(styles, **params)
+        self.add_button.stylesheets = [self.styles.button_stylesheet]
+        self.clear_button.stylesheets = [self.styles.button_stylesheet]
+        self.perturber_select.stylesheets = [self.styles.widget_stylesheet]
 
         self.add_button.on_click(self.add_test_stage_callback)
         self.clear_button.on_click(self.clear_test_stage_callback)
 
         self.test_perturber_button = pn.widgets.Button(
-            name="Test Perturber Settings", button_type="primary", stylesheets=[self.button_stylesheet]
+            name="Test Perturber Settings", button_type="primary", stylesheets=[self.styles.button_stylesheet]
         )
         self.test_perturber_button.on_click(self.test_perturber_button_callback)
 
@@ -86,7 +81,7 @@ class NRTKBaseApp(BaseApp):
                 pn.Card(
                     self.add_perturber_config_widget(),
                     title="Factory Configuration",
-                    header_color=self.color_gray_900,
+                    header_color=self.styles.color_gray_900,
                 )
             ]
 
@@ -94,7 +89,7 @@ class NRTKBaseApp(BaseApp):
             pn.Card(
                 self.add_perturber_config_widget(),
                 title="Factory Configuration",
-                header_color=self.color_gray_900,
+                header_color=self.styles.color_gray_900,
                 width=self.left_column_width,
             )
         ]
@@ -112,7 +107,7 @@ class NRTKBaseApp(BaseApp):
 
         factory_options = {}
         self.name_input = pn.widgets.TextInput(name="Stage Name", placeholder="Enter a name here...")
-        self.name_input.stylesheets = [self.widget_stylesheet]
+        self.name_input.stylesheets = [self.styles.widget_stylesheet]
 
         if pert_impl.__name__ != "PybsmPerturber":
             for factory_impl in PerturbImageFactory.get_impls():
@@ -127,13 +122,13 @@ class NRTKBaseApp(BaseApp):
                     factory_options[factory_impl.__name__] = factory_impl
 
         self.factory_selector = pn.widgets.Select(name="Factory Type", options=factory_options)
-        self.factory_selector.stylesheets = [self.widget_stylesheet]
+        self.factory_selector.stylesheets = [self.styles.widget_stylesheet]
 
         if pert_impl.__name__ == "PybsmPerturber":
             self.theta_keys_input = pn.widgets.LiteralInput(name="Theta Keys", type=list, value=[])
-            self.theta_keys_input.stylesheets = [self.widget_stylesheet]
+            self.theta_keys_input.stylesheets = [self.styles.widget_stylesheet]
             self.thetas_input = pn.widgets.LiteralInput(name="Thetas", type=list, value=[])
-            self.thetas_input.stylesheets = [self.widget_stylesheet]
+            self.thetas_input.stylesheets = [self.styles.widget_stylesheet]
             return pn.Column(
                 self.name_input,
                 self._setup_scenario_parameters(),
@@ -157,37 +152,37 @@ class NRTKBaseApp(BaseApp):
 
         if factory_impl.__name__ == "StepPerturbImageFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
-            self.theta_key.stylesheets = [self.widget_stylesheet]
+            self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
-            self.start.stylesheets = [self.widget_stylesheet]
+            self.start.stylesheets = [self.styles.widget_stylesheet]
             self.stop = pn.widgets.FloatInput(name="Stop", value=1.0)
-            self.stop.stylesheets = [self.widget_stylesheet]
+            self.stop.stylesheets = [self.styles.widget_stylesheet]
             self.step = pn.widgets.FloatInput(name="Step", value=1.0)
-            self.step.stylesheets = [self.widget_stylesheet]
+            self.step.stylesheets = [self.styles.widget_stylesheet]
             self.to_int = pn.widgets.Checkbox(name="Return integers", value=True)
-            self.to_int.stylesheets = [self.widget_stylesheet]
+            self.to_int.stylesheets = [self.styles.widget_stylesheet]
 
             return pn.Column(self.theta_key, self.start, self.stop, self.step, self.to_int)
         if factory_impl.__name__ == "LinSpacePerturbImageFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
-            self.theta_key.stylesheets = [self.widget_stylesheet]
+            self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
-            self.start.stylesheets = [self.widget_stylesheet]
+            self.start.stylesheets = [self.styles.widget_stylesheet]
             self.stop = pn.widgets.FloatInput(name="Stop", value=1.0)
-            self.stop.stylesheets = [self.widget_stylesheet]
+            self.stop.stylesheets = [self.styles.widget_stylesheet]
             self.step = pn.widgets.IntInput(name="Step", value=1)
-            self.step.stylesheets = [self.widget_stylesheet]
+            self.step.stylesheets = [self.styles.widget_stylesheet]
 
             return pn.Column(self.theta_key, self.start, self.stop, self.step)
         if factory_impl.__name__ == "OneStepPerturbImageFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
-            self.theta_key.stylesheets = [self.widget_stylesheet]
+            self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.theta_value = pn.widgets.FloatInput(name="Theta Value", value=0.0)
-            self.theta_value.stylesheets = [self.widget_stylesheet]
+            self.theta_value.stylesheets = [self.styles.widget_stylesheet]
 
             return pn.Column(self.theta_key, self.theta_value)
         bad_factory_text = pn.widget.StaticText(value=f"{factory_impl.__name__} is not supported")
-        bad_factory_text.stylesheets = [self.widget_stylesheet]
+        bad_factory_text.stylesheets = [self.styles.widget_stylesheet]
         return pn.Column(bad_factory_text)
 
     def _pybsm_parameter_init(self) -> None:
@@ -198,7 +193,7 @@ class NRTKBaseApp(BaseApp):
             "14000m to 20000m in 2000m steps, and 24500m"
         )
         self.altitude_provider.value = 75
-        self.altitude_provider.stylesheets = [self.widget_stylesheet]
+        self.altitude_provider.stylesheets = [self.styles.widget_stylesheet]
 
         self.ground_range_provider = pn.widgets.FloatInput(name="Ground Range (m)")
         self.ground_range_provider.description = (
@@ -209,7 +204,7 @@ class NRTKBaseApp(BaseApp):
             "300000m in 5000m steps."
         )
         self.ground_range_provider.value = 0
-        self.ground_range_provider.stylesheets = [self.widget_stylesheet]
+        self.ground_range_provider.stylesheets = [self.styles.widget_stylesheet]
 
         self.scenario_name_provider = pn.widgets.TextInput(name="Scenario Name")
         self.scenario_name_provider.value = ""
@@ -251,11 +246,11 @@ class NRTKBaseApp(BaseApp):
 
         self.d_provider = pn.widgets.FloatInput(name="Effective Aperture Diameter (m)")
         self.d_provider.value = 0.005
-        self.d_provider.stylesheets = [self.widget_stylesheet]
+        self.d_provider.stylesheets = [self.styles.widget_stylesheet]
 
         self.f_provider = pn.widgets.FloatInput(name="Focal Length (m)")
         self.f_provider.value = 0.014
-        self.f_provider.stylesheets = [self.widget_stylesheet]
+        self.f_provider.stylesheets = [self.styles.widget_stylesheet]
 
         self.sensor_name_provider = pn.widgets.TextInput(name="Sensor Name")
         self.sensor_name_provider.value = ""
@@ -336,11 +331,11 @@ class NRTKBaseApp(BaseApp):
             self.cn2at1m_provider,
             title="Scenario Parameters",
             collapsed=True,
-            header_color=self.color_gray_900,
+            header_color=self.styles.color_gray_900,
         )
 
         for widget in additional_params.objects:
-            widget.stylesheets = [self.widget_stylesheet]
+            widget.stylesheets = [self.styles.widget_stylesheet]
 
         return pn.Column(self.altitude_provider, self.ground_range_provider, additional_params)
 
@@ -365,13 +360,13 @@ class NRTKBaseApp(BaseApp):
             self.qewavelengths_provider,
             title="Sensor Parameters",
             collapsed=True,
-            header_color=self.color_gray_900,
+            header_color=self.styles.color_gray_900,
         )
 
-        additional_params.header_color = self.color_gray_900
+        additional_params.header_color = self.styles.color_gray_900
 
         for widget in additional_params.objects:
-            widget.stylesheets = [self.widget_stylesheet]
+            widget.stylesheets = [self.styles.widget_stylesheet]
 
         return pn.Column(self.d_provider, self.f_provider, additional_params)
 
@@ -391,7 +386,7 @@ class NRTKBaseApp(BaseApp):
                 f"""
             <style>
             * {{
-              color: {self.color_gray_900};
+              color: {self.styles.color_gray_900};
             }}
             </style>
             * Stage Name: {self.name_input.value}
@@ -422,7 +417,7 @@ class NRTKBaseApp(BaseApp):
         """Run final factory and display results"""
         from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 
-        self.status_text = "Perturbing..."
+        self.status_source.emit("Perturbing...")
         factory_config = self.build_factory_json()
         if len(factory_config) == 0:
             return
@@ -437,7 +432,7 @@ class NRTKBaseApp(BaseApp):
         plt.close()
         self.augmented_plot.object = fig
         self.augmented_plot.visible = True
-        self.status_text = "Finished Perturbing"
+        self.status_source.emit("Finished Perturbing")
 
     def _parse_pybsm_factory_config(self) -> (dict, dict):
         scenario_config = {
@@ -509,10 +504,10 @@ class NRTKBaseApp(BaseApp):
             thetas = self.thetas_input.value
             theta_keys = self.theta_keys_input.value
             if thetas is None or theta_keys is None:
-                self.status_text = "Thetas and theta keys cannot be empty"
+                self.status_source.emit("Thetas and theta keys cannot be empty")
                 return {}
             if len(thetas) != len(theta_keys):
-                self.status_text = "Thetas and theta keys are different lengths"
+                self.status_source.emit("Thetas and theta keys are different lengths")
                 return {}
             output_config["thetas"] = thetas
             output_config["theta_keys"] = theta_keys
@@ -540,7 +535,7 @@ class NRTKBaseApp(BaseApp):
                 "theta_value": self.theta_value.value,
             }
         else:
-            self.status_text = f"{factory_impl.__name__} is not supported"
+            self.status_source.emit(f"{factory_impl.__name__} is not supported")
             return {}
 
         return {
@@ -577,7 +572,7 @@ class NRTKBaseApp(BaseApp):
             str(NRTK_LOGO),
             width=140,
             styles={"display": "block", "float": "right", "background-color": "rgba(255, 255, 255, 1.0)"},
-            stylesheets=[self.text_color_styling],
+            stylesheets=[self.styles.text_color_styling],
         )
 
     def panel(self) -> pn.Column:
@@ -598,6 +593,6 @@ class NRTKBaseApp(BaseApp):
             ),
             pn.Row(pn.layout.HSpacer(), self.test_perturber_button),
             self.view_status_bar,
-            width=self.page_width,
-            styles={"background": self.color_main_bg},
+            width=self.styles.app_width,
+            styles={"background": self.styles.color_main_bg},
         )

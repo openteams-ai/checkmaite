@@ -8,7 +8,7 @@ import panel as pn
 import param
 
 # Local imports
-from jatic_ri._common._panel.configurations.base_app import BaseApp
+from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 HEART_DOCUMENTATION_LINK = "https://heart-library.readthedocs.io/en/latest/"
 ATTACK_DOCUMENTATION_LINK = "https://heart-library.readthedocs.io/en/latest/reference_materials/attack_cards/index.html"
@@ -33,12 +33,16 @@ class HeartBaseApp(BaseApp):
     _previous_attack: param.String = param.String(default="")
     _previous_strength: param.String = param.String(default="")
 
-    def __init__(self, **params: dict[str, object]) -> None:
-        super().__init__(**params)
+    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
+        super().__init__(styles, **params)
 
         # Action Buttons
-        self.add_button = pn.widgets.Button(name="Add Stage", button_type="primary", stylesheets=[self.css_button])
-        self.clear_button = pn.widgets.Button(name="Clear Stages", button_type="primary", stylesheets=[self.css_button])
+        self.add_button = pn.widgets.Button(
+            name="Add Stage", button_type="primary", stylesheets=[self.styles.css_button]
+        )
+        self.clear_button = pn.widgets.Button(
+            name="Clear Stages", button_type="primary", stylesheets=[self.styles.css_button]
+        )
         # Display area for configured test stages
         self.attack_stages = []
         self.finished_factory_display = pn.Column()
@@ -118,28 +122,28 @@ class HeartBaseApp(BaseApp):
                     pn.pane.Markdown(
                         label,
                         styles={
-                            **self.style_text_subtitle,
+                            **self.styles.style_text_subtitle,
                             "line-height": "1.5",
                             "overflow-wrap": "break-word",
                             "max-width": "600px",
                         },
-                        stylesheets=[self.css_paragraph],
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Spacer(height=2),  # Space between label and description
                     pn.pane.Markdown(
                         description,
                         styles={
-                            **self.style_text_body2,
+                            **self.styles.style_text_body2,
                             "line-height": "1.5",
                             "overflow-wrap": "break-word",
                             "max-width": "550px",
                         },
-                        stylesheets=[self.css_paragraph],
+                        stylesheets=[self.styles.css_paragraph],
                     ),
                 ),
                 width=649,
                 height=section_height,  # Ensuring sufficient space
-                styles={**self.style_border, "padding": "8px"},  # Padding for better spacing
+                styles={**self.styles.style_border, "padding": "8px"},  # Padding for better spacing
             ),
         )
 
@@ -149,12 +153,12 @@ class HeartBaseApp(BaseApp):
         patch_attack_checkbox = pn.widgets.Checkbox.from_param(
             self.param.patch_attack_config,
             name="",
-            stylesheets=[self.css_checkbox],
+            stylesheets=[self.styles.css_checkbox],
         )
         pgd_attack_checkbox = pn.widgets.Checkbox.from_param(
             self.param.pgd_attack_config,
             name="",
-            stylesheets=[self.css_checkbox],
+            stylesheets=[self.styles.css_checkbox],
         )
 
         return pn.Column(
@@ -178,8 +182,8 @@ class HeartBaseApp(BaseApp):
             ),
             pn.Spacer(height=24),
             styles={
-                "background-color": self.color_white,
-                "border-color": self.color_border,
+                "background-color": self.styles.color_white,
+                "border-color": self.styles.color_border,
                 "border-width": "thin",
                 "border-style": "solid",
                 "border-radius": "8px",
@@ -194,12 +198,12 @@ class HeartBaseApp(BaseApp):
         strong_attack_checkbox = pn.widgets.Checkbox.from_param(
             self.param.strong_attack_config,
             name="",
-            stylesheets=[self.css_checkbox],
+            stylesheets=[self.styles.css_checkbox],
         )
         weak_attack_checkbox = pn.widgets.Checkbox.from_param(
             self.param.weak_attack_config,
             name="",
-            stylesheets=[self.css_checkbox],
+            stylesheets=[self.styles.css_checkbox],
         )
 
         return pn.Column(
@@ -221,8 +225,8 @@ class HeartBaseApp(BaseApp):
             ),
             pn.Spacer(height=24),
             styles={
-                "background-color": self.color_white,
-                "border-color": self.color_border,
+                "background-color": self.styles.color_white,
+                "border-color": self.styles.color_border,
                 "border-width": "thin",
                 "border-style": "solid",
                 "border-radius": "8px",
@@ -254,7 +258,7 @@ class HeartBaseApp(BaseApp):
                 f"""
             <style>
             * {{
-              color: {self.color_gray_900};
+              color: {self.styles.color_gray_900};
             }}
             </style>
             * Attack Type: {self.attack_type}
@@ -269,7 +273,8 @@ class HeartBaseApp(BaseApp):
         self.finished_factory_display.clear()  # Clears the display area
 
     def _run_export(self) -> None:
-        """This function runs when `export_button` is clicked"""
+        """This function collects all configurations in a dictionary object
+        that is shared across app pages."""
         for index, stage in enumerate(self.attack_stages):
             self.output_test_stages[f"heart-{index}"] = stage
 
@@ -284,19 +289,19 @@ class HeartBaseApp(BaseApp):
         title_row = pn.Column(
             pn.pane.Markdown(
                 f"Heart Model {formatted_task}",
-                styles=self.style_text_h2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_h2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 "Setup your model evaluation configuration to include tools from IBMs Heart Library:",
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
             pn.pane.Markdown(
                 "Once complete, you will be able to download the configuration file to "
                 "test your models and datasets",
-                styles=self.style_text_body2,
-                stylesheets=[self.css_paragraph],
+                styles=self.styles.style_text_body2,
+                stylesheets=[self.styles.css_paragraph],
             ),
         )
 
@@ -305,26 +310,26 @@ class HeartBaseApp(BaseApp):
             pn.Column(
                 pn.pane.Markdown(
                     "Select Attack Type",
-                    styles=self.style_text_h3,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_h3,
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
                     "Choose the attack type to evaluate your model's robustness.",
-                    styles=self.style_text_body2,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_body2,
+                    stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
                 pn.pane.HTML(
                     f'<a href="{ATTACK_DOCUMENTATION_LINK}" ' f'target="_blank">HEART Attack Documentation</a>',
                     styles={
-                        **self.style_text_subtitle,
+                        **self.styles.style_text_subtitle,
                         "line-height": "1.5",
                         "overflow-wrap": "break-word",
                         "max-width": "600px",
                         "color": "black",
                         "font-size": "10px",
                     },
-                    stylesheets=[self.css_paragraph],
+                    stylesheets=[self.styles.css_paragraph],
                 ),
             ),
             pn.Spacer(width=124),
@@ -336,47 +341,47 @@ class HeartBaseApp(BaseApp):
             pn.Column(
                 pn.pane.Markdown(
                     "Select Parameters",
-                    styles=self.style_text_h3,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_h3,
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
                     "Choose the strength of the attack, either weak or strong.",
-                    styles=self.style_text_body2,
-                    stylesheets=[self.css_paragraph],
+                    styles=self.styles.style_text_body2,
+                    stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
                 pn.pane.Markdown(
                     "Note: A rigorous adversarial evaluation should include an adaptive "
                     "strategy by adjusting and examining effects across attack parameters.",
-                    styles={**self.style_text_subtitle, "font-style": "italic", "font-size": "11px"},
-                    stylesheets=[self.css_paragraph],
+                    styles={**self.styles.style_text_subtitle, "font-style": "italic", "font-size": "11px"},
+                    stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
                 pn.pane.HTML(
                     f'<a href="{PATCH_PARAM_DOCUMENTATION_LINK}" target="_blank">'
                     f"Patch Attack Parameters Documentation</a>",
                     styles={
-                        **self.style_text_subtitle,
+                        **self.styles.style_text_subtitle,
                         "line-height": "1.5",
                         "overflow-wrap": "break-word",
                         "max-width": "600px",
                         "color": "black",
                         "font-size": "10px",
                     },
-                    stylesheets=[self.css_paragraph],
+                    stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.HTML(
                     f'<a href="{PGD_PARAM_DOCUMENTATION_LINK}" target="_blank">'
                     f"PGD Attack Parameters Documentation</a>",
                     styles={
-                        **self.style_text_subtitle,
+                        **self.styles.style_text_subtitle,
                         "line-height": "1.5",
                         "overflow-wrap": "break-word",
                         "max-width": "600px",
                         "color": "black",
                         "font-size": "10px",
                     },
-                    stylesheets=[self.css_paragraph],
+                    stylesheets=[self.styles.css_paragraph],
                 ),
             ),
             pn.Spacer(width=124),
@@ -424,6 +429,6 @@ class HeartBaseApp(BaseApp):
             ),
             pn.Spacer(width=100),
             pn.Row(heart_documentation),
-            styles={"background": self.color_main_bg},
-            width=self.app_width,
+            styles={"background": self.styles.color_main_bg},
+            width=self.styles.app_width,
         )
