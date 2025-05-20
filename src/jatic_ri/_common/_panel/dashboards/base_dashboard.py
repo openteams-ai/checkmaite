@@ -59,7 +59,6 @@ pn.extension(
     # Spiner settings for loading animation
     loading_spinner="dots",
     loading_color="#001B4D",
-    template="bootstrap",
 )
 
 logger = logging.getLogger()
