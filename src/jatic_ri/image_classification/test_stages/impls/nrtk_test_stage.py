@@ -17,7 +17,9 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from smqtk_core.configuration import from_config_dict
 
 # Import TestStage
-from jatic_ri._common.test_stages.impls.nrtk_test_stage import NRTKTestStageBase
+from jatic_ri._common.test_stages.impls.nrtk_test_stage import (
+    NRTKTestStageBase,
+)
 from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 
