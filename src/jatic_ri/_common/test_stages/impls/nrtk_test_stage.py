@@ -97,10 +97,6 @@ class NRTKTestStageBase(
     Attributes:
         config: The configuration dictionary that will be used to create
                                 PerturbImageFactory object.
-        stage_name: The name of the test stage.
-        factory_hash: A unique hash identifying the perturbation factory configuration.
-        factory: The perturbation factory used to generate PerturbImage
-                                      augmentations.
 
     """
 
@@ -111,7 +107,6 @@ class NRTKTestStageBase(
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
         self.config = NRTKTestStageConfig.model_validate(args)
-        self.stage_name = self.config.name
 
     def _create_config(self) -> NRTKTestStageConfig:
         return self.config

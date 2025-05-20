@@ -99,7 +99,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
 
     # test output to NRTKTestStage
     nrtk_test_stage = NRTKTestStage(test_stage["CONFIG"])
-    assert nrtk_test_stage.stage_name == test_stage["CONFIG"]["name"]
+    assert nrtk_test_stage.config.name == test_stage["CONFIG"]["name"]
 
     # test test_perturber_button_callback
     nrtk_app.test_perturber_button_callback(None)
