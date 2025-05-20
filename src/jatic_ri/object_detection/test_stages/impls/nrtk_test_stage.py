@@ -9,15 +9,9 @@ import maite.protocols.object_detection as od
 from nrtk.interfaces.perturb_image import PerturbImage
 
 # NRTK imports
-from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
-
 # SMQTK imports
-from smqtk_core.configuration import from_config_dict
-
 # Import TestStage
-from jatic_ri._common.test_stages.impls.nrtk_test_stage import (
-    NRTKTestStageBase,
-)
+from jatic_ri._common.test_stages.impls.nrtk_test_stage import NRTKTestStageBase
 from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 
@@ -32,7 +26,6 @@ class NRTKTestStage(NRTKTestStageBase[od.Dataset, od.Model, od.Metric]):
         super().__init__(args)
         self._deck = "object_detection_dataset_evaluation"
         self._task = "object_detection"
-        self.config.perturber_factory = from_config_dict(args["perturber_factory"], PerturbImageFactory.get_impls())
 
     def _augmentation_wrapper(
         self, perturber: PerturbImage
