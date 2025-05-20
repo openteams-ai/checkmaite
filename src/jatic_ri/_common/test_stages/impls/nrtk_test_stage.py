@@ -5,14 +5,18 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from typing import Any
+from collections.abc import Mapping
+from typing import Annotated, Any
 
 import pandas as pd
+import pydantic
 from maite.workflows import evaluate
-from nrtk.interfaces.perturb_image import PerturbImage
 
 # NRTK imports
+from nrtk.interfaces.perturb_image import PerturbImage
 from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+from pydantic_core import core_schema
+from smqtk_core.configuration import from_config_dict as from_config_dict
 
 # Local imports
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -24,14 +28,63 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TMetric,
     TModel,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
 from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
-from jatic_ri.util.cache import JSONCache, TensorEncoder
+
+
+class _PerturbImageFactoryAnnotation:
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, _source_type: Any, _handler: pydantic.GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        def from_config(value: Mapping[str, Any]) -> PerturbImageFactory:
+            return from_config_dict(dict(value), PerturbImageFactory.get_impls())
+
+        def to_config(value: PerturbImageFactory) -> dict[str, Any]:
+            return {
+                "type": (t := f"{type(value).__module__}.{type(value).__name__}"),
+                t: value.get_config(),
+            }
+
+        from_config_dict_schema = core_schema.chain_schema(
+            [
+                core_schema.dict_schema(
+                    keys_schema=core_schema.str_schema(),
+                    values_schema=core_schema.any_schema(),
+                ),
+                core_schema.no_info_plain_validator_function(from_config),
+            ]
+        )
+
+        return core_schema.json_or_python_schema(
+            json_schema=from_config_dict_schema,
+            python_schema=core_schema.union_schema(
+                [
+                    core_schema.is_instance_schema(PerturbImageFactory),
+                    from_config_dict_schema,
+                ]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(to_config),
+        )
+
+
+class NRTKTestStageConfig(ConfigBase):
+    name: str
+    perturber_factory: Annotated[PerturbImageFactory, _PerturbImageFactoryAnnotation]
+
+
+class NRTKTestStageOutputs(OutputsBase):
+    perturbations: list[dict[str, Any]]
+
+
+class NRTKTestStageRun(RunBase):
+    config: NRTKTestStageConfig
+    outputs: NRTKTestStageOutputs
 
 
 class NRTKTestStageBase(
-    TestStage["dict[str, Any]"],
+    TestStage[NRTKTestStageOutputs],
     SingleDatasetPlugin[TDataset],
     SingleModelPlugin[TModel],
     MetricPlugin[TMetric],
@@ -51,21 +104,17 @@ class NRTKTestStageBase(
 
     """
 
-    config: dict[str, Any]
     stage_name: str
-    factory_hash: str
-    factory: PerturbImageFactory
+
+    _RUN_TYPE = NRTKTestStageRun
 
     def __init__(self, args: dict[str, Any]) -> None:
         super().__init__()
-        self.config = args
-        self.stage_name = args["name"]
-        self.cache = JSONCache(encoder=TensorEncoder)
+        self.config = NRTKTestStageConfig.model_validate(args)
+        self.stage_name = self.config.name
 
-    @property
-    def cache_id(self) -> str:
-        """Cache file for NRTK Test Stage"""
-        return f"nrtk_{self._task}_{self.model_id}_{self.dataset_id}_{self.factory_hash}.json"
+    def _create_config(self) -> NRTKTestStageConfig:
+        return self.config
 
     @property
     def name(self) -> str:
@@ -122,12 +171,12 @@ class NRTKTestStageBase(
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
         load_cached_results method"""
 
-        lowest_perturb_score = [self.outputs[perturber_output][self.metric_id] for perturber_output in self.outputs]
+        lowest_perturb_score = [perturber_output[self.metric_id] for perturber_output in self.outputs.perturbations]
 
         final_dict = {
             "dataset": self.dataset_id,
             "model": self.model_id,
-            self.factory.theta_key: self.factory.thetas,
+            self.config.perturber_factory.theta_key: self.config.perturber_factory.thetas,
             self.metric_id: lowest_perturb_score,
         }
         df_perturbation = pd.DataFrame.from_dict(final_dict)
@@ -135,7 +184,7 @@ class NRTKTestStageBase(
 
         # convert pert classname into semantic label
         # (e.g. nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber into Brightness Perturber)
-        perturbation_classname = self.factory.get_config()["perturber"].split(".")[-1]
+        perturbation_classname = self.config.perturber_factory.get_config()["perturber"].split(".")[-1]
         perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
 
         return [
@@ -146,7 +195,7 @@ class NRTKTestStageBase(
                     "title": self.name,
                     "data": df_perturbation,
                     "line_col": "line_id",
-                    "x_data_col": self.factory.theta_key,
+                    "x_data_col": self.config.perturber_factory.theta_key,
                     "y_data_col": self.metric_id,
                     "perturbation_type": perturbation_label,
                     "lower_bound": 3.4,
@@ -155,18 +204,21 @@ class NRTKTestStageBase(
                     "plot_kwargs": {
                         "y_threshold_value": self.threshold,
                         "title": "NRTK Robustness Curve",
-                        "x_label": self.__labelx_gen(self.factory.get_config()["perturber"], self.factory.theta_key),
+                        "x_label": self.__labelx_gen(
+                            self.config.perturber_factory.get_config()["perturber"],
+                            self.config.perturber_factory.theta_key,
+                        ),
                         "y_label": self.__labely_gen(),
                     },
                 },
             },
         ]
 
-    def _run(self) -> dict[str, dict[str, Any]]:
+    def _run(self) -> NRTKTestStageOutputs:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
 
-        outputs = dict()  # noqa: C408
-        for count, perturber in enumerate(self.factory):
+        perturbations = list()  # noqa: C408
+        for perturber in self.config.perturber_factory:
             augmentation = self._augmentation_wrapper(perturber)
 
             perturbed_metrics, _, _ = evaluate(
@@ -178,9 +230,10 @@ class NRTKTestStageBase(
                 return_augmented_data=False,
                 return_preds=False,
             )
-            outputs[f"perturbation_{count}"] = perturbed_metrics
 
-        return outputs
+            perturbations.append(perturbed_metrics)
+
+        return NRTKTestStageOutputs(perturbations=perturbations)
 
     @abstractmethod
     def _augmentation_wrapper(
