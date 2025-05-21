@@ -91,5 +91,6 @@ def create_metrics_bar_plot(
     if len(metrics) == 1:
         ax.set_xlim(-0.5, 0.5)  # required in order to set width if only one bar
     fig.tight_layout()
+    plt.close(fig)
 
     return fig
