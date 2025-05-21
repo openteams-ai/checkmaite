@@ -40,14 +40,25 @@ TConfig = TypeVar("TConfig", bound=ConfigBase)
 class OutputsBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @classmethod
+    def _traverse(cls, obj: Any, fn: Callable[[Any], Any]) -> Any:
+        if isinstance(obj, tuple) and hasattr(obj, "_fields"):
+            # named tuple
+            return type(obj)(*cls._traverse(tuple(obj), fn))
+        if isinstance(obj, (list, tuple)):
+            return type(obj)([cls._traverse(i, fn) for i in obj])
+        if isinstance(obj, dict):
+            return type(obj)({k: cls._traverse(v, fn) for k, v in obj.items()})
+        return fn(obj)
+
     @field_serializer("*")
     def __serialize_binary(self, v: Any) -> Any:
-        return binary_de_serializer.serialize(v)
+        return self._traverse(v, binary_de_serializer.serialize)
 
     @field_validator("*", mode="before")
     @classmethod
     def __deserialize_binary(cls, v: Any) -> Any:
-        return binary_de_serializer.deserialize(v)
+        return cls._traverse(v, binary_de_serializer.deserialize)
 
 
 # FIXME: add bound=BaseModel as soon as all test stages are updated
