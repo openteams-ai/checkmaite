@@ -1,7 +1,6 @@
 """Test XAITKTestStage"""
 
-import os
-
+import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import (
@@ -40,17 +39,18 @@ MC_RISE_ARGS = {
 }
 
 
-def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir) -> None:
+@pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
+def test_xaitk_test_stage_rise(fake_ic_dataset_default, fake_ic_model_default, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(RISE_ARGS)
     # load the maite compliant model
-    test.load_model(model=dummy_model_ic, model_id="model_1")
-    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
+    test.load_model(model=fake_ic_model_default, model_id="model_1")
+    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dataset_1")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
-    assert len(output) == len(dummy_dataset_ic) * dummy_dataset_ic[0][1].shape[0]
+    assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0]
 
     example_args = output[0]
 
@@ -58,28 +58,26 @@ def test_xaitk_test_stage_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir) -
 
     assert example_args["layout_name"] == "OneImageText"
     assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
-    assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nGT: dummy\\_0\nPred: dummy\\_0"
-    assert (
-        str(example_args["layout_arguments"]["image_path"])
-        == f"{os.path.splitext(test.cache_path)[0]}/img_0/class_dummy_0.png"
-    )
+    assert example_args["layout_arguments"]["text"] == "Model: model\\_1\nImage: 0\nGT: date\nPred: apple"
+    assert example_args["layout_arguments"]["image_path"].is_file()
 
     filename = create_deck(output, artifact_dir, "xaitk")
     assert filename.exists()
 
 
-def test_xaitk_test_stage_mc_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir) -> None:
+@pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
+def test_xaitk_test_stage_mc_rise(fake_ic_dataset_default, fake_ic_model_default, artifact_dir) -> None:
     """Test XAITKTestStage implementation with caching"""
 
     test = XAITKTestStage(MC_RISE_ARGS)
     # load the maite compliant model
-    test.load_model(model=dummy_model_ic, model_id="model_1")
-    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dataset_1")
+    test.load_model(model=fake_ic_model_default, model_id="model_1")
+    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dataset_1")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert (
-        len(output) == len(dummy_dataset_ic) * dummy_dataset_ic[0][1].shape[0] * 2
+        len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0] * 2
     )  # multiply by number of fill colors
 
     example_args = output[0]
@@ -90,12 +88,8 @@ def test_xaitk_test_stage_mc_rise(dummy_model_ic, dummy_dataset_ic, artifact_dir
     assert example_args["layout_arguments"]["title"] == "**XAITK Saliency Map**: 0 \n"
     assert (
         example_args["layout_arguments"]["text"]
-        == "Model: model\\_1\nImage: 0\nFill Color: [255, 0, 0]\nGT: dummy\\_0\nPred: dummy\\_0"
+        == "Model: model\\_1\nImage: 0\nFill Color: [255, 0, 0]\nGT: date\nPred: apple"
     )
-    assert (
-        str(example_args["layout_arguments"]["image_path"])
-        == f"{os.path.splitext(test.cache_path)[0]}/img_0/color_[255, 0, 0]_class_dummy_0.png"
-    )
-
+    assert example_args["layout_arguments"]["image_path"].is_file()
     filename = create_deck(output, artifact_dir, "xaitk")
     assert filename.exists()

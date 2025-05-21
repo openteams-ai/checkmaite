@@ -3,11 +3,9 @@
 # Python generic imports
 from __future__ import annotations
 
-import json
-import os
-from hashlib import sha256
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import maite.protocols.image_classification as ic
 
@@ -15,6 +13,8 @@ import maite.protocols.image_classification as ic
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema
 
 # SMQTK imports
 from smqtk_core.configuration import from_config_dict
@@ -26,49 +26,105 @@ from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import Generate
 
 # Import TestStage
 from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
-from jatic_ri.util.cache import NumpyEncoder
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase
+from jatic_ri.util.utils import save_figure_to_tempfile
 
 
-class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
+class _GenerateICBlackboxSaliencyAnnotation:
+    @classmethod
+    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        def from_config(value: Mapping[str, Any]) -> GenerateImageClassifierBlackboxSaliency:
+            return from_config_dict(dict(value), GenerateImageClassifierBlackboxSaliency.get_impls())
+
+        def to_config(value: GenerateImageClassifierBlackboxSaliency) -> dict[str, Any]:
+            return {
+                "type": (t := f"{type(value).__module__}.{type(value).__name__}"),
+                t: value.get_config(),
+            }
+
+        from_config_dict_schema = core_schema.chain_schema(
+            [
+                core_schema.dict_schema(
+                    keys_schema=core_schema.str_schema(),
+                    values_schema=core_schema.any_schema(),
+                ),
+                core_schema.no_info_plain_validator_function(from_config),
+            ]
+        )
+
+        return core_schema.json_or_python_schema(
+            json_schema=from_config_dict_schema,
+            python_schema=core_schema.union_schema(
+                [
+                    core_schema.is_instance_schema(GenerateImageClassifierBlackboxSaliency),
+                    from_config_dict_schema,
+                ]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(to_config),
+        )
+
+
+class XAITKOutputsIC(OutputsBase):
+    """Each item in 'results' corresponds to one item in the input dataset"""
+
+    # TODO: RISE algorithm is shape is (Cl, H, W) where Cl is the number of classes in the model index2label
+    # Why does the saliency generator care about generating a sal for every single class in the model?  This must be
+    # related to issue #345
+    # Furthermore... MC-RISE is (X, Cl, H, W) where X is the number of different color masks specified in list in
+    # MCRISEStack["fill_colors"]
+    # REF: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
+    results: list[np.ndarray]
+
+
+class XAITKConfigIC(ConfigBase):
+    """Config class for XAITKTestStage"""
+
+    name: str
+    saliency_generator: Annotated[GenerateImageClassifierBlackboxSaliency, _GenerateICBlackboxSaliencyAnnotation]
+    img_batch_size: int
+
+
+class XAITKRunIC(RunBase):
+    """Run class for XAITKTestStage for OD"""
+
+    config: XAITKConfigIC
+    outputs: XAITKOutputsIC
+
+
+class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model, ic.Dataset]):
     """
-    XAITKTestStage will generate saliency maps for each model target across all images in the dataset.
-
+    XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
 
     Attributes:
-        sal_generator (GenerateImageClassifierBlackboxSaliency):The saliency map generator used to
-                                                                generate saliency maps.
+        config (XAITKConfigIC):The config used to run XAITK saliency test stage for IC.
     """
 
-    sal_generator: GenerateImageClassifierBlackboxSaliency
     _task: str = "ic"
+    _RUN_TYPE = XAITKRunIC
 
-    def __init__(self, args: dict[str, Any]) -> None:
-        super().__init__(args)
-        self.sal_generator = from_config_dict(
-            args["saliency_generator"],
-            GenerateImageClassifierBlackboxSaliency.get_impls(),
-        )
-        self.sal_generator_hash: str = sha256(
-            json.dumps(args["saliency_generator"]).encode("utf-8"),
-        ).hexdigest()
+    def __init__(self, config: dict[str, Any]) -> None:
+        super().__init__()
+        self.config: XAITKConfigIC = XAITKConfigIC.model_validate(config)
 
-    def _run(self) -> dict[str, Any]:
+    def _run(self) -> XAITKOutputsIC:
         """Run the test stage, and store any outputs of the saliency
         generation in test stage"""
+        if "index2label" not in self.model.metadata:
+            raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
 
         classifier = JATICImageClassifier(
             classifier=self.model,
-            ids=sorted(self.model.index2label.keys()),  # type: ignore
-            img_batch_size=self.img_batch_size,
+            ids=sorted(self.model.metadata["index2label"].keys()),
+            img_batch_size=self.config.img_batch_size,
         )
         img_sal_maps = []
         for ref_img, _, _ in self.dataset:
             transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
             if transposed_image.shape[2] == 1:
                 transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
-            img_sal_maps.append(self.sal_generator(transposed_image, classifier))
+            img_sal_maps.append(self.config.saliency_generator(transposed_image, classifier))
 
-        return {"saliency_map_" + str(i): NumpyEncoder().default(sal_map) for i, sal_map in enumerate(img_sal_maps)}
+        return XAITKOutputsIC.model_validate({"results": img_sal_maps})
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report
@@ -79,28 +135,23 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
         box shown in red."""
 
         gradient_slides = []
-        output_values = list(self.outputs.values())
 
-        for dataset_idx in range(len(self.dataset)):
-            ref_img, targets, _ = self.dataset[dataset_idx]
-            sub_dir = os.path.join(os.path.splitext(self.cache_path)[0], f"img_{dataset_idx}")
+        # TODO: This needs to be fixed to work from cache (self.dataset won't be available)
+        # TODO: Also needs general refactoring once a determination is made on if/why the saliency maps are
+        # being generated for every class in the model for every image.
+        # REF: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
+        for i, sal_maps in enumerate(self.outputs.results):
+            ref_img, targets, _ = self.dataset[i]
 
-            os.makedirs(sub_dir, exist_ok=True)
             gray_img = rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy()
 
-            gt_label = self.model.index2label[int(np.argmax(targets))]  # type: ignore
-            sal_maps = output_values[dataset_idx]
+            gt_label = self.model.metadata["index2label"][int(np.argmax(targets))]  # type: ignore
+            conf_dict = self.config.model_dump()
 
-            if "MCRISEStack" in self.config["saliency_generator"]["type"]:
-                fill_colors = self.config["saliency_generator"][self.config["saliency_generator"]["type"]][
-                    "fill_colors"
-                ]
+            if "MCRISEStack" in conf_dict["saliency_generator"]["type"]:
+                fill_colors = conf_dict["saliency_generator"][conf_dict["saliency_generator"]["type"]]["fill_colors"]
                 for color_idx, color_value in enumerate(fill_colors):
-                    for sal_idx in self.model.index2label:  # type: ignore
-                        sal_map_path = Path(sub_dir).joinpath(
-                            f"color_{color_value}_class_{self.model.index2label[sal_idx]}.png"  # type: ignore
-                        )
-
+                    for sal_idx in self.model.metadata["index2label"]:  # type: ignore
                         fig = plt.figure()
                         plt.axis("off")
                         plt.imshow(gray_img, alpha=0.7, cmap="gray")
@@ -108,7 +159,7 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
                         plt.yticks(())
                         plt.imshow(np.asarray(sal_maps[color_idx][0]), cmap="jet", alpha=0.3)
                         plt.colorbar()
-                        plt.savefig(sal_map_path, bbox_inches="tight")
+                        fig.tight_layout()
                         plt.close(fig)
 
                         content = {
@@ -118,20 +169,18 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
                                 "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                                 "text": (
                                     f"Model: {self.model_id}\n"
-                                    f"Image: {dataset_idx}\n"
+                                    f"Image: {i}\n"
                                     f"Fill Color: {color_value}\n"
                                     f"GT: {gt_label}\n"
-                                    f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
+                                    f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # type: ignore
                                 ),
-                                "image_path": sal_map_path,
+                                "image_path": Path(save_figure_to_tempfile(fig)),
                             },
                         }
                         content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")
                         gradient_slides.append(content)
             else:
                 for sal_idx, sal_map in enumerate(sal_maps):
-                    sal_map_path = Path(sub_dir).joinpath(f"class_{self.model.index2label[sal_idx]}.png")  # type: ignore
-
                     fig = plt.figure()
                     plt.axis("off")
                     plt.imshow(gray_img, alpha=0.7, cmap="gray")
@@ -140,7 +189,7 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
 
                     plt.imshow(sal_map, cmap="jet", alpha=0.3)
                     plt.colorbar()
-                    plt.savefig(sal_map_path, bbox_inches="tight")
+                    fig.tight_layout()
                     plt.close(fig)
 
                     content = {
@@ -150,11 +199,11 @@ class XAITKTestStage(XAITKTestStageBase[ic.Model, ic.Dataset]):
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                             "text": (
                                 f"Model: {self.model_id}\n"
-                                f"Image: {dataset_idx}\n"
+                                f"Image: {i}\n"
                                 f"GT: {gt_label}\n"
-                                f"Pred: {self.model.index2label[sal_idx]}"  # type: ignore
+                                f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # type: ignore
                             ),
-                            "image_path": sal_map_path,
+                            "image_path": Path(save_figure_to_tempfile(fig)),
                         },
                     }
                     content["layout_arguments"]["text"] = content["layout_arguments"]["text"].replace("_", r"\_")

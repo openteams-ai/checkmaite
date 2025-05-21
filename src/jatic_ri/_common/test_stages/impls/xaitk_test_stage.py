@@ -3,7 +3,9 @@
 # Python generic imports
 from __future__ import annotations
 
-from typing import Any
+from typing import Generic, TypeVar
+
+from smqtk_core.configuration import from_config_dict as from_config_dict
 
 # Local imports
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -12,43 +14,29 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TDataset,
     TModel,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
-from jatic_ri.util.cache import JSONCache
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, TestStage
+
+TOutputs = TypeVar("TOutputs", bound=OutputsBase)
+TConfig = TypeVar("TConfig", bound=ConfigBase)
 
 
 class XAITKTestStageBase(
-    TestStage[dict[str, Any]],
+    TestStage[TOutputs],
     SingleModelPlugin[TModel],
     SingleDatasetPlugin[TDataset],
+    Generic[TConfig, TOutputs, TModel, TDataset],
 ):
     """
     XAITK Test Stage that takes in the necessary arguements to demo saliency map generation.
 
     Attributes:
-        config: The configuration dictionary that will be used to create
-                                saliency map generator object.
-        stage_name: The name of the test stage.
-        sal_generator_hash: A unique hash identifying the saliency map generator configuration.
-        img_batch_size: Number of images per batch.
-
+        config: The configuration model, specified in the subclass for the sub-problem (e.g. OD or IC).
     """
 
-    config: dict[str, Any]
-    stage_name: str
-    sal_generator_hash: str
-    img_batch_size: int
+    config: TConfig
 
-    def __init__(self, args: dict[str, Any]) -> None:
-        super().__init__()
-        self.config = args
-        self.stage_name = args["name"]
-        self.img_batch_size = args["img_batch_size"]
-        self.cache = JSONCache()
-
-    @property
-    def cache_id(self) -> str:
-        """Cache file for XAITK Test Stage"""
-        return f"xaitk_{self._task}_{self.model_id}_{self.dataset_id}_{self.sal_generator_hash}.json"
+    def _create_config(self) -> TConfig:
+        return self.config
 
     @property
     def name(self) -> str:

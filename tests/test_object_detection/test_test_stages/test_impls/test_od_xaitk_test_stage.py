@@ -1,8 +1,5 @@
 """Test XAITKTestStage"""
 
-import os
-from pathlib import Path
-
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 from torch import as_tensor, equal
@@ -47,9 +44,7 @@ def test_xaitk_test_stage(use_stage_cache, fake_od_model_default, fake_od_datase
     assert example_args["layout_arguments"]["title"] == (
         "XAITK Saliency Map -- " f"Image ID: {fake_od_dataset_default[0][2]['id']}, " "Detection: 0"
     )
-    assert example_args["layout_arguments"]["left_item"] == Path(
-        f"{os.path.splitext(test.cache_path)[0]}/img_0/det_0.png"
-    )
+    assert example_args["layout_arguments"]["left_item"].is_file()
     assert example_args["layout_arguments"]["right_item"] == (
         "**Model:** model_1\n"
         "**Image ID**: some_string\n"
