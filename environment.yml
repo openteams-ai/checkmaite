@@ -6,7 +6,7 @@ channels:
 - fastai
 dependencies:
 # Required deps
-- python>=3.9, <3.12
+- python>=3.10, <3.12
 # JATIC tools
 - dataeval=0.75.0                       # pinned for demo
 - maite=0.7.3                           # pinned for demo

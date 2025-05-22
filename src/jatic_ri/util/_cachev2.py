@@ -5,8 +5,9 @@ import dataclasses
 import io
 import re
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd

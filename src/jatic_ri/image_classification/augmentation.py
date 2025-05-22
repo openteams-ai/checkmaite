@@ -55,7 +55,7 @@ class JATICClassificationAugmentation(Augmentation):
         aug_dets = []  # list of individual object detection targets
         aug_metadata = []  # list of individual image-level metadata
 
-        for img, ann, md in zip(imgs_new, anns, metadata):
+        for img, ann, md in zip(imgs_new, anns, metadata, strict=False):
             # Perform augmentation
             aug_img = copy.deepcopy(img)
             aug_img = self.augment(aug_img, cast(dict[str, Any], md))

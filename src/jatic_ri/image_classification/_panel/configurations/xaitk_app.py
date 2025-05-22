@@ -282,7 +282,7 @@ class XAITKApp(BaseXAITKApp):
             sal_map = sal_maps[:, self.select_widget.value, :, :]
             multiple_maps = pn.Column()
             widget_value = self.collect_widget_values()
-            for color_map, fill_color in zip(sal_map, widget_value["fill_colors"]):
+            for color_map, fill_color in zip(sal_map, widget_value["fill_colors"], strict=False):
                 multiple_maps.append(
                     pn.pane.Matplotlib(
                         self.create_sal_plot_mc_rise(img=gray_img, sal_array=color_map, title=fill_color), tight=True
