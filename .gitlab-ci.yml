@@ -26,7 +26,7 @@ stages:
 .python-matrix:
   parallel:
     matrix:
-      - VERSION: ["3.9", "3.10", "3.11"]
+      - VERSION: ["3.10", "3.11"]
   image: python:$VERSION
 
 .shared-setup:
@@ -155,7 +155,7 @@ pyright-internal:
 # deploy docs for merge requests
 pages-branch:
   extends: [.shared-setup, .poetry-setup]
-  image: python:3.9
+  image: python:3.10
   stage: docs
   artifacts:
       expose_as: 'Documentation Build'
@@ -181,7 +181,7 @@ pages-branch:
 # deploy production docs on merge with main
 pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   extends: [.shared-setup, .poetry-setup]
-  image: python:3.9
+  image: python:3.10
   stage: docs
   script:
     - poetry install --extras docs

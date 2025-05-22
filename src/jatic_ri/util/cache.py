@@ -6,13 +6,12 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from os import getcwd, makedirs, path, remove
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, Optional, TypeAlias, TypeVar, Union
 
 import numpy as np
 import torch
 import zstandard as zstd
 from maite.protocols import ArrayLike
-from typing_extensions import TypeAlias
 
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache
 from jatic_ri.object_detection.datasets import DetectionTarget

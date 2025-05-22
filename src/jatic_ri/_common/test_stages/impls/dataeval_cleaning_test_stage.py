@@ -406,7 +406,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         fig, axs = plt.subplots(num_rows, num_cols, figsize=(num_cols * 3, num_rows * 3))
         axes = axs.flat
 
-        for ax, (metric, counts, bins, top_cutoff, bot_cutoff, _) in zip(axes, plot_list):
+        for ax, (metric, counts, bins, top_cutoff, bot_cutoff, _) in zip(axes, plot_list, strict=False):
             ax.stairs(counts, bins, fill=True)
             ax.set_yscale("log")
             if top_cutoff > 0:
@@ -672,7 +672,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                 for dl in nd:
                     filepath = Path(self.cache_contents_path, f"dupe_{i}_{dl[0]}_{len(dl)}.png")
                     if not filepath.exists():
-                        for di, ax in zip(dl, axes):
+                        for di, ax in zip(dl, axes, strict=False):
                             ii, ti, _ = self._get_key_from_dict(source_index, di)
                             image, _, _ = self._get_image_label_box(ii, ti)
                             title = f"image: {ii}"

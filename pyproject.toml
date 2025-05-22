@@ -21,11 +21,10 @@ keywords = [
 classifiers = [
     "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-requires-python = ">=3.9, <3.12"                    # required by SDP
+requires-python = ">=3.10, <3.12"                    # required by SDP
 
 dependencies = [
     "dataeval>=0.75",
@@ -105,7 +104,7 @@ exclude = [
 
 line-length = 120
 indent-width = 4
-target-version = "py39"
+target-version = "py310"
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
@@ -113,7 +112,7 @@ select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", 
           "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
           "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "PD", "FLY", "NPY", "RUF027",
           "RUF100", "PERF"]
-ignore = ["ANN101", "ANN102", "ANN401", "COM812", "ISC001", "UP007"]
+ignore = ["ANN101", "ANN102", "ANN401", "COM812", "ISC001", "UP007", "UP038"]
 fixable = ["ALL"]
 unfixable = []
 # Allow unused variables when underscore-prefixed.

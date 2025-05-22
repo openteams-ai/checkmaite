@@ -56,7 +56,7 @@ class JATICDetectionAugmentation(Augmentation):
         aug_dets: list[JATICDetectionTarget] = []  # list of individual object detection targets
         aug_metadata: list[DatumMetadataType] = []  # list of individual image-level metadata
 
-        for img, ann, md in zip(imgs, anns, metadata):
+        for img, ann, md in zip(imgs, anns, metadata, strict=False):
             # Perform augmentation
             aug_img = np.array(img, copy=True).transpose((1, 2, 0))
             height, width = aug_img.shape[0:2]
