@@ -6,7 +6,7 @@ Run with `--ci` flag to save the app as html instead of serving it.
 import os
 import re
 import sys
-from typing import Any, Union
+from typing import Any
 
 import panel as pn
 import param
@@ -40,7 +40,7 @@ class SurvivorApp(BaseApp):
     round_precision: param.Integer = param.Integer(default=2, label="Decimal Places", bounds=(0, 10))
     bins: param.String = param.String(default="0, 0.25, 0.5, 1.0", label="Bins")
     # Background parsed bins string gets updated every time there is a new input
-    _bins: Union[int, list[float]] = [0, 0.25, 0.5, 1.0]
+    _bins: int | list[float] = [0, 0.25, 0.5, 1.0]
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
         super().__init__(styles, **params)
@@ -125,7 +125,7 @@ class SurvivorApp(BaseApp):
         )
 
     @param.depends("similarity_strategy")
-    def similarity_option_pane(self) -> Union[pn.Row, pn.viewable.Viewable]:
+    def similarity_option_pane(self) -> pn.Row | pn.viewable.Viewable:
         """View of optional similarity strategy options,
         changes with changes to similarity threshold
         """

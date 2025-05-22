@@ -7,7 +7,7 @@ DatasetFeasibilityTestStage
     Generates a gradient report based on the Bayes Error Rate of a single dataset
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import maite.protocols.image_classification as ic
 import numpy as np
@@ -28,7 +28,7 @@ class DatasetFeasibilityTestStage(
 ):
     """Image Classification feasibility test stage"""
 
-    cache: Optional[Cache[dict[str, dict[str, float]]]] = JSONCache(encoder=NumpyEncoder)
+    cache: Cache[dict[str, dict[str, float]]] | None = JSONCache(encoder=NumpyEncoder)
     _precision = 3
 
     @property

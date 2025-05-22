@@ -6,8 +6,6 @@ import warnings
 from pathlib import Path
 from typing import (
     Any,
-    Optional,
-    Union,
 )
 
 import maite.protocols.object_detection as od
@@ -47,12 +45,12 @@ class RealLabelOutputs(OutputsBase):
 
     results: DataFrame
     example_image: RealLabelImageOutput
-    classification_disagreements_df: Optional[DataFrame] = None
-    verbose_df: Optional[DataFrame] = None
-    sequence_priority_score_df: Optional[DataFrame] = None
-    sequence_priority_score_balanced_df: Optional[DataFrame] = None
-    wanrs_df: Optional[DataFrame] = None
-    aggregated_confidence_df: Optional[DataFrame] = None
+    classification_disagreements_df: DataFrame | None = None
+    verbose_df: DataFrame | None = None
+    sequence_priority_score_df: DataFrame | None = None
+    sequence_priority_score_balanced_df: DataFrame | None = None
+    wanrs_df: DataFrame | None = None
+    aggregated_confidence_df: DataFrame | None = None
 
 
 # reallabel already provides a pydantic model for its configuration so we just mix in our base
@@ -102,7 +100,7 @@ class RealLabelTestStage(
 
     def __init__(
         self,
-        config: Union[_NativeRealLabelConfig, dict[str, Any]],
+        config: _NativeRealLabelConfig | dict[str, Any],
     ) -> None:
         """Initialize the RealLabel test stage.
 

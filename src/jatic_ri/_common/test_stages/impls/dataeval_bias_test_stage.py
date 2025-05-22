@@ -1,7 +1,7 @@
 """DataEval Bias Common Test Stage"""
 
 from abc import abstractmethod
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -62,7 +62,7 @@ class DataevalBiasCoverageOutputs(OutputsBase):
     indices: np.ndarray
     radii: np.ndarray
     critical_value: float
-    image: Optional[Image] = None
+    image: Image | None = None
 
 
 class DataevalBiasOutputs(pydantic.BaseModel):
@@ -90,7 +90,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
 
     _RUN_TYPE = DataevalBiasRun
 
-    device: Union[str, torch.device] = set_device(None)
+    device: str | torch.device = set_device(None)
 
     def __init__(self) -> None:
         super().__init__()

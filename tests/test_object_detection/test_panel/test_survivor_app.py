@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any
 
 import panel as pn
 import pytest
@@ -66,7 +66,7 @@ def test_similarity_option_pane(
         "Leading_Decimal",
     ],
 )
-def test_parse_bin_string(input_str: str, exp_output: Optional[Union[int, list[float]]], exp_fail: bool) -> None:
+def test_parse_bin_string(input_str: str, exp_output: int | list[float] | None, exp_fail: bool) -> None:
     """Test SurvivorApp.parse_bin_string() sets SurvivorApp._bins correctly."""
     # Arrange
     app = SurvivorApp()

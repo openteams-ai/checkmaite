@@ -6,7 +6,6 @@ Run with `--ci` flag to save the app as html instead of serving it.
 """
 
 # Python generic imports
-from __future__ import annotations
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -80,7 +79,7 @@ class BaseXAITKApp(BaseApp):
         plt.close()
         return fig
 
-    def get_sal_plot_size(self) -> tuple(int, int):
+    def get_sal_plot_size(self) -> tuple[int, int]:
         """Return size of saliency plot"""
         return (2, 2)
 

@@ -5,7 +5,6 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Union
 
 __version__ = importlib_metadata.version("jatic_ri")
 
@@ -21,7 +20,7 @@ class _CachePath:
     - with a path, will create the directory and set the path for future invocations.
     """
 
-    def __init__(self, p: Union[str, Path]) -> None:
+    def __init__(self, p: str | Path) -> None:
         self.__p: Path
         self._p = p
 
@@ -30,11 +29,11 @@ class _CachePath:
         return self.__p
 
     @_p.setter
-    def _p(self, p: Union[str, Path]) -> None:
+    def _p(self, p: str | Path) -> None:
         self.__p = Path(p).expanduser().resolve()
         self.__p.mkdir(parents=True, exist_ok=True)
 
-    def __call__(self, p: Union[str, Path, None] = None) -> Path:
+    def __call__(self, p: str | Path | None = None) -> Path:
         if p is not None:
             self._p = p
         return self._p

@@ -8,7 +8,6 @@ Run with `--ci` flag to save the app as html instead of serving it.
 """
 
 # Python generic imports
-from __future__ import annotations
 
 import matplotlib.pyplot as plt
 

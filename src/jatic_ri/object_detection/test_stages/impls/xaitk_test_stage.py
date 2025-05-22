@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Any, Union
+from typing import Annotated, Any
 
 import maite.protocols.object_detection as od
 
@@ -71,7 +71,7 @@ class XAITKOutputDatumOD(OutputsBase):
     """XAITK outputs are stored as a list of per-datum outputs with these attributes"""
 
     img: np.ndarray
-    img_id: Union[int, str]
+    img_id: int | str
     # These four properties correspond to 'N' detections each with a sal_map, box, label, and score.
     sal_maps: np.ndarray  # (H,W) pixel-wise saliency scores in [-1,1]
     boxes: np.ndarray  # [xmin,ymin,xmax,ymax]

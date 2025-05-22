@@ -1,7 +1,5 @@
 """DataEval classes and methods between image classification and object detection test stages"""
 
-from __future__ import annotations
-
 from functools import partial
 from typing import Any
 
@@ -36,7 +34,7 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
 
     Attributes
     ----------
-    outputs : Optional[dict[str, Any]], default None
+    outputs : dict[str, Any] | None, default None
         Dictionary where key is the metric category and values are method OutputClass results as dicts
     cache : Cache[dict[str, Any]] | None, default JSONCache(encoder=NumpyEncoder)
         Cache object that can load in pre-run results into self.outputs

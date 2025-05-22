@@ -3,8 +3,6 @@ This module contains the BaseApp class, which serves as the base class for all i
 It provides common methods and visualization elements that can be utilized by the individual pages.
 """
 
-from typing import Optional
-
 import panel as pn
 import param
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -56,36 +54,36 @@ class AppStyling(BaseModel):
     width_subwidget_offset: int = 20
 
     # Derived fields — initialize to None here
-    color_main_bg: Optional[str] = None
-    color_maintext: Optional[str] = None
-    color_subtext: Optional[str] = None
-    color_border: Optional[str] = None
-    font_family: Optional[str] = None
+    color_main_bg: str | None = None
+    color_maintext: str | None = None
+    color_subtext: str | None = None
+    color_border: str | None = None
+    font_family: str | None = None
 
-    style_text_h1: Optional[dict[str, str]] = None
-    style_text_h2: Optional[dict[str, str]] = None
-    style_text_h3: Optional[dict[str, str]] = None
-    style_text_subtitle: Optional[dict[str, str]] = None
-    style_text_body1: Optional[dict[str, str]] = None
-    style_text_body2: Optional[dict[str, str]] = None
+    style_text_h1: dict[str, str] | None = None
+    style_text_h2: dict[str, str] | None = None
+    style_text_h3: dict[str, str] | None = None
+    style_text_subtitle: dict[str, str] | None = None
+    style_text_body1: dict[str, str] | None = None
+    style_text_body2: dict[str, str] | None = None
 
-    style_border: Optional[dict[str, str]] = None
+    style_border: dict[str, str] | None = None
 
-    widget_stylesheet: Optional[str] = None
-    button_bgcolor: Optional[str] = None
-    button_textcolor: Optional[str] = None
-    button_stylesheet: Optional[str] = None
+    widget_stylesheet: str | None = None
+    button_bgcolor: str | None = None
+    button_textcolor: str | None = None
+    button_stylesheet: str | None = None
 
-    text_color_styling: Optional[str] = None
-    info_button_style: Optional[str] = None
+    text_color_styling: str | None = None
+    info_button_style: str | None = None
 
-    css_paragraph: Optional[str] = None
-    css_checkbox: Optional[str] = None
-    css_button: Optional[str] = None
-    css_switch: Optional[str] = None
-    css_dropdown: Optional[str] = None
-    css_config_input: Optional[str] = None
-    css_tabulator_table: Optional[str] = None
+    css_paragraph: str | None = None
+    css_checkbox: str | None = None
+    css_button: str | None = None
+    css_switch: str | None = None
+    css_dropdown: str | None = None
+    css_config_input: str | None = None
+    css_tabulator_table: str | None = None
 
     @model_validator(mode="after")
     def compute_derived(self):  # noqa: ANN201

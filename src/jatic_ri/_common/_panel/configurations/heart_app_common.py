@@ -1,7 +1,5 @@
 """Module for configuring attack settings in HeartApp."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import panel as pn

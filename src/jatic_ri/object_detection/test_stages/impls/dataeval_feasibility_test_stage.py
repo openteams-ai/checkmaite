@@ -1,7 +1,7 @@
 """DataEval Feasibility Test Stage"""
 
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import Any
 
 import maite.protocols.object_detection as od
 import numpy as np
@@ -29,7 +29,7 @@ class DatasetFeasibilityTestStage(
 ):
     """Docstring"""
 
-    cache: Optional[Cache[dict[str, float]]] = JSONCache(encoder=NumpyEncoder)
+    cache: Cache[dict[str, float]] | None = JSONCache(encoder=NumpyEncoder)
 
     @property
     def cache_id(self) -> str:

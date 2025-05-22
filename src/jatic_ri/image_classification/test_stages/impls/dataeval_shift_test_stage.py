@@ -15,9 +15,9 @@ class DatasetShiftTestStage(DatasetShiftTestStageBase[ic.Dataset]):
 
     Attributes
     ----------
-    outputs : Optional[dict[str, Any]], default None
+    outputs : dict[str, Any] | None, default None
         Dictionary where key is the metric category and values are method OutputClass results as dicts
-    cache : Optional[Cache[dict[str, Any]]], default JSONCache(encoder=NumpyEncoder)
+    cache : Cache[dict[str, Any]] | None, default JSONCache(encoder=NumpyEncoder)
         Cache object that can load in pre-run results into self.outputs
     device : Literal["cpu"], default "cpu"
         The device to run preprocessing models on

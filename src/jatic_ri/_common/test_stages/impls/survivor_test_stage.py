@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import tempfile
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 import pydantic
@@ -55,7 +53,7 @@ class SurvivorTestStageBase(
 
     def __init__(
         self,
-        config: Union[_NativeSurvivorConfig, dict[str, Any]],
+        config: _NativeSurvivorConfig | dict[str, Any],
     ) -> None:
         """Create instance of SurvivorTestStage
 
