@@ -1,4 +1,4 @@
-from __future__ import annotations  # noqa: D100
+# noqa: D100
 
 from pathlib import Path
 from typing import Any

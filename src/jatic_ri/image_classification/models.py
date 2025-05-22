@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import torch
 from maite.protocols import image_classification as ic
@@ -59,9 +59,9 @@ class TorchvisionICModel:
         self,
         *,
         model_name: str,
-        device: Optional[str] = None,
-        weights_path: Optional[str] = None,
-        config_path: Optional[str] = None,
+        device: str | None = None,
+        weights_path: str | None = None,
+        config_path: str | None = None,
         index2label_key: str = "index2label",
         model_id: str = "torchvisionIC",
         **kwargs: dict[str, Any],

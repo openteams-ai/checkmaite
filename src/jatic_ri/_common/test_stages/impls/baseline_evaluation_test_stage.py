@@ -1,9 +1,7 @@
 """Baseline Evaluation base class"""
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +29,7 @@ class BaselineEvaluationConfig(ConfigBase):
 class BaselineEvaluationOutputs(pydantic.BaseModel):
     overall_metric_name: str
     result: dict[str, float]
-    class_metrics: Optional[dict[str, Optional[float]]]
+    class_metrics: dict[str, float | None] | None
 
     @property
     def overall_metric_value(self) -> float:

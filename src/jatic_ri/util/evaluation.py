@@ -1,7 +1,7 @@
 """Evaluation and Prediction tool for Test Stages"""
 
 from collections.abc import Iterable, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, overload
 
 from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
 from maite.errors import InvalidArgument
@@ -11,14 +11,14 @@ from maite.protocols import object_detection as od
 if TYPE_CHECKING:
     from jatic_ri.util.cache import RICache
 
-SomeInputBatchType: TypeAlias = Union[ic.InputBatchType, od.InputBatchType]
-SomeTargetBatchType: TypeAlias = Union[ic.TargetBatchType, od.TargetBatchType]
-SomeMetadataBatchType: TypeAlias = Union[ic.DatumMetadataBatchType, od.DatumMetadataBatchType]
-SomeInputType: TypeAlias = Union[ic.InputType, od.InputType]
-SomeTargetType: TypeAlias = Union[ic.TargetType, od.TargetType]
-SomeMetadataType: TypeAlias = Union[ic.DatumMetadataType, od.DatumMetadataType]
+SomeInputBatchType: TypeAlias = ic.InputBatchType | od.InputBatchType
+SomeTargetBatchType: TypeAlias = ic.TargetBatchType | od.TargetBatchType
+SomeMetadataBatchType: TypeAlias = ic.DatumMetadataBatchType | od.DatumMetadataBatchType
+SomeInputType: TypeAlias = ic.InputType | od.InputType
+SomeTargetType: TypeAlias = ic.TargetType | od.TargetType
+SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType
 
-TDataloader: TypeAlias = Union[DataLoader[Any, Any, Any], None]
+TDataloader: TypeAlias = DataLoader[Any, Any, Any] | None
 
 TInput = TypeVar("TInput", bound=SomeInputType)
 TTarget = TypeVar("TTarget", bound=SomeTargetType)
@@ -26,7 +26,7 @@ TMetadata = TypeVar("TMetadata", bound=SomeMetadataType)
 TDataset = TypeVar("TDataset", bound=Dataset)
 
 TRICache = TypeVar("TRICache", bound="RICache")
-Cache_Option: TypeAlias = Union[TRICache, None]
+Cache_Option: TypeAlias = TRICache | None
 
 
 class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
@@ -352,8 +352,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
     ) -> tuple[
         dict[str, Any],
-        Optional[Sequence[SomeTargetBatchType]],
-        Optional[Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]],
+        Sequence[SomeTargetBatchType] | None,
+        Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]] | None,
     ]:
         """
         Evaluates the model on the given dataset using the specified metric.

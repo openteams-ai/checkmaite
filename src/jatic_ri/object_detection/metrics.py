@@ -1,7 +1,7 @@
 """metrics"""
 
 from collections.abc import Sequence
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import torch
 from maite.protocols import MetricMetadata
@@ -31,9 +31,9 @@ class TorchODMetric:
     returning a specific metric (if not specified, then all metrics will be returned).
     """
 
-    def __init__(self, od_metric: TorchMetric, return_key: Optional[str] = None, *, metric_id: str = "torchOD") -> None:
+    def __init__(self, od_metric: TorchMetric, return_key: str | None = None, *, metric_id: str = "torchOD") -> None:
         self._od_metric = od_metric
-        self.return_key: Optional[str] = return_key
+        self.return_key: str | None = return_key
         self.metadata = MetricMetadata(id=metric_id)
 
     @staticmethod
@@ -86,7 +86,7 @@ class TorchODMultiClassMap50(TorchODMetric):
     def __init__(
         self,
         _class_map50: MeanAveragePrecision,
-        return_key: Optional[str] = "map_50_classwise",
+        return_key: str | None = "map_50_classwise",
         *,
         metric_id: str = "mAP_per_class",
     ) -> None:

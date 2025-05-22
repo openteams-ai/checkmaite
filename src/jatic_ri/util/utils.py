@@ -3,7 +3,7 @@
 import io
 import tempfile
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import matplotlib.figure
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:  #
 
 
 def create_metrics_bar_plot(
-    metrics: dict[str, Union[float, Any]],
+    metrics: dict[str, float | Any],
     metric_key: str,
     threshold: float,
     width: float = 0.75,

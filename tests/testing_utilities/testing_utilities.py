@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import pandas as pd
 from pyspark.sql import DataFrame
@@ -13,7 +13,7 @@ EXAMPLE_DATA_DIR = Path(os.path.abspath(__file__)).parent / "example_data"
 def assert_spark_dataframes_equal(
     actual: DataFrame,
     expected: pd.DataFrame,
-    orderby: Optional[Union[str, list[str]]] = None,
+    orderby: str | list[str] | None = None,
     **kwargs: Any,
 ) -> None:
     """Check whether a SparkDataFrame has the same values as a pandas.DataFrame.

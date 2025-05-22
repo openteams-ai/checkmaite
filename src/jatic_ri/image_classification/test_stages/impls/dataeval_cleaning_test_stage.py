@@ -1,7 +1,5 @@
 """DataEval Cleaning Image Classification Test Stage"""
 
-from __future__ import annotations
-
 from typing import Any
 
 import maite.protocols.image_classification as ic

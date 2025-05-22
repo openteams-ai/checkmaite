@@ -4,7 +4,6 @@ It is able to configure and create multiple XAITKTestStage classes for consumpti
 """
 
 # Python generic imports
-from __future__ import annotations
 
 import os
 import sys
@@ -214,7 +213,7 @@ class XAITKApp(BaseXAITKApp):
                 },
             }
 
-    def get_sal_plot_size(self) -> tuple(int, int):
+    def get_sal_plot_size(self) -> tuple[int, int]:
         """Return size of saliency plot"""
         return (4, 3)
 

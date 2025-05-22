@@ -1,6 +1,5 @@
 import sys
 from collections.abc import Iterable
-from typing import Union
 
 import torch
 import torchvision as tv
@@ -62,7 +61,7 @@ def extract_embeddings(
     *,
     embedding_net: EmbeddingNet,
     batch_size: int = 64,
-    device: Union[str, None, torch.device] = "cpu",
+    device: str | None | torch.device = "cpu",
 ) -> torch.Tensor:
     """Extract embeddings from images
 

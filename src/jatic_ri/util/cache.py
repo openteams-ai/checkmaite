@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from os import getcwd, makedirs, path, remove
-from typing import Any, Optional, TypeAlias, TypeVar, Union
+from typing import Any, TypeAlias, TypeVar
 
 import numpy as np
 import torch
@@ -27,7 +27,7 @@ TMetricResult = dict[str, Any]
 # Supported target types
 # For IC, the ArrayLike is typically a (Cl,) vector, one-hot encoded for multi-class, single-label ground truth.
 # For OD, the structure of DetectionTarget boxes, labels, and scores is documented elsewhere.
-TTargetType = TypeVar("TTargetType", bound=Union[ArrayLike, DetectionTarget])
+TTargetType = TypeVar("TTargetType", bound=ArrayLike | DetectionTarget)
 
 # The data structure generally passed around by MAITE's predict tools.  This is a simplification of the type
 # system built-out in maite._internals.protocols that can be applied to type hints for only this use case.
@@ -52,7 +52,7 @@ class JSONCache(Cache[TData]):
         self.encoder = encoder
         self.compress = compress
 
-    def read_cache(self, cache_path: str) -> Optional[TData]:
+    def read_cache(self, cache_path: str) -> TData | None:
         """Read cache from file and returns as dictionary"""
         logger.info(f"Checking for existing cache at {cache_path}")
         if path.exists(cache_path):
@@ -108,7 +108,7 @@ class RICache(ABC):
     """Abstract Class for using cache for evaluation and prediction"""
 
     @abstractmethod
-    def read_predictions(self, filename: str) -> Optional[CacheablePredsAndData]:
+    def read_predictions(self, filename: str) -> CacheablePredsAndData | None:
         """Reads a prediction from the cache"""
         pass
 
@@ -122,7 +122,7 @@ class RICache(ABC):
         pass
 
     @abstractmethod
-    def read_metric(self, filename: str) -> Optional[TMetricResult]:
+    def read_metric(self, filename: str) -> TMetricResult | None:
         """Reads a metric from the cache"""
         pass
 
@@ -174,7 +174,7 @@ class SimpleRICacheJSON(RICache):
         self.cache_root_dir = cache_root_dir
         makedirs(path.dirname(cache_root_dir), exist_ok=True)
 
-    def read_predictions(self, filename: str) -> Optional[CacheablePredsAndData]:
+    def read_predictions(self, filename: str) -> CacheablePredsAndData | None:
         """
         Reads prediction data from the cache using JSONCache.
 
@@ -215,7 +215,7 @@ class SimpleRICacheJSON(RICache):
         cachefile = path.join(self.cache_root_dir, filename)
         self.json_cache.write_cache(cachefile, pred_data)
 
-    def read_metric(self, filename: str) -> Optional[TMetricResult]:
+    def read_metric(self, filename: str) -> TMetricResult | None:
         """
         Reads metric data from the cache.
 
@@ -274,7 +274,7 @@ class SimpleRICacheJSON(RICache):
             raise OSError(f"Failed to clear cache: {e}") from e
 
     @abstractmethod
-    def write_prediction_serializer(self, pred_and_data: CacheablePredsAndData) -> Union[TData, CacheablePredsAndData]:
+    def write_prediction_serializer(self, pred_and_data: CacheablePredsAndData) -> TData | CacheablePredsAndData:
         """Serializes a prediction output to be compatible with JSON format."""
         pass
 

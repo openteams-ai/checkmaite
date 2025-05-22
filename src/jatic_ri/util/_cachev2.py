@@ -7,7 +7,7 @@ import re
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ class Cache(abc.ABC, Generic[T]):
         with open(self.path(key), "wb") as f:
             f.write(self.serialize(value))
 
-    def get(self, key: str) -> Optional[T]:
+    def get(self, key: str) -> T | None:
         if (p := self.path(key)).is_file():
             with open(p, "rb") as f:
                 return self.deserialize(f.read())
@@ -64,18 +64,18 @@ binary_cache = _BinaryCache()
 @dataclasses.dataclass
 class _BinaryDeSerializeConfig(Generic[T]):
     name: str
-    cls: Union[type[T], tuple[type, ...]]
+    cls: type[T] | tuple[type, ...]
     serialize: Callable[[T], bytes]
     deserialize: Callable[[bytes], T]
 
 
-def _serialize_numpy(v: Union[np.ndarray, np.number]) -> bytes:
+def _serialize_numpy(v: np.ndarray | np.number) -> bytes:
     with io.BytesIO() as b:
         np.save(b, v, allow_pickle=False)
         return b.getvalue()
 
 
-def _deserialize_numpy(v: bytes) -> Union[np.ndarray, np.number]:
+def _deserialize_numpy(v: bytes) -> np.ndarray | np.number:
     with io.BytesIO(v) as b:
         return np.load(b, allow_pickle=False)
 

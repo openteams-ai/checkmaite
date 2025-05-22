@@ -1,7 +1,5 @@
 """Base Test Stage for all test implementations"""
 
-from __future__ import annotations
-
 import enum
 import hashlib
 import json
@@ -9,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import Any, ClassVar, Generic, Optional, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import (
     BaseModel,
@@ -168,7 +166,7 @@ class CompatRun(RunBase):
 class Cache(Generic[TOutputs]):
     """Caching mechanism for test stages"""
 
-    def read_cache(self, cache_path: str) -> Optional[TOutputs]: ...
+    def read_cache(self, cache_path: str) -> TOutputs | None: ...
     def write_cache(self, cache_path: str, data: TOutputs) -> None: ...
 
 
@@ -202,15 +200,15 @@ class TestStage(Generic[TOutputs], ABC):
     _deck: str
     _task: str
     # TODO: Remove _outputs
-    _outputs: Optional[TOutputs] = None  # test results are expected to be stored within the test stage
+    _outputs: TOutputs | None = None  # test results are expected to be stored within the test stage
     _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
 
     # TODO: Remove this after all test stages have been updated
-    cache: Optional[Cache[TOutputs]] = None
+    cache: Cache[TOutputs] | None = None
 
     def __init__(self) -> None:
         # TODO: remove this as soon as collect_report_consumables has been moved to the respective Run object
-        self._stored_run: Optional[RunBase] = None
+        self._stored_run: RunBase | None = None
 
     @property
     def supports_datasets(self) -> Number:
