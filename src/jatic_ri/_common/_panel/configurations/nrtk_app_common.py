@@ -9,6 +9,9 @@ Run with `--ci` flag to save the app as html instead of serving it.
 
 # Python generic imports
 
+# Type imports
+from typing import Any
+
 import matplotlib.pyplot as plt
 
 # 3rd party imports
@@ -17,6 +20,7 @@ import numpy as np
 # Panel app imports
 import panel as pn
 import param
+from numpy.typing import NDArray
 from PIL import Image
 
 # SMQTK imports
@@ -97,6 +101,15 @@ class NRTKBaseApp(BaseApp):
         self.finished_factory_display = []
 
         self.perturber_select.link(self.perturber_select, callbacks={"value": single_perturber_callback})
+
+    def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
+        """
+        Returned augmented images can be as NDArray or tuple of NDArray.
+        If tuple, the first element is the augmented image and the second is the dtype.
+        """
+        if isinstance(img, tuple):
+            return img[0]
+        return img
 
     def add_perturber_config_widget(self) -> pn.Column:
         """Add perturber factory config widget"""
@@ -424,6 +437,7 @@ class NRTKBaseApp(BaseApp):
         perturber = factory[len(factory) - 1]
         img = np.asarray(Image.open(EXAMPLE_IMG))
         perturbed_img = perturber(image=img, additional_params={"img_gsd": 3.19 / 160})
+        perturbed_img = self.__extract_aug_img(perturbed_img)
         fig, ax = plt.subplots(figsize=(3, 3))
         ax.axis("off")
         ax.imshow(perturbed_img)

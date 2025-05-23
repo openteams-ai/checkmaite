@@ -13,6 +13,7 @@ from maite.protocols.image_classification import (
     TargetBatchType,
 )
 from nrtk.interfaces.perturb_image import PerturbImage
+from numpy.typing import NDArray
 
 CLASSIFICATION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatchType]
 
@@ -39,6 +40,15 @@ class JATICClassificationAugmentation(Augmentation):
         self.augment = augment
         self.metadata = AugmentationMetadata(id=augumentation_id)
 
+    def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
+        """
+        Returned augmented images can be as NDArray or tuple of NDArray.
+        If tuple, the first element is the augmented image and the second is the dtype.
+        """
+        if isinstance(img, tuple):
+            return img[0]
+        return img
+
     def __call__(
         self,
         batch: CLASSIFICATION_BATCH_T,
@@ -56,7 +66,8 @@ class JATICClassificationAugmentation(Augmentation):
         for img, ann, md in zip(imgs_new, anns, metadata, strict=False):
             # Perform augmentation
             aug_img = copy.deepcopy(img)
-            aug_img = self.augment(aug_img, cast(dict[str, Any], md))
+            aug_img = self.augment(image=aug_img, additional_params=cast(dict[str, Any], md))
+            aug_img = self.__extract_aug_img(aug_img)
             if aug_img.ndim > 2:
                 aug_img = np.transpose(aug_img, (2, 0, 1))  # Need to transpose it back
             aug_imgs.append(aug_img)
