@@ -64,7 +64,7 @@ binary_cache = _BinaryCache()
 @dataclasses.dataclass
 class _BinaryDeSerializeConfig(Generic[T]):
     name: str
-    cls: type[T] | tuple[type, ...]
+    cls: type[T]
     serialize: Callable[[T], bytes]
     deserialize: Callable[[bytes], T]
 
@@ -75,9 +75,15 @@ def _serialize_numpy(v: np.ndarray | np.number) -> bytes:
         return b.getvalue()
 
 
-def _deserialize_numpy(v: bytes) -> np.ndarray | np.number:
+def _deserialize_numpy(v: bytes) -> np.ndarray:
     with io.BytesIO(v) as b:
         return np.load(b, allow_pickle=False)
+
+
+def _deserialize_numpy_number(v: bytes) -> np.number:
+    # numpy.load, used in _deserialize_numpy, deserializes numpy.number into a 0d numpy.ndarray
+    a = _deserialize_numpy(v)
+    return a.dtype.type(a)
 
 
 def _serialize_pil_image(v: PIL.Image.Image) -> bytes:
@@ -154,9 +160,15 @@ class _BinaryDeSerializer:
 binary_de_serializer = _BinaryDeSerializer(
     _BinaryDeSerializeConfig(
         name="numpy",
-        cls=(np.ndarray, np.number),
+        cls=np.ndarray,
         serialize=_serialize_numpy,
         deserialize=_deserialize_numpy,
+    ),
+    _BinaryDeSerializeConfig(
+        name="numpy_number",
+        cls=np.number,
+        serialize=_serialize_numpy,
+        deserialize=_deserialize_numpy_number,
     ),
     _BinaryDeSerializeConfig(
         name="pil_image",
