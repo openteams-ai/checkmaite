@@ -10,8 +10,8 @@ dependencies:
 # JATIC tools
 - dataeval=0.75.0                       # pinned for demo
 - maite=0.7.3                           # pinned for demo
-- nrtk=0.15.1                           # pinned for demo
-- pybsm=0.8.0                           # pinned for demo, optional dep for nrtk, required here
+- nrtk=0.22.0                           # pinned for demo
+- pybsm=0.10.2                           # pinned for demo, optional dep for nrtk, required here
 - xaitk-jatic=0.5.1                     # pinned for demo
 - xaitk-saliency=0.12.0                 # arbitrary pin, optional dep for nrtk, required here
 
@@ -39,6 +39,7 @@ dependencies:
 - torchvision>=0.17.0                   # necessary pin, pkg needed to run tests using example MAITE-wrapped objects.
 - transformers>=4.42.3                  # arbitrary pin, required for nrtk panel app
 - zstandard>=0.23.0                     # arbitrary pin, required for zip compressed cache
+- lazy-loader>=0.4.0                    # arbitrary pin, required for lazy loading
 - pip
 - pip:
   # Required pip deps

@@ -44,6 +44,15 @@ class JATICDetectionAugmentation(Augmentation):
         self.augment = augment
         self.metadata = AugmentationMetadata(id=augmentation_id)
 
+    def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
+        """
+        Returned augmented images can be as NDArray or tuple of NDArray.
+        If tuple, the first element is the augmented image and the second is the dtype.
+        """
+        if isinstance(img, tuple):
+            return img[0]
+        return img
+
     def __call__(
         self,
         batch: OBJ_DETECTION_BATCH_T,
@@ -60,7 +69,8 @@ class JATICDetectionAugmentation(Augmentation):
             # Perform augmentation
             aug_img = np.array(img, copy=True).transpose((1, 2, 0))
             height, width = aug_img.shape[0:2]
-            aug_img = self.augment(aug_img, cast(dict[str, Any], md))
+            aug_img = self.augment(image=aug_img, additional_params=cast(dict[str, Any], md))
+            aug_img = self.__extract_aug_img(aug_img)
             aug_height, aug_width = aug_img.shape[0:2]
             if aug_img.ndim > 2:
                 aug_img = np.transpose(aug_img, (2, 0, 1))  # Need to transpose it back
