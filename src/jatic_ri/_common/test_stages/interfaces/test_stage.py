@@ -49,7 +49,7 @@ class OutputsBase(BaseModel):
         if isinstance(obj, (list, tuple)):
             return type(obj)([cls._traverse(i, fn) for i in obj])
         if isinstance(obj, dict):
-            return type(obj)({k: cls._traverse(v, fn) for k, v in obj.items()})
+            return type(obj)({cls._traverse(k, fn): cls._traverse(v, fn) for k, v in obj.items()})
         return fn(obj)
 
     @field_serializer("*")
