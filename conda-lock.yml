@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: f0276d9a733b4a33a99aa4ab54e29d57eb9d1ffcf543c533a3ab3dadd5e57fa3
+    linux-64: fab54e3ecbbe3e3312889fa3e5858d600e8674a463d9d21be34d859aa180dc52
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -34,6 +34,19 @@ package:
   hash:
     md5: ee5c2118262e30b972bc0b4db8ef0ba5
     sha256: cec7343e76c9da6a42c7e7cba53391daa6b46155054ef61a5ef522ea27c5a058
+  category: main
+  optional: false
+- name: _python_abi3_support
+  version: '1.0'
+  manager: conda
+  platform: linux-64
+  dependencies:
+    cpython: ''
+    python-gil: ''
+  url: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_2.conda
+  hash:
+    md5: aaa2a381ccc56eac91d63b6c1240312f
+    sha256: a3967b937b9abf0f2a99f3173fa4630293979bd1644709d89580e7c62a544661
   category: main
   optional: false
 - name: affine
@@ -1046,25 +1059,31 @@ package:
   category: main
   optional: false
 - name: dataeval
-  version: 0.75.0
+  version: 0.86.4
   manager: conda
   platform: linux-64
   dependencies:
-    numpy: '>1.24.3'
+    defusedxml: '>=0.7.1'
+    fast_hdbscan: 0.2.0.*
+    lightgbm: '>=4'
+    numba: '>=0.59.1'
+    numpy: '>=1.24.2'
+    pandas: '>=2.0'
     pillow: '>=10.3.0'
+    polars: '>=1.0'
     python: '>=3.9,<3.13'
     python-xxhash: '>=3.3'
     pytorch: '>=2.2.0'
-    requests: '*'
+    requests: ''
     scikit-learn: '>=1.5.0'
     scipy: '>=1.10'
     torchvision: '>=0.17.0'
-    tqdm: '*'
+    tqdm: ''
     typing_extensions: '>=4.12'
-  url: https://conda.anaconda.org/conda-forge/noarch/dataeval-0.75.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/dataeval-0.86.4-pyhd8ed1ab_0.conda
   hash:
-    md5: 951a70bbf37f2c9189a828de1308bf6a
-    sha256: 59b96ca256dec5fe27a2d7a43fa2a43492ba1e0c269f770109c0b66bfc0ae731
+    md5: 58c931f6061f5587a66745bd7d21ac59
+    sha256: f6cdc9bd9e1dfbbe85c117f919e76b9f73bc035656718b7a0a2ebbc0eb0ae112
   category: main
   optional: false
 - name: datasets
@@ -1329,6 +1348,21 @@ package:
   hash:
     md5: d6845ae4dea52a2f90178bf1829a21f8
     sha256: dd5530ddddca93b17318838b97a2c9d7694fa4d57fc676cf0d06da649085e57a
+  category: main
+  optional: false
+- name: fast_hdbscan
+  version: 0.2.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    numba: '>=0.56'
+    numpy: '>=1.21'
+    python: '>=3.9'
+    scikit-learn: '>=1.1'
+  url: https://conda.anaconda.org/conda-forge/noarch/fast_hdbscan-0.2.0-pyhd8ed1ab_0.conda
+  hash:
+    md5: 2871b621b18e4d1d427a47bcd7f61f72
+    sha256: 5900c3d1fc05de9751e167f6b5c5f689b0951bf52cd06319db09d35bfecb2a13
   category: main
   optional: false
 - name: fastapi
@@ -3401,6 +3435,26 @@ package:
     sha256: 510bfe8717ab6e7a19e2b0985c27629ddf89270dbd38def8c821f7f683a369a3
   category: main
   optional: false
+- name: liblightgbm
+  version: 4.6.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    __cuda: ''
+    __glibc: '>=2.17,<3.0.a0'
+    _openmp_mutex: '>=4.5'
+    cudatoolkit: '>=11.8.0,<12.0a0'
+    libgcc: ''
+    libgcc-ng: '>=12'
+    libstdcxx: ''
+    libstdcxx-ng: '>=12'
+    sysroot_linux-64: '>=2.17,<3.0a0'
+  url: https://conda.anaconda.org/conda-forge/linux-64/liblightgbm-4.6.0-cuda_h1f3617d_1.conda
+  hash:
+    md5: 9f26921cff2736c0ebc5e2c183ef67f7
+    sha256: 6ef92bd12a3535384c8c79aa38e29a2aa8a4d290d2706f4807d1016e3b0fff52
+  category: main
+  optional: false
 - name: libllvm18
   version: 18.1.8
   manager: conda
@@ -4251,6 +4305,21 @@ package:
   hash:
     md5: edb0dca6bc32e4f4789199455a1dbeb8
     sha256: d4bfe88d7cb447768e31650f06257995601f89076080e76df55e3112d4e47dc4
+  category: main
+  optional: false
+- name: lightgbm
+  version: 4.6.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    liblightgbm: '>=4.6.0,<4.6.1.0a0'
+    numpy: '>=1.17.0'
+    python: '>=3.9'
+    scipy: ''
+  url: https://conda.anaconda.org/conda-forge/noarch/lightgbm-4.6.0-cuda_py_1.conda
+  hash:
+    md5: e76fe8d084f981832f9220a057137994
+    sha256: 8997d735169710a67181eea9269840e7436da8d211c2e709ae0647b99531217d
   category: main
   optional: false
 - name: lightning-utilities
@@ -5491,6 +5560,36 @@ package:
     sha256: a8eb555eef5063bbb7ba06a379fa7ea714f57d9741fe0efdb9442dbbc2cccbcc
   category: main
   optional: false
+- name: polars
+  version: 1.30.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    polars-default: ==1.30.0
+  url: https://conda.anaconda.org/conda-forge/linux-64/polars-1.30.0-default_h1443d73_0.conda
+  hash:
+    md5: 19698b29e8544d2dd615699826037039
+    sha256: 3335b66b6a6ec2b6b4c509cc4c3351c520974675075bed1cdda4637269fcd90b
+  category: main
+  optional: false
+- name: polars-default
+  version: 1.30.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    __glibc: '>=2.17,<3.0.a0'
+    _python_abi3_support: 1.*
+    cpython: '>=3.9'
+    libgcc: '>=13'
+    libstdcxx: '>=13'
+    numpy: '>=1.16.0'
+    python: ''
+  url: https://conda.anaconda.org/conda-forge/linux-64/polars-default-1.30.0-py39hfac2b71_0.conda
+  hash:
+    md5: cd33cf1e631b4d766858c90e333b4832
+    sha256: d4ee794f1e5e70071eca3a1e87ba2890fbfbf5b8de42cc6237cc1d59ca8fac98
+  category: main
+  optional: false
 - name: pre-commit
   version: 4.2.0
   manager: conda
@@ -5989,6 +6088,19 @@ package:
   hash:
     md5: 38e34d2d1d9dca4fb2b9a0a04f604e2c
     sha256: 1b09a28093071c1874862422696429d0d35bd0b8420698003ac004746c5e82a2
+  category: main
+  optional: false
+- name: python-gil
+  version: 3.11.12
+  manager: conda
+  platform: linux-64
+  dependencies:
+    cpython: 3.11.12.*
+    python_abi: '*'
+  url: https://conda.anaconda.org/conda-forge/noarch/python-gil-3.11.12-hd8ed1ab_0.conda
+  hash:
+    md5: e070d88f4def6f8c44fc7d11593d65b5
+    sha256: 4e51fa5a746126ec8839eff78e205bdae2a550a6a0287e51cc613407ebc959cb
   category: main
   optional: false
 - name: python-json-logger
@@ -7057,7 +7169,7 @@ package:
   category: main
   optional: false
 - name: tornado
-  version: '6.5'
+  version: 6.5.1
   manager: conda
   platform: linux-64
   dependencies:
@@ -7065,10 +7177,10 @@ package:
     libgcc: '>=13'
     python: '>=3.11,<3.12.0a0'
     python_abi: 3.11.*
-  url: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5-py311h9ecbd09_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.1-py311h9ecbd09_0.conda
   hash:
-    md5: e6aa9d8ca506982ed2a059b3c6057fc3
-    sha256: d297d5c0cb91627b17d49b4c633d1bb923b8e76a8796edcc6176b0d4379508db
+    md5: 24e9f474abd101554b7a91313b9dfad6
+    sha256: 66cc98dbf7aafe11a4cb886a8278a559c1616c098ee9f36d41697eaeb0830a4d
   category: main
   optional: false
 - name: tqdm
@@ -8131,13 +8243,13 @@ package:
   category: main
   optional: false
 - name: funcparserlib
-  version: 2.0.0a0
+  version: 1.0.1
   manager: pip
   platform: linux-64
   dependencies: {}
-  url: https://files.pythonhosted.org/packages/5e/80/ce36814a950be99cc3ebad5cd8f954c2b331dc2363151c83565dfe641a91/funcparserlib-2.0.0a0-py3-none-any.whl
+  url: https://files.pythonhosted.org/packages/83/66/acd740d84f59c655935f586c113a863aa404dfe932052a68a1163d88ea63/funcparserlib-1.0.1-py2.py3-none-any.whl
   hash:
-    sha256: ee18d2528ae11ce6020362e34372bd7b7b1e68310dc3053f03d0374e32342313
+    sha256: 95da15d3f0d00b9b6f4bf04005c708af3faa115f7b45692ace064ebe758c68e8
   category: main
   optional: false
 - name: gradient
@@ -8193,13 +8305,13 @@ package:
   category: main
   optional: false
 - name: lxml
-  version: 5.3.2
+  version: 5.4.0
   manager: pip
   platform: linux-64
   dependencies: {}
-  url: https://files.pythonhosted.org/packages/57/eb/4fa626d0bac8b4f2aa1d0e6a86232db030fd0f462386daf339e4a0ee352b/lxml-5.3.2-cp311-cp311-manylinux_2_28_x86_64.whl
+  url: https://files.pythonhosted.org/packages/07/8c/61763abd242af84f355ca4ef1ee096d3c1b7514819564cce70fd18c22e9a/lxml-5.4.0-cp311-cp311-manylinux_2_28_x86_64.whl
   hash:
-    sha256: 77cbcab50cbe8c857c6ba5f37f9a3976499c60eada1bf6d38f88311373d7b4bc
+    sha256: d2ed1b3cb9ff1c10e6e8b00941bb2e5bb568b307bfc6b17dffbbe8be5eecba86
   category: main
   optional: false
 - name: mdutils

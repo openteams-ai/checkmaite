@@ -51,26 +51,26 @@ def run(dummy_dataset_od, fake_image):
                 ),
                 classwise=np.array([[0.99999822, 0.13363788, 0.0, 0.0], [0.99999822, 0.13363788, 0.0, 0.0]]),
                 factor_names=[],
-                class_list=[],
+                class_names=[],
                 image=fake_image,
             ),
             diversity=DataevalBiasDiversityOutputs(
                 diversity_index=np.array([0.18103448, 0.18103448, 0.88636364]),
                 classwise=np.array([[0.17241379, 0.39473684], [0.2, 0.2]]),
                 factor_names=[],
-                class_list=[],
+                class_names=[],
                 image=fake_image,
             ),
             parity=DataevalBiasParityOutputs(
                 score=np.array([7.35731943, 5.46711299, 0.51506212]),
                 p_value=np.array([0.28906231, 0.24263543, 0.77295762]),
-                metadata_names=["A", "B", "C"],
+                factor_names=["A", "B", "C"],
             ),
             coverage=DataevalBiasCoverageOutputs(
                 total=len(dummy_dataset_od),
-                indices=np.array([447, 412, 8, 32, 63]),
-                critical_value=0.8459038956941765,
-                radii=np.arange(10),
+                uncovered_indices=np.array([447, 412, 8, 32, 63]),
+                coverage_radius=0.8459038956941765,
+                critical_value_radii=np.arange(10),
                 image=fake_image,
             ),
         ),
@@ -80,6 +80,9 @@ def run(dummy_dataset_od, fake_image):
 class TestODDatasetBiasRun:
     """Test shared Bias TestStage _run functionality between balance, coverage, diversity, and parity"""
 
+    @pytest.mark.filterwarnings(
+        r"ignore:Factors \[.*\] did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
+    )
     @pytest.mark.parametrize("dataset_type", ["default", "with_target_metadata", "non_homogenous_size"])
     def test_run_and_report(self, dummy_dataset_od, dummy_dataset_od_with_target_metadata, dataset_type) -> None:
         if dataset_type == "default":
@@ -104,7 +107,7 @@ class TestODDatasetBiasRun:
         assert len(output) == 3
 
     @pytest.mark.filterwarnings(
-        r"ignore:The following factors did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
+        r"ignore:Factors \[.*\] did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
     )
     def test_coco(self):
         from os import path
@@ -176,7 +179,7 @@ class TestODBiasCollectReportConsumables:
         assert tuple(cov_df.columns) == ("Poor Coverage", "Threshold")
         assert cov_df.shape == (1, 2)  # One row, 2 columns
         assert cov_df["Poor Coverage"][0] == "5 of 10 (50.0%)"
-        assert cov_df["Threshold"][0] == round(run.outputs.coverage.critical_value, 2)
+        assert cov_df["Threshold"][0] == round(run.outputs.coverage.coverage_radius, 2)
 
         # Check if image was saved
         img_path = layout_args["item_section_bottom"]

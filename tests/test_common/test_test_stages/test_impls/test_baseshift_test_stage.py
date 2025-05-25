@@ -1,5 +1,6 @@
 """Test drift methods in BaseShiftTestStage"""
 
+import copy
 import os
 from typing import Any
 from unittest.mock import MagicMock
@@ -123,7 +124,7 @@ class TestDatasetShift:
     def test_task_cache_id(self) -> None:
         test_stage = DatasetShiftTestStageBase()
         test_stage._task = "dummy_task"
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         assert test_stage.cache_id == "shift_dummy_task_DummyDataset1_DummyDataset2.json"
 
@@ -131,7 +132,7 @@ class TestDatasetShift:
         """Tests the unique cache id fails if task is not set"""
 
         test_stage = DatasetShiftTestStageBase()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         with pytest.raises(AttributeError):
             test_stage.cache_id  # noqa: B018
@@ -166,13 +167,10 @@ class TestDrift:
 
     def test_run_drift(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
         """Tests that the `_run_drift` function produces necessary results for all 3 methods"""
-        zeros = torch.zeros_like(dummy_dataset_od.images)
-        ones = torch.ones_like(dummy_dataset_od.images)
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        results = test_stage._run_drift(
-            images_1=zeros,
-            images_2=ones,
-        )
+        test_stage.load_datasets(dummy_dataset_od, "Dataset1", dummy_dataset_od, "Dataset2")
+        test_stage._dim = 32
+        results = test_stage._run_drift()
 
         assert "drift" in results
         assert "ood" not in results
@@ -183,7 +181,7 @@ class TestDrift:
         # Check run drift generates necessary keys for consumable
         for v in results.values():
             assert isinstance(v, dict)  # Converted from DriftOutput
-            for output_key in ["is_drift", "p_val", "distance"]:
+            for output_key in ["drifted", "p_val", "distance"]:
                 assert output_key in v
 
     def test_collect_drift(self, dummy_shift_test_stage) -> None:
@@ -193,22 +191,22 @@ class TestDrift:
         """
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         # One test set to drifted regardless of values
         dummy_outputs = {
             "Maximum Mean Discrepency": {
-                "is_drift": False,
+                "drifted": False,
                 "distance": -1,
                 "p_val": -1.0,
             },
             "Cramér-von Mises": {
-                "is_drift": True,
+                "drifted": True,
                 "distance": 0,
                 "p_val": 0.0,
             },
             "Kolmogorov-Smirnov": {
-                "is_drift": False,
+                "drifted": False,
                 "distance": 1,
                 "p_val": 1.0,
             },
@@ -251,14 +249,13 @@ class TestOOD:
     def test_run_ood(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
         """Tests that the `_run_ood` function produces necessary results for both methods"""
 
-        zeros = np.array(torch.zeros_like(dummy_dataset_od.images))
-        ones = np.array(torch.ones_like(dummy_dataset_od.images))
+        dataset_2 = copy.deepcopy(dummy_dataset_od)
+        dataset_2.images = torch.zeros_like(dummy_dataset_od.images)
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        results = test_stage._run_ood(
-            images_1=zeros,
-            images_2=ones,
-        )
+        test_stage.load_datasets(dummy_dataset_od, "Dataset1", dataset_2, "Dataset2")
+        test_stage._dim = 32
+        results = test_stage._run_ood()
 
         assert "ood" in results
         assert "drift" not in results
@@ -279,7 +276,7 @@ class TestOOD:
         """
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")  # type: ignore
+        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         # One test with outliers, one without; regardless of values
         dummy_outputs = {
@@ -325,7 +322,7 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
 
     dummy_drift: dict[str, dict[str, Any]] = {
         k: {
-            "is_drift": False,
+            "drifted": False,
             "threshold": 0.05,
             "p_val": 1.0,
             "distance": 0.0,

@@ -5,8 +5,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import torch
 
 # _run imports
+from dataeval.data import Embeddings
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_AE
 from dataeval.utils.torch.models import AE
@@ -15,13 +17,11 @@ from dataeval.utils.torch.models import AE
 from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
-from numpy.typing import NDArray
 
+from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
 from jatic_ri._common.test_stages.interfaces.plugins import TDataset, TwoDatasetPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
-
-from ._dataeval_utils import EmbeddingNet, extract_embeddings
 
 
 class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDataset]):
@@ -49,9 +49,11 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     _deck: str
     _task: str
 
+    # TODO: move to config
+    _dim: int = 128
+
     def __init__(self) -> None:
         super().__init__()
-        self._embedding_net = EmbeddingNet().to(self.device)
 
     @property
     def cache_id(self) -> str:
@@ -61,12 +63,9 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
     def _run(self) -> dict[str, Any]:
         """Run methods for drift and ood detectors"""
 
-        images_1 = [image for image, *_ in self.dataset_1]
-        images_2 = [image for image, *_ in self.dataset_2]
-
         return {
-            **self._run_drift(images_1=images_1, images_2=images_2),
-            **self._run_ood(images_1=np.array(images_1), images_2=np.array(images_2)),
+            **self._run_drift(),
+            **self._run_ood(),
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
@@ -84,26 +83,25 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
 
         return report_consumables
 
-    def _run_drift(self, images_1: list[NDArray], images_2: list[NDArray]) -> dict[str, Any]:
+    def _run_drift(self) -> dict[str, Any]:
         """Runs MMD, CVM, and KS methods against images"""
 
-        embeddings_1 = extract_embeddings(images_1, embedding_net=self._embedding_net, device=self.device).cpu()
-        embeddings_2 = extract_embeddings(images_2, embedding_net=self._embedding_net, device=self.device).cpu()
+        model, transform = get_resnet18(self._dim)
+        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, self.device)
+        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, self.device)
 
-        kwargs = {"x_ref": embeddings_1}
+        kwargs = {"data": emb_1}
         detectors = {
             "Maximum Mean Discrepency": partial(DriftMMD, device=self.device),
             "Cramér-von Mises": DriftCVM,
             "Kolmogorov-Smirnov": DriftKS,
         }
 
-        outputs = {name: detector(**kwargs).predict(embeddings_2).dict() for name, detector in detectors.items()}
+        outputs = {name: detector(**kwargs).predict(emb_2).data() for name, detector in detectors.items()}
         return {"drift": outputs}
 
-    def _run_ood(self, images_1: NDArray[Any], images_2: NDArray[Any]) -> dict[str, Any]:
+    def _run_ood(self) -> dict[str, Any]:
         """Runs AE and VAEGMM ood methods against images"""
-
-        input_shape = images_1[0].shape
 
         ood_kwargs = {
             "threshold_perc": 99,
@@ -111,13 +109,17 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
             "verbose": False,
         }
 
+        _, transform = get_resnet18(self._dim)
+        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
+        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
+
         # Additional detectors may be added in the future
-        detectors = {"OOD_AE": OOD_AE(AE(input_shape))}
+        detectors = {"OOD_AE": OOD_AE(AE(emb_1[0].shape))}
 
         for detector in detectors.values():
-            detector.fit(images_1, **ood_kwargs)
+            detector.fit(emb_1, **ood_kwargs)
 
-        outputs = {name: detector.predict(images_2).dict() for name, detector in detectors.items()}
+        outputs = {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
         return {"ood": outputs}
 
     def _collect_drift(self, outputs: dict[str, Any]) -> dict[str, Any]:
@@ -133,12 +135,12 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         dict
             Single `SectionByItem` slide containing drift text and corresponding dataframe
         """
-        any_drift = any(d["is_drift"] for d in outputs.values())
+        any_drift = any(d["drifted"] for d in outputs.values())
 
         drift_df = pd.DataFrame(
             {
                 "Method": list(outputs),
-                "Has drifted?": ["Yes" if d["is_drift"] else "No" for d in outputs.values()],
+                "Has drifted?": ["Yes" if d["drifted"] else "No" for d in outputs.values()],
                 "Test statistic": [d["distance"] for d in outputs.values()],
                 "P-value": [d["p_val"] for d in outputs.values()],
             },

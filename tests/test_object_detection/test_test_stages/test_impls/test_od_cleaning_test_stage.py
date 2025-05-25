@@ -34,6 +34,24 @@ def test_od_cleaning(dummy_cleaning_dataset_od) -> None:
 
 
 @ignore_degenerate_data_warnings
+def test_od_cleaning_with_images(dummy_cleaning_dataset_od) -> None:
+    """Test Cleaning implementation with optional images"""
+
+    test = DatasetCleaningTestStage()
+    test.load_dataset(dataset=dummy_cleaning_dataset_od(), dataset_id="dummy_cleaning")
+    test.run(use_stage_cache=False)
+    output = test.collect_report_consumables()
+    out_report = test._generate_image_outliers_report(True)
+    tar_report = test._generate_target_outliers_report(True)
+
+    assert out_report
+    assert tar_report
+
+    assert output
+    assert len(output) == 14
+
+
+@ignore_degenerate_data_warnings
 def test_od_cleaning_with_cached_values(dummy_cleaning_dataset_od) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()
@@ -67,7 +85,10 @@ def test_od_cleaning_create_deck(offset_box, dummy_cleaning_dataset_od, artifact
 
 
 @pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
-@pytest.mark.filterwarnings(r"ignore:Bounding box .*? is out of bounds:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:Bounding box .*? is invalid:UserWarning")
+@pytest.mark.filterwarnings(r"ignore:All-NaN slice encountered:RuntimeWarning")
+@pytest.mark.filterwarnings(r"ignore:Mean of empty slice:RuntimeWarning")
+@pytest.mark.filterwarnings(r"ignore:Degrees of freedom <= 0 for slice:RuntimeWarning")
 @ignore_degenerate_data_warnings
 def test_coco():
     from os import path
