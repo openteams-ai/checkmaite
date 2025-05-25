@@ -22,6 +22,23 @@ def test_ic_cleaning(dummy_dataset_ic) -> None:
     assert len(output) == 7
 
 
+def test_ic_cleaning_with_images(dummy_dataset_ic) -> None:
+    """Test Cleaning implementation with optional images"""
+
+    test = DatasetCleaningTestStage()
+    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
+    test.run(use_stage_cache=False)
+    output = test.collect_report_consumables()
+    dup_report = test._generate_duplicates_report(True)
+    out_report = test._generate_image_outliers_report(True)
+
+    assert dup_report
+    assert out_report
+
+    assert output
+    assert len(output) == 7
+
+
 def test_ic_cleaning_with_cached_values(dummy_dataset_ic, tmp_cache_path) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()

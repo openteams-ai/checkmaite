@@ -12,12 +12,13 @@ from typing import Any
 import maite.protocols.image_classification as ic
 import numpy as np
 import pandas as pd
+from dataeval.data import Embeddings, Metadata
 from dataeval.metrics.estimators import BEROutput, ber
-from dataeval.utils.dataset import read_dataset
 from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
+from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, ThresholdPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
 from jatic_ri.util.cache import JSONCache, NumpyEncoder
@@ -31,6 +32,9 @@ class DatasetFeasibilityTestStage(
     cache: Cache[dict[str, dict[str, float]]] | None = JSONCache(encoder=NumpyEncoder)
     _precision = 3
 
+    # TODO: move to config
+    _device = "cpu"
+
     @property
     def cache_id(self) -> str:
         """Unique path identifier for feasibility tasks"""
@@ -39,10 +43,12 @@ class DatasetFeasibilityTestStage(
     def _run(self) -> dict[str, dict[str, float]]:
         """Calculate the Bayes Error Rate from the images and labels"""
 
-        images, targets, _ = read_dataset(self.dataset)  # type: ignore
+        model, transform = get_resnet18()
+        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self._device)
+        metadata = Metadata(self.dataset)
 
-        b: BEROutput = ber(images, targets)
-        return {"feasibility": b.dict()}
+        b: BEROutput = ber(embeddings.to_numpy(), metadata.class_labels)
+        return {"feasibility": b.data()}
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Create Gradient deck kwargs for Image Classification Feasibility"""

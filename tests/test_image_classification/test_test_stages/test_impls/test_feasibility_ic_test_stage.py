@@ -1,8 +1,7 @@
 """Test Image Classification DataEval Feasibility Test Stage"""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import numpy as np
 import pandas as pd
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
@@ -31,22 +30,16 @@ class TestFeasibilityTestStage:
 
         assert test_stage.cache_id == "feasibility_Dataset_0.5.json"
 
-    @patch("jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage.read_dataset")
-    def test_run(self, mock_read_dataset: MagicMock):
-        """Tests run against known outputs"""
+    def test_run(self, dummy_dataset_ic):
+        """Tests run against dummy dataset"""
 
         test_stage = DatasetFeasibilityTestStage()
-        test_stage.load_dataset(None, "ICDataset")  # type: ignore
-
-        mock_read_dataset.return_value = (
-            np.ones((10, 1, 16, 16)),
-            np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]),
-            [],  # Unused by test stage
-        )
+        test_stage.load_dataset(dummy_dataset_ic, "ICDataset")
 
         results = test_stage._run()
 
-        assert results == {"feasibility": {"ber": 0.5, "ber_lower": 0.5}}
+        assert "feasibility" in results
+        assert list(results["feasibility"]) == ["ber", "ber_lower"]
 
     def test_collect_report_consumable(self, ber_outputs, tmp_path):
         """"""

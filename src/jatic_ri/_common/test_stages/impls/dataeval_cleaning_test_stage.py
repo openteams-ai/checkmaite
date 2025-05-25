@@ -2,17 +2,17 @@
 
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 import pandas as pd
 from dataeval.detectors.linters import Duplicates, Outliers
-from dataeval.interop import as_numpy
 from dataeval.metrics.stats import (
-    DatasetStatsOutput,
     DimensionStatsOutput,
     HashStatsOutput,
+    ImageStatsOutput,
     LabelStatsOutput,
+    PixelStatsOutput,
     VisualStatsOutput,
 )
 from gradient import SubText
@@ -49,10 +49,24 @@ RATIO_LIST = [
     "width",
     "height",
     "size",
-    "left",
-    "top",
+    "offset_x",
+    "offset_y",
     "aspect_ratio",
 ]
+
+
+def _remove_pixelstats(stats: ImageStatsOutput) -> dict[str, NDArray[Any]]:
+    """Removes pixelstats from stats"""
+    pixelstats = set(PixelStatsOutput.__annotations__)
+    return {k: v for k, v in stats.data().items() if k not in pixelstats}
+
+
+class DatasetStats(NamedTuple):
+    hashstats: HashStatsOutput
+    labelstats: LabelStatsOutput
+    imagestats: ImageStatsOutput
+    boxstats: ImageStatsOutput | None
+    ratiostats: DimensionStatsOutput | None
 
 
 class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugin[TDataset]):
@@ -76,11 +90,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         return cache_path() / f"cleaning_{self._task}_{self.dataset_id}"
 
     @abstractmethod
-    def _run_stats(
-        self,
-    ) -> tuple[
-        HashStatsOutput, DatasetStatsOutput, LabelStatsOutput, DatasetStatsOutput | None, DimensionStatsOutput | None
-    ]:
+    def _run_stats(self) -> DatasetStats:
         """Run stats for specific dataset type"""
 
     @abstractmethod
@@ -89,30 +99,26 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
     def _run(self) -> dict[str, Any]:
         """Run cleaning"""
-        hashes, imgstats, labelstats, boxstats, ratiostats = self._run_stats()
+        hashes, labelstats, imgstats, boxstats, ratiostats = self._run_stats()
         dupes = Duplicates().from_stats(hashes)
         img_outlier_result = self._basic_outliers(imgstats)
 
         if boxstats is not None and ratiostats is not None:
             box_outlier_result = self._box_outliers(boxstats, ratiostats)
             return {
-                "duplicates": dupes.dict(),
+                "duplicates": dupes.data(),
                 "imgoutliers": img_outlier_result,
                 "targetoutliers": box_outlier_result,
-                "imgstats": {
-                    k: v for o in [imgstats.dimensionstats, imgstats.visualstats] for k, v in o.dict().items()
-                },
-                "boxstats": {
-                    k: v for o in [boxstats.dimensionstats, boxstats.visualstats] for k, v in o.dict().items()
-                },
-                "ratiostats": ratiostats.dict(),
-                "labelstats": self._adjust_labelstats_keys(labelstats.dict()),
+                "imgstats": _remove_pixelstats(imgstats),
+                "boxstats": _remove_pixelstats(boxstats),
+                "ratiostats": ratiostats.data(),
+                "labelstats": self._adjust_labelstats_keys(labelstats.data()),
             }
         return {
-            "duplicates": dupes.dict(),
+            "duplicates": dupes.data(),
             "imgoutliers": img_outlier_result,
-            "imgstats": {k: v for o in [imgstats.dimensionstats, imgstats.visualstats] for k, v in o.dict().items()},
-            "labelstats": labelstats.dict(),
+            "imgstats": _remove_pixelstats(imgstats),
+            "labelstats": labelstats.data(),
         }
 
     def _adjust_labelstats_keys(self, label_dict: dict[str, Any]) -> dict[str, Any]:
@@ -143,7 +149,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
     def _outlier_at_1(
         self,
-        stats: DatasetStatsOutput | DimensionStatsOutput,
+        stats: ImageStatsOutput | DimensionStatsOutput,
         data: np.ndarray,
         category: str,
         ratio: bool = False,
@@ -151,7 +157,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         """Adjusts outlier threshold to be <= 1"""
         outlier_dict = {}
         mean = np.mean(data)
-        std = np.std(as_numpy(data).astype(float))
+        std = np.std(np.asarray(data).astype(float))
         cutoff = 3 * std + mean
 
         if cutoff > 1.0:
@@ -168,13 +174,13 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         return outlier_dict
 
-    def _basic_outliers(self, stats: DatasetStatsOutput) -> dict[int, dict[str, float]]:
+    def _basic_outliers(self, stats: ImageStatsOutput) -> dict[int, dict[str, float]]:
         """Calculates outliers for dimensionstats and visualstats metrics"""
         outlier_result = {}
-        bright = self._outlier_at_1(stats, stats.visualstats.brightness, "brightness")
+        bright = self._outlier_at_1(stats, stats.brightness, "brightness")
         if bright:
             outlier_result.update(bright)
-        dark = self._outlier_at_1(stats, stats.visualstats.darkness, "darkness")
+        dark = self._outlier_at_1(stats, stats.darkness, "darkness")
         if dark:
             outlier_result = self._dictionary_update(outlier_result, dark)
         baseoutliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats)
@@ -193,14 +199,14 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         return self._dictionary_update(outlier_result, outliers_dict)
 
     def _box_outliers(
-        self, boxstats: DatasetStatsOutput, ratiostats: DimensionStatsOutput
+        self, boxstats: ImageStatsOutput, ratiostats: DimensionStatsOutput
     ) -> dict[int, dict[str, float]]:
         """Adjusts the outlier threshold for boxratiostats metrics"""
         box_result = self._basic_outliers(boxstats)
-        left = self._outlier_at_1(ratiostats, ratiostats.left, "left", True)
+        left = self._outlier_at_1(ratiostats, ratiostats.offset_x, "offset_x", True)
         if left:
             box_result = self._dictionary_update(box_result, left)
-        top = self._outlier_at_1(ratiostats, ratiostats.top, "top", True)
+        top = self._outlier_at_1(ratiostats, ratiostats.offset_y, "offset_y", True)
         if top:
             box_result = self._dictionary_update(box_result, top)
         width = self._outlier_at_1(ratiostats, ratiostats.width, "width", True)
@@ -229,7 +235,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         hist_list = []
         for metric, data in stat.items():
             if metric in DIMENSION_LIST or metric in VISUAL_LIST:
-                data = as_numpy(data).astype(float)
+                data = np.asarray(data).astype(float)
                 unique_size = len(np.unique(data))
                 mean = np.mean(data)
                 std = np.std(data)
@@ -269,7 +275,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         """Collates the information for plotting the histograms for the boxratiostats metrics"""
         for metric, data in stat.items():
             if metric in RATIO_LIST:
-                data = as_numpy(data).astype(float)
+                data = np.asarray(data).astype(float)
                 unique_size = len(np.unique(data))
                 mean = np.mean(data)
                 std = np.std(data)
@@ -326,14 +332,8 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                     else idx
                     for idx in labelstat["label_counts_per_class"]
                 ],
-                "Total Count": [
-                    self._get_key_from_dict(labelstat["label_counts_per_class"], idx)
-                    for idx in labelstat["label_counts_per_class"]
-                ],
-                "Image Count": [
-                    self._get_key_from_dict(labelstat["image_counts_per_label"], idx)
-                    for idx in labelstat["label_counts_per_class"]
-                ],
+                "Total Count": list(labelstat["label_counts_per_class"].values()),
+                "Image Count": list(labelstat["image_counts_per_class"].values()),
             }
         )
 
@@ -363,9 +363,9 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             title = "Zero Pixel Images"
         elif metric == "missing":
             title = "Missing Pixels"
-        elif metric == "top":
+        elif metric == "offset_y":
             title = "Target Location:Image Height"
-        elif metric == "left":
+        elif metric == "offset_x":
             title = "Target Location:Image Width"
         elif metric == "distance":
             title = "Target Center Distance From Image Center"
@@ -473,7 +473,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                 title = f"{group_title}\nimg:{img_num}"
             ax.axis("off")
             ax.set_title(title)
-            ax.imshow(np.moveaxis(as_numpy(image), 0, -1))
+            ax.imshow(np.moveaxis(np.asarray(image), 0, -1))
             if box is not None:
                 rect = patches.Rectangle(
                     (box[0], box[1]),
@@ -529,7 +529,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                     title = f"img:{img_num}"
                 ax.axis("off")
                 ax.set_title(title)
-                ax.imshow(np.moveaxis(as_numpy(image), 0, -1))
+                ax.imshow(np.moveaxis(np.asarray(image), 0, -1))
                 if box is not None:
                     rect = patches.Rectangle(
                         (box[0], box[1]),
@@ -564,7 +564,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                     ax.clear()
                     ax.axis("off")
                     ax.set_title(title)
-                    ax.imshow(np.moveaxis(as_numpy(image), 0, -1))
+                    ax.imshow(np.moveaxis(np.asarray(image), 0, -1))
                     if box is not None:
                         rect = patches.Rectangle(
                             (box[0], box[1]),
@@ -677,7 +677,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
                             ax.clear()
                             ax.axis("off")
                             ax.set_title(title)
-                            ax.imshow(np.moveaxis(as_numpy(image), 0, -1))
+                            ax.imshow(np.moveaxis(np.asarray(image), 0, -1))
                         fig.tight_layout(pad=0.3)
                         fig.savefig(str(filepath))
                         grid_item_row.append(filepath)
@@ -996,7 +996,7 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             s
             for output_type in (DimensionStatsOutput, VisualStatsOutput)
             for s in output_type.__annotations__
-            if s not in ["left", "top", "depth", "center", "distance", "percentiles"]
+            if s not in ["offset_x", "offset_y", "depth", "center", "distance", "percentiles"]
         ]
         for i, issue in outliers.items():
             img_num, _, _ = source_index[int(i)]
@@ -1009,10 +1009,10 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
             sanity_check[metric] = issues.get(metric, [])
         if box_stats:
             sanity_check["no_boxes"] = [
-                (int(val), None, None) for val in np.nonzero(as_numpy(box_stats["box_count"]) == 0)[0].tolist()
+                (int(val), None, None) for val in np.nonzero(np.asarray(box_stats["object_count"]) == 0)[0].tolist()
             ]
         total_sanity = sum(len(sanity_check[metric]) for metric in sanity_check)
-        total_imgs = len(img_stats["box_count"])
+        total_imgs = len(img_stats["object_count"])
         total_out = len(outliers)
 
         if with_images:
@@ -1104,9 +1104,9 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
 
         category_means: dict[str, float] = {}
         for k in all_categories:
-            category_means[k] = float(np.mean(as_numpy(img_stats[k]).astype(float)))
+            category_means[k] = float(np.mean(np.asarray(img_stats[k]).astype(float)))
 
-        category_chunks = self._split_data_into_chunks(all_categories, 4)
+        category_chunks = self._split_data_into_chunks(all_categories, 5)
         for idx, chunk in enumerate(category_chunks):
             df_data = self._create_category_dataframe_data(chunk, all_categories, total_imgs)
             outliers_df = pd.DataFrame(df_data)
@@ -1365,9 +1365,9 @@ class DatasetCleaningTestStageBase(TestStage[dict[str, Any]], SingleDatasetPlugi
         category_means: dict[str, float] = {}
         for k in all_categories:
             category_means[k] = (
-                float(np.mean(as_numpy(ratio_stats[k[6:]]).astype(float)))
+                float(np.mean(np.asarray(ratio_stats[k[6:]]).astype(float)))
                 if k.startswith("ratio_")
-                else float(np.mean(as_numpy(box_stats[k]).astype(float)))
+                else float(np.mean(np.asarray(box_stats[k]).astype(float)))
             )
 
         category_chunks = self._split_data_into_chunks(all_categories, 5)

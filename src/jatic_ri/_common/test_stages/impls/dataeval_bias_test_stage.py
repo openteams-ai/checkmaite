@@ -1,19 +1,18 @@
 """DataEval Bias Common Test Stage"""
 
-from abc import abstractmethod
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import pydantic
 import torch
+from dataeval.data import Embeddings, Images, Metadata
 from dataeval.metrics.bias import balance, coverage, diversity, parity
-from dataeval.utils.metadata import Metadata
 from gradient import SubText
-from numpy.typing import NDArray
 from pydantic import Field
 
 from jatic_ri._common.models import set_device
+from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
@@ -24,8 +23,6 @@ from jatic_ri._common.test_stages.interfaces.test_stage import (
 from jatic_ri.util._types import Device, Image
 from jatic_ri.util.slide_deck import create_section_by_item_slide, create_section_by_stacked_items_slide
 from jatic_ri.util.utils import temp_image_file
-
-from ._dataeval_utils import EmbeddingNet, extract_embeddings
 
 
 class DataevalBiasConfig(ConfigBase):
@@ -39,7 +36,7 @@ class DataevalBiasBalanceOutputs(OutputsBase):
     factors: np.ndarray
     classwise: np.ndarray
     factor_names: list[str]
-    class_list: list[int]
+    class_names: list[str]
     image: Image
 
 
@@ -47,21 +44,21 @@ class DataevalBiasDiversityOutputs(OutputsBase):
     diversity_index: np.ndarray
     classwise: np.ndarray
     factor_names: list[str]
-    class_list: list[int]
+    class_names: list[str]
     image: Image
 
 
 class DataevalBiasParityOutputs(OutputsBase):
     score: np.ndarray
     p_value: np.ndarray
-    metadata_names: list[str]
+    factor_names: list[str]
 
 
 class DataevalBiasCoverageOutputs(OutputsBase):
     total: int
-    indices: np.ndarray
-    radii: np.ndarray
-    critical_value: float
+    uncovered_indices: np.ndarray
+    critical_value_radii: np.ndarray
+    coverage_radius: float
     image: Image | None = None
 
 
@@ -89,39 +86,38 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
     """
 
     _RUN_TYPE = DataevalBiasRun
+    _metadata_to_exclude: list[str] = []
 
     device: str | torch.device = set_device(None)
 
     def __init__(self) -> None:
         super().__init__()
-        self._embedding_net = EmbeddingNet()
 
     def _create_config(self) -> ConfigBase:
         return DataevalBiasConfig(device=self.device)  # type: ignore[reportArgumentType]
 
-    @abstractmethod
-    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
-        """Aggregate dataset into images, labels and metadata_factors"""
-
     def _run(self) -> DataevalBiasOutputs:
         """Run bias analysis using coverage and parity"""
 
-        images, labels, metadata = self._get_images_labels_factors()
-        embeddings = extract_embeddings(images, embedding_net=self._embedding_net, device=self.device).cpu().numpy()
+        model, transform = get_resnet18()
+        images = Images(self.dataset)
+        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device).to_numpy()
+        embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
+        metadata = Metadata(self.dataset, exclude=self._metadata_to_exclude)
 
         bal_out = balance(metadata)
-        bal_dict = bal_out.dict()
+        bal_dict = bal_out.data()
         bal_dict["image"] = bal_out.plot()
 
         div_out = diversity(metadata)
-        div_dict = div_out.dict()
+        div_dict = div_out.data()
         div_dict["image"] = div_out.plot()
 
         par_out = parity(metadata)
-        par_dict = par_out.dict()
+        par_dict = par_out.data()
 
-        cov_out = coverage(embeddings, k=min(max(3, int(np.sqrt(len(images)))), 20))
-        cov_dict = cov_out.dict()
+        cov_out = coverage(embeddings, num_observations=min(max(3, int(np.sqrt(len(images)))), 20))
+        cov_dict = cov_out.data()
         cov_dict["total"] = len(self.dataset)
 
         if len({image.shape for image in images}) == 1:
@@ -151,7 +147,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         heading = "Metric: Coverage"
 
         # Calculate results from coverage outputs
-        uncovered_count = len(coverage.indices)
+        uncovered_count = len(coverage.uncovered_indices)
         uncovered_percent = round(uncovered_count / coverage.total, 1)
 
         action_str = (
@@ -175,7 +171,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         cov_df = pd.DataFrame(
             {
                 "Poor Coverage": [f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"],
-                "Threshold": [round(coverage.critical_value, 2)],
+                "Threshold": [round(coverage.coverage_radius, 2)],
             },
         )
 
@@ -257,7 +253,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
 
         metadata_parity_table = pd.DataFrame(
             {
-                "Metadata Factor": outputs.metadata_names,
+                "Metadata Factor": outputs.factor_names,
                 "Chi-Square": np.round(outputs.score, 2),
                 "P-value": metadata_pvalues,
             },

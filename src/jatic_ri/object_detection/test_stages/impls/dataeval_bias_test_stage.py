@@ -1,11 +1,6 @@
 """DataEval Object Detection Bias Test Stage"""
 
-from typing import Any
-
 import maite.protocols.object_detection as od
-import numpy as np
-from dataeval.utils.metadata import Metadata, _flatten_dict, preprocess
-from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStageBase
 
@@ -25,28 +20,3 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset]):
     _task: str = "od"
     # Coco dataset loader includes these by default as metadata, excluded here as not useful to analysis
     _metadata_to_exclude: list[str] = ["id", "file_name"]
-
-    def _get_images_labels_factors(self) -> tuple[list[NDArray[Any]], NDArray[np.int_], Metadata]:
-        """Aggregate dataset into images, labels and metadata_factors"""
-
-        images: list[NDArray[Any]] = []
-        labels: list[int] = []
-        metadatas: list[dict[str, Any]] = []
-
-        for d in self.dataset:
-            images.append(np.asarray(d[0]))
-            np_labels = np.asarray(d[1].labels, dtype=np.int_)
-            labels.extend(np_labels.tolist())
-            # we need to flatten/homogenize the metadata into a format for bias functionality
-            # where dictionary has no nested dictionaries, and the value for each key is a list
-            # of length N, where N is the number of labels/targets
-            flattened, _ = _flatten_dict(d[2], sep="_", ignore_lists=False, fully_qualified=False)
-            # if the dataset does not have metadata in the proper form, then we need to expand
-            # the metadata dictionary to be of the afformentioned shape
-            if not all(isinstance(x, list) and len(x) for x in flattened.values()):
-                flattened = {k: [v] * len(np_labels) for k, v in flattened.items()}
-            metadatas.append(flattened)
-
-        metadata = preprocess(raw_metadata=metadatas, class_labels=labels, exclude=self._metadata_to_exclude)
-
-        return images, np.array(labels, dtype=np.int_), metadata
