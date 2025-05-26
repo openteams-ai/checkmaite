@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import maite.protocols.object_detection as od
 
@@ -16,11 +15,9 @@ import numpy as np
 from maite.protocols import DatasetMetadata
 from matplotlib.patches import Rectangle
 from PIL import Image
-from pydantic import GetCoreSchemaHandler, model_validator
-from pydantic_core import core_schema
+from pydantic import model_validator
 
 # SMQTK imports
-from smqtk_core.configuration import from_config_dict
 from torch import Tensor, as_tensor
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 
@@ -30,41 +27,8 @@ from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateO
 from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase
 from jatic_ri.object_detection.datasets import DetectionTarget
+from jatic_ri.util._types import DeSerializablePlugfigurable
 from jatic_ri.util.utils import save_figure_to_tempfile
-
-
-class _GenerateODBlackboxSaliencyAnnotation:
-    @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
-        def from_config(value: Mapping[str, Any]) -> GenerateObjectDetectorBlackboxSaliency:
-            return from_config_dict(dict(value), GenerateObjectDetectorBlackboxSaliency.get_impls())
-
-        def to_config(value: GenerateObjectDetectorBlackboxSaliency) -> dict[str, Any]:
-            return {
-                "type": (t := f"{type(value).__module__}.{type(value).__name__}"),
-                t: value.get_config(),
-            }
-
-        from_config_dict_schema = core_schema.chain_schema(
-            [
-                core_schema.dict_schema(
-                    keys_schema=core_schema.str_schema(),
-                    values_schema=core_schema.any_schema(),
-                ),
-                core_schema.no_info_plain_validator_function(from_config),
-            ]
-        )
-
-        return core_schema.json_or_python_schema(
-            json_schema=from_config_dict_schema,
-            python_schema=core_schema.union_schema(
-                [
-                    core_schema.is_instance_schema(GenerateObjectDetectorBlackboxSaliency),
-                    from_config_dict_schema,
-                ]
-            ),
-            serialization=core_schema.plain_serializer_function_ser_schema(to_config),
-        )
 
 
 class XAITKOutputDatumOD(OutputsBase):
@@ -97,7 +61,7 @@ class XAITKConfigOD(ConfigBase):
     """Config class for XAITKTestStage for OD"""
 
     name: str
-    saliency_generator: Annotated[GenerateObjectDetectorBlackboxSaliency, _GenerateODBlackboxSaliencyAnnotation]
+    saliency_generator: DeSerializablePlugfigurable[GenerateObjectDetectorBlackboxSaliency]
     img_batch_size: int
 
 

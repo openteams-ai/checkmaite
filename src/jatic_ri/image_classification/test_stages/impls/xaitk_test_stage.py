@@ -2,9 +2,8 @@
 
 # Python generic imports
 
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import maite.protocols.image_classification as ic
 
@@ -12,11 +11,8 @@ import maite.protocols.image_classification as ic
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import core_schema
 
 # SMQTK imports
-from smqtk_core.configuration import from_config_dict
 from torchvision.transforms.v2.functional import rgb_to_grayscale
 from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 
@@ -26,41 +22,8 @@ from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import Generate
 # Import TestStage
 from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase
+from jatic_ri.util._types import DeSerializablePlugfigurable
 from jatic_ri.util.utils import save_figure_to_tempfile
-
-
-class _GenerateICBlackboxSaliencyAnnotation:
-    @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
-        def from_config(value: Mapping[str, Any]) -> GenerateImageClassifierBlackboxSaliency:
-            return from_config_dict(dict(value), GenerateImageClassifierBlackboxSaliency.get_impls())
-
-        def to_config(value: GenerateImageClassifierBlackboxSaliency) -> dict[str, Any]:
-            return {
-                "type": (t := f"{type(value).__module__}.{type(value).__name__}"),
-                t: value.get_config(),
-            }
-
-        from_config_dict_schema = core_schema.chain_schema(
-            [
-                core_schema.dict_schema(
-                    keys_schema=core_schema.str_schema(),
-                    values_schema=core_schema.any_schema(),
-                ),
-                core_schema.no_info_plain_validator_function(from_config),
-            ]
-        )
-
-        return core_schema.json_or_python_schema(
-            json_schema=from_config_dict_schema,
-            python_schema=core_schema.union_schema(
-                [
-                    core_schema.is_instance_schema(GenerateImageClassifierBlackboxSaliency),
-                    from_config_dict_schema,
-                ]
-            ),
-            serialization=core_schema.plain_serializer_function_ser_schema(to_config),
-        )
 
 
 class XAITKOutputsIC(OutputsBase):
@@ -79,7 +42,7 @@ class XAITKConfigIC(ConfigBase):
     """Config class for XAITKTestStage"""
 
     name: str
-    saliency_generator: Annotated[GenerateImageClassifierBlackboxSaliency, _GenerateICBlackboxSaliencyAnnotation]
+    saliency_generator: DeSerializablePlugfigurable[GenerateImageClassifierBlackboxSaliency]
     img_batch_size: int
 
 
