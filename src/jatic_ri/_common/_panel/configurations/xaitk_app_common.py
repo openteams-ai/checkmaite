@@ -21,6 +21,7 @@ from PIL.Image import Image as PilImg
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
+plt.close("all")
 mpl.use("agg")
 
 IMAGE_DIR = PACKAGE_DIR / "_sample_imgs" / "XAITK"
