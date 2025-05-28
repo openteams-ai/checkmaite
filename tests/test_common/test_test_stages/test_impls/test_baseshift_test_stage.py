@@ -10,17 +10,20 @@ import pytest
 import torch
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import DatasetShiftTestStageBase
+from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import (
+    DataevalShiftDriftOutputs,
+    DataevalShiftOODAEOutput,
+    DataevalShiftOODOutputs,
+    DataevalShiftOutputs,
+    DataevalShiftUnivariateOutput,
+    DatasetShiftTestStageBase,
+    DriftMMDOutput,
+)
 
 
 @pytest.fixture(scope="module")
 def dummy_shift_test_stage():
     class DummyShiftTestStage(DatasetShiftTestStageBase):
-        @property
-        def cache_id(self) -> str:
-            """Unique identifier for cached results"""
-            return "dummy_cache_id.json"
-
         _deck: str = "dummy_deck"
 
     return DummyShiftTestStage
@@ -56,9 +59,6 @@ class TestDatasetShift:
         test_stage.run(use_stage_cache=False)
 
         assert test_stage.outputs is not None
-        assert len(test_stage.outputs.keys()) == 2
-        assert "drift" in test_stage.outputs
-        assert "ood" in test_stage.outputs
 
         report = test_stage.collect_report_consumables()
 
@@ -97,10 +97,38 @@ class TestDatasetShift:
 
         # # Modify running results for simpler value checking
         test_stage._run = MagicMock()
-        test_stage._run.return_value = {
-            "drift": "dummy_drift",
-            "ood": "dummy_ood",
-        }
+        test_stage._run.return_value = DataevalShiftOutputs(
+            drift=DataevalShiftDriftOutputs(
+                mmd=DriftMMDOutput(drifted=False, distance=0.0, p_val=0.0, threshold=0.0, distance_threshold=0.0),
+                cvm=DataevalShiftUnivariateOutput(
+                    drifted=False,
+                    distance=0.0,
+                    p_val=0.0,
+                    threshold=0.0,
+                    feature_drift=np.array([False]),
+                    feature_threshold=0.0,
+                    p_vals=np.array([0.0]),
+                    distances=np.array([0.0]),
+                ),
+                ks=DataevalShiftUnivariateOutput(
+                    drifted=False,
+                    distance=0.0,
+                    p_val=0.0,
+                    threshold=0.0,
+                    feature_drift=np.array([False]),
+                    feature_threshold=0.0,
+                    p_vals=np.array([0.0]),
+                    distances=np.array([0.0]),
+                ),
+            ),
+            ood=DataevalShiftOODOutputs(
+                ood_ae=DataevalShiftOODAEOutput(
+                    is_ood=np.array([False, False, False]),
+                    instance_score=np.array([0.0, 0.0, 0.0]),
+                    feature_score=np.array([0.0, 0.0, 0.0]),
+                ),
+            ),
+        )
 
         # Save run results into cache
         test_stage.run(use_stage_cache=True)
@@ -116,26 +144,10 @@ class TestDatasetShift:
         test_stage_cached.run()
         cached_outputs = test_stage_cached.outputs
 
-        # Confirm the original and loaded results are the same
-        assert base_outputs == cached_outputs
+        torch.testing.assert_close(base_outputs.model_dump(), cached_outputs.model_dump())
+
         # Confirm internal _run is skipped if cache is loaded correctly
         test_stage_cached._run.assert_not_called()
-
-    def test_task_cache_id(self) -> None:
-        test_stage = DatasetShiftTestStageBase()
-        test_stage._task = "dummy_task"
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
-
-        assert test_stage.cache_id == "shift_dummy_task_DummyDataset1_DummyDataset2.json"
-
-    def test_no_task_cache_id(self) -> None:
-        """Tests the unique cache id fails if task is not set"""
-
-        test_stage = DatasetShiftTestStageBase()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
-
-        with pytest.raises(AttributeError):
-            test_stage.cache_id  # noqa: B018
 
     def test_deck_name(self, dummy_shift_test_stage):
         """Tests that the _deck property of the BaseShiftTestStage is correctly overwritten"""
@@ -169,20 +181,29 @@ class TestDrift:
         """Tests that the `_run_drift` function produces necessary results for all 3 methods"""
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
         test_stage.load_datasets(dummy_dataset_od, "Dataset1", dummy_dataset_od, "Dataset2")
-        test_stage._dim = 32
+        test_stage.dim = 32
         results = test_stage._run_drift()
 
-        assert "drift" in results
-        assert "ood" not in results
-
-        results = results["drift"]
-        assert list(results) == ["Maximum Mean Discrepency", "Cramér-von Mises", "Kolmogorov-Smirnov"]
+        results = results.model_dump()
 
         # Check run drift generates necessary keys for consumable
-        for v in results.values():
-            assert isinstance(v, dict)  # Converted from DriftOutput
-            for output_key in ["drifted", "p_val", "distance"]:
-                assert output_key in v
+        for k, v in results.items():
+            assert isinstance(v, dict)
+            if k == "mmd":
+                for output_key in ["drifted", "threshold", "p_val", "distance", "distance_threshold"]:
+                    assert output_key in v
+            else:
+                for output_key in [
+                    "drifted",
+                    "threshold",
+                    "p_val",
+                    "distance",
+                    "feature_drift",
+                    "feature_threshold",
+                    "p_vals",
+                    "distances",
+                ]:
+                    assert output_key in v
 
     def test_collect_drift(self, dummy_shift_test_stage) -> None:
         """
@@ -193,27 +214,31 @@ class TestDrift:
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
         test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
-        # One test set to drifted regardless of values
-        dummy_outputs = {
-            "Maximum Mean Discrepency": {
-                "drifted": False,
-                "distance": -1,
-                "p_val": -1.0,
-            },
-            "Cramér-von Mises": {
-                "drifted": True,
-                "distance": 0,
-                "p_val": 0.0,
-            },
-            "Kolmogorov-Smirnov": {
-                "drifted": False,
-                "distance": 1,
-                "p_val": 1.0,
-            },
-        }
-
-        # Outer gradient kwargs checked by BaseShiftTestStage
-        results = test_stage._collect_drift(outputs=dummy_outputs)
+        results = test_stage._collect_drift(
+            drift_outputs=DataevalShiftDriftOutputs(
+                mmd=DriftMMDOutput(drifted=False, distance=-1, p_val=-1.0, threshold=0.0, distance_threshold=0.0),
+                cvm=DataevalShiftUnivariateOutput(
+                    drifted=True,
+                    distance=0,
+                    p_val=0.0,
+                    threshold=0.0,
+                    feature_drift=np.array([True]),
+                    feature_threshold=0.0,
+                    p_vals=np.array([0.0]),
+                    distances=np.array([0.0]),
+                ),
+                ks=DataevalShiftUnivariateOutput(
+                    drifted=False,
+                    distance=1,
+                    p_val=1.0,
+                    threshold=0.0,
+                    feature_drift=np.array([False]),
+                    feature_threshold=0.0,
+                    p_vals=np.array([1.0]),
+                    distances=np.array([1.0]),
+                ),
+            )
+        )
         results = results["layout_arguments"]
 
         assert "DummyDataset1" in results["title"]
@@ -254,19 +279,16 @@ class TestOOD:
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
         test_stage.load_datasets(dummy_dataset_od, "Dataset1", dataset_2, "Dataset2")
-        test_stage._dim = 32
+        test_stage.dim = 32
         results = test_stage._run_ood()
 
-        assert "ood" in results
-        assert "drift" not in results
-
-        results = results["ood"]
-        assert list(results) == ["OOD_AE"]
+        results = results.model_dump()
+        assert list(results) == ["ood_ae"]
 
         # Check run ood generates necessary keys for consumable
         for v in results.values():
             assert isinstance(v, dict)  # Converted from OODOutput
-            for output_key in ["is_ood", "instance_score"]:  # feature_score is unneeded
+            for output_key in ["is_ood", "instance_score", "feature_score"]:  # feature_score is unneeded
                 assert output_key in v
 
     def test_collect_ood(self, dummy_shift_test_stage) -> None:
@@ -278,23 +300,16 @@ class TestOOD:
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
         test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
-        # One test with outliers, one without; regardless of values
-        dummy_outputs = {
-            "OOD_AE": {
-                "is_ood": np.array([True, True, False]),
-                "instance_score": np.array([1.0, 0.75, 0.0]),
-                "feature_score": np.array(
-                    [
-                        [1.0, 1.0, 1.0],
-                        [1.0, 0.75, 1.0],
-                        [0.0, 0.0, 0.0],
-                    ],
-                ),
-            },
-        }
-
         # Outer gradient kwargs checked by BaseShiftTestStage
-        results = test_stage._collect_ood(outputs=dummy_outputs)  # > ignore private method access
+        results = test_stage._collect_ood(
+            ood_outputs=DataevalShiftOODOutputs(
+                ood_ae=DataevalShiftOODAEOutput(
+                    is_ood=np.array([True, True, False]),
+                    instance_score=np.array([1.0, 0.75, 0.0]),
+                    feature_score=np.array([[1.0, 1.0, 1.0], [1.0, 0.75, 1.0], [0.0, 0.0, 0.0]]),
+                )
+            )
+        )
         results = results["layout_arguments"]
 
         assert "DummyDataset1" in results["title"]
@@ -320,7 +335,7 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
     teststage: DatasetShiftTestStageBase = dummy_shift_test_stage()
     teststage.load_datasets(None, "VOC1", None, "VOC2")
 
-    dummy_drift: dict[str, dict[str, Any]] = {
+    dummy_drift = {
         k: {
             "drifted": False,
             "threshold": 0.05,
@@ -331,24 +346,32 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
             "p_vals": np.array([1.0]),
             "distances": np.array([0.0]),
         }
-        for k in ("Maximum Mean Discrepency", "Cramér-von Mises", "Kolmogorov-Smirnov")
+        for k in ("cvm", "ks")
+    }
+    dummy_drift["mmd"] = {
+        "drifted": True,
+        "threshold": 0.05,
+        "p_val": 1.0,
+        "distance": 0.0,
+        "distance_threshold": 0.05,
     }
 
-    dummy_ood: dict[str, dict[str, Any]] = {
-        k: {
+    dummy_ood = {
+        "ood_ae": {
             "is_ood": np.array([True, False, False]),
             "instance_score": np.array([0.0, 0.5, 1.0]),
             "feature_score": np.array([0.33, 0.67, 1.0]),
         }
-        for k in ("OOD_AE")
     }
 
-    dummy_output: dict[str, dict[str, dict[str, Any]]] = {
-        "drift": dummy_drift,
-        "ood": dummy_ood,
-    }
-
-    teststage.outputs = dummy_output
+    teststage.outputs = DataevalShiftOutputs(
+        drift=DataevalShiftDriftOutputs(
+            mmd=DriftMMDOutput(**dummy_drift["mmd"]),
+            cvm=DataevalShiftUnivariateOutput(**dummy_drift["cvm"]),
+            ks=DataevalShiftUnivariateOutput(**dummy_drift["ks"]),
+        ),
+        ood=DataevalShiftOODOutputs(ood_ae=DataevalShiftOODAEOutput(**dummy_ood["ood_ae"])),
+    )
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()
     filename = create_deck(slides, path=artifact_dir, deck_name="shift")

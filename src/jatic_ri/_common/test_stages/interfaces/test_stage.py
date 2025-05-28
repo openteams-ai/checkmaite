@@ -52,7 +52,7 @@ class OutputsBase(BaseModel):
             return type(obj)({cls._traverse(k, fn): cls._traverse(v, fn) for k, v in obj.items()})
         return fn(obj)
 
-    @field_serializer("*")
+    @field_serializer("*", when_used="json-unless-none")
     def __serialize_binary(self, v: Any) -> Any:
         return self._traverse(v, binary_de_serializer.serialize)
 

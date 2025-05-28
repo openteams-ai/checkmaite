@@ -5,12 +5,14 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pydantic
 import torch
 
 # _run imports
 from dataeval.data import Embeddings
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_AE
+from dataeval.outputs import DriftMMDOutput
 from dataeval.utils.torch.models import AE
 
 # report_consumable imports
@@ -18,13 +20,57 @@ from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
+from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
 from jatic_ri._common.test_stages.interfaces.plugins import TDataset, TwoDatasetPlugin
-from jatic_ri._common.test_stages.interfaces.test_stage import Cache, TestStage
-from jatic_ri.util.cache import JSONCache, NumpyEncoder
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.util._types import Device
 
 
-class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDataset]):
+class DataevalShiftConfig(ConfigBase):
+    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
+    device: Device
+
+
+class DataevalShiftUnivariateOutput(OutputsBase):
+    drifted: bool
+    threshold: float
+    p_val: float
+    distance: float
+    feature_drift: np.ndarray
+    feature_threshold: float
+    p_vals: np.ndarray
+    distances: np.ndarray
+
+
+class DataevalShiftDriftOutputs(OutputsBase):
+    mmd: DriftMMDOutput
+    cvm: DataevalShiftUnivariateOutput
+    ks: DataevalShiftUnivariateOutput
+
+
+class DataevalShiftOODAEOutput(OutputsBase):
+    is_ood: np.ndarray
+    instance_score: np.ndarray
+    feature_score: np.ndarray | None
+
+
+class DataevalShiftOODOutputs(OutputsBase):
+    ood_ae: DataevalShiftOODAEOutput
+
+
+class DataevalShiftOutputs(pydantic.BaseModel):
+    drift: DataevalShiftDriftOutputs
+    ood: DataevalShiftOODOutputs
+
+
+class DataevalShiftRun(RunBase):
+    config: DataevalShiftConfig
+    outputs: DataevalShiftOutputs
+
+
+class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugin[TDataset]):
     """Detects dataset shift between two datasets using various methods
 
     Performs three drift detection and two out of distribution tests
@@ -44,85 +90,56 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         Deck name used for Gradient's Title slide. Should be overwritten in subclasses
     """
 
-    cache: Cache[dict[str, Any]] | None = JSONCache(encoder=NumpyEncoder)
-    device = "cpu"
-    _deck: str
-    _task: str
+    _RUN_TYPE = DataevalShiftRun
 
-    # TODO: move to config
+    device: Device = set_device("cpu")
     _dim: int = 128
 
     def __init__(self) -> None:
         super().__init__()
 
-    @property
-    def cache_id(self) -> str:
-        """Unique identifier for cached results"""
-        return f"shift_{self._task}_{self.dataset_1_id}_{self.dataset_2_id}.json"
+    def _create_config(self) -> ConfigBase:
+        return DataevalShiftConfig(device=self.device)
 
-    def _run(self) -> dict[str, Any]:
-        """Run methods for drift and ood detectors"""
-
-        return {
-            **self._run_drift(),
-            **self._run_ood(),
-        }
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Converts results from drift and ood into a Gradient consumable list of slides"""
-
-        report_consumables = []
-
-        # Adds drift slide
-        drift_slide = self._collect_drift(self.outputs["drift"])
-        report_consumables.append(drift_slide)
-
-        # Adds ood slide
-        ood_slide = self._collect_ood(self.outputs["ood"])
-        report_consumables.append(ood_slide)
-
-        return report_consumables
-
-    def _run_drift(self) -> dict[str, Any]:
+    def _run_drift(self) -> DataevalShiftDriftOutputs:
         """Runs MMD, CVM, and KS methods against images"""
 
         model, transform = get_resnet18(self._dim)
         emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, self.device)
         emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, self.device)
 
-        kwargs = {"data": emb_1}
         detectors = {
-            "Maximum Mean Discrepency": partial(DriftMMD, device=self.device),
-            "Cramér-von Mises": DriftCVM,
-            "Kolmogorov-Smirnov": DriftKS,
+            "mmd": partial(DriftMMD, device=self.device),
+            "cvm": DriftCVM,
+            "ks": DriftKS,
         }
 
-        outputs = {name: detector(**kwargs).predict(emb_2).data() for name, detector in detectors.items()}
-        return {"drift": outputs}
+        return DataevalShiftDriftOutputs.model_validate(
+            {name: detector(data=emb_1).predict(emb_2).data() for name, detector in detectors.items()}
+        )
 
-    def _run_ood(self) -> dict[str, Any]:
+    def _run_ood(self) -> DataevalShiftOODOutputs:
         """Runs AE and VAEGMM ood methods against images"""
-
-        ood_kwargs = {
-            "threshold_perc": 99,
-            "epochs": 20,
-            "verbose": False,
-        }
 
         _, transform = get_resnet18(self._dim)
         emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
         emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
 
         # Additional detectors may be added in the future
-        detectors = {"OOD_AE": OOD_AE(AE(emb_1[0].shape))}
+        detectors = {"ood_ae": OOD_AE(AE(emb_1[0].shape))}
 
         for detector in detectors.values():
-            detector.fit(emb_1, **ood_kwargs)
+            detector.fit(emb_1, threshold_perc=99, epochs=20, verbose=False)
 
-        outputs = {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
-        return {"ood": outputs}
+        return DataevalShiftOODOutputs.model_validate(
+            {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
+        )
 
-    def _collect_drift(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _run(self) -> DataevalShiftOutputs:
+        """Run methods for drift and ood detectors"""
+        return DataevalShiftOutputs.model_validate({"drift": self._run_drift(), "ood": self._run_ood()})
+
+    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs) -> dict[str, Any]:
         """Generates gradient compliant kwargs using the drift outputs of MMD, KS, and CVM methods
 
         Parameters
@@ -135,14 +152,20 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
         dict
             Single `SectionByItem` slide containing drift text and corresponding dataframe
         """
-        any_drift = any(d["drifted"] for d in outputs.values())
+
+        drift_fields = {
+            field_name: {"drifted": field_value.drifted, "distance": field_value.distance, "p_val": field_value.p_val}
+            for field_name, field_value in drift_outputs
+        }
+
+        any_drift = any(d["drifted"] for d in drift_fields.values())
 
         drift_df = pd.DataFrame(
             {
-                "Method": list(outputs),
-                "Has drifted?": ["Yes" if d["drifted"] else "No" for d in outputs.values()],
-                "Test statistic": [d["distance"] for d in outputs.values()],
-                "P-value": [d["p_val"] for d in outputs.values()],
+                "Method": list(drift_outputs),
+                "Has drifted?": ["Yes" if d["drifted"] else "No" for d in drift_fields.values()],
+                "Test statistic": [d["distance"] for d in drift_fields.values()],
+                "P-value": [d["p_val"] for d in drift_fields.values()],
             },
         )
 
@@ -174,7 +197,7 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
             },
         }
 
-    def _collect_ood(self, outputs: dict[str, Any]) -> dict[str, Any]:
+    def _collect_ood(self, ood_outputs: DataevalShiftOODOutputs) -> dict[str, Any]:
         """
         Parses ood results into a report consumable slide
 
@@ -192,19 +215,25 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
             Single `SectionByItem` slide containing OOD text and corresponding dataframe
         """
 
-        percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in outputs.values()])
-        counts = np.array([np.sum(x["is_ood"], dtype=int) for x in outputs.values()])
+        ood_fields = {
+            field_name: {"is_ood": field_value.is_ood, "instance_score": field_value.instance_score}
+            for field_name, field_value in ood_outputs
+            if hasattr(field_value, "is_ood") and hasattr(field_value, "instance_score")
+        }
+
+        percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in ood_fields.values()])
+        counts = np.array([np.sum(x["is_ood"], dtype=int) for x in ood_fields.values()])
 
         # NOTE: Not the true threshold. Currently not available in OODOutput so smallest score found in outliers used
         # Gets minimum of outlier-only scores or takes max of all scores if no outliers
         thresholds = [
             np.min(x["instance_score"][x["is_ood"]]) if sum(x["is_ood"]) else np.max(x["instance_score"])
-            for x in outputs.values()
+            for x in ood_fields.values()
         ]
 
         ood_df = pd.DataFrame(
             {
-                "Method": list(outputs),
+                "Method": list(ood_outputs),
                 "OOD Count": counts,
                 "OOD Percent": percents,
                 "Threshold": thresholds,
@@ -239,3 +268,18 @@ class DatasetShiftTestStageBase(TestStage[dict[str, Any]], TwoDatasetPlugin[TDat
                 SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
             },
         }
+
+    def collect_report_consumables(self) -> list[dict[str, Any]]:
+        """Converts results from drift and ood into a Gradient consumable list of slides"""
+
+        report_consumables = []
+
+        # Adds drift slide
+        drift_slide = self._collect_drift(self.outputs.drift)
+        report_consumables.append(drift_slide)
+
+        # Adds ood slide
+        ood_slide = self._collect_ood(self.outputs.ood)
+        report_consumables.append(ood_slide)
+
+        return report_consumables
