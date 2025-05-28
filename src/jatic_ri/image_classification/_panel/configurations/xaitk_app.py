@@ -7,6 +7,7 @@ It is able to configure and create multiple XAITKTestStage classes for consumpti
 
 import os
 import sys
+import warnings
 from collections.abc import Hashable
 
 # 3rd party and JATIC package imports
@@ -48,8 +49,17 @@ class HuggingFaceClassifier:
             AutoModelForImageClassification,  # type: ignore
         )
 
-        self.image_processor = AutoImageProcessor.from_pretrained(model_name)
-        self.model = AutoModelForImageClassification.from_pretrained(model_name)
+        # Upstream issue https://github.com/huggingface/transformers/issues/37615 with no response.
+        # Assuming ignoring is not problematic for now.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="for conv1.weight. copying from a non-meta parameter in the checkpoint to a meta parameter "
+                "in the current model, which is a no-op\\.",
+                category=UserWarning,
+            )
+            self.image_processor = AutoImageProcessor.from_pretrained(model_name)
+            self.model = AutoModelForImageClassification.from_pretrained(model_name)
         self.device = device
 
         self.model.eval()
