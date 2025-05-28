@@ -29,9 +29,7 @@ dependencies:
 - panel>=1.4.5                          # arbitrary pin
 - streamz>=0.6.4                        # arbitrary pin, required for panel base dashboard
 - pillow>=11.0.0                        # arbitrary pin
-# FIXME: the upper pin is only temporary
-# FIXME: See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/433 for details
-- pyspark>=3.5.3,<4                     # arbitrary pin
+- pyspark>=3.5.3                        # arbitrary pin
 - pytorch>=2.2.0                        # necessary pin (at least >=2.2.0 for security)
 - smqtk-detection>=0.22.0               # necessary pin, needed for running centernet model on mac
 - timm>=1.0.7                           # arbitrary pin, required for nrtk panel app
@@ -45,7 +43,7 @@ dependencies:
   # Required pip deps
   - gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2
   - reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.2
-  - survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.4
+  - survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6
   - heart-library @ git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0
 # test
 - pytest>=8.3.0                         # necessary pin for compatibility
