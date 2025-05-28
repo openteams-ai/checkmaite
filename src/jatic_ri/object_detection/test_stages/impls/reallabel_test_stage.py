@@ -225,7 +225,7 @@ class RealLabelTestStage(
 
             return RealLabelOutputs(
                 results=default_reallabel_results,  # type: ignore[reportArgumentType]
-                example_image=RealLabelImageOutput(image=image_location, id=example_image_unique_id),  # type: ignore[reportArgumentType]
+                example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # type: ignore[reportArgumentType]
                 classification_disagreements_df=reallabel_results.classification_disagreements_df,  # type: ignore[reportArgumentType]
                 verbose_df=reallabel_results.verbose_df,  # type: ignore[reportArgumentType]
                 sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # type: ignore[reportArgumentType]
