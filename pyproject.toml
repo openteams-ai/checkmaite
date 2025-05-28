@@ -168,5 +168,6 @@ filterwarnings = [
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
     "ignore:is_datetime64tz_dtype is deprecated:DeprecationWarning",
     "ignore:The operator .* is not currently supported on the MPS backend:UserWarning",
+    "ignore:A new version of Albumentations is available"
 ]
 xfail_strict = true
