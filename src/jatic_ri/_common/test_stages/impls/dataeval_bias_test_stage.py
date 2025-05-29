@@ -1,6 +1,6 @@
 """DataEval Bias Common Test Stage"""
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -29,6 +29,26 @@ class DataevalBiasConfig(ConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
     device: Device = Field(default_factory=lambda: set_device(None))
+    metadata_to_exclude: list[str] = Field(
+        default_factory=lambda: [], description="Dataset metadata to exclude from bias analysis"
+    )
+    num_neighbors: int = Field(
+        default=5, description="Number of neighbors to consider when computing mutual information between factors"
+    )
+    diversity_method: Literal["simpson", "shannon"] = Field(
+        default="simpson",
+        description="The methodology used for defining diversity. The method specified "
+        "defines diversity as the inverse Simpson diversity index linearly rescaled to the unit interval, "
+        "or the normalized form of the Shannon entropy. diversity = 1 implies that samples are evenly "
+        "distributed across a particular factor, diversity = 0 implies that all samples belong to one "
+        "category/bin.",
+    )
+    radius_type: Literal["adaptive", "naive"] = Field(
+        default="adaptive", description="The function used to determine radius for coverage."
+    )
+    percent: float = Field(
+        default=0.01, description="Percent of observations to be considered uncovered. Only applies to adaptive radius."
+    )
 
 
 class DataevalBiasBalanceOutputs(OutputsBase):
@@ -63,9 +83,9 @@ class DataevalBiasCoverageOutputs(OutputsBase):
 
 
 class DataevalBiasOutputs(pydantic.BaseModel):
-    balance: DataevalBiasBalanceOutputs
-    diversity: DataevalBiasDiversityOutputs
-    parity: DataevalBiasParityOutputs
+    balance: DataevalBiasBalanceOutputs | None = None
+    diversity: DataevalBiasDiversityOutputs | None = None
+    parity: DataevalBiasParityOutputs | None = None
     coverage: DataevalBiasCoverageOutputs
 
 
@@ -86,15 +106,38 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
     """
 
     _RUN_TYPE = DataevalBiasRun
-    _metadata_to_exclude: list[str] = []
 
-    device: str | torch.device = set_device(None)
+    device: torch.device = set_device(None)
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        metadata_to_exclude: list[str] | None = None,
+        num_neighbors: int = 5,
+        diversity_method: Literal["simpson", "shannon"] = "simpson",
+        radius_type: Literal["adaptive", "naive"] = "adaptive",
+        percent: float = 0.01,
+    ) -> None:
         super().__init__()
 
+        if metadata_to_exclude:
+            self.metadata_to_exclude = metadata_to_exclude
+        else:
+            self.metadata_to_exclude = []
+
+        self.num_neighbors = num_neighbors
+        self.diversity_method: Literal["simpson", "shannon"] = diversity_method
+        self.radius_type: Literal["adaptive", "naive"] = radius_type
+        self.percent: float = percent
+
     def _create_config(self) -> ConfigBase:
-        return DataevalBiasConfig(device=self.device)  # type: ignore[reportArgumentType]
+        return DataevalBiasConfig(
+            device=self.device,
+            metadata_to_exclude=self.metadata_to_exclude,
+            num_neighbors=self.num_neighbors,
+            diversity_method=self.diversity_method,
+            radius_type=self.radius_type,
+            percent=self.percent,
+        )
 
     def _run(self) -> DataevalBiasOutputs:
         """Run bias analysis using coverage and parity"""
@@ -103,20 +146,31 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         images = Images(self.dataset)
         embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device).to_numpy()
         embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
-        metadata = Metadata(self.dataset, exclude=self._metadata_to_exclude)
+        metadata = Metadata(self.dataset, exclude=self.metadata_to_exclude)
 
-        bal_out = balance(metadata)
-        bal_dict = bal_out.data()
-        bal_dict["image"] = bal_out.plot()
+        # metadata is not empty and hence valid to run balance, diversity, parity
+        if metadata.factor_names:
+            bal_out = balance(metadata, num_neighbors=self.num_neighbors)
+            bal_dict = bal_out.data()
+            bal_dict["image"] = bal_out.plot()
 
-        div_out = diversity(metadata)
-        div_dict = div_out.data()
-        div_dict["image"] = div_out.plot()
+            div_out = diversity(metadata, method=self.diversity_method)
+            div_dict = div_out.data()
+            div_dict["image"] = div_out.plot()
 
-        par_out = parity(metadata)
-        par_dict = par_out.data()
+            par_out = parity(metadata)
+            par_dict = par_out.data()
+        else:
+            bal_dict = None
+            div_dict = None
+            par_dict = None
 
-        cov_out = coverage(embeddings, num_observations=min(max(3, int(np.sqrt(len(images)))), 20))
+        cov_out = coverage(
+            embeddings,
+            num_observations=min(max(3, int(np.sqrt(len(images)))), 20),
+            radius_type=self.radius_type,
+            percent=self.percent,
+        )
         cov_dict = cov_out.data()
         cov_dict["total"] = len(self.dataset)
 
@@ -133,12 +187,17 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             raise RuntimeError("Can only collect consumables after run() was called")
         dataset_id = self._stored_run.dataset_ids[0]
         outputs: DataevalBiasOutputs = self._stored_run.outputs
-        return [
-            self._report_balance(outputs.balance, dataset_id),
+
+        report_list = [
             self._report_coverage(outputs.coverage, dataset_id),
-            self._report_diversity(outputs.diversity, dataset_id),
-            # self._report_parity(outputs.parity, dataset_id),
         ]
+        if outputs.balance is not None:
+            report_list.append(self._report_balance(outputs.balance, dataset_id))
+        if outputs.diversity is not None:
+            report_list.append(self._report_diversity(outputs.diversity, dataset_id))
+        if outputs.parity is not None:
+            report_list.append(self._report_parity(outputs.parity, dataset_id))
+        return report_list
 
     def _report_coverage(self, coverage: DataevalBiasCoverageOutputs, dataset_id: str) -> dict[str, Any]:
         """Format coverage results for Gradient consumption"""

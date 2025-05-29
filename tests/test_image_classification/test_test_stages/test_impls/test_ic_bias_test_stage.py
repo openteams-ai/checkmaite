@@ -105,7 +105,7 @@ class TestICDatasetBiasRun:
             assert run.outputs.coverage.image is not None
 
         output = test_stage.collect_report_consumables()
-        assert len(output) == 3
+        assert len(output) == 4
 
 
 class TestICBiasCollectReportConsumables:
