@@ -191,16 +191,23 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, t
     cached_run = test_stage.run(use_stage_cache=True)
     assert cached_run is not run
 
+    def assert_item_equal(obj1: Any, obj2: Any, field_name: str) -> None:
+        """Compare two objects and assert they are equal."""
+        if isinstance(obj1, list):
+            for item1, item2 in zip(obj1, obj2, strict=True):
+                assert_item_equal(item1, item2, field_name)
+        elif isinstance(obj1, pd.DataFrame):
+            pd.testing.assert_frame_equal(obj1, obj2)
+        elif isinstance(obj1, PIL.Image.Image):
+            # images are a visualization of the data, so comparing dataframe is sufficient
+            return
+        else:
+            assert obj1 == obj2, f'Field "{field_name}" does not match between cached and run outputs'
+
     for field in SurvivorOutputs.model_fields:
         cached_attr = getattr(cached_run.outputs, field)
         run_attr = getattr(run.outputs, field)
-        if isinstance(run_attr, pd.DataFrame):
-            pd.testing.assert_frame_equal(run_attr, cached_attr)
-        elif isinstance(run_attr, PIL.Image.Image):
-            # images are a visualization of the data, so comparing dataframe is sufficient
-            continue
-        else:
-            assert run_attr == cached_attr, f'Field "{field}" does not match between cached and run outputs'
+        assert_item_equal(run_attr, cached_attr, field)
 
 
 def test_survivor_collect_report_consumables(

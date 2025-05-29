@@ -7,9 +7,9 @@ import pytest
 from gradient import SubText, Text
 from gradient.templates_and_layouts.create_deck import create_deck
 from maite.protocols import image_classification as ic
-from survivor import SurvivorConfig
 from survivor.enums import ScoreConversionType
 
+from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorConfig
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
 from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorTestStage
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
@@ -36,6 +36,7 @@ def survivor_test_stage_args(
         easy_hard_threshold=0.5,
         conversion_type=ScoreConversionType.ROUNDED.value,
         conversion_args={"decimals_to_round": 2},
+        heatmap_plot_columns=None,
     )
 
     dict_config = {
@@ -44,6 +45,7 @@ def survivor_test_stage_args(
         "easy_hard_threshold": 0.5,
         "conversion_type": ScoreConversionType.ROUNDED.value,
         "conversion_args": {"decimals_to_round": 2},
+        "heatmap_plot_columns": None,
     }
 
     return {
@@ -92,7 +94,10 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, t
     reallabel_outputs = run.outputs
     cached_realabel_outputs = cached_run.outputs
 
-    pd.testing.assert_frame_equal(cached_realabel_outputs.results, reallabel_outputs.results)
+    pd.testing.assert_frame_equal(cached_realabel_outputs.raw_output_df, reallabel_outputs.raw_output_df)
+    pd.testing.assert_frame_equal(
+        cached_realabel_outputs.metrics_with_survivor_label_df, reallabel_outputs.metrics_with_survivor_label_df
+    )
 
 
 def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, artifact_dir) -> None:

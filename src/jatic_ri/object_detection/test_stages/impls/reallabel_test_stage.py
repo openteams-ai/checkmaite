@@ -355,7 +355,7 @@ class RealLabelTestStage(
                                 content=[
                                     wanrs_description_prelink_text,
                                     SubText(
-                                        content="RealLabel Documentation",
+                                        content="RealLabel documentation",
                                         hyperlink="https://jatic.pages.jatic.net/morse/reallabel/user_guide/explanation/how_reallabel_works.html#optional-output-dataframe-wanrs-output",
                                     ),
                                     ".",
