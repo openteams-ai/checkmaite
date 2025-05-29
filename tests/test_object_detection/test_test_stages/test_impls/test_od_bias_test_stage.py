@@ -104,7 +104,7 @@ class TestODDatasetBiasRun:
             assert run.outputs.coverage.image is not None
 
         output = test_stage.collect_report_consumables()
-        assert len(output) == 3
+        assert len(output) == 4
 
     @pytest.mark.filterwarnings(
         r"ignore:Factors \[.*\] did not meet the recommended \d+ occurrences for each value-label combination:UserWarning"
@@ -128,6 +128,45 @@ class TestODDatasetBiasRun:
         stage = DatasetBiasTestStage()
 
         stage.load_dataset(dataset=coco_dataset, dataset_id="asd")
+
+        stage.run(use_stage_cache=False)
+        pass  # no explosions
+
+    def test_no_metadata(self):
+        """Test that the bias test stage works when the dataset has no metadata"""
+        from os import path
+
+        import tests
+        from jatic_ri import PACKAGE_DIR
+        from jatic_ri.object_detection.datasets import CocoDetectionDataset
+
+        coco_dataset_dir = PACKAGE_DIR.parent.parent.joinpath(
+            path.dirname(tests.__file__),
+            ("testing_utilities/example_data/coco_resized_val2017"),
+        )
+        coco_dataset = CocoDetectionDataset(
+            root=str(coco_dataset_dir),
+            ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
+        )
+
+        coco_keys = ["license", "file_name", "coco_url", "height", "width", "date_captured", "flickr_url", "id"]
+        for _, _, metadata in coco_dataset:
+            assert set(metadata.keys()) == set(coco_keys)
+
+        metadata_to_exclude = [
+            "license",
+            "file_name",
+            "coco_url",
+            "height",
+            "width",
+            "date_captured",
+            "flickr_url",
+            "id",
+        ]
+
+        stage = DatasetBiasTestStage(metadata_to_exclude=metadata_to_exclude)
+
+        stage.load_dataset(dataset=coco_dataset, dataset_id="no_metadata")
 
         stage.run(use_stage_cache=False)
         pass  # no explosions

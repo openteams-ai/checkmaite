@@ -158,7 +158,10 @@ def dummy_dataset_od_with_target_metadata() -> od.Dataset:
     class DummyDataset:
         """Dataset with 10 3x16x16 CHW images"""
 
-        metadata = {"id": "Dummy_OD_Dataset_With_Target_Metadata", "index2label": {"0": "cat", "1": "dog"}}
+        metadata = {
+            "id": "Dummy_OD_Dataset_With_Target_Metadata",
+            "index2label": {"0": "cat", "1": "dog", "2": "bird", "3": "fish", "4": "horse"},
+        }
 
         images = torch.ones(size=(10, 3, 16, 16))
 
