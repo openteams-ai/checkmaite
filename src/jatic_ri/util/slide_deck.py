@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
+from gradient.slide_deck.shapes import Item, Text
+from gradient.templates_and_layouts.generic_layouts import ItemByNarrowText, SectionByItem, TableText, TwoItem
 from gradient.templates_and_layouts.generic_layouts.section_by_stacked_items import SectionByStackedItems
 
 
@@ -122,5 +122,162 @@ def create_section_by_stacked_items_slide(
             SectionByStackedItems.ArgKeys.ITEM_SECTION_TABLE.value: table,
             # Image arguments
             SectionByStackedItems.ArgKeys.ITEM_SECTION_BOTTOM.value: image_path,
+        },
+    }
+
+
+def create_table_text_slide(
+    deck: str,
+    title: str,
+    text: Text,
+    data: pd.DataFrame,
+) -> dict[str, Any]:
+    """
+    Fills a **TableText** Gradient slide with a block of narrative text and a
+    tabular view of data.
+
+    Parameters
+    ----------
+    deck : str
+        Name of the Gradient deck this slide belongs to.
+    title : str
+        Title that appears in the slide header.
+    text : Text
+        Text object (e.g., `gradient.Text`) providing the explanatory
+        paragraph(s) that accompany the table.
+    data : pd.DataFrame
+        DataFrame to render as a table on the slide.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with Gradient template arguments.
+    """
+    return {
+        "deck": deck,
+        "layout_name": "TableText",
+        "layout_arguments": {
+            TableText.ArgKeys.TITLE.value: title,
+            TableText.ArgKeys.TEXT.value: text,
+            TableText.ArgKeys.TABLE.value: data,
+        },
+    }
+
+
+def create_section_by_item_slide_extra_caption(
+    deck: str,
+    title: str,
+    heading: Text,
+    content: list[Text],
+    body_value: pd.DataFrame | Path,
+) -> dict[str, Any]:
+    """
+    Populates a **SectionByItem** Gradient slide that combines a heading,
+    multiline body text, and a single “item” (either a table *or* an image).
+
+    Parameters
+    ----------
+    deck : str
+        Name of the Gradient deck this slide will live in.
+    title : str
+        Slide-level title shown in the header.
+    heading : Text
+        Sub-heading placed above the body text block.
+    content : list[Text]
+        Sequence of `gradient.Text` objects that form the main narrative body.
+    body_value : pd.DataFrame or pathlib.Path
+        • If a `pd.DataFrame` is supplied, it is rendered as a table.
+        • If a `Path` is supplied, the referenced file is inserted as an
+          image (typically PNG/JPEG).
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with Gradient template arguments.
+    """
+    return {
+        "deck": deck,
+        "layout_name": "SectionByItem",
+        "layout_arguments": {
+            SectionByItem.ArgKeys.TITLE.value: title,
+            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: body_value,
+        },
+    }
+
+
+def create_item_by_narrow_text_slide(
+    deck: str,
+    title: str,
+    content: list[Text],
+    body_value: pd.DataFrame | Path,
+) -> dict[str, Any]:
+    """
+    Populates a **ItemByNarrowText** Gradient slide that combines a title,
+    multiline body text, and a single “item” (either a table *or* an image).
+
+    Parameters
+    ----------
+    deck : str
+        Name of the Gradient deck this slide will live in.
+    title : str
+        Slide-level title shown in the header.
+    content : list[Text]
+        Sequence of `gradient.Text` objects that form the main narrative body.
+    body_value : pd.DataFrame or pathlib.Path
+        • If a `pd.DataFrame` is supplied, it is rendered as a table.
+        • If a `Path` is supplied, the referenced file is inserted as an
+          image (typically PNG/JPEG).
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with Gradient template arguments.
+    """
+    return {
+        "deck": deck,
+        "layout_name": "ItemByNarrowText",
+        "layout_arguments": {
+            ItemByNarrowText.ArgKeys.TITLE.value: title,
+            ItemByNarrowText.ArgKeys.TEXT.value: content,
+            ItemByNarrowText.ArgKeys.ITEM.value: body_value,
+        },
+    }
+
+
+def create_two_item_text_slide(
+    deck: str,
+    title: str,
+    left_item: Item,
+    right_item: Item,
+) -> dict[str, Any]:
+    """
+    Populates a **TwoItem** Gradient slide that combines a title,
+    and two items.
+
+    Parameters
+    ----------
+    deck : str
+        Name of the Gradient deck this slide will live in.
+    title : str
+        Slide-level title shown in the header.
+    left_item : Item
+        Left item to display on the slide.
+    right_item : Item
+        Right item to display on the slide.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with Gradient template arguments.
+    """
+    return {
+        "deck": deck,
+        "layout_name": "TwoItem",
+        "layout_arguments": {
+            TwoItem.ArgKeys.TITLE.value: title,
+            TwoItem.ArgKeys.LEFT_ITEM.value: left_item,
+            TwoItem.ArgKeys.RIGHT_ITEM.value: right_item,
         },
     }

@@ -8,7 +8,7 @@ dependencies:
 # Required deps
 - python>=3.10, <3.12
 # JATIC tools
-- dataeval=0.86.4                       # pinned for demo
+- dataeval=0.86.5                       # pinned for demo
 - maite=0.7.3                           # pinned for demo
 - nrtk=0.22.0                           # pinned for demo
 - pybsm=0.10.2                          # pinned for demo, optional dep for nrtk, required here
