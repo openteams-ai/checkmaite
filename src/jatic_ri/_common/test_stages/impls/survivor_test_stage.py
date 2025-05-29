@@ -1,14 +1,16 @@
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pydantic
 import pyspark.sql
-import pyspark.sql.functions as sf
 from gradient import SubText, Text
 from maite import protocols as pr
+from matplotlib.figure import Figure
 from pyspark.sql import SparkSession
+from survivor import HeatmapPlot
 from survivor.analysis import HistogramBarPlot
 from survivor.config import SurvivorConfig as _NativeSurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
@@ -26,12 +28,26 @@ from jatic_ri.util.utils import temp_image_file
 
 # survivor already provides a pydantic model for its configuration so we just mix in our base
 class SurvivorConfig(_NativeSurvivorConfig, ConfigBase):
-    pass
+    heatmap_plot_columns: list[str] | None = pydantic.Field(
+        description="Metadata columns for which to create resulting heatmaps for each label",
+        default=[],
+    )
+
+    @pydantic.field_validator("heatmap_plot_columns")
+    @classmethod
+    def validate_heatmap_plot_columns(cls, value: list[str] | None) -> list[str]:
+        """Validate heatmap plot columns."""
+        if value is None:
+            return []
+
+        return value
 
 
 class SurvivorOutputs(OutputsBase):
-    results: DataFrame
-    image: Image
+    raw_output_df: DataFrame
+    metrics_with_survivor_label_df: DataFrame
+    label_count_plot: Image
+    heatmap_plots: list[Image]
 
 
 class SurvivorRun(RunBase):
@@ -106,6 +122,41 @@ class SurvivorTestStageBase(
 
         return all_model_metrics_per_datum
 
+    def _label_count_plot(self, raw_output_df: pyspark.sql.DataFrame) -> Figure:
+        """Create a histogram plot of the label counts."""
+        # Create a histogram plot of the label counts
+        with tempfile.TemporaryDirectory() as output_dir:
+            histogram_plot = HistogramBarPlot(
+                title="Image count by type",
+                col="suid_label",
+                output_dir=Path(output_dir),
+            )
+            plot = histogram_plot.plot(raw_output_df)
+
+        return plot[0][0][0].figure
+
+    def _heatmap_plot(
+        self,
+        metrics_with_survivor_label_df: pyspark.sql.DataFrame,
+        metadata_field: str,
+    ) -> Figure:
+        with tempfile.TemporaryDirectory() as output_dir:
+            heatmap_plot = HeatmapPlot(
+                title=f"{metadata_field} Distribution",
+                y_col=metadata_field,
+                output_dir=Path(output_dir),
+            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=FutureWarning,
+                    message="The default of observed=False is deprecated and will be changed to True "
+                    "in a future version of pandas.",
+                )
+                named_figure, path = heatmap_plot.plot(metrics_with_survivor_label_df)[0]
+
+        return named_figure.figure
+
     def _run(self) -> SurvivorOutputs:
         """Run Survivor if no cached results are found."""
         self.validate_plugins()
@@ -120,27 +171,33 @@ class SurvivorTestStageBase(
             metrics=metrics,
             spark_session=SparkSession.builder.getOrCreate(),  # type: ignore
         )
-        df = survivor.run().raw_output_df  # noqa: PD901
 
-        with tempfile.TemporaryDirectory() as output_dir:
-            histogram_plot = HistogramBarPlot(
-                title="Image count by type",
-                col="suid_label",
-                output_dir=Path(output_dir),
-            )
-            plot = histogram_plot.plot(df)
-            image = plot[0][0][0].figure
+        output_data = survivor.run()
+        df = output_data.raw_output_df  # noqa: PD901
 
-            return SurvivorOutputs(results=df, image=image)  # type: ignore[reportArgumentType]
+        label_count_plot = self._label_count_plot(df)
+        heatmap_plots = []
+        for metadata_column in self._config.heatmap_plot_columns:  # type: ignore[reportOptionalIterable]
+            heatmap_plot = self._heatmap_plot(output_data.metrics_with_survivor_label_df, metadata_column)
+            heatmap_plots.append(heatmap_plot)
+
+        return SurvivorOutputs(
+            raw_output_df=output_data.raw_output_df,  # type: ignore[reportArgumentType]
+            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,  # type: ignore[reportArgumentType]
+            label_count_plot=label_count_plot,  # type: ignore[reportArgumentType]
+            heatmap_plots=heatmap_plots,
+        )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect report consumables for the SurvivorTestStage."""
-        survivor_results = pyspark.sql.SparkSession.active().createDataFrame(self.outputs.results)
+        survivor_results = self.outputs.raw_output_df
 
-        total = survivor_results.count()
-        hard_proportion = survivor_results.where(sf.col("suid_label") == "Hard").count() / total
-        easy_proportion = survivor_results.where(sf.col("suid_label") == "Easy").count() / total
-        otb_proportion = survivor_results.where(sf.col("suid_label") == "On the Bubble").count() / total
+        label_counts = survivor_results.suid_label.value_counts()
+        total = label_counts.sum()
+
+        hard_proportion = label_counts.get("Hard", 0) / total
+        easy_proportion = label_counts.get("Easy", 0) / total
+        otb_proportion = label_counts.get("On the Bubble", 0) / total
 
         # Simply return the title of the section and the data to be plotted
         definition_text = Text(
@@ -156,6 +213,21 @@ class SurvivorTestStageBase(
             ],
             fontsize=22,
         )
+
+        heatmap_slides = [
+            {
+                "deck": self._deck,
+                "layout_name": "ItemByNarrowText",
+                "title": "Survivor Metadata Heatmap",
+                "layout_arguments": {
+                    "title": "Survivor Metadata Heatmap",
+                    "item": temp_image_file(plot),
+                    "text": "",
+                },
+            }
+            for plot in self.outputs.heatmap_plots
+        ]
+
         return [
             {
                 "deck": self._deck,
@@ -163,7 +235,8 @@ class SurvivorTestStageBase(
                 "layout_arguments": {
                     "title": "Survivor Dataset Breakdown",
                     "left_item": definition_text,
-                    "right_item": temp_image_file(self.outputs.image),
+                    "right_item": temp_image_file(self.outputs.label_count_plot),
                 },
             },
+            *heatmap_slides,
         ]
