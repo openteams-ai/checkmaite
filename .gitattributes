@@ -4,3 +4,4 @@
 *.pt filter=lfs diff=lfs merge=lfs -text
 tests/testing_utilities/example_data/**/* filter=lfs diff=lfs merge=lfs -text
 tests/testing_utilities/example_models/**/* filter=lfs diff=lfs merge=lfs -text
+src/jatic_ri/_sample_imgs/toc.png filter=lfs diff=lfs merge=lfs -text

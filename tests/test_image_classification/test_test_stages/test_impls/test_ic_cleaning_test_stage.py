@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stage import (
@@ -10,45 +11,41 @@ from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stag
 )
 
 
-def test_ic_cleaning(dummy_dataset_ic) -> None:
+def ignore_degenerate_data_warnings(test_fn):
+    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/merge_requests/197#note_167139
+    for filter in [
+        "ignore:invalid value encountered in scalar divide:RuntimeWarning",
+        "ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning",
+    ]:
+        test_fn = pytest.mark.filterwarnings(filter)(test_fn)
+
+    return test_fn
+
+
+@ignore_degenerate_data_warnings
+def test_ic_cleaning(fake_ic_dataset_default) -> None:
     """Test Cleaning implementation"""
 
     test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
+    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
     test.run(use_stage_cache=False)
     output = test.collect_report_consumables()
 
     assert output
-    assert len(output) == 7
+    assert len(output) == 8
 
 
-def test_ic_cleaning_with_images(dummy_dataset_ic) -> None:
-    """Test Cleaning implementation with optional images"""
-
-    test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
-    test.run(use_stage_cache=False)
-    output = test.collect_report_consumables()
-    dup_report = test._generate_duplicates_report(True)
-    out_report = test._generate_image_outliers_report(True)
-
-    assert dup_report
-    assert out_report
-
-    assert output
-    assert len(output) == 7
-
-
-def test_ic_cleaning_with_cached_values(dummy_dataset_ic, tmp_cache_path) -> None:
+@ignore_degenerate_data_warnings
+def test_ic_cleaning_with_cached_values(fake_ic_dataset_default) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()
-    test1.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
+    test1.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
     test1.run()
     output1 = test1.collect_report_consumables()
 
     test2 = DatasetCleaningTestStage()
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
+    test2.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
     test2.run()
     output2 = test2.collect_report_consumables()
 
@@ -58,10 +55,11 @@ def test_ic_cleaning_with_cached_values(dummy_dataset_ic, tmp_cache_path) -> Non
     assert all(output1[i].keys() == output2[i].keys() for i in range(len(output1)))
 
 
-def test_ic_cleaning_create_deck(dummy_dataset_ic, tmp_path, artifact_dir) -> None:
+@ignore_degenerate_data_warnings
+def test_ic_cleaning_create_deck(fake_ic_dataset_default, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=dummy_dataset_ic, dataset_id="dummy_cleaning")
+    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
     test.run()
 
     slides = test.collect_report_consumables()

@@ -27,7 +27,7 @@ classifiers = [
 requires-python = ">=3.10, <3.12"                    # required by SDP
 
 dependencies = [
-    "dataeval==0.86.4",
+    "dataeval==0.86.5",
     "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2",
     "maite>=0.7.0,<0.8.0",
     "heart-library @ git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0",
