@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 3e483112624828ccd4553a41cbe65d35b8ebb611803497c9eeadb7371a656439
+    linux-64: 547002d9212bbe7fc4a09b6dd2f4d986b2d5ce20f05cc246f520441120f8b61e
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -74,7 +74,7 @@ package:
   category: main
   optional: false
 - name: aiohttp
-  version: 3.12.2
+  version: 3.12.4
   manager: conda
   platform: linux-64
   dependencies:
@@ -89,10 +89,10 @@ package:
     python: '>=3.11,<3.12.0a0'
     python_abi: 3.11.*
     yarl: '>=1.17.0,<2.0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/aiohttp-3.12.2-py311h2dc5d0c_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/aiohttp-3.12.4-py311h2dc5d0c_0.conda
   hash:
-    md5: 3c9ff2d619f7ff25fa93b380cbd5578e
-    sha256: b867953c862f6d8f55cee22074b97dc456b86f98075b5d16822974a1f797c2a8
+    md5: eaef30c9a7cf76d8b0c51b9abdde3086
+    sha256: c568ef205dc7e02ee1314eb5451c7e946035d2df46871afac2c5e7fdb23862b1
   category: main
   optional: false
 - name: aiosignal
@@ -1059,7 +1059,7 @@ package:
   category: main
   optional: false
 - name: dataeval
-  version: 0.86.5
+  version: 0.86.7
   manager: conda
   platform: linux-64
   dependencies:
@@ -1080,10 +1080,10 @@ package:
     torchvision: '>=0.17.0'
     tqdm: ''
     typing_extensions: '>=4.12'
-  url: https://conda.anaconda.org/conda-forge/noarch/dataeval-0.86.5-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/dataeval-0.86.7-pyhd8ed1ab_0.conda
   hash:
-    md5: 5ab56aae9d79f1c972e96c22955f915b
-    sha256: a9531014249e197120121c7e685d6152db7f3f2f4ec1d015fdb3cc1597362912
+    md5: 087562d46b7a46e0a86095428ba4cc1b
+    sha256: 0bb2e7501d1075c322ac38e2c52b724e97bf7ce0d547f22017664a651b4998fa
   category: main
   optional: false
 - name: datasets
@@ -7124,7 +7124,7 @@ package:
   category: main
   optional: false
 - name: torchmetrics
-  version: 1.7.1
+  version: 1.7.2
   manager: conda
   platform: linux-64
   dependencies:
@@ -7135,10 +7135,10 @@ package:
     pytorch: '>=2.0.0'
     setuptools: ''
     typing_extensions: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/torchmetrics-1.7.1-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/torchmetrics-1.7.2-pyhd8ed1ab_0.conda
   hash:
-    md5: de4c98760a15583a95f9c3031745a31c
-    sha256: dc7ff593e3418957cf70cdcca9ba7cd309ca7095771d423894a23e9156a36cbc
+    md5: f20175a2d76966a54bc4c4c4e7262324
+    sha256: 3f3488894b29b3b0fafb665d0781ae30926bc4e1ee3904ad9e7878db3ce51300
   category: main
   optional: false
 - name: torchvision
