@@ -15,7 +15,7 @@ from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stag
     DatasetCleaningTestStage as DatasetCleaningTestStageIC,
 )
 from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage import (
-    DatasetFeasibilityTestStage as DatasetFeasibilityTestStageIC,
+    DatasetImageClassificationFeasibilityTestStage as DatasetFeasibilityTestStageIC,
 )
 from jatic_ri.image_classification.test_stages.impls.dataeval_shift_test_stage import (
     DatasetShiftTestStage as DatasetShiftTestStageIC,
@@ -31,7 +31,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_cleaning_test_stage im
     DatasetCleaningTestStage as DatasetCleaningTestStageOD,
 )
 from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage import (
-    DatasetFeasibilityTestStage as DatasetFeasibilityTestStageOD,
+    DatasetObjectDetectionFeasibilityTestStage as DatasetFeasibilityTestStageOD,
 )
 from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage import (
     DatasetShiftTestStage as DatasetShiftTestStageOD,

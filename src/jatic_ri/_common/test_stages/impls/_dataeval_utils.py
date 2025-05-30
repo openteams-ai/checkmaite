@@ -1,4 +1,3 @@
-import copy
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal
@@ -12,8 +11,6 @@ from dataeval.outputs import SourceIndex
 from dataeval.typing import Transform
 from dataeval.utils.torch.models import ResNet18
 from gradient import SubText
-from maite.protocols.object_detection import Dataset as ODDataset
-from maite.protocols.object_detection import DatumMetadataType, ObjectDetectionTarget
 from matplotlib import pyplot as plt
 from numpy.typing import ArrayLike
 from pydantic import BaseModel
@@ -348,38 +345,3 @@ def collect_issues(
             else:
                 issues.setdefault(k, []).append((img_idx, None, issue[k]))
     return issues
-
-
-def increment_invalid_boxes(dataset: ODDataset) -> ODDataset:
-    """
-    Ensure bounding boxes have non-zero height and width by incrementing
-    bottom and right edges when necessary.
-    """
-
-    class _BoxFixedDataset:
-        def __init__(self, ds: ODDataset) -> None:
-            self._ds = ds
-            self.metadata = dataset.metadata
-
-        def __len__(self) -> int:
-            return len(self._ds)
-
-        def __getitem__(self, idx: int) -> tuple[ArrayLike, ObjectDetectionTarget, DatumMetadataType]:
-            img, target, dmeta = self._ds[idx]
-
-            if not hasattr(target, "boxes"):
-                return img, target, dmeta
-
-            fixed_target = copy.deepcopy(target)
-
-            boxes: np.ndarray = np.asarray(fixed_target.boxes)
-            if boxes.size:
-                invalid_w = boxes[:, 2] <= boxes[:, 0]
-                invalid_h = boxes[:, 3] <= boxes[:, 1]
-
-                boxes[invalid_w, 2] = boxes[invalid_w, 0] + 1
-                boxes[invalid_h, 3] = boxes[invalid_h, 1] + 1
-
-            return img, fixed_target, dmeta
-
-    return _BoxFixedDataset(dataset)
