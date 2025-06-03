@@ -170,8 +170,8 @@ class FakeODDataset(od.Dataset):
         self.datum_metadata: Sequence[DatumMetadata] = datum_metadata
         self.metadata: DatasetMetadata = dataset_metadata
 
-    def __getitem__(self, ind: int) -> tuple[ArrayLike, od.ObjectDetectionTarget, dict[str, Any]]:
-        return (self.images[ind], self.targets[ind], dict(self.datum_metadata[ind]))
+    def __getitem__(self, ind: int) -> tuple[ArrayLike, od.ObjectDetectionTarget, DatumMetadata]:
+        return (self.images[ind], self.targets[ind], self.datum_metadata[ind])
 
     def __len__(self) -> int:
         return len(self.images)
