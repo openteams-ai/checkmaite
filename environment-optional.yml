@@ -42,7 +42,7 @@ dependencies:
 - pip:
   # Required pip deps
   - gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2
-  - reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.2
+  - reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4
   - survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6
   - heart-library @ git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0
 # test
