@@ -53,11 +53,14 @@ stages:
 .conda-setup:
   before_script:
     - *git_config
+    - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.12 | tar -xvj bin/micromamba
     - eval "$(./bin/micromamba shell hook -s posix)"
     - micromamba --version
-    - micromamba create -f environment-optional.yml -n test-env python=$VERSION
-    - micromamba activate test-env
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3
+    - micromamba activate $CONDA_ENV_NAME
+    - make conda-lock  # regenerate conda-lock file with latest conda dependencies
+    - make conda-env   # create conda env from new conda-lock file
     - pip install . --no-deps
     - micromamba list
 
@@ -90,7 +93,7 @@ test:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
     - git lfs pull     # Pull large files using git-lfs
-    - poetry install --extras dev
+    - poetry install --with dev
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
     - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
@@ -122,25 +125,26 @@ conda-lock-test:
   image: python:3.11
   before_script:
     - *git_config
+    - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.12 | tar -xvj bin/micromamba
     - eval "$(./bin/micromamba shell hook -s posix)"
     - micromamba --version
-    - micromamba create -y -n test-env -f conda-lock.yml 
-    - micromamba activate test-env
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3
+    - micromamba activate $CONDA_ENV_NAME
+    - make conda-env  # create conda env from conda-lock file
     - pip install . --no-deps
   script:
     - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
 
 lint:
-  extends: .shared-setup
+  extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: lint
   needs: []
-  before_script:
-    - pip install pre-commit
   script:
-    - pre-commit install
-    - pre-commit run --all-files --verbose
+    - poetry install --with dev
+    - poetry run pre-commit install
+    - poetry run pre-commit run --all-files --verbose
 
 pyright-internal:
   extends: [.shared-setup, .poetry-setup]
@@ -148,7 +152,7 @@ pyright-internal:
   stage: pyright
   needs: []
   script:
-    - poetry install --extras dev
+    - poetry install --with dev
     - poetry run pyright src/
 
 # DOCUMENTATION
@@ -166,7 +170,7 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - poetry install --extras docs
+    - poetry install --with docs
     - poetry run mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
@@ -184,7 +188,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   image: python:3.10
   stage: docs
   script:
-    - poetry install --extras docs
+    - poetry install --with docs
     - poetry run mkdocs build -d public --no-directory-urls
   artifacts:
     paths:

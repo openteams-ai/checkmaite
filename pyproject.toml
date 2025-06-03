@@ -26,66 +26,80 @@ classifiers = [
 ]
 requires-python = ">=3.10, <3.12"                    # required by SDP
 
-dependencies = [
-    "dataeval==0.86.7",
-    "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2",
-    "maite>=0.7.0,<0.8.0",
-    "heart-library @ git+https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git@0.5.0",
-    "nrtk==0.22.0",
-    "pybsm==0.10.2",                                 # optional dep for nrtk, required here
-    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4",
-    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6",
-    "xaitk-saliency==0.12.0",
-    "xaitk-jatic==0.5.1",
-    # external deps
-    "holoviews>=1.20.0",                            # arbitrary, required for panel pipelines
-    "httpx>=0.28.1",                                # arbitrary, needed to run visdrone model
-    "jupyterlab>=4.3.5",                            # arbitrary, required for serving panel notebooks via CLI
-    "matplotlib>=3.8.4",                            # arbitrary, required by panel
-    "more-itertools>=10.0",                         # arbitrary, used by linting test stage
-    "nbconvert>=7.16.6",                            # arbitrary, required for serving panel notebooks via CLI
-    "numba>=0.60.0",                                # arbitrary, needed to run visdrone model
-    "opencv-python-headless>=4.9.0.80",             # necessary lower pin, required by nrtk usage here
-    "panel>=1.4.5",                                 # arbitrary
-    "Pillow>=11.0.0",                               # arbitrary
-    "pydantic>=2.0.0",                              # arbitrary
-    "streamz>=0.6.4",                               # arbitrary
-    "torch>=2.2.0",                                 # necessary lower pin (at least >=2.2.0 for security)
-    "torchmetrics>=1.4.0",                          # arbitrary, required for metric computation
-    "torchvision>=0.17.0",                          # arbitrary, required for models
-    "zstandard>=0.23.0",                            # arbitrary, used for zip compression of json
-    "smqtk-detection>=0.22.0",                      # necessary lower pin for running VisDrone model on Mac
-    "transformers[timm]>=4.48.0,!=4.51.0",          # necessary lower pin for xaitk panel app for security vulnerability
-]
+dynamic = ["dependencies"]
 
-[project.optional-dependencies]
-dev = [
-    "pre-commit>=3.0.0",                            # arbitrary
-    # FIXME: temporary upper pin on pyright til https://github.com/microsoft/pyright/issues/10487 is resolved
-    # This issue is tracked in https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/435
-    "pyright[nodejs]>=1.1.400, <1.1.401",           # necessary, typechecker will fail for earlier versions
-    "pyspark>=3.5.3",                               # arbitrary
-    "pytest>=8.3.0",                                # necessary lower pin for compatibility
-    "pytest-cov>=4.0.0",                            # arbitrary
-    "pytest-mock>=3.6.1",                           # arbitrary, need to test heart_app
-    # This is not needed by us, but required to avoid a critical vulnerability warning
-    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
-    "virtualenv>=20.26.6",
-]
-docs = [
-    "mkdocs>=1.6.1",                                # arbitrary
-    "mkdocs-jupyter>=0.25",                         # arbitrary
-    "mkdocs-material>=9.6.4",                       # arbitrary
-    "pymdown-extensions>=10.14.3",                  # arbitrary
-]
+[tool.conda-lock]
+channels = ['conda-forge', 'fastai']
+platforms = ['linux-64']
 
-# Poetry-specific configuration (things not covered by PEP 621)
+[tool.conda-lock.dependencies]
+# conda only dependencies (usually system dependencies)
+openjdk = "17.0.9"
+cudatoolkit = "*"  # necessary to suppress conda-lock warning
+timm = ">=1.0.7"
+libgl = "*"
+libopengl = "*" # another patch for a missing dependency from something (opencv?) in conda-forge
+pip = "*"  # ensure pip is available for conda-lock
+poetry = "==2.1.2"  # allow user to still use the `make check-conda` pre-commit hook
+
 [tool.poetry]
-packages =[{include="jatic_ri", from="src"}]
+packages = [{ include = "jatic_ri", from = "src" }]
+
+[tool.poetry.dependencies]
+heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", tag="0.5.0"}
+reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.4"}
+gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
+survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.6"}
+dataeval = "==0.86.7"                 
+maite = ">=0.7.0,<0.8.0"
+nrtk = {extras = ["headless"], version = "==0.15.1"}
+pybsm = "==0.10.2"                                  # optional dep for nrtk, required here
+xaitk-saliency = "==0.12.0"
+xaitk-jatic = "==0.5.1"
+# external deps
+holoviews = ">=1.20.0"                             # arbitrary, required for panel pipelines
+httpx = ">=0.28.1"                                 # arbitrary, needed to run visdrone model
+jupyterlab = ">=4.3.5"                             # arbitrary, required for serving panel notebooks via CLI
+matplotlib = ">=3.8.4"                             # arbitrary, required by panel
+more-itertools = ">=10.0"                          # arbitrary, used by linting test stage
+nbconvert = ">=7.16.6"                             # arbitrary, required for serving panel notebooks via CLI
+numba = ">=0.60.0"                                 # arbitrary, needed to run visdrone model
+opencv-python-headless = ">=4.9.0.80"              # necessary lower pin, required by nrtk usage here
+pandas = ">=2"                                     # arbitrary, required for data handling
+panel = ">=1.4.5"                                  # arbitrary
+pillow = ">=11.0.0"                                # arbitrary
+pydantic = ">=2.0.0"                               # arbitrary
+streamz = ">=0.6.4"                                # arbitrary
+torch = ">=2.2.0"                                  # necessary lower pin (at least >=2.2.0 for security)
+torchmetrics = ">=1.4.0"                           # arbitrary, required for metric computation
+torchvision = ">=0.17.0"                           # arbitrary, required for models
+zstandard = ">=0.23.0"                             # arbitrary, used for zip compression of json
+smqtk-detection = ">=0.22.0"                       # necessary lower pin for running VisDrone model on Mac
+transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = ">=3.0.0"                             # arbitrary
+pyright = {extras = ["nodejs"], version = ">=1.1.400,!=1.1.401"}  # necessary, typechecker will fail for some versions, https://github.com/microsoft/pyright/issues/10487
+pyspark = ">=3.5.3,<4"                                # arbitrary
+pytest = ">=8.3.0"                                 # necessary lower pin for compatibility
+pytest-cov = ">=4.0.0"                             # arbitrary
+pytest-mock = ">=3.6.1"                            # arbitrary, need to test heart_app
+# This is not needed by us, but required to avoid a critical vulnerability warning
+# See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
+virtualenv = ">=20.26.6"
+conda-lock = ">=3.0.0"                             # necessary, used to update conda-lock.yml
+ruamel-yaml = ">=0.17.21"                          # necessary, for comment-preserving YAML manipulation
+toml = ">=0.10.2"                                  # necessary, for parsing pyproject.toml
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = ">=1.6.1"                                 # arbitrary
+mkdocs-jupyter = ">=0.25"                          # arbitrary
+mkdocs-material = ">=9.6.4"                        # arbitrary
+pymdown-extensions = ">=10.14.3"                   # arbitrary
 
 [tool.bandit]
 exclude_dirs = [
-    "tests",
+    "tests", "scripts"
 ]
 
 [tool.pyright]
