@@ -15,6 +15,7 @@ import pydantic
 import pyspark.sql.functions as sf
 import torch
 from gradient import SubText, Text
+from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata
 from pptx.dml.color import RGBColor
 from reallabel import (
     MAITERealLabel,
@@ -65,6 +66,33 @@ class RealLabelRun(RunBase):
 
     config: RealLabelConfig
     outputs: RealLabelOutputs
+
+
+class _RealLabelDatasetWrapper(od.Dataset):
+    """A wrapper for the MAITE Dataset for use with RealLabel.
+
+    This wrapper allows us to copy a generic MAITE Dataset and easily update the attributes e.g. targets
+    which are not part of the MAITE Dataset protocol.
+    """
+
+    def __init__(self, dataset: od.Dataset) -> None:
+        """Initialize the RealLabelDatasetWrapper."""
+        self.metadata: DatasetMetadata = dataset.metadata
+        self.images: list[ArrayLike] = []
+        self.targets: list[od.ObjectDetectionTarget] = []
+        self.datum_metadata: list[od.DatumMetadataType] = []
+
+        for image, target, metadata in dataset:
+            self.images.append(image)
+            self.targets.append(target)
+            self.datum_metadata.append(metadata)
+
+    def __getitem__(self, ind: int) -> tuple[ArrayLike, od.ObjectDetectionTarget, DatumMetadata]:
+        return (self.images[ind], self.targets[ind], self.datum_metadata[ind])
+
+    def __len__(self) -> int:
+        """Get the length of the dataset."""
+        return len(self.images)
 
 
 class RealLabelTestStage(
@@ -122,30 +150,38 @@ class RealLabelTestStage(
     def _create_config(self) -> RealLabelConfig:
         return self._config
 
-    def __run_metrics(self) -> dict[str, list]:  # pragma: no cover
+    def _compute_maite_inference_result(self) -> dict[str, od.Dataset]:  # pragma: no cover
         """Generate metrics from maite models."""
-        clean_predictions = {}
+        maite_inference_result = {}
         # Run all the models
-        for model in self.models:
+        for model_name in self.models:
             predictions, _ = self.eval_tool.predict(
-                model=self.models[model],
-                model_id=model,
+                model=self.models[model_name],
+                model_id=model_name,
                 dataset=self.dataset,
                 dataset_id=self.dataset_id,
             )
-            clean_predictions[model] = [x[0] for x in predictions]
-        return clean_predictions
+            clean_predictions = [x[0] for x in predictions]
+
+            # We need to construct a new dataset with the ground truth targets replaced with the predictions.
+            # MAITE Dataset does not have a way to set the targets directly, so we use the wrapper instance.
+            copied_dataset = _RealLabelDatasetWrapper(self.dataset)
+            copied_dataset.targets = clean_predictions
+
+            maite_inference_result[model_name] = copied_dataset
+
+        return maite_inference_result
 
     def _run(self) -> RealLabelOutputs:
         """Run RealLabel test stage."""
         self.validate_plugins()
 
-        # Run metrics
-        model_inference_result = self.__run_metrics()
+        # compute the inference results from the models
+        maite_inference_result = self._compute_maite_inference_result()
 
         # Create MAITERealLabel wrapper
         reallabel = MAITERealLabel(
-            model_inference_results=model_inference_result,
+            maite_inference_results=maite_inference_result,
             config=self._config,
             link_unique_identifier_columns_and_metadata=True,
             ground_truth_dataset=self.dataset,
