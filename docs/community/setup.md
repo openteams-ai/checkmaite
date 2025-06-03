@@ -10,25 +10,20 @@ We provide both poetry-based environment and conda-based environment options:
 To set up a conda environment, install `conda` on your machine and build the environment by running:
 
 ```bash
-conda env create -f environment.yml -n jatic_env
-```
-
-Then activate the environment
-
-```bash
-conda activate jatic_env
+# create env with conda-lock installed
+conda create -n jatic-ri "conda-lock>=3"  
+# activate the environment
+conda activate jatic-ri  
+# use conda-lock to install dependencies
+CONDA_ENV_NAME=jatic-ri make conda-env  
+# finally, install the reference implementation package
+pip install -e .  
 ```
 
 This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using: 
 
 ```bash
 pre-commit install
-```
-
-Finally, install the package itself
-
-```bash
-pip install -e .
 ```
 
 </details>
@@ -149,33 +144,19 @@ an issue with cross-compatibility arises).
 
 ## Conda lock file
 
-### Usage
+### Using the Lock File Locally
 
-The RI contains a conda-lock file for linux-64 which is intended to be a stable conda environment for the 
-latest version of the RI. 
-
-You can build a conda environment from the lockfile called `my-locked-env`, by running
-
-```
-conda-lock install -n my-locked-env
-```
-
-Some of the dependencies come from private repositories.  You should be prompted for username/PAT credentials for each of those repositories.  If you'd like to avoid this, run the following command after replacing `<YOUR-USERNAME>` and `<YOUR-PASSWORD>` with valid credentials.
-
+run the following
 ```bash
-git config --global url."https://<YOUR-USERNAME>:<YOUR-PASSWORD>@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
+CONDA_ENV_NAME=<env-name> make conda-env
 ```
 
-Alternatively, if you'd prefer not to modify your global git config, you could instead modify your `~/.netrc` file.
-
-```bash
-echo "machine gitlab.jatic.net login <YOUR-USERNAME> password <YOUR-PASSWORD>" >> ~/.netrc
-```
+The CONDA_ENV_NAME environment variable is optional and defaults to `jatic-ri`.
 
 ### Updating the lockfile
 
-To update the lockfile (e.g. after changing enviroment-optional.yaml), run the following:
+To update the lockfile (e.g. after changing pyproject.yaml), run the following:
 
-```
-conda-lock -f environment-optional.yml -p linux-64
+```bash
+make conda-lock
 ```
