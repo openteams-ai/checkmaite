@@ -18,6 +18,9 @@ def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_
     class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
+        def _create_config(self):
+            pass
+
         def _run(self) -> None:
             pass
 
@@ -48,6 +51,9 @@ def test_model_dataset_metric_threshold(dummy_model_od, dummy_dataset_od, dummy_
 def test_threshold_validation(dummy_model_od, dummy_dataset_od, dummy_metric_od) -> None:
     class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
+
+        def _create_config(self):
+            pass
 
         def _run(self) -> None:
             pass
@@ -82,6 +88,9 @@ def test_single_dataset(dummy_dataset_od) -> None:
     class TestImpl(TestStage[None], SingleDatasetPlugin):
         """Dummy implementation class"""
 
+        def _create_config(self):
+            pass
+
         def _run(self) -> None:
             pass
 
@@ -99,6 +108,9 @@ def test_single_dataset(dummy_dataset_od) -> None:
 def test_two_dataset(dummy_dataset_od) -> None:
     class TestImpl(TestStage[None], TwoDatasetPlugin):
         """Dummy implementation class"""
+
+        def _create_config(self):
+            pass
 
         def _run(self) -> None:
             pass
@@ -119,6 +131,9 @@ def test_two_dataset(dummy_dataset_od) -> None:
 def test_single_model_dataset(dummy_model_od, dummy_dataset_od) -> None:
     class TestImpl(TestStage[None], SingleModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
+
+        def _create_config(self):
+            pass
 
         def _run(self) -> None:
             pass
@@ -142,6 +157,9 @@ def test_single_model_dataset(dummy_model_od, dummy_dataset_od) -> None:
 def test_multi_model_single_dataset(dummy_model_od, dummy_dataset_od) -> None:
     class TestImpl(TestStage[None], MultiModelPlugin, SingleDatasetPlugin):
         """Dummy implementation class"""
+
+        def _create_config(self):
+            pass
 
         def _run(self) -> None:
             pass
@@ -167,6 +185,9 @@ def test_dataset_metric_threshold(dummy_dataset_od, dummy_metric_od) -> None:
     class TestImpl(TestStage[None], SingleDatasetPlugin, MetricPlugin, ThresholdPlugin):
         """Dummy implementation class"""
 
+        def _create_config(self):
+            pass
+
         def _run(self) -> None:
             pass
 
@@ -187,18 +208,3 @@ def test_dataset_metric_threshold(dummy_dataset_od, dummy_metric_od) -> None:
 
     dummy_threshold = 99.99
     stage.load_threshold(threshold=dummy_threshold)
-
-
-def test_test_stage_no_default_cache() -> None:
-    class TestImpl(TestStage[None]):
-        """Dummy implementation class"""
-
-        def _run(self) -> None:
-            pass
-
-        def collect_report_consumables(self) -> list[dict[str, Any]]:
-            return super().collect_report_consumables()
-
-    stage = TestImpl()
-    assert not stage.cache_id
-    assert not stage.cache

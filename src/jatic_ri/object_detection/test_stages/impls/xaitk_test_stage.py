@@ -125,8 +125,12 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
         the image id, the prediction, the ground truth, and the saliency
         map for target class."""
 
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
+
         gradient_slides = []
-        for idx, datum in enumerate(self.outputs.results):
+        for idx, datum in enumerate(outputs.results):
             scores = datum.scores
             if len(datum.sal_maps) == 0:
                 logging.warning(f"No detections found for image id {idx}")

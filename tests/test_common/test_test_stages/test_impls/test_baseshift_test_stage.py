@@ -1,7 +1,6 @@
 """Test drift methods in BaseShiftTestStage"""
 
 import copy
-import os
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -11,10 +10,12 @@ import torch
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import (
+    DataevalShiftConfig,
     DataevalShiftDriftOutputs,
     DataevalShiftOODAEOutput,
     DataevalShiftOODOutputs,
     DataevalShiftOutputs,
+    DataevalShiftRun,
     DataevalShiftUnivariateOutput,
     DatasetShiftTestStageBase,
     DriftMMDOutput,
@@ -58,7 +59,7 @@ class TestDatasetShift:
         test_stage.load_datasets(dataset_1=dev_dataset, dataset_2=op_dataset, dataset_1_id="dev", dataset_2_id="op")
         test_stage.run(use_stage_cache=False)
 
-        assert test_stage.outputs is not None
+        assert test_stage._stored_run is not None
 
         report = test_stage.collect_report_consumables()
 
@@ -72,20 +73,6 @@ class TestDatasetShift:
 
         filename = create_deck(report, artifact_dir, "shift")
         assert filename.exists()
-
-    def test_create_data(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
-        """Test that the cache file is written after the run method is called without data modifications"""
-
-        test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(
-            dataset_1=dummy_dataset_od,
-            dataset_2=dummy_dataset_od,
-            dataset_1_id="DummyDataset1",
-            dataset_2_id="DummyDataset2",
-        )
-        test_stage.run()
-
-        assert os.path.exists(test_stage.cache_path)
 
     def test_use_stage_cache(self, dummy_dataset_ic, dummy_dataset_od):
         """Tests that cached data can be created and read without modifications"""
@@ -131,8 +118,8 @@ class TestDatasetShift:
         )
 
         # Save run results into cache
-        test_stage.run(use_stage_cache=True)
-        base_outputs = test_stage.outputs
+        run = test_stage.run(use_stage_cache=True)
+        base_outputs = run.outputs
 
         # Create new test stage that will only use cached results
         test_stage_cached = DatasetShiftTestStageBase()
@@ -141,8 +128,8 @@ class TestDatasetShift:
         test_stage_cached.load_datasets(dummy_dataset_ic, "Dataset1", dummy_dataset_od, "Dataset2")
         # Mock out to ensure the cache overrides the use of _run
         test_stage_cached._run = MagicMock()
-        test_stage_cached.run()
-        cached_outputs = test_stage_cached.outputs
+        cached_run = test_stage_cached.run()
+        cached_outputs = cached_run.outputs
 
         torch.testing.assert_close(base_outputs.model_dump(), cached_outputs.model_dump())
 
@@ -212,7 +199,6 @@ class TestDrift:
         """
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         results = test_stage._collect_drift(
             drift_outputs=DataevalShiftDriftOutputs(
@@ -237,7 +223,8 @@ class TestDrift:
                     p_vals=np.array([1.0]),
                     distances=np.array([1.0]),
                 ),
-            )
+            ),
+            dataset_ids=["DummyDataset1", "DummyDataset2"],
         )
         results = results["layout_arguments"]
 
@@ -298,7 +285,6 @@ class TestOOD:
         """
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(None, "DummyDataset1", None, "DummyDataset2")
 
         # Outer gradient kwargs checked by BaseShiftTestStage
         results = test_stage._collect_ood(
@@ -308,7 +294,8 @@ class TestOOD:
                     instance_score=np.array([1.0, 0.75, 0.0]),
                     feature_score=np.array([[1.0, 1.0, 1.0], [1.0, 0.75, 1.0], [0.0, 0.0, 0.0]]),
                 )
-            )
+            ),
+            dataset_ids=["DummyDataset1", "DummyDataset2"],
         )
         results = results["layout_arguments"]
 
@@ -333,7 +320,6 @@ class TestOOD:
 def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the shift gradient slides"""
     teststage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-    teststage.load_datasets(None, "VOC1", None, "VOC2")
 
     dummy_drift = {
         k: {
@@ -364,13 +350,20 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
         }
     }
 
-    teststage.outputs = DataevalShiftOutputs(
-        drift=DataevalShiftDriftOutputs(
-            mmd=DriftMMDOutput(**dummy_drift["mmd"]),
-            cvm=DataevalShiftUnivariateOutput(**dummy_drift["cvm"]),
-            ks=DataevalShiftUnivariateOutput(**dummy_drift["ks"]),
+    teststage._stored_run = DataevalShiftRun(
+        test_stage_id="",
+        config=DataevalShiftConfig(),
+        dataset_ids=["VOC1", "VOC2"],
+        model_ids=[],
+        metric_id="",
+        outputs=DataevalShiftOutputs(
+            drift=DataevalShiftDriftOutputs(
+                mmd=DriftMMDOutput(**dummy_drift["mmd"]),
+                cvm=DataevalShiftUnivariateOutput(**dummy_drift["cvm"]),
+                ks=DataevalShiftUnivariateOutput(**dummy_drift["ks"]),
+            ),
+            ood=DataevalShiftOODOutputs(ood_ae=DataevalShiftOODAEOutput(**dummy_ood["ood_ae"])),
         ),
-        ood=DataevalShiftOODOutputs(ood_ae=DataevalShiftOODAEOutput(**dummy_ood["ood_ae"])),
     )
 
     slides: list[dict[str, Any]] = teststage.collect_report_consumables()

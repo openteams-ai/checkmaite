@@ -1,15 +1,14 @@
 """Evaluation and Prediction tool for Test Stages"""
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, overload
+from typing import Any, Generic, TypeAlias, TypeVar, overload
 
 from maite._internals.protocols.generic import DataLoader, Dataset, Metric, Model
 from maite.errors import InvalidArgument
+from maite.protocols import ArrayLike
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
-
-if TYPE_CHECKING:
-    from jatic_ri.util.cache import RICache
 
 SomeInputBatchType: TypeAlias = ic.InputBatchType | od.InputBatchType
 SomeTargetBatchType: TypeAlias = ic.TargetBatchType | od.TargetBatchType
@@ -24,6 +23,62 @@ TInput = TypeVar("TInput", bound=SomeInputType)
 TTarget = TypeVar("TTarget", bound=SomeTargetType)
 TMetadata = TypeVar("TMetadata", bound=SomeMetadataType)
 TDataset = TypeVar("TDataset", bound=Dataset)
+
+
+TData = TypeVar("TData", dict, list)
+
+# RI conventions state each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
+# We have recommended future MAITE release defines a protocol for these criteria
+TMetricResult = dict[str, Any]
+
+# The data structure generally passed around by MAITE's predict tools.  This is a simplification of the type
+# system built-out in maite._internals.protocols that can be applied to type hints for only this use case.
+CacheablePredsAndData: TypeAlias = tuple[  # One tuple containing...
+    Sequence[  # first, Sequences of batches where...
+        Sequence[TTarget]
+    ],  # each batch is a Sequence of predictions, and...
+    Sequence[  # second, Sequences of batches where...
+        tuple[  # each batch is a "data tuple" containing corresponding three more sequences...
+            Sequence[ArrayLike],  # (1) Inputs: images in ArrayLike shape (C, H, W),
+            Sequence[TTarget],  # (2) Targets: ground truths, and
+            Sequence[dict[str, Any]],  # (3) datum-wise Metadata.
+        ]
+    ],
+]
+
+
+class RICache(ABC):
+    """Abstract Class for using cache for evaluation and prediction"""
+
+    @abstractmethod
+    def read_predictions(self, filename: str) -> CacheablePredsAndData | None:
+        """Reads a prediction from the cache"""
+        pass
+
+    @abstractmethod
+    def write_predictions(
+        self,
+        filename: str,
+        prediction: CacheablePredsAndData,
+    ) -> None:
+        """Writes a prediction to the cache"""
+        pass
+
+    @abstractmethod
+    def read_metric(self, filename: str) -> TMetricResult | None:
+        """Reads a metric from the cache"""
+        pass
+
+    @abstractmethod
+    def write_metric(self, filename: str, metric_results: TMetricResult) -> None:
+        """Writes a metric to the cache"""
+        pass
+
+    @abstractmethod
+    def clear_cache(self) -> None:
+        """Clears the cache dir"""
+        pass
+
 
 TRICache = TypeVar("TRICache", bound="RICache")
 Cache_Option: TypeAlias = TRICache | None

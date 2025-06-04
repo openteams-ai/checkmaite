@@ -96,13 +96,17 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
         detection. The saliency map image will have the detection bounding
         box shown in red."""
 
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
+
         gradient_slides = []
 
         # TODO: This needs to be fixed to work from cache (self.dataset won't be available)
         # TODO: Also needs general refactoring once a determination is made on if/why the saliency maps are
         # being generated for every class in the model for every image.
         # REF: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
-        for i, sal_maps in enumerate(self.outputs.results):
+        for i, sal_maps in enumerate(outputs.results):
             ref_img, targets, _ = self.dataset[i]
 
             gray_img = rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy()

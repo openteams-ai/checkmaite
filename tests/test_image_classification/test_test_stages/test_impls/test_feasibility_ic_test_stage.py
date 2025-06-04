@@ -7,7 +7,9 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage import (
+    DatasetImageClassificationFeasibilityConfig,
     DatasetImageClassificationFeasibilityOutputs,
+    DatasetImageClassificationFeasibilityRun,
     DatasetImageClassificationFeasibilityTestStage,
 )
 
@@ -36,9 +38,15 @@ class TestFeasibilityTestStage:
         """"""
 
         test_stage = DatasetImageClassificationFeasibilityTestStage()
-        test_stage.load_dataset(None, "ICDataset")  # type: ignore
+        test_stage._stored_run = DatasetImageClassificationFeasibilityRun(
+            test_stage_id="",
+            config=DatasetImageClassificationFeasibilityConfig(),
+            dataset_ids=["ICDataset"],
+            model_ids=[],
+            metric_id="",
+            outputs=ber_outputs,
+        )
         test_stage.load_threshold(0.5)
-        test_stage.outputs = ber_outputs
 
         slides = test_stage.collect_report_consumables()
 
@@ -63,14 +71,14 @@ class TestFeasibilityTestStage:
         test_stage.load_threshold(0.5)
         test_stage.load_dataset(dummy_dataset_ic, "Dataset1")
 
-        test_stage.run(use_stage_cache=True)
-        base_outputs = test_stage.outputs
+        run = test_stage.run(use_stage_cache=True)
+        base_outputs = run.outputs
 
         test_stage_cached = DatasetImageClassificationFeasibilityTestStage()
         test_stage_cached.load_threshold(0.5)
         test_stage_cached.load_dataset(dummy_dataset_ic, "Dataset1")
         test_stage_cached._run = MagicMock()
-        test_stage_cached.run()
-        cached_outputs = test_stage_cached.outputs
+        cached_run = test_stage_cached.run()
+        cached_outputs = cached_run.outputs
 
         assert base_outputs == cached_outputs

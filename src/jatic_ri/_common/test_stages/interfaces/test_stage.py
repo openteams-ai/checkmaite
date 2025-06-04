@@ -5,7 +5,7 @@ import enum
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from functools import cached_property
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypeVar
@@ -17,7 +17,6 @@ from pydantic import (
     field_validator,
 )
 
-import jatic_ri
 from jatic_ri import cache_path
 from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
@@ -26,7 +25,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     SingleModelPlugin,
     TwoDatasetPlugin,
 )
-from jatic_ri.util._cachev2 import PydanticCache, binary_de_serializer
+from jatic_ri.util._cache import PydanticCache, binary_de_serializer
 
 
 class ConfigBase(BaseModel):
@@ -62,8 +61,7 @@ class OutputsBase(BaseModel):
         return cls._traverse(v, binary_de_serializer.deserialize)
 
 
-# FIXME: add bound=BaseModel as soon as all test stages are updated
-TOutputs = TypeVar("TOutputs")
+TOutputs = TypeVar("TOutputs", bound=BaseModel)
 
 
 class RunBase(BaseModel, Generic[TConfig, TOutputs]):
@@ -88,8 +86,8 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
 
     test_stage_id: str
     config: TConfig
-    dataset_ids: Sequence[str]
-    model_ids: Sequence[str]
+    dataset_ids: list[str]
+    model_ids: list[str]
     metric_id: str
     outputs: TOutputs
 
@@ -97,8 +95,8 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
     def compute_uid(
         test_stage_id: str,
         config: TConfig,
-        dataset_ids: Sequence[str],
-        model_ids: Sequence[str],
+        dataset_ids: list[str],
+        model_ids: list[str],
         metric_id: str,
     ) -> str:
         """
@@ -138,41 +136,6 @@ class RunCache(PydanticCache[RunBase]):
 run_cache = RunCache()
 
 
-# TODO: As the name implies, this class is only used for BC until all test stages are updated. Remove afterwards.
-class CompatConfig(ConfigBase):
-    pass
-
-
-# TODO: As the name implies, this class is only used for BC until all test stages are updated. Remove afterwards.
-class CompatRun(RunBase):
-    @classmethod
-    def _traverse(cls, obj: Any, fn: Callable[[Any], Any]) -> Any:
-        if isinstance(obj, tuple) and hasattr(obj, "_fields"):
-            return type(obj)(*cls._traverse(tuple(obj), fn))
-        if isinstance(obj, (list, tuple)):
-            return type(obj)([cls._traverse(i, fn) for i in obj])
-        if isinstance(obj, dict):
-            return type(obj)({k: cls._traverse(v, fn) for k, v in obj.items()})
-        return fn(obj)
-
-    @field_serializer("outputs", check_fields=False)
-    def _serialize_outputs(self, v: Any) -> Any:
-        return self._traverse(v, binary_de_serializer.serialize)
-
-    @field_validator("outputs", mode="before", check_fields=False)
-    @classmethod
-    def _deserialize_outputs(cls, v: Any) -> Any:
-        return cls._traverse(v, binary_de_serializer.deserialize)
-
-
-# TODO: this class needs to be removed as soon as the
-class Cache(Generic[TOutputs]):
-    """Caching mechanism for test stages"""
-
-    def read_cache(self, cache_path: str) -> TOutputs | None: ...
-    def write_cache(self, cache_path: str, data: TOutputs) -> None: ...
-
-
 # TODO: this is only used validating the plugins and should be removed as soon as the plugins are gone
 class RIValidationError(Exception):
     """Exception raised for validation errors."""
@@ -197,17 +160,11 @@ class Number(enum.Enum):
 class TestStage(Generic[TOutputs], ABC):
     """Base class for running a test and recieving report values"""
 
-    # TODO: remove the default value after &22
-    _RUN_TYPE: ClassVar[type[RunBase]] = CompatRun
+    _RUN_TYPE: ClassVar[type[RunBase]]
 
     _deck: str
     _task: str
-    # TODO: Remove _outputs
-    _outputs: TOutputs | None = None  # test results are expected to be stored within the test stage
     _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
-
-    # TODO: Remove this after all test stages have been updated
-    cache: Cache[TOutputs] | None = None
 
     def __init__(self) -> None:
         # TODO: remove this as soon as collect_report_consumables has been moved to the respective Run object
@@ -238,38 +195,6 @@ class TestStage(Generic[TOutputs], ABC):
             return Number.ONE
         return Number.ZERO
 
-    # TODO: Both getter and setter are only here for BC. Remove as soon as all test stages are updated
-    @property
-    def outputs(self) -> TOutputs:
-        """Property getter for TestStage run outputs - raises RunTimeError if accessed before set"""
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        return self._stored_run.outputs
-
-    @outputs.setter
-    def outputs(self, value: TOutputs) -> None:
-        """Property setter for TestStage run outputs"""
-        dataset_ids, model_ids, metric_id = self._extract_run_inputs()
-        self._stored_run = CompatRun(
-            test_stage_id=self.id,
-            config=self._create_config(),
-            dataset_ids=dataset_ids,
-            model_ids=model_ids,
-            metric_id=metric_id,
-            outputs=value,
-        )
-
-    # TODO: remove after Run implemented in all test stages
-    @property
-    def cache_id(self) -> str:
-        """Override this with a unique cache id to save outputs to cache"""
-        return ""
-
-    # TODO: remove after Run implemented in all test stages
-    @property
-    def cache_path(self) -> str:
-        return str(jatic_ri.cache_path())
-
     # TODO: remove as soon as the plugins are removed
     def validate_plugins(self) -> None:
         plugin_requirements = {
@@ -298,9 +223,8 @@ class TestStage(Generic[TOutputs], ABC):
                     f"'{missing_attr}' not set! Please use `{load_func}()` function to set the '{missing_attr}'.",
                 )
 
-    # TODO: this should become a class variable like _RUN_TYPE after &22 is completed
-    def _create_config(self) -> ConfigBase:
-        return CompatConfig()
+    @abstractmethod
+    def _create_config(self) -> ConfigBase: ...
 
     # TODO: this is temporary compatibility code. Remove when datasets etc. can be passed to run()
     def _extract_run_inputs(self) -> tuple[list[str], list[str], str]:
@@ -360,7 +284,6 @@ class TestStage(Generic[TOutputs], ABC):
         return run
 
     # TODO: update signature to accept config, models, datasets and metrics
-    # TODO: use pydantic.BaseModel as return annotation after all test stages are upgraded
     @abstractmethod
     def _run(self) -> TOutputs:
         """Override this with logic to execute test stage and return outputs"""

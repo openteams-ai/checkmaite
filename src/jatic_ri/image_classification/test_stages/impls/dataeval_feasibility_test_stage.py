@@ -103,8 +103,10 @@ class DatasetImageClassificationFeasibilityTestStage(
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Create slides for Gradient report"""
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        results = self._stored_run.outputs
 
-        results = self.outputs
         is_feasible = results.ber > self.threshold
         feasibility_dict = {
             "Feasible": [str(is_feasible)],
@@ -114,7 +116,7 @@ class DatasetImageClassificationFeasibilityTestStage(
         }
         feasibility_df = pd.DataFrame.from_dict(feasibility_dict)
 
-        title = f"Dataset: {self.dataset_id} | Category: Feasibility"
+        title = f"Dataset: {self._stored_run.dataset_ids[0]} | Category: Feasibility"
         heading = "Metric: Bayes Error Rate"
         content = [
             Text(t)

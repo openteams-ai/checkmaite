@@ -586,29 +586,32 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         "Collects reports for duplicates and outliers for both image and target data."
 
         table_of_contents = self._generate_table_of_contents()
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
 
         duplicates = self._generate_duplicates_report(
-            duplicates=self.outputs.duplicates, dataset_size=self.outputs.label_stats.image_count
+            duplicates=outputs.duplicates, dataset_size=outputs.label_stats.image_count
         )
         stat_list = self._generate_stats_report(
-            img_stats=(self.outputs.img_dim_stats, self.outputs.img_viz_stats),
-            label_stats=self.outputs.label_stats,
-            box_stats=(self.outputs.box_dim_stats, self.outputs.box_viz_stats)
-            if self.outputs.box_dim_stats and self.outputs.box_viz_stats
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            label_stats=outputs.label_stats,
+            box_stats=(outputs.box_dim_stats, outputs.box_viz_stats)
+            if outputs.box_dim_stats and outputs.box_viz_stats
             else None,
-            ratio_stats=self.outputs.box_ratio_stats,
+            ratio_stats=outputs.box_ratio_stats,
         )
         image_list = self._generate_image_outliers_report(
-            img_outliers=self.outputs.img_outliers,
-            img_stats=(self.outputs.img_dim_stats, self.outputs.img_viz_stats),
-            dataset_size=self.outputs.label_stats.image_count,
+            img_outliers=outputs.img_outliers,
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            dataset_size=outputs.label_stats.image_count,
         )
 
-        if self.outputs.box_dim_stats and self.outputs.box_viz_stats:
+        if outputs.box_dim_stats and outputs.box_viz_stats:
             target_list = self._generate_target_outliers_report(
-                target_outliers=self.outputs.target_outliers,
-                box_stats=(self.outputs.box_dim_stats, self.outputs.box_viz_stats),
-                total_targets=self.outputs.label_stats.label_count,
+                target_outliers=outputs.target_outliers,
+                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                total_targets=outputs.label_stats.label_count,
             )
 
             return [
