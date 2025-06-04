@@ -30,7 +30,7 @@ from jatic_ri.util._types import Device
 class DataevalShiftConfig(ConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
-    device: Device
+    device: Device = pydantic.Field(default_factory=lambda: set_device(None))
 
 
 class DataevalShiftUnivariateOutput(OutputsBase):
@@ -139,7 +139,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         """Run methods for drift and ood detectors"""
         return DataevalShiftOutputs.model_validate({"drift": self._run_drift(), "ood": self._run_ood()})
 
-    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs) -> dict[str, Any]:
+    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
         """Generates gradient compliant kwargs using the drift outputs of MMD, KS, and CVM methods
 
         Parameters
@@ -170,11 +170,11 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         )
 
         # Gradient slide kwargs
-        title = f"Dataset 1: {self.dataset_1_id} - Dataset 2: {self.dataset_2_id} | Category: Dataset Shift"
+        title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
         heading = "Metric: Drift"
         text = [
             [SubText("Result:", bold=True)],
-            f"• {self.dataset_2_id} has{' ' if any_drift else ' not '}drifted from {self.dataset_1_id}",
+            f"• {dataset_ids[1]} has{' ' if any_drift else ' not '}drifted from {dataset_ids[0]}",
             [SubText("Tests for:", bold=True)],
             "• Covariate shift",
             [SubText("Risks:", bold=True)],
@@ -197,7 +197,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             },
         }
 
-    def _collect_ood(self, ood_outputs: DataevalShiftOODOutputs) -> dict[str, Any]:
+    def _collect_ood(self, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
         """
         Parses ood results into a report consumable slide
 
@@ -240,13 +240,13 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             },
         )
 
-        title = f"Dataset 1: {self.dataset_1_id} - Dataset 2: {self.dataset_2_id} | Category: Dataset Shift"
+        title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
         heading = "Metric: Out-of-distribution (OOD)"
         text = [
             [SubText("Result:", bold=True)],
-            f"• {max(percents)}% OOD images were found in {self.dataset_2_id}",
+            f"• {max(percents)}% OOD images were found in {dataset_ids[1]}",
             [SubText("Tests for:", bold=True)],
-            f"• {self.dataset_2_id} data that is OOD from {self.dataset_1_id}",
+            f"• {dataset_ids[1]} data that is OOD from {dataset_ids[0]}",
             [SubText("Risks:", bold=True)],
             "• Degradation of model performance",
             "• Real-world performance no longer meets requirements",
@@ -272,14 +272,18 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Converts results from drift and ood into a Gradient consumable list of slides"""
 
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
+
         report_consumables = []
 
         # Adds drift slide
-        drift_slide = self._collect_drift(self.outputs.drift)
+        drift_slide = self._collect_drift(outputs.drift, dataset_ids=self._stored_run.dataset_ids)
         report_consumables.append(drift_slide)
 
         # Adds ood slide
-        ood_slide = self._collect_ood(self.outputs.ood)
+        ood_slide = self._collect_ood(outputs.ood, dataset_ids=self._stored_run.dataset_ids)
         report_consumables.append(ood_slide)
 
         return report_consumables

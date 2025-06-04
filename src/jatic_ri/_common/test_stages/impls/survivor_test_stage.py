@@ -190,7 +190,11 @@ class SurvivorTestStageBase(
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect report consumables for the SurvivorTestStage."""
-        survivor_results = self.outputs.raw_output_df
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
+
+        survivor_results = outputs.raw_output_df
 
         label_counts = survivor_results.suid_label.value_counts()
         total = label_counts.sum()
@@ -225,7 +229,7 @@ class SurvivorTestStageBase(
                     "text": "",
                 },
             }
-            for plot in self.outputs.heatmap_plots
+            for plot in outputs.heatmap_plots
         ]
 
         return [
@@ -235,7 +239,7 @@ class SurvivorTestStageBase(
                 "layout_arguments": {
                     "title": "Survivor Dataset Breakdown",
                     "left_item": definition_text,
-                    "right_item": temp_image_file(self.outputs.label_count_plot),
+                    "right_item": temp_image_file(outputs.label_count_plot),
                 },
             },
             *heatmap_slides,

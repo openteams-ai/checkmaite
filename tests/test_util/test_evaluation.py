@@ -4,7 +4,6 @@ import pytest
 import torch
 
 from jatic_ri.object_detection.datasets import DetectionTarget
-from jatic_ri.util.cache import SimpleRICacheOD
 from jatic_ri.util.evaluation import EvaluationTool, SimpleDataLoader
 
 # This is utilized from the od mock model operated on the od mock dataset.
@@ -129,7 +128,7 @@ def test_prediction(dummy_model_od, dummy_dataset_od, tmpdir, return_augmented_d
     dataset_id = "dummy1"
 
     dataloader = SimpleDataLoader(dataset, 2)
-    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
+    evaluationtool = EvaluationTool()
 
     pred, data = evaluationtool.predict(
         model=model,
@@ -169,7 +168,7 @@ def test_metric_compute(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdi
     dataset_id = "dummy1"
 
     dataloader = SimpleDataLoader(dataset, 2)
-    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
+    evaluationtool = EvaluationTool()
 
     pred, data = evaluationtool.predict(
         model=model, model_id=model_id, dataset=dataset, dataset_id=dataset_id, dataloader=dataloader, batch_size=2
@@ -189,7 +188,7 @@ def test_evaluation(dummy_model_od, dummy_dataset_od, dummy_metric_od, tmpdir):
     dataset_id = "dummy1"
 
     dataloader = SimpleDataLoader(dataset, 2)
-    evaluationtool = EvaluationTool(ri_cache=SimpleRICacheOD(cache_root_dir=tmpdir))
+    evaluationtool = EvaluationTool()
 
     result = evaluationtool.evaluate(
         model=model,

@@ -272,7 +272,9 @@ class RealLabelTestStage(
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables."""
-        reallabel_results = self.outputs
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        reallabel_results = self._stored_run.outputs
         default_results_df = reallabel_results.results
 
         # Find RealLabel statistics
@@ -368,7 +370,7 @@ class RealLabelTestStage(
             },
         ]
 
-        if self.outputs.wanrs_df is not None:
+        if reallabel_results.wanrs_df is not None:
             wanrs_description_prelink_text = textwrap.dedent(
                 "This table shows up to the top 10 images recommended for relabeling, ranked by "
                 "RealLabel's WANRS (Weighted Average Normalized Relative Scores) metric.\nWANRS "
@@ -406,7 +408,7 @@ class RealLabelTestStage(
                                 fontsize=14,
                             ),
                         ],
-                        "item_section_body": self.outputs.wanrs_df.loc[:, ["id", "WANRS"]]
+                        "item_section_body": reallabel_results.wanrs_df.loc[:, ["id", "WANRS"]]
                         .head(10)
                         .reset_index()
                         .assign(index=lambda df: df["index"] + 1)

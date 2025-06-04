@@ -126,7 +126,11 @@ class NRTKTestStageBase(
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
         load_cached_results method"""
 
-        lowest_perturb_score = [perturber_output[self.metric_id] for perturber_output in self.outputs.perturbations]
+        if self._stored_run is None:
+            raise RuntimeError("TestStage must be run before accessing outputs")
+        outputs = self._stored_run.outputs
+
+        lowest_perturb_score = [perturber_output[self.metric_id] for perturber_output in outputs.perturbations]
 
         final_dict = {
             "dataset": self.dataset_id,
