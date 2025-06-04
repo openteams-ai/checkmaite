@@ -2,12 +2,17 @@ SHELL := /bin/bash
 # help/list functionality from https://stackoverflow.com/a/59087509
 .DEFAULT_GOAL := help
 
-# Conda backend selection - defaults to conda, set CONDA_LOCK_ARGS to "--micromamba" to use micromamba
-CONDA_LOCK_ARGS ?=
-CONDA_ENV_NAME ?= jatic-ri
+.PHONY: help
+#: Show this help message
+help:
+	@grep -B1 -E "^[a-zA-Z0-9_-]+\:([^\=]|$$)" Makefile \
+	 | grep -v -- -- \
+	 | sed 'N;s/\n/###/' \
+	 | sed -n 's/^#: \(.*\)###\(.*\):.*/\2###\1/p' \
+	 | column -t  -s '###'
 
 .PHONY: init
-#: initialize project
+#: Initialize project
 init:
 	poetry install --extras dev
 	poetry run pre-commit install
@@ -20,10 +25,11 @@ clean:
 	rm -rf .venv
 
 .PHONY: reset
+#: Clean and reinitialize project
 reset: clean init
 
 .PHONY: format
-#: run all formatting
+#: Run all formatting
 format:
 	poetry run pre-commit run --all-files --verbose
 	poetry run pyright src/
@@ -32,6 +38,11 @@ format:
 #: Run tests with current python
 test:
 	poetry run pytest tests -vvv --cov=jatic_ri --cov-report term --cov-report xml:coverage_report.xml --cov-fail-under=90
+
+# Conda Lock Targets' Environment Variables
+# Conda backend selection - defaults to conda, set CONDA_LOCK_ARGS to "--micromamba" to use micromamba
+CONDA_LOCK_ARGS ?=
+CONDA_ENV_NAME ?= jatic-ri
 
 .PHONY: check-conda-lock
 #: Check if conda lockfile is consistent with pyproject.toml
