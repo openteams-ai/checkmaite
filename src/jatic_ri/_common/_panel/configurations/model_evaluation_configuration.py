@@ -7,6 +7,7 @@ OD and IC tasks.
 import argparse
 import importlib
 import json
+import textwrap
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -94,12 +95,34 @@ class ConfigurationLandingPage(BaseApp):
         return followup_next_parameter, self.task, self.output_test_stages, self.local
 
     def _generate_checkbox_subsection(
-        self, checkbox: pn.widgets.Checkbox, label: str, description: str, section_height: int = 62
+        self,
+        checkbox: pn.widgets.Checkbox,
+        label: str,
+        description: str,
+        section_height: int = 62,
+        requires_config: bool = False,
     ) -> pn.Row:
-        """Construct a viewable object for the checkbox subsections.
+        """
+        Construct a viewable object for the checkbox subsections.
+
         NOTE: Section height default is set at 62 for single line descriptions. This is a
         departure from the figma spec. Resolving this will require additional css work.
         """
+
+        # build label + optional requires config icon
+        label_row = pn.Row(
+            pn.pane.Markdown(
+                label,
+                styles=self.styles.style_text_subtitle,
+                stylesheets=[self.styles.css_paragraph],
+            ),
+            pn.Spacer(sizing_mode="stretch_width"),
+            (
+                pn.widgets.ButtonIcon(icon="settings", size="1.5em", styles={"opacity": "0.5"})
+                if requires_config
+                else pn.Spacer(width=0)
+            ),
+        )
 
         return pn.Row(
             pn.Spacer(width=24),
@@ -110,11 +133,7 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 pn.Column(
                     pn.Spacer(height=4),
-                    pn.pane.Markdown(
-                        label,
-                        styles=self.styles.style_text_subtitle,
-                        stylesheets=[self.styles.css_paragraph],
-                    ),
+                    label_row,
                     pn.pane.Markdown(
                         description,
                         styles=self.styles.style_text_body2,
@@ -127,53 +146,50 @@ class ConfigurationLandingPage(BaseApp):
             ),
         )
 
-    def view_core_analysis_tools(self) -> pn.Column:
-        """ "view of the core analysis row of the app"""
-        return pn.Column(
+    def view_analysis_tools(self) -> pn.Column:
+        """View of the tools row of the app."""
+        nrtk_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.show_nrtk_config,
+            name="",
+            stylesheets=[self.styles.css_checkbox],
+        )
+
+        xaitk_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.show_xaitk_config,
+            name="",
+            stylesheets=[self.styles.css_checkbox],
+        )
+
+        # build list of rows, starting & ending with spacers
+        tools_viewable = [
             pn.Spacer(height=24),
             self._generate_checkbox_subsection(
                 self.baseline_eval,
                 "Baseline Evaluation",
                 "Evaluate model performance against a given metric (specified at runtime).",
             ),
-            pn.Spacer(height=24),
-            styles={
-                "background-color": self.styles.color_white,
-                "border-color": self.styles.color_border,
-                "border-width": "thin",
-                "border-style": "solid",
-                "border-radius": "8px",
-            },
-            width=697,
-        )
-
-    def view_configurable_tools(self) -> pn.Column:
-        """View of the configurable tools row of the app"""
-        nrtk_checkbox = pn.widgets.Checkbox.from_param(
-            self.param.show_nrtk_config,
-            name="",
-            stylesheets=[self.styles.css_checkbox],
-        )
-        xaitk_checkbox = pn.widgets.Checkbox.from_param(
-            self.param.show_xaitk_config,
-            name="",
-            stylesheets=[self.styles.css_checkbox],
-        )
-        return pn.Column(
-            pn.Spacer(height=24),
+            pn.Spacer(height=12),
             self._generate_checkbox_subsection(
                 nrtk_checkbox,
                 "NRTK",
                 "Generate perturbations for evaluating model robustness.",
-                section_height=76,
+                requires_config=True,
             ),
             pn.Spacer(height=12),
             self._generate_checkbox_subsection(
                 xaitk_checkbox,
                 "XAITK",
                 "Generate explanations of model predictions.",
+                requires_config=True,
             ),
-            pn.Spacer(height=24),
+        ]
+
+        # close out with bottom spacer
+        tools_viewable.append(pn.Spacer(height=24))
+
+        # wrap everything in the bordered container
+        return pn.Column(
+            *tools_viewable,
             styles={
                 "background-color": self.styles.color_white,
                 "border-color": self.styles.color_border,
@@ -207,43 +223,31 @@ class ConfigurationLandingPage(BaseApp):
             ),
         )
 
-        core_analysis_row = pn.Row(
+        analysis_row = pn.Row(
             pn.Column(
                 pn.pane.Markdown(
-                    "Core evaluation tools",
+                    "Evaluation Tool Selection",
                     styles=self.styles.style_text_h3,
                     stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
-                    "Select from a set of JATIC evaluation tools designed to assess the quality "
-                    "of your model. These tools require no additional "
-                    "configuration.",
-                    styles=self.styles.style_text_body2,
-                    stylesheets=[self.styles.css_paragraph],
-                    width=395,
-                ),
-            ),
-            pn.Spacer(width=124),
-            self.view_core_analysis_tools,
-        )
+                    textwrap.dedent(
+                        """
+                        Setup your model evaluation configuration to include tools from
+                        various JATIC products. These tools are designed to assess the
+                        quality, consistency and structure of your models.
 
-        configurable_row = pn.Row(
-            pn.Column(
-                pn.pane.Markdown(
-                    "Configurable evaluation tools",
-                    styles=self.styles.style_text_h3,
-                    stylesheets=[self.styles.css_paragraph],
-                ),
-                pn.pane.Markdown(
-                    "Explore these configurable JATIC analysis tools that address unique modeling "
-                    "challenges. These will be configured on the following pages.",
+                        Some tools, marked with ⚙️, require additional configuration on
+                        the following pages.
+                        """
+                    ),
                     styles=self.styles.style_text_body2,
                     stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
             ),
             pn.Spacer(width=124),
-            self.view_configurable_tools,
+            self.view_analysis_tools,
         )
 
         return pn.Column(
@@ -255,11 +259,10 @@ class ConfigurationLandingPage(BaseApp):
                     pn.Spacer(height=24),
                     self.horizontal_line(),
                     pn.Spacer(height=24),
-                    core_analysis_row,
+                    analysis_row,
                     pn.Spacer(height=24),
                     self.horizontal_line(),
                     pn.Spacer(height=24),
-                    configurable_row,
                 ),
                 pn.Spacer(width=24),
             ),
