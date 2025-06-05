@@ -168,6 +168,12 @@ class RealLabelTestStage(
             copied_dataset = _RealLabelDatasetWrapper(self.dataset)
             copied_dataset.targets = clean_predictions
 
+            # RealLabel will only use certain metadata passed in here (e.g. for the confidence calibration) which is not
+            # supported through Reference Implementation currently. Additionally, metadata specific to the ground
+            # truth data (e.g. ground truth bounding boxes) can cause errors in RealLabel so we remove all
+            # non-mandatory datum_metadata keys.
+            copied_dataset.datum_metadata = [{"id": dm["id"]} for dm in copied_dataset.datum_metadata]
+
             maite_inference_result[model_name] = copied_dataset
 
         return maite_inference_result
