@@ -66,7 +66,7 @@ nbconvert = ">=7.16.6"                             # arbitrary, required for ser
 numba = ">=0.60.0"                                 # arbitrary, needed to run visdrone model
 opencv-python-headless = ">=4.9.0.80"              # necessary lower pin, required by nrtk usage here
 pandas = ">=2"                                     # arbitrary, required for data handling
-panel = ">=1.4.5"                                  # arbitrary
+panel = ">=1.5.1"                                  # necessary for FileDropper widget
 pillow = ">=11.0.0"                                # arbitrary
 pydantic = ">=2.0.0"                               # arbitrary
 streamz = ">=0.6.4"                                # arbitrary

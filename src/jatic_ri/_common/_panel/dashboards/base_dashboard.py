@@ -21,7 +21,7 @@ from gradient.templates_and_layouts.create_deck import create_deck
 from streamz import Stream
 
 from jatic_ri import PACKAGE_DIR
-from jatic_ri._common._panel.configurations.base_app import AppStyling
+from jatic_ri._common._panel.configurations.base_app import AppStyling, BaseApp
 from jatic_ri._common.test_stages.interfaces.plugins import (
     EvalToolPlugin,
     MetricPlugin,
@@ -90,16 +90,12 @@ EVAL_TOOL_CACHE_DIR = ".eval_tool"
 TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 
 
-class BaseTestbed(param.Parameterized):
+class BaseTestbed(BaseApp):
     """Base Testbed. This class is inherited by the
     dataset analysis and model evaluation testbed classes. It contains
     css styling, common widgets, and common functions"""
 
     title = param.String(default="Object Detection Testing Pipeline")
-    task = param.String(default="object_detection")
-
-    # flag for local deployment
-    local = param.Boolean(default=True)
 
     # Dictionary for holding test stages
     test_stages = param.Dict(default={})
@@ -139,9 +135,6 @@ class BaseTestbed(param.Parameterized):
     #      to the TestStage._run(), which will in turn cache the output results for subsequent calls.
     use_caches = param.Boolean(default=True)
 
-    # Input for loading the pipeline config
-    config_file = pn.widgets.FileInput(accept=".json")
-
     # Table for storing the results
     results_df = param.DataFrame(pd.DataFrame({}))
 
@@ -149,7 +142,9 @@ class BaseTestbed(param.Parameterized):
     output_dir = param.Path(default=Path.cwd(), check_exists=False)
 
     def __init__(self, styles: AppStyling, **params: dict[str, Any]) -> None:
-        super().__init__(**params)
+        super().__init__(styles, **params)
+
+        self._process_testbed_config()
         self.styles = styles
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
@@ -170,9 +165,6 @@ class BaseTestbed(param.Parameterized):
         self.add_model = pn.widgets.Button(name="Add model")
         self.add_model.on_click(self.add_model_button_callback)
         self.add_model_button_callback(None)  # trigger on init to build the first set
-
-        # this is set here to avoid a race condition since both config_file and config_input is in `self`
-        self.config_file.stylesheets = [self.styles.css_config_input]
 
         # button to run the analysis
         self.run_analysis_button = pn.widgets.Button(name="Run Analysis", button_type="primary", disabled=False)
@@ -293,44 +285,12 @@ class BaseTestbed(param.Parameterized):
             }
             self.torchvision_models = SUPPORTED_TORCHVISION_MODELS_IC
 
-    @pn.depends("config_file.value", watch=True)
-    def _update_default_config(self, event: Any = None) -> None:  # noqa: ARG002
-        logger.debug("update default config")
-        config = json.loads(self.config_file.value)
-        success = self.load_pipeline(config)
+    def _process_testbed_config(self) -> None:
+        logger.debug("populated test stages via load_pipeline")
+        success = self.load_pipeline(self.output_test_stages)
 
-        if success:
-            self.run_analysis_button.disabled = False
-        else:
+        if not success:
             self.status_source.emit("Configuration file failed to load properly.")
-
-    def _on_view_config_callback(self, event: Any = None) -> None:  # noqa: ARG002
-        """Callback that fires when the "view config" button is clicked.
-        This adds a float panel widget to the visualized (otherwise empty) container"""
-        floatpanel = pn.layout.FloatPanel(
-            pn.pane.JSON(self.config_file.value, depth=-1, height=200),
-            name="Loaded configurations",
-            margin=20,
-            contained=False,
-            position="center",
-            config={
-                "headerControls": {
-                    "minimize": "remove",
-                    "maximize": "remove",
-                    "smallify": "remove",
-                },
-                "resizeit": False,
-            },
-            theme=f"{self.styles.color_blue_300} filledLight",
-        )
-        floatpanel.param.watch(self._on_config_panel_close_callback, "status")
-        self.config_floatpanel_container.append(floatpanel)
-
-    def _on_config_panel_close_callback(self, event: Any = None) -> None:
-        """Callback that fires when floating config viewer panel is closed
-        This removes the float panel from the visualized container."""
-        if event.obj.status == "closed":
-            self.config_floatpanel_container.remove(event.obj)
 
     def _on_model_type_change(self, event: Any) -> None:  # pragma: no cover
         """Callback listening for changes to all model selector widgets.
@@ -899,7 +859,7 @@ class BaseTestbed(param.Parameterized):
             width=self.styles.app_width - 48,
         )
 
-    def view_status_bar(self) -> pn.Column:
+    def view_status_bar(self) -> pn.Row:
         """View of status bar. Change the text on the status bar by calling
         the `self.status_source.emit` method.
         DO NOT OVERWRITE THIS METHOD
@@ -935,7 +895,19 @@ class BaseTestbed(param.Parameterized):
             width=self.styles.app_width,
         )
 
-    def view_config_input(self) -> pn.Row:
+    def view_config(self) -> pn.Column:
+        """View of the configuration file loader and advanced options"""
+        logger.debug("view config container")
+        return pn.Column(
+            pn.pane.HTML(
+                f"""<pre><code>{json.dumps(self.output_test_stages, indent=2)}</code></pre>""",
+                sizing_mode="stretch_height",
+            ),
+            scroll=True,
+            height=200,
+        )
+
+    def view_config_input(self) -> pn.Column:
         """View of the configuration file loader"""
         logger.debug("view config input container")
         return pn.Column(
@@ -943,20 +915,19 @@ class BaseTestbed(param.Parameterized):
             pn.Row(
                 pn.Column(
                     pn.pane.Markdown(
-                        "1. Upload configuration file",
+                        "1. View configuration file",
                         styles=self.styles.style_text_h3,
                         stylesheets=[self.styles.css_paragraph],
                     ),
                     pn.Row(
                         pn.Spacer(width=12),  # padding to align this with title text above
                         pn.pane.Markdown(
-                            "Upload for JSON configuration file (*.json)",
+                            "View the current JSON configuration.",
                             styles=self.styles.style_text_body2,
                             stylesheets=[self.styles.css_paragraph],
                             width=395,
                         ),
                     ),
-                    # pn.Spacer(height=40),
                 ),
                 pn.Spacer(width=124),
                 # white box on the right:
@@ -964,9 +935,7 @@ class BaseTestbed(param.Parameterized):
                     pn.Spacer(height=18),
                     pn.Row(
                         pn.Spacer(width=12),
-                        self.config_file,
-                        self.view_config_btn,
-                        self.config_floatpanel_container,
+                        self.view_config,
                     ),
                     pn.Spacer(height=18),
                     styles={
@@ -1138,4 +1107,6 @@ class BaseTestbed(param.Parameterized):
             ),
             styles={"background": self.styles.color_main_bg},
             width=self.styles.app_width,
+            min_height=1600,
+            sizing_mode="stretch_height",
         )

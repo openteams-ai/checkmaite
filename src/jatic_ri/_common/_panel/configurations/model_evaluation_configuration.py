@@ -1,32 +1,27 @@
-"""Model Evaluation Configuration for Object Detection Panel Application
+"""Model Evaluation Configuration Panel Application
 
 XAITK, NRTK, and Baseline Evaluation (maite) are included for both
 OD and IC tasks.
 """
 
 import argparse
-import importlib
-import json
 import textwrap
-from io import StringIO
-from pathlib import Path
 from typing import Any
 
 import panel as pn
 import param
 
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
-from jatic_ri.util.dashboard_utils import _center_horizontally, _center_vertically
 
 
-class ConfigurationLandingPage(BaseApp):
+class MEConfigurationLandingPage(BaseApp):
     """Initial landing page for the ME configuration app"""
 
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    title = param.String("Model Evaluation Configuration")  # this is updated upon instantiation based on the task
+    title = "Model Evaluation Configuration"  # this is updated upon instantiation based on the task
     description = """
     Select analyses to be included in the configuration. \n Any unselected options will not be included.
     """
+    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
 
     # toggles for displaying optional pages
     show_xaitk_config = param.Boolean(default=False)
@@ -38,7 +33,16 @@ class ConfigurationLandingPage(BaseApp):
     output_test_stages = param.Dict({})
 
     # special parameter for dynamically setting the next stage on THIS PAGE
-    next_parameter = param.Selector(default="Configure NRTK", objects=["Configure NRTK", "Configure XAITK", "Finalize"])
+    next_parameter = param.Selector(
+        default="ModelEvaluationTestbed",
+        objects=[
+            "Configure NRTKOD",
+            "Configure NRTKIC",
+            "Configure XAITKOD",
+            "Configure XAITKIC",
+            "ModelEvaluationTestbed",
+        ],
+    )
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
         super().__init__(styles, **params)
@@ -55,15 +59,15 @@ class ConfigurationLandingPage(BaseApp):
         set the next stage."""
         # nrtk
         if self.show_nrtk_config:
-            self.next_parameter = "Configure NRTK"
+            self.next_parameter = f"Configure NRTK{self.suffix}"
         # if not nrtk
         else:
             # if xaitk
             if self.show_xaitk_config:
-                self.next_parameter = "Configure XAITK"
+                self.next_parameter = f"Configure XAITK{self.suffix}"
             # not nrtk and not xaitk
             else:
-                self.next_parameter = "Finalize"
+                self.next_parameter = "ModelEvaluationTestbed"
 
     @param.output(next_parameter=param.Selector, task=param.String, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
@@ -74,10 +78,12 @@ class ConfigurationLandingPage(BaseApp):
         by the variable names and types listed in the decorator.
 
         If the xaitk toggle is triggered, set the next stage as `xaitk`.
-        If not, set the next stage as `Finalize`
+        If not, set the next stage as `ModelEvaluationTestbed`
         """
         # tell the next stage what it's next stage is going to be
-        followup_next_parameter = "Configure XAITK" if self.show_xaitk_config else "Finalize"
+        followup_next_parameter = (
+            f"Configure XAITK{self.suffix}" if self.show_xaitk_config else "ModelEvaluationTestbed"
+        )
 
         self.output_test_stages = {
             "task": self.task,
@@ -266,170 +272,8 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 pn.Spacer(width=24),
             ),
-            styles={"background": self.styles.color_main_bg},
-            width=self.styles.app_width,
-        )
-
-
-class FinalPage(BaseApp):
-    """Finalization page for ME OD configuration app. Contains the
-    button to download results
-    """
-
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    title = param.String("Dashboard Config Finalization")
-
-    # dictionary for holding all the output configurations
-    # this dictionary is passed between all the stages and
-    # is used in the final stage to generate the json file
-    output_test_stages = param.Dict({})
-
-    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
-        super().__init__(styles, **params)
-        self.filename = Path("config.json")
-        self.writeout_button = pn.widgets.FileDownload(
-            filename=str(self.filename),
-            callback=self._get_filestream,
-            stylesheets=[self.styles.css_button],
-        )
-
-    def _get_filestream(self) -> StringIO:
-        config = {"task": self.task}
-        config.update(self.output_test_stages)
-        sio = StringIO()
-        json.dump(config, sio, indent=4)
-        sio.seek(0)
-        return sio
-
-    def panel(self) -> pn.Column:
-        """Visualize the Final page"""
-
-        if self.local:
-            config = {"task": self.task}
-            config.update(self.output_test_stages)
-            # Write JSON to a file
-            with open(self.filename, "w") as file:
-                json.dump(config, file, indent=4)
-
-            summary_view = pn.Column(
-                _center_horizontally(
-                    pn.widgets.ButtonIcon(
-                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
-                    ),
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(
-                        "You're all set! Your .json configuration file is located at",
-                        stylesheets=[self.styles.css_paragraph],
-                    )
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(f"{self.filename.resolve()}", stylesheets=[self.styles.css_paragraph])
-                ),
-                styles={**self.styles.style_border, "padding": "15px"},
-            )
-        else:
-            summary_view = pn.Column(
-                _center_horizontally(
-                    pn.widgets.ButtonIcon(icon="checkbox", size="4em", description="favorite", styles={"color": "blue"})
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(
-                        "You're all set! Download your .json file below to",
-                        stylesheets=[self.styles.css_paragraph],
-                    )
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown("continue your evaluation pipeline.", stylesheets=[self.styles.css_paragraph])
-                ),
-                _center_horizontally(self.writeout_button),
-                styles={**self.styles.style_border, "padding": "15px"},
-            )
-
-        return pn.Column(
-            self.view_header,
-            _center_vertically(
-                pn.Row(
-                    _center_horizontally(
-                        pn.Column(
-                            _center_horizontally(
-                                pn.pane.Markdown(
-                                    "Success!",
-                                    styles=self.styles.style_text_h1,
-                                )
-                            ),
-                            summary_view,
-                        ),
-                    ),
-                ),
-            ),
-            styles={"background-color": self.styles.color_main_bg},
-            width=self.styles.app_width,
-            height=400,
-        )
-
-
-class ModelEvaluationConfigApp(BaseApp):
-    """High level constructor for the Model Evaluation Configuration App
-
-    Creates a Panel Pipeline object from the individual panel apps and
-    connects them together for sequential viewing.
-
-    There are two task modes for this app - 'object_detection' and 'image_classification'.
-
-    To view the app (via notebook):
-
-    >>> from jatic_ri._common._panel.configurations.model_evaluation_configuration import (
-    ...     ModelEvaluationConfigApp,
-    ... )
-    >>> import panel as pn
-    >>> pn.extension()
-
-    >>> app = ModelEvaluationConfigApp(task="object_detection")
-    >>> app.panel()
-    """
-
-    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
-        super().__init__(styles, **params)
-
-        # setup panel pipeline by adding individual apps and connecting them together
-        self.pipeline = pn.pipeline.Pipeline(inherit_params=False, debug=True)
-
-        nrtk_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.nrtk_app")
-        NRTKApp = nrtk_app_module.NRTKApp  # noqa: N806 (this really is a class, not a variable)
-
-        xaitk_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.xaitk_app")
-        XAITKApp = xaitk_app_module.XAITKApp  # noqa: N806 (this really is a class, not a variable)
-
-        self.pipeline.add_stage(
-            "Introduction",
-            ConfigurationLandingPage(styles, **params),
-            next_parameter="next_parameter",
-        )
-        self.pipeline.add_stage("Configure NRTK", NRTKApp, next_parameter="next_parameter")
-        self.pipeline.add_stage("Configure XAITK", XAITKApp)
-        self.pipeline.add_stage("Finalize", FinalPage)
-
-        # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
-        self.pipeline.define_graph(
-            {
-                "Introduction": ("Configure NRTK", "Configure XAITK", "Finalize"),
-                "Configure NRTK": ("Configure XAITK", "Finalize"),
-                "Configure XAITK": "Finalize",
-            }
-        )
-
-    def panel(self) -> pn.Column:
-        """Visualize the ME configuration app"""
-        return pn.Column(
-            self.pipeline.stage,
-            pn.Row(
-                pn.HSpacer(),
-                pn.Row(
-                    self.pipeline.prev_button,
-                    self.pipeline.next_button,
-                ),
-            ),
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             styles={"background": self.styles.color_main_bg},
             width=self.styles.app_width,
         )
@@ -439,5 +283,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", "-t", type=str, default="object_detection", choices=["object_detection"])
     args = parser.parse_args()
-    app = ModelEvaluationConfigApp(args.task)
+    app = MEConfigurationLandingPage(args.task)
     pn.panel(app.panel()).servable()

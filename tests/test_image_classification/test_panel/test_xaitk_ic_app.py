@@ -5,21 +5,21 @@ import json
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
-from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKApp
+from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKAppIC
 from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import XAITKConfigIC, XAITKTestStage
 
 
 def test_run_export_rise() -> None:
     """Test calling the XAITKApp's _run_export method"""
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppIC()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
     xaitk_app.stack_select.value = "RISE"
     xaitk_app._run_export()
 
-    assert "XAITKApp_0" in xaitk_app.output_test_stages
-    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
+    assert "XAITKAppIC_0" in xaitk_app.output_test_stages
+    test_stage = xaitk_app.output_test_stages["XAITKAppIC_0"]
 
     # Check if TYPE and CONFIG keys exist
     assert all(k in test_stage for k in ("TYPE", "CONFIG"))
@@ -52,15 +52,15 @@ def test_run_export_rise() -> None:
 
 def test_run_export_mc_rise() -> None:
     """Test calling the XAITKApp's _run_export method"""
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppIC()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
     xaitk_app.stack_select.value = "MC-RISE"
     xaitk_app._run_export()
 
-    assert "XAITKApp_0" in xaitk_app.output_test_stages
-    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
+    assert "XAITKAppIC_0" in xaitk_app.output_test_stages
+    test_stage = xaitk_app.output_test_stages["XAITKAppIC_0"]
 
     # Check if TYPE and CONFIG keys exist
     assert all(k in test_stage for k in ("TYPE", "CONFIG"))
@@ -96,7 +96,7 @@ def test_saliency_generation_rise() -> None:
     Test saliency_gen_button_callback that generates
     the saliency map for the given sample image.
     """
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppIC()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
@@ -114,7 +114,7 @@ def test_saliency_generation_mc_rise() -> None:
     Test saliency_gen_button_callback that generates
     the saliency map for the given sample image.
     """
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppIC()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()

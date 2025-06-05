@@ -8,7 +8,7 @@ from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImag
 from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactory
 from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
 
-from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp
+from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKAppOD
 from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage
 
 
@@ -37,7 +37,7 @@ from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTest
 def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) -> None:
     """This tests the basic functionality provided in the base class"""
     # instantiate the panel app
-    nrtk_app = NRTKApp()
+    nrtk_app = NRTKAppOD()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     nrtk_app.panel()
@@ -92,7 +92,7 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     nrtk_app.add_test_stage_callback(None)
     nrtk_app._run_export()
     assert len(nrtk_app.output_test_stages) == 1
-    test_stage = nrtk_app.output_test_stages["NRTKApp_0"]
+    test_stage = nrtk_app.output_test_stages["NRTKAppOD_0"]
     assert test_stage["TYPE"] == "NRTKTestStage"
     assert test_stage["CONFIG"]["name"] == "natural_robustness_TestFactory"
     assert test_stage["CONFIG"]["perturber_factory"] == factory_json

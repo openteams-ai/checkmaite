@@ -158,7 +158,7 @@ def test_model_evaluation_dashboard(tmp_cache_path):
     }
 
     # load in the config values
-    app.config_file.value = json.dumps(od_config)
+    app.output_test_stages = od_config
 
     ## Test dataset loading
     # ensure dataset 2 is not visible to prevent errors
@@ -215,7 +215,7 @@ def test_model_evaluation_dashboard_od_full_mock(
     }
 
     # load in the config values
-    app.config_file.value = json.dumps(od_config)
+    app.output_test_stages = od_config
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1

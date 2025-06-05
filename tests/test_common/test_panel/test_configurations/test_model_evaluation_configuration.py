@@ -1,18 +1,17 @@
-"""Test suite for Model Evaluation Configuration app.
+"""Test suite for Model Evaluation app.
 
-The differences between the object detection and image classification tasks
-is limited to the importing of the xaitk and nrtk individual apps. For this
-reason, IC is only tested in the case where all apps are included.
+This suite tests the routing of the Model Evaluation app through OD and IC configuration steps.
 """
 
 import json
 
 import pytest
 
-from jatic_ri._common._panel.configurations.model_evaluation_configuration import ModelEvaluationConfigApp
+from jatic_ri._common._panel.configurations.combined_app import FullApp
+from jatic_ri._common._panel.configurations.model_evaluation_configuration import MEConfigurationLandingPage
 
 
-def _reset_me_config_app(app: ModelEvaluationConfigApp):
+def _reset_me_config_app(app: MEConfigurationLandingPage):
     """Reset everything on the ME config app landing page
     to false. This protects these tests against changes to default
     behavior.
@@ -25,171 +24,276 @@ def _reset_me_config_app(app: ModelEvaluationConfigApp):
     app.pipeline._state.output_test_stages = {}
 
 
-def test_model_evaluation_configuration_pipeline():
-    """Test ME OD configuration pipeline app for basic
-    instantiation and visualization"""
-    # instantiate the pipeline
-    app = ModelEvaluationConfigApp()
-    # trigger visualization (test even though we can't visualize here)
-    app.panel()
-
-
 @pytest.mark.parametrize("local", [True, False])
-def test_me_config_dynamic_stages_local(local):
-    """Ensure local setting makes it to the final page
-    No selections means it goes straight to finalize
+def test_route_me_od_none(local):
+    """Test the route to the final page of the pipeline
+
+    ROUTE:
+    LandingPage -> MEConfigurationLandingPage -> ModelEvaluationTestbed
+
+    No selections means it goes straight to final page
     """
     task = "object_detection"
+    workflow = "model_evaluation"
     # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task, local=local)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # reset the app
+    # go to da od landing page
+    app.pipeline._state.od_button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
 
-    # with everything False, the next stage should be "Finalize"
-    assert app.pipeline._next_stage == "Finalize"
+    # with everything False, the next stage should be "ModelEvaluationTestbed"
+    assert app.pipeline._next_stage == "ModelEvaluationTestbed"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
     final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 1
+    assert len(final_output) == 1  # only "task" should be present
     assert "task" in final_output.keys()
     assert final_output["task"] == task
     assert app.pipeline._state.local == local
 
 
-def test_me_config_dynamic_stages_baseline_evaluate_only():
-    """Test the dynamic nature of the pipeline"""
-    task = "object_detection"
-    # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task)
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_route_me_eval(task):
+    """Test route when only baseline evaluation is selected
 
-    # reset the app
+    ROUTE:
+    LandingPage -> MEConfigurationLandingPage -> ModelEvaluationTestbed
+
+    Selecting bias, shift, and/or cleaning should not affect the route
+    """
+    workflow = "model_evaluation"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # go to da od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
+
     # toggle baseline_evaluate to true
     app.pipeline._state.baseline_eval.value = True
-
-    # with only bias true, the next stage should be "Finalize"
-    assert app.pipeline._next_stage == "Finalize"
+    # with bias selected, the next stage should still be "ModelEvaluationTestbed"
+    assert app.pipeline._next_stage == "ModelEvaluationTestbed"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and bias entries
-    assert len(content) == 2
-    assert "baseline_evaluate" in content.keys()
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 2  # task and baseline eval should be present
+    assert "baseline_evaluate" in final_output.keys()
 
 
-def test_me_config_dynamic_stages_nrtk_not_xaitk():
-    """Test the dynamic nature of the pipeline"""
-    task = "object_detection"
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_route_me_nrtk_only(task):
+    """Test route when only nrtk is selected
+
+    ROUTE:
+    LandingPage -> MEConfigurationLandingPage -> ConfigureNRTK{suffix} -> ModelEvaluationTestbed
+    """
+    workflow = "model_evaluation"
+    local = True
+
     # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # reset the app
+    # go to me od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
+
     # toggle nrtk to true
     app.pipeline._state.show_nrtk_config = True
 
     # with only nrtk true, the next stage should be nrtk
-    assert app.pipeline._next_stage == "Configure NRTK"
+    assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "NRTKApp"
-
-    # nrtk app requires explicitly adding a configuration
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
+    # add perturber factory
     app.pipeline._state.add_button.clicks += 1
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and nrtk entries
-    assert len(content) == 2
-    assert "NRTKApp_0" in content.keys()
-
-
-def test_me_config_dynamic_stages_xrtk_not_nrtk():
-    """Test the dynamic nature of the pipeline"""
-    task = "object_detection"
-    # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task)
-
-    # reset the app
-    _reset_me_config_app(app)
-    # toggle xaitk to true
-    app.pipeline._state.show_xaitk_config = True
-
-    # with only xaitk true, the next stage should be xaitk
-    assert app.pipeline._next_stage == "Configure XAITK"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the xaitk page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "XAITKApp"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and xaitk entries
-    assert len(content) == 2
-    assert "XAITKApp_0" in content.keys()
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 2  # task and nrtk should be present
+    assert f"NRTKApp{app.suffix}_0" in final_output.keys()
 
 
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
-def test_me_config_dynamic_stages_nrtk_xaitk_and_baseline(task):
-    """Test the dynamic nature of the pipeline for both OD and IC"""
-    # instantiate the pipeline
-    app = ModelEvaluationConfigApp(task=task)
+def test_route_me_nrtk_xaitk(task):
+    """Test route when both nrtk and xaitk are selected
 
-    # reset the app
+    ROUTE:
+    LandingPage -> MEConfigurationLandingPage -> ConfigureNRTK{suffix} -> ConfigureXAITK{suffix} -> ModelEvaluationTestbed
+    """
+    workflow = "model_evaluation"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # go to me od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
-    # toggle nrtk and xaitk to true
+
+    # toggle nrtk to true
     app.pipeline._state.show_nrtk_config = True
     app.pipeline._state.show_xaitk_config = True
-    app.pipeline._state.baseline_eval.value = True
 
-    # with only bias true, the next stage should be 'nrtk'
-    assert app.pipeline._next_stage == "Configure NRTK"
+    # with only nrtk true, the next stage should be nrtk
+    assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the nrtk page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "NRTKApp"
-
-    # nrtk app requires explicitly adding a configuration
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
+    # add perturber factory
     app.pipeline._state.add_button.clicks += 1
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the xaitk page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "XAITKApp"
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 3  # task, nrtk and xaitk should be present
+    assert f"NRTKApp{app.suffix}_0" in final_output.keys()
+    assert f"XAITKApp{app.suffix}_0" in final_output.keys()
 
-    assert len(content) == 4
-    assert "NRTKApp_0" in content.keys()
-    assert "XAITKApp_0" in content.keys()
-    assert "baseline_evaluate" in content.keys()
+
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_route_me_xaitk_only(task):
+    """Test route when only xaitk is selected
+
+    ROUTE:
+    LandingPage -> MEConfigurationLandingPage -> ConfigureXAITK{suffix} -> ModelEvaluationTestbed
+    """
+    workflow = "model_evaluation"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # go to me od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
+    _reset_me_config_app(app)
+
+    # toggle nrtk to true
+    app.pipeline._state.show_xaitk_config = True
+
+    # go to next stage
+    app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
+
+    # go to next stage
+    app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
+
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 2  # task, xaitk should be present
+    assert f"XAITKApp{app.suffix}_0" in final_output.keys()
+
+
+def test_route_me_config_load_od(json_config_me_od):
+    """
+    Test route when loading a configuration from a file.
+    This should load the configuration and go to the final page.
+
+    ROUTE:
+    LandingPage -> ModelEvaluationTestbed
+    """
+    task = "object_detection"
+    workflow = "model_evaluation"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # loading data into the file dropper should automatically send us to the final page
+    app.pipeline._state.file_dropper.value = {"loaded_config": json.dumps(json_config_me_od)}
+
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
+
+
+def test_route_me_config_load_ic(json_config_me_ic):
+    """
+    Test route when loading a configuration from a file.
+    This should load the configuration and go to the final page.
+
+    ROUTE:
+    LandingPage -> ModelEvaluationTestbed
+    """
+    task = "image_classification"
+    workflow = "model_evaluation"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # loading data into the file dropper should automatically send us to the final page
+    app.pipeline._state.file_dropper.value = {"loaded_config": json.dumps(json_config_me_ic)}
+
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
+
+
+def test_me_workflow_change():
+    """Test that changing the workflow from ME to DA works correctly."""
+    task = "object_detection"
+    workflow = "model_evaluation"
+    local = True
+
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    assert app.pipeline._next_stage == "MEConfigurationLandingPage"
+
+    app.pipeline._state.me_da_toggle.value = "dataset_analysis"
+
+    assert app.pipeline._next_stage == "DAConfigurationLandingPage"

@@ -19,7 +19,7 @@ from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, App
 from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
 
 
-class NRTKApp(NRTKBaseApp):
+class NRTKAppOD(NRTKBaseApp):
     """App for building NRTKTestStages"""
 
     title = param.String(default="Configure Natural Robustness Testing")
@@ -45,7 +45,7 @@ class NRTKApp(NRTKBaseApp):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sd: NRTKApp = NRTKApp()
+    sd: NRTKAppOD = NRTKAppOD()
     if len(sys.argv) > 1 and sys.argv[1] == "--ci":
         os.makedirs("artifacts", exist_ok=True)
         sd.panel().save(os.path.join("artifacts", "nrtk_app.html"), resources=INLINE)

@@ -15,7 +15,7 @@ from bokeh.resources import INLINE
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
 
-class SurvivorApp(BaseApp):
+class SurvivorAppOD(BaseApp):
     """Survivor panel app.  Creates a GUI interface that allows the user to enter and export SurvivorConfig values.
 
     Attributes:
@@ -159,13 +159,15 @@ class SurvivorApp(BaseApp):
             self.settings_pane,
             self.similarity_option_pane,
             self.view_status_bar,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             width=self.styles.app_width,
             styles={"background": self.styles.color_main_bg},
         )
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sd: SurvivorApp = SurvivorApp()
+    sd: SurvivorAppOD = SurvivorAppOD()
     if len(sys.argv) > 1 and sys.argv[1] == "--ci":
         os.makedirs("artifacts", exist_ok=True)
         sd.panel().save(os.path.join("artifacts", "survivor_app.html"), resources=INLINE)

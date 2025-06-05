@@ -9,10 +9,10 @@ import json
 
 import pytest
 
-from jatic_ri._common._panel.configurations.dataset_analysis_configuration import DatasetAnalysisConfigApp
+from jatic_ri._common._panel.configurations.combined_app import FullApp
 
 
-def _reset_da_config_app(app: DatasetAnalysisConfigApp):
+def _reset_da_config_app(app: FullApp):
     """Reset everything on the DA config app landing page
     to false. This protects these tests against changes to default
     behavior. This works for both the IC and OD usecase
@@ -28,77 +28,119 @@ def _reset_da_config_app(app: DatasetAnalysisConfigApp):
     app.pipeline._state.output_test_stages = {}
 
 
-def test_dataset_analysis_configuration_pipeline():
-    """Test DA OD configuration pipeline app for basic
-    instantiation and visualization"""
-    # instantiate the pipeline
-    app = DatasetAnalysisConfigApp()
-    # trigger visualization (test even though we can't visualize here)
-    app.panel()
-
-
 @pytest.mark.parametrize("local", [True, False])
-def test_da_config_dynamic_stages_local(local):
-    """Ensure local setting makes it to the final page
-    No selections means it goes straight to finalize
+def test_route_da_od_none(local):
+    """Test the route to the final page of the pipeline
+    ROUTE:
+    LandingPage -> DAConfigurationLandingPage -> DatasetAnalysisDashboard
+
+    No selections means it goes straight to final page
     """
     task = "object_detection"
+    workflow = "dataset_analysis"
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task, local=local)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # reset the app
+    assert app.pipeline._next_stage == "DAConfigurationLandingPage"
+
+    # go to da od landing page
+    app.pipeline._state.od_button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_da_config_app(app)
 
-    # with everything False, the next stage should be "Finalize"
-    assert app.pipeline._next_stage == "Finalize"
+    # with everything False, the next stage should be "DatasetAnalysisDashboard"
+    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
     final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 1
+    assert len(final_output) == 1  # only "task" should be present
     assert "task" in final_output.keys()
     assert final_output["task"] == task
     assert app.pipeline._state.local == local
 
 
-def test_da_config_dynamic_stages_bias_only():
-    """Test the dynamic nature of the pipeline"""
-    task = "object_detection"
-    # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_route_da_bias_shift_cleaning(task):
+    """Test route when bias, shift, and/or cleaning are selected
 
-    # reset the app
+    ROUTE:
+    LandingPage -> DAConfigurationLandingPage -> DatasetAnalysisDashboard
+
+    Selecting bias, shift, and/or cleaning should not affect the route
+    """
+    workflow = "dataset_analysis"
+    local = True
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # go to me od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_da_config_app(app)
+    # with everything False, the next stage should be "DatasetAnalysisDashboard"
+    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
+
     # toggle bias to true
     app.pipeline._state.bias.value = True
+    # with bias selected, the next stage should still be "DatasetAnalysisDashboard"
+    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
 
-    # with only bias true, the next stage should be "Finalize"
-    assert app.pipeline._next_stage == "Finalize"
+    # toggle shift to true
+    app.pipeline._state.shift.value = True
+    # with shift selected, the next stage should still be "DatasetAnalysisDashboard"
+    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
+
+    # toggle cleaning to true
+    app.pipeline._state.cleaning.value = True
+    # with cleaning selected, the next stage should still be "DatasetAnalysisDashboard"
+    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and bias entries
-    assert len(content) == 2
-    assert "bias" in content.keys()
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 4  # task, bias, shift, and cleaning should be present
+    assert "bias" in final_output.keys()
+    assert "shift" in final_output.keys()
+    assert "cleaning" in final_output.keys()
+    assert "task" in final_output.keys()
 
 
-def test_da_config_dynamic_stages_reallabel_not_survivor_OD():  # noqa: N802
-    """Test the dynamic nature of the pipeline"""
+def test_route_da_od_reallabel():
+    """Test route when only reallabel is selected.
+    Reallabel is OD only.
+
+    ROUTE:
+    LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> DatasetAnalysisDashboard
+    """
     task = "object_detection"
+    workflow = "dataset_analysis"
+    local = True
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # reset the app
+    # go to da od landing page
+    app.pipeline._state.od_button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_da_config_app(app)
+
     # toggle reallabel to true
     app.pipeline._state.show_reallabel_config = True
 
@@ -113,100 +155,165 @@ def test_da_config_dynamic_stages_reallabel_not_survivor_OD():  # noqa: N802
     # go to next stage
     app.pipeline.next_button.clicks += 1
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
-    assert len(content) == 2
-    assert "reallabel_test_stage" in content.keys()
+    # ensure we actually went to the final page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 2  # task and reallabel should be present
+    assert "reallabel_test_stage" in final_output.keys()
 
 
-@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
-def test_da_config_dynamic_stages_survivor_not_reallabel(task):
-    """Test the dynamic nature of the pipeline"""
-    # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+def test_route_da_od_reallabel_survivor():
+    """Test route when only reallabel and survivor are selected
+    Reallabel is OD only.
 
-    # reset the app
-    _reset_da_config_app(app)
-    # toggle survivor to true
-    app.pipeline._state.show_survivor_config = True
-
-    # with only survivor true, the next stage should be survivor
-    assert app.pipeline._next_stage == "Configure Survivor"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the survivor page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "SurvivorApp"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
-    assert len(content) == 2
-    assert "survivor_test_stage" in content.keys()
-
-
-def test_da_config_dynamic_stages_reallabel_survivor_and_cleaning():
-    """Test the dynamic nature of the pipeline"""
+    ROUTE:
+    LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
+    """
     task = "object_detection"
+    workflow = "dataset_analysis"
+    local = True
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # reset the app
+    # go to da od landing page
+    app.pipeline._state.od_button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
     _reset_da_config_app(app)
-    # toggle reallabel and survivor to true
+
+    # toggle reallabel and reallabel to true
     app.pipeline._state.show_reallabel_config = True
     app.pipeline._state.show_survivor_config = True
-    app.pipeline._state.cleaning.value = True
 
-    # with only bias true, the next stage should be 'reallabel'
+    # with reallabel true, the next stage should be reallabel
     assert app.pipeline._next_stage == "Configure Reallabel"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the reallabel page by checking the class name
+    # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "RealLabelApp"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the survivor page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "SurvivorApp"
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "SurvivorAppOD"
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "FinalPage"
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
-    # click the download button and convert contents back to dict
-    string_io_output = app.pipeline._state.writeout_button.callback().read()
-    content = json.loads(string_io_output)
-    # should only contain task and reallabel entries
-    assert len(content) == 4
-    assert "reallabel_test_stage" in content.keys()
-    assert "survivor_test_stage" in content.keys()
-    assert "cleaning" in content.keys()
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 3  # task, survivor and reallabel should be present
+    assert "reallabel_test_stage" in final_output.keys()
+    assert "survivor_test_stage" in final_output.keys()
 
 
-def test_da_config_dynamic_stages_ic():
-    """Test the dynamic nature of the pipeline"""
-    task = "image_classification"
+@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+def test_route_da_od_survivor(task):
+    """Test route when only survivor is selected.
+
+    ROUTE:
+    LandingPage -> DAConfigurationLandingPage -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
+    """
+    workflow = "dataset_analysis"
+    local = True
+
     # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
 
-    # ensure reallabel is not included
-    assert "Configure Reallabel" not in app.pipeline._stages
+    # go to me od/ic landing page
+    state = app.pipeline._state
+    button = getattr(state, f"{app.suffix.lower()}_button")
+    button.clicks += 1
+    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+
+    # reset the app (ensure this test is not affected by changing defaults)
+    _reset_da_config_app(app)
+
+    # toggle survivor to true
+    app.pipeline._state.show_survivor_config = True
+
+    # with only survivor true, the next stage should be survivor
+    assert app.pipeline._next_stage == f"Configure Survivor{app.suffix}"
+
+    # go to next stage
+    app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == f"SurvivorApp{app.suffix}"
+
+    # go to next stage
+    app.pipeline.next_button.clicks += 1
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+
+    final_output = app.pipeline._state.output_test_stages
+    assert len(final_output) == 2  # task and survivor should be present
+    assert "survivor_test_stage" in final_output.keys()
 
 
-def test_da_config_dynamic_stages_od():
-    """Test the dynamic nature of the pipeline"""
+def test_route_da_config_load_od(json_config_da_od):
+    """
+    Test route when loading a configuration from a file.
+    This should load the configuration and go to the final page.
+
+    ROUTE:
+    LandingPage -> DatasetAnalysisDashboard
+    """
     task = "object_detection"
-    # instantiate the pipeline
-    app = DatasetAnalysisConfigApp(task=task)
+    workflow = "dataset_analysis"
+    local = True
 
-    # ensure reallabel is not included
-    assert "Configure Reallabel" in app.pipeline._stages
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # loading data into the file dropper should automatically send us to the final page
+    app.pipeline._state.file_dropper.value = {"loaded_config": json.dumps(json_config_da_od)}
+
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+
+
+def test_route_da_config_load_ic(json_config_da_ic):
+    """
+    Test route when loading a configuration from a file.
+    This should load the configuration and go to the final page.
+
+    ROUTE:
+    LandingPage -> DatasetAnalysisDashboard
+    """
+    task = "image_classification"
+    workflow = "dataset_analysis"
+    local = True
+
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    # loading data into the file dropper should automatically send us to the final page
+    app.pipeline._state.file_dropper.value = {"loaded_config": json.dumps(json_config_da_ic)}
+
+    # ensure we actually went to the correct page by checking the class name
+    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+
+
+def test_da_workflow_change():
+    """Test that changing the workflow from DA to ME works correctly."""
+    task = "object_detection"
+    workflow = "dataset_analysis"
+    local = True
+
+    # instantiate the pipeline
+    app = FullApp(task=task, local=local, workflow=workflow)
+    app.panel()
+
+    assert app.pipeline._next_stage == "DAConfigurationLandingPage"
+
+    app.pipeline._state.me_da_toggle.value = "model_evaluation"
+
+    assert app.pipeline._next_stage == "MEConfigurationLandingPage"

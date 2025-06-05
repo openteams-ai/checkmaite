@@ -15,7 +15,7 @@ JATIC_LOGO_PATH = PACKAGE_DIR.joinpath(
     "JATIC_Logo_Acronym_Spelled_Out_RGB_white_type.svg",
 )
 
-pn.extension("tabulator")
+pn.extension("tabulator", "filedropper")
 
 
 class AppStyling(BaseModel):
@@ -72,18 +72,20 @@ class AppStyling(BaseModel):
     widget_stylesheet: str | None = None
     button_bgcolor: str | None = None
     button_textcolor: str | None = None
-    button_stylesheet: str | None = None
 
     text_color_styling: str | None = None
     info_button_style: str | None = None
 
     css_paragraph: str | None = None
+    css_center_text: str | None = None
     css_checkbox: str | None = None
     css_button: str | None = None
     css_switch: str | None = None
     css_dropdown: str | None = None
     css_config_input: str | None = None
     css_tabulator_table: str | None = None
+
+    css_filedropper: str | None = None
 
     @model_validator(mode="after")
     def compute_derived(self):  # noqa: ANN201
@@ -95,6 +97,7 @@ class AppStyling(BaseModel):
         cg500 = self.color_gray_500
         cwhite = self.color_white
         cb500 = self.color_blue_500
+        cb100 = self.color_blue_100
         cb200 = self.color_blue_200
         cb400 = self.color_blue_400
 
@@ -140,14 +143,6 @@ class AppStyling(BaseModel):
         # buttons
         self.button_bgcolor = cb500
         self.button_textcolor = cwhite
-        self.button_stylesheet = f"""
-            :host(.solid) .bk-btn.bk-btn-primary {{
-                background-color: {cb500};
-            }}
-            .bk-btn-primary {{
-                color: {cwhite};
-            }}
-            """
 
         # other CSS snippets...
         self.text_color_styling = f"*, *:before, *:after {{ color: {cg700}; }}"
@@ -157,6 +152,10 @@ class AppStyling(BaseModel):
             :host p {
                 margin: 0px;
                 font-family: "Helvetica Neue", "Arial";
+            }"""
+        self.css_center_text = """
+            :host p {
+                text-align: center;
             }"""
         self.css_checkbox = "input { height: 16px; width: 16px; }"
         self.css_button = f"""
@@ -199,6 +198,10 @@ class AppStyling(BaseModel):
                 background-color: {cwhite} !important;
                 border: none !important;
             }}"""
+        self.css_filedropper = f"""
+            .bk-input.filepond--root .filepond--drop-label {{
+                background-color: {cb100};
+            }}"""
         return self
 
 
@@ -212,25 +215,11 @@ class BaseApp(param.Parameterized):
     The individual pages should utilize:
     * a custom title
     * call `self.view_status_bar` for the status bar visualization
-      * to change the text on the status bar, use `self.status_text`
+      * to change the text on the status bar, use `self.status_source.emit("Your text")``
+    * call `self.view_header` for the header visualization (with JATIC logo)
     * call `self.view_title` for the title visualization
-    * apply dropdown/float/int widget input styling like this `pn.widgets.Select.from_param(self.param.model,
-      width=self.widget_width, name='Model', stylesheets=[self.widget_stylesheet])`
-    * apply width to the high level viewable (the outermost element returned from the `panel` method)
-       - width=self.app_width
-    * apply the navy background to the overall page `styles=dict(background=self.color_main_bg)`
-    * apply the button stylesheets, button_type must be set to "primary"
-    * visualize the export button and implement the _run_export method to run/collect metrics, etc
-    * remove pn.extension from app.py files
-
-    NOTES: # TO DO - finish renaming non-compliant attributes
-    * self.color_*: reserved for HEX color codes
-    * self.style_*: css styling applied via `styles` input to Panel widgets, e.g. `styles=self.style_foo`
-    * self.css_*: css styling applied via `css` input to Panel widgets, e.g. `css=[self.css_foo]`
+    * apply styles from the `self.styles` object
     """
-
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    summary_text_size: int = param.Integer(default=18)
 
     ##################################################
     # Pipeline specific parameters
@@ -239,7 +228,11 @@ class BaseApp(param.Parameterized):
     # is used in the final stage to generate the json file
     output_test_stages = param.Dict({})
     # flag for local deployment
-    local = param.Boolean()
+    local = param.Boolean(default=True)
+    workflow = param.Selector(default="model_evaluation", objects=["model_evaluation", "dataset_analysis"])
+    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
+    ready = param.Boolean(default=False)  # flag for when the app is ready to advance to next stage
+    testbed_config = param.Dict(default={})
     ##################################################
 
     ##################################################
@@ -265,6 +258,19 @@ class BaseApp(param.Parameterized):
         # Emit an initial message
         self.status_source.emit("Waiting for input...")
 
+        self.next_button = pn.widgets.Button(
+            name="Next",
+            button_type="primary",
+            stylesheets=[styles.css_button],
+            width=150,
+        )
+        self.next_button.on_click(self._next_button_callback)
+
+    @property
+    def suffix(self) -> str:
+        """Task abbreviation used for suffixing variables"""
+        return "OD" if self.task == "object_detection" else "IC"
+
     def _run_export(self) -> None:
         """Individual implementation of export process.
         This method should populate the self.output_test_stages with
@@ -282,6 +288,10 @@ class BaseApp(param.Parameterized):
         """Output handler for passing variables from one pipeline page to another"""
         self._run_export()
         return self.task, self.output_test_stages, self.local
+
+    def _next_button_callback(self, event: param.Event) -> None:  # noqa: ARG002
+        """Callback for the Next button to advance to the next stage"""
+        self.ready = True
 
     def horizontal_line(self) -> pn.pane.HTML:
         """Creates a horizontal line in an HTML element.

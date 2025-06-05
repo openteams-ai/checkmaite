@@ -52,7 +52,9 @@ class RealLabelApp(BaseApp):
 
     # special parameter for dynamically setting the next stage
     # in this case, its set by output from previous stage
-    next_parameter = param.Selector(default="Configure Survivor", objects=["Configure Survivor", "Finalize"])
+    next_parameter = param.Selector(
+        default="Configure SurvivorOD", objects=["Configure SurvivorOD", "DatasetAnalysisDashboard"]
+    )
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
         super().__init__(styles, **params)
@@ -156,6 +158,8 @@ class RealLabelApp(BaseApp):
             self.view_header,
             self.settings_pane,
             self.view_status_bar,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             width=self.styles.app_width,
             styles={"background": self.styles.color_main_bg},
         )

@@ -5,21 +5,21 @@ import json
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency import GenerateObjectDetectorBlackboxSaliency
 
-from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp
+from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKAppOD
 from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKConfigOD, XAITKTestStage
 
 
 def test_run_export() -> None:
     """Test calling the XAITKApp's _run_export method with default DRISE stack"""
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppOD()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
 
     xaitk_app._run_export()
 
-    assert "XAITKApp_0" in xaitk_app.output_test_stages
-    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
+    assert "XAITKAppOD_0" in xaitk_app.output_test_stages
+    test_stage = xaitk_app.output_test_stages["XAITKAppOD_0"]
 
     # Check if TYPE and CONFIG keys exist
     assert all(k in test_stage for k in ("TYPE", "CONFIG"))
@@ -57,7 +57,7 @@ def test_saliency_generation() -> None:
     Test saliency_gen_button_callback that generates
     the saliency map for the given sample image.
     """
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppOD()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
     xaitk_app.panel()
@@ -71,12 +71,12 @@ def test_saliency_generation() -> None:
 
 def test_random_grid_export() -> None:
     """Test parameters when setting stack to RandomGrid the XAITKApp's _run_export method"""
-    xaitk_app = XAITKApp()
+    xaitk_app = XAITKAppOD()
     xaitk_app.panel()
     xaitk_app.stack_select.value = "RandomGrid"
     xaitk_app._run_export()
 
-    test_stage = xaitk_app.output_test_stages["XAITKApp_0"]
+    test_stage = xaitk_app.output_test_stages["XAITKAppOD_0"]
     # Test saliency generator config
     saliency_generator_config = test_stage["CONFIG"]["saliency_generator"]
     random_grid_stack_impl = "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.RandomGridStack"

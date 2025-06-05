@@ -88,7 +88,7 @@ class HuggingFaceClassifier:
             return self.model(**hf_inputs).logits.softmax(1).detach().cpu()
 
 
-class XAITKApp(BaseXAITKApp):
+class XAITKAppIC(BaseXAITKApp):
     """App for building XAITKTestStages for image classification"""
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")
@@ -373,13 +373,15 @@ class XAITKApp(BaseXAITKApp):
             pn.layout.Divider(),
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             width=self.styles.app_width,
             styles={"background": self.styles.color_main_bg},
         )
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sd: XAITKApp = XAITKApp()
+    sd: XAITKAppIC = XAITKAppIC()
     if len(sys.argv) > 1 and sys.argv[1] == "--ci":
         os.makedirs("artifacts", exist_ok=True)
         sd.panel().save(os.path.join("artifacts", "xaitk_app.html"), resources=INLINE)

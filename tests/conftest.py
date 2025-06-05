@@ -307,7 +307,7 @@ def survivor_config_od():
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time
-    from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp as SurvivorAppOD
+    from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
 
     survivor_app = SurvivorAppOD()
     survivor_app._run_export()
@@ -319,7 +319,7 @@ def survivor_config_ic():
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time
-    from jatic_ri.image_classification._panel.configurations.survivor_app import SurvivorApp as SurvivorAppIC
+    from jatic_ri.image_classification._panel.configurations.survivor_app import SurvivorAppIC
 
     survivor_app = SurvivorAppIC()
     survivor_app._run_export()
@@ -329,7 +329,7 @@ def survivor_config_ic():
 @pytest.fixture(scope="session")
 def nrtk_config_od():
     # import inside the fixture to improve test startup time
-    from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKApp as NRTKAppOD
+    from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKAppOD
 
     nrtk_app = NRTKAppOD()
     nrtk_app.panel()
@@ -340,13 +340,13 @@ def nrtk_config_od():
     nrtk_app.name_input.value = "TestFactory"
     nrtk_app.add_test_stage_callback(None)
     nrtk_app._run_export()
-    return nrtk_app.output_test_stages["NRTKApp_0"]
+    return nrtk_app.output_test_stages["NRTKAppOD_0"]
 
 
 @pytest.fixture(scope="session")
 def nrtk_config_ic():
     # import inside the fixture to improve test startup time
-    from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKApp as NRTKAppIC
+    from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKAppIC
 
     nrtk_app = NRTKAppIC()
     nrtk_app.panel()
@@ -357,27 +357,27 @@ def nrtk_config_ic():
     nrtk_app.name_input.value = "TestFactory"
     nrtk_app.add_test_stage_callback(None)
     nrtk_app._run_export()
-    return nrtk_app.output_test_stages["NRTKApp_0"]
+    return nrtk_app.output_test_stages["NRTKAppIC_0"]
 
 
 @pytest.fixture(scope="session")
 def xaitk_config_od():
     # import inside the fixture to improve test startup time
-    from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKApp as XAITKAppOD
+    from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKAppOD
 
     xaitk_app = XAITKAppOD()
     xaitk_app._run_export()
-    return xaitk_app.output_test_stages["XAITKApp_0"]
+    return xaitk_app.output_test_stages["XAITKAppOD_0"]
 
 
 @pytest.fixture(scope="session")
 def xaitk_config_ic():
     # import inside the fixture to improve test startup time
-    from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKApp as XAITKAppIC
+    from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKAppIC
 
     xaitk_app = XAITKAppIC()
     xaitk_app._run_export()
-    return xaitk_app.output_test_stages["XAITKApp_0"]
+    return xaitk_app.output_test_stages["XAITKAppIC_0"]
 
 
 @pytest.fixture(scope="session")
