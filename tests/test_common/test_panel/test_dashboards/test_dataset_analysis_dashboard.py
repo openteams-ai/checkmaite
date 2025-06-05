@@ -380,7 +380,7 @@ def test_dataset_analysis_dashboard_od_full_mock(
     }
 
     # load in the config values
-    app.config_file.value = json.dumps(od_config)
+    app.output_test_stages = od_config
 
     # trigger the mocked run
     app.run_analysis_button.clicks += 1

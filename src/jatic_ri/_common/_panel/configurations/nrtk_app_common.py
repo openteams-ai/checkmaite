@@ -39,7 +39,9 @@ class NRTKBaseApp(BaseApp):
     """App for building NRTKTestStages"""
 
     title = param.String(default="Configure Natural Robustness Testing")
-    next_parameter = param.Selector(default="Configure XAITK", objects=["Configure XAITK", "Finalize"])
+    next_parameter = param.Selector(
+        default="Configure XAITKOD", objects=["Configure XAITKOD", "Configure XAITKIC", "ModelEvaluationTestbed"]
+    )
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         from nrtk.interfaces.perturb_image import PerturbImage
@@ -60,15 +62,15 @@ class NRTKBaseApp(BaseApp):
         )
 
         super().__init__(styles, **params)
-        self.add_button.stylesheets = [self.styles.button_stylesheet]
-        self.clear_button.stylesheets = [self.styles.button_stylesheet]
+        self.add_button.stylesheets = [self.styles.css_button]
+        self.clear_button.stylesheets = [self.styles.css_button]
         self.perturber_select.stylesheets = [self.styles.widget_stylesheet]
 
         self.add_button.on_click(self.add_test_stage_callback)
         self.clear_button.on_click(self.clear_test_stage_callback)
 
         self.test_perturber_button = pn.widgets.Button(
-            name="Test Perturber Settings", button_type="primary", stylesheets=[self.styles.button_stylesheet]
+            name="Test Perturber Settings", button_type="primary", stylesheets=[self.styles.css_button]
         )
         self.test_perturber_button.on_click(self.test_perturber_button_callback)
 
@@ -606,6 +608,8 @@ class NRTKBaseApp(BaseApp):
             ),
             pn.Row(pn.layout.HSpacer(), self.test_perturber_button),
             self.view_status_bar,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             width=self.styles.app_width,
             styles={"background": self.styles.color_main_bg},
         )

@@ -20,8 +20,6 @@ class DatasetAnalysisDashboard(BaseTestbed):
         super().__init__(styles, **params)
         self.title = "Dataset Analysis Testbed"
 
-        self.run_analysis_button.disabled = True
-
         # NOTE: column names defined here must match the `new_data` columns in _run_button_callback
         self.tabulator_widths = {
             "Gradient Report": 50,

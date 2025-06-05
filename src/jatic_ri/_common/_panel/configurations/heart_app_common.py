@@ -427,6 +427,8 @@ class HeartBaseApp(BaseApp):
             ),
             pn.Spacer(width=100),
             pn.Row(heart_documentation),
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             styles={"background": self.styles.color_main_bg},
             width=self.styles.app_width,
         )

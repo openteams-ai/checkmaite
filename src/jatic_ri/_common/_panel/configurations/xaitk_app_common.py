@@ -39,7 +39,7 @@ class BaseXAITKApp(BaseApp):
         self.saliency_gen_button = pn.widgets.Button(
             name="Test Saliency Map Generation Settings",
             button_type="primary",
-            stylesheets=[self.styles.button_stylesheet],
+            stylesheets=[self.styles.css_button],
             align="end",
         )
         self.select_widget = pn.widgets.Select(
@@ -182,6 +182,8 @@ class BaseXAITKApp(BaseApp):
             pn.layout.Divider(),
             pn.Row(pn.layout.HSpacer(), self.saliency_gen_button),
             self.view_status_bar,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             width=self.styles.app_width,
             styles={"background": self.styles.color_main_bg},
         )

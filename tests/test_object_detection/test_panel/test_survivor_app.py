@@ -3,7 +3,7 @@ from typing import Any
 import panel as pn
 import pytest
 
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorApp
+from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
 
 
 @pytest.mark.parametrize(
@@ -24,9 +24,9 @@ from jatic_ri.object_detection._panel.configurations.survivor_app import Survivo
 def test_similarity_option_pane(
     strategy: str, exp_type: type, exp_value: Any, exp_description: str, is_widget: bool
 ) -> None:
-    """Test SurvivorApp.similarity_option_pane() with all possible similarity_strategies."""
+    """Test SurvivorAppOD.similarity_option_pane() with all possible similarity_strategies."""
     # Arrange
-    app = SurvivorApp()
+    app = SurvivorAppOD()
     app.similarity_strategy = strategy
 
     # Act
@@ -67,9 +67,9 @@ def test_similarity_option_pane(
     ],
 )
 def test_parse_bin_string(input_str: str, exp_output: int | list[float] | None, exp_fail: bool) -> None:
-    """Test SurvivorApp.parse_bin_string() sets SurvivorApp._bins correctly."""
+    """Test SurvivorAppOD.parse_bin_string() sets SurvivorAppOD._bins correctly."""
     # Arrange
-    app = SurvivorApp()
+    app = SurvivorAppOD()
     app.bins = input_str
 
     # Act
@@ -95,9 +95,9 @@ def test_run_export(
     exp_conversion_type: str,
     exp_conversion_args: dict[str, Any],
 ) -> None:
-    """Test SurvivorApp._run_export() with all possible similarity strategies."""
+    """Test SurvivorAppOD._run_export() with all possible similarity strategies."""
     # Arrange
-    app = SurvivorApp()
+    app = SurvivorAppOD()
     app.similarity_strategy = similarity_strategy
     app.bins = bins
     app.round_precision = 9
@@ -125,7 +125,7 @@ def test_run_export(
 def test_roundtrip() -> None:
     from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
 
-    app = SurvivorApp()
+    app = SurvivorAppOD()
     app.panel()  # test constructing the UI even though we can't see it
     app._run_export()
     output_config = app.output_test_stages["survivor_test_stage"]["CONFIG"]

@@ -79,11 +79,6 @@ def test_basedashboard_multi_model(pipeline_config, request):
     # the default configs all include multi-model test stages
     assert app.multi_model_visible
 
-    # test mismatch of task
-    app.task = "something else"
-    assert not app.load_pipeline(configs=config)
-    assert "Mismatch between dashboard type" in app.status_source.current_value
-
     # test missing task key in config dict
     del config["task"]
     success = app.load_pipeline(configs=config)

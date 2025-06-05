@@ -5,29 +5,17 @@ Image Classification includes Survivor and the Dataeval tools
 """
 
 import argparse
-import importlib
-import json
 import textwrap
-from io import StringIO
-from pathlib import Path
 from typing import Any
 
 import panel as pn
 import param
 
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
-from jatic_ri.util.dashboard_utils import _center_horizontally, _center_vertically
 
 
-class ConfigurationLandingPage(BaseApp):
-    """Initial landing page for the DA OD configuration app
-    Attributes passed to the next stage:
-    next_parameter
-    task
-    output_test_stages
-    local
-
-    """
+class DAConfigurationLandingPage(BaseApp):
+    """Initial landing page for the DA OD configuration app"""
 
     task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
 
@@ -42,7 +30,8 @@ class ConfigurationLandingPage(BaseApp):
 
     # special parameter for dynamically setting the next stage on THIS PAGE
     next_parameter = param.Selector(
-        default="Configure Reallabel", objects=["Configure Reallabel", "Configure Survivor", "Finalize"]
+        default="DatasetAnalysisDashboard",
+        objects=["Configure Reallabel", "Configure SurvivorOD", "Configure SurvivorIC", "DatasetAnalysisDashboard"],
     )
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, Any]) -> None:
@@ -72,10 +61,14 @@ class ConfigurationLandingPage(BaseApp):
         else:
             # if survivor
             if self.show_survivor_config:
-                self.next_parameter = "Configure Survivor"
+                if self.task == "object_detection":
+                    self.next_parameter = "Configure SurvivorOD"
+                else:
+                    self.next_parameter = "Configure SurvivorIC"
+
             # not reallabel and not survivor
             else:
-                self.next_parameter = "Finalize"
+                self.next_parameter = "DatasetAnalysisDashboard"
 
     @param.output(next_parameter=param.Selector, task=param.String, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
@@ -83,13 +76,20 @@ class ConfigurationLandingPage(BaseApp):
         the UI and then output to the next stage.
 
         The output that is in the returned tuple become variables in the next stage defined
-        by the variable names and types listed in the decorator.
+        by the variable names and types listed in the decorator. `followup_next_parameter`
+        is the variable that will be assigned as `next_parameter` in the following stage.
 
         If the survivor toggle is triggered, set the next stage as `survivor`.
-        If not, set the next stage as `Finalize`
+        If not, set the next stage as `DatasetAnalysisDashboard`
         """
         # tell the next stage what it's next stage is going to be
-        followup_next_parameter = "Configure Survivor" if self.show_survivor_config else "Finalize"
+        if self.show_survivor_config:
+            if self.task == "object_detection":
+                followup_next_parameter = "Configure SurvivorOD"
+            else:
+                followup_next_parameter = "Configure SurvivorIC"
+        else:
+            followup_next_parameter = "DatasetAnalysisDashboard"
 
         self.output_test_stages = {
             "task": self.task,
@@ -335,188 +335,8 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 pn.Spacer(width=24),
             ),
-            styles={"background": self.styles.color_main_bg},
-            width=self.styles.app_width,
-        )
-
-
-class FinalPage(BaseApp):
-    """Finalization page for DA OD configuration app. Contains the
-    button to download results
-    """
-
-    task = param.Selector(default="object_detection", objects=["object_detection", "image_classification"])
-    title = param.String("Dashboard Config Finalization")
-
-    # dictionary for holding all the output configurations
-    # this dictionary is passed between all the stages and
-    # is used in the final stage to generate the json file
-    output_test_stages = param.Dict({})
-
-    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
-        super().__init__(styles, **params)
-        self.filename = Path("config.json")
-        self.writeout_button = pn.widgets.FileDownload(
-            filename=str(self.filename),
-            callback=self._get_filestream,
-            stylesheets=[self.styles.css_button],
-        )
-
-    def _get_filestream(self) -> StringIO:
-        """Helper to get configuration as a stringio object for downloading"""
-        config = {"task": self.task}
-        config.update(self.output_test_stages)
-        sio = StringIO()
-        json.dump(config, sio, indent=4)
-        sio.seek(0)
-        return sio
-
-    def panel(self) -> pn.Column:
-        """Visualize the Final page"""
-
-        if self.local:
-            config = {"task": self.task}
-            config.update(self.output_test_stages)
-            # Write JSON to a file
-            with open(self.filename, "w") as file:
-                json.dump(config, file, indent=4)
-
-            summary_view = pn.Column(
-                _center_horizontally(
-                    pn.widgets.ButtonIcon(
-                        icon="checkbox", size="4em", description="favorite", styles={"color": "blue"}
-                    ),
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(
-                        "You're all set! Your .json configuration file is located at",
-                        stylesheets=[self.styles.css_paragraph],
-                    )
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(f"{self.filename.resolve()}", stylesheets=[self.styles.css_paragraph])
-                ),
-                styles={**self.styles.style_border, "padding": "15px"},
-            )
-        else:
-            summary_view = pn.Column(
-                _center_horizontally(
-                    pn.widgets.ButtonIcon(icon="checkbox", size="4em", description="favorite", styles={"color": "blue"})
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown(
-                        "You're all set! Download your .json file below to",
-                        stylesheets=[self.styles.css_paragraph],
-                    )
-                ),
-                _center_horizontally(
-                    pn.pane.Markdown("continue your evaluation pipeline.", stylesheets=[self.styles.css_paragraph])
-                ),
-                _center_horizontally(self.writeout_button),
-                styles={**self.styles.style_border, "padding": "15px"},
-            )
-        return pn.Column(
-            self.view_header,
-            _center_vertically(
-                pn.Row(
-                    _center_horizontally(
-                        pn.Column(
-                            _center_horizontally(
-                                pn.pane.Markdown(
-                                    "Success!",
-                                    styles=self.styles.style_text_h1,
-                                )
-                            ),
-                            summary_view,
-                        ),
-                    ),
-                ),
-            ),
-            styles={"background-color": self.styles.color_main_bg},
-            width=self.styles.app_width,
-            height=400,
-        )
-
-
-class DatasetAnalysisConfigApp(BaseApp):
-    """High level constructor for the Dataset Analysis Configuration App
-
-    Creates a Panel Pipeline object from the individual panel apps and
-    connects them together for sequential viewing.
-
-    There are two task modes for this app - 'object_detection' and 'image_classification'.
-
-    To view the app (via notebook):
-
-    >>> from jatic_ri._common._panel.configurations.dataset_analysis_configuration import (
-    ...     DatasetAnalysisConfigApp,
-    ... )
-    >>> import panel as pn
-    >>> pn.extension()
-
-    >>> app = DatasetAnalysisConfigApp(task="object_detection")
-    >>> app.panel()
-    """
-
-    def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
-        super().__init__(styles, **params)
-
-        # setup panel pipeline by adding individual apps and connecting them together
-        self.pipeline = pn.pipeline.Pipeline(inherit_params=False, debug=True)
-
-        self.pipeline.add_stage(
-            "Introduction",
-            ConfigurationLandingPage(styles, **params),
-            next_parameter="next_parameter",
-        )
-
-        survivor_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.survivor_app")
-        SurvivorApp = survivor_app_module.SurvivorApp  # noqa: N806 (this really is a class, not a variable)
-
-        if self.task == "object_detection":
-            # add reallabel test stage only for object_detection
-            reallabel_app_module = importlib.import_module(f"jatic_ri.{self.task}._panel.configurations.reallabel_app")
-            RealLabelApp = reallabel_app_module.RealLabelApp  # noqa: N806 (this really is a class, not a variable)
-            self.pipeline.add_stage("Configure Reallabel", RealLabelApp, next_parameter="next_parameter")
-
-            # add remaining stages
-            self.pipeline.add_stage("Configure Survivor", SurvivorApp)
-            self.pipeline.add_stage("Finalize", FinalPage)
-            # setup nonlinear dag, actual path is dynamic based on choices made on the intro page
-            self.pipeline.define_graph(
-                {
-                    "Introduction": ("Configure Reallabel", "Configure Survivor", "Finalize"),
-                    "Configure Reallabel": ("Configure Survivor", "Finalize"),
-                    "Configure Survivor": "Finalize",
-                }
-            )
-        else:
-            # add remaining stages
-            self.pipeline.add_stage("Configure Survivor", SurvivorApp)
-            self.pipeline.add_stage("Finalize", FinalPage)
-            self.pipeline.define_graph(
-                {
-                    "Introduction": ("Configure Survivor", "Finalize"),
-                    "Configure Survivor": "Finalize",
-                }
-            )
-
-    def panel(self) -> pn.viewable.ServableMixin:
-        """Visualize the DA OD configuration app"""
-        main_column = pn.Column(
-            self.pipeline.stage,
-            pn.Row(
-                pn.HSpacer(),
-                pn.Row(
-                    self.pipeline.prev_button,
-                    self.pipeline.next_button,
-                ),
-                pn.Spacer(width=48),
-            ),
-            pn.Spacer(width=24),
-        )
-        return pn.panel(
-            main_column,
+            pn.Spacer(height=24),
+            pn.Row(pn.HSpacer(), self.next_button),
             styles={"background": self.styles.color_main_bg},
             width=self.styles.app_width,
         )
@@ -528,5 +348,5 @@ if __name__ == "__main__":
         "--task", "-t", type=str, default="object_detection", choices=["object_detection", "image_classification"]
     )
     args = parser.parse_args()
-    app = DatasetAnalysisConfigApp(args.task)
-    pn.panel(app.panel()).servable()
+    app = DAConfigurationLandingPage(args.task)
+    app.panel().servable()
