@@ -2741,11 +2741,8 @@ files = [
     {file = "lxml-5.4.0-cp36-cp36m-win_amd64.whl", hash = "sha256:7ce1a171ec325192c6a636b64c94418e71a1964f56d002cc28122fceff0b6121"},
     {file = "lxml-5.4.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:795f61bcaf8770e1b37eec24edf9771b307df3af74d1d6f27d812e15a9ff3872"},
     {file = "lxml-5.4.0-cp37-cp37m-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:29f451a4b614a7b5b6c2e043d7b64a15bd8304d7e767055e8ab68387a8cacf4e"},
-    {file = "lxml-5.4.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:891f7f991a68d20c75cb13c5c9142b2a3f9eb161f1f12a9489c82172d1f133c0"},
     {file = "lxml-5.4.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4aa412a82e460571fad592d0f93ce9935a20090029ba08eca05c614f99b0cc92"},
-    {file = "lxml-5.4.0-cp37-cp37m-manylinux_2_28_aarch64.whl", hash = "sha256:ac7ba71f9561cd7d7b55e1ea5511543c0282e2b6450f122672a2694621d63b7e"},
     {file = "lxml-5.4.0-cp37-cp37m-manylinux_2_28_x86_64.whl", hash = "sha256:c5d32f5284012deaccd37da1e2cd42f081feaa76981f0eaa474351b68df813c5"},
-    {file = "lxml-5.4.0-cp37-cp37m-musllinux_1_2_aarch64.whl", hash = "sha256:ce31158630a6ac85bddd6b830cffd46085ff90498b397bd0a259f59d27a12188"},
     {file = "lxml-5.4.0-cp37-cp37m-musllinux_1_2_x86_64.whl", hash = "sha256:31e63621e073e04697c1b2d23fcb89991790eef370ec37ce4d5d469f40924ed6"},
     {file = "lxml-5.4.0-cp37-cp37m-win32.whl", hash = "sha256:be2ba4c3c5b7900246a8f866580700ef0d538f2ca32535e991027bdaba944063"},
     {file = "lxml-5.4.0-cp37-cp37m-win_amd64.whl", hash = "sha256:09846782b1ef650b321484ad429217f5154da4d6e786636c38e434fa32e94e49"},
@@ -3506,35 +3503,38 @@ test = ["pytest", "pytest-console-scripts", "pytest-jupyter", "pytest-tornasync"
 
 [[package]]
 name = "nrtk"
-version = "0.15.1"
-description = "An open source toolkit for evaluating the natural robustness of computer vision algorithms."
+version = "0.22.0"
+description = "Natural Robustness Toolkit (NRTK) is a platform for generating validated, sensor-specific perturbations and transformations used to evaluate the robustness of computer vision models."
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "nrtk-0.15.1-py3-none-any.whl", hash = "sha256:255827ee948ff3ee35a3c620acdf4709ae88192b3e9b8efc8dea4dede330fb65"},
-    {file = "nrtk-0.15.1.tar.gz", hash = "sha256:3d764edd9ee7bb368695ec445dd198a0f25dfbe32445f0e9db0adb6322d00bbb"},
+    {file = "nrtk-0.22.0-py3-none-any.whl", hash = "sha256:f022b9dd3f0307deeeb0cdaac09fb598ed0b35095067631c6d0abdffb31d3ffc"},
+    {file = "nrtk-0.22.0.tar.gz", hash = "sha256:8239b76e341c2dd828944ac3fe0802389cea870e1633507d4f277221e70c7992"},
 ]
 
 [package.dependencies]
 numpy = {version = ">=1.22,<2.0", markers = "python_version < \"3.12\""}
-opencv-python-headless = {version = ">=4.6", optional = true, markers = "extra == \"headless\""}
-Pillow = ">=10.3.0"
 pycocotools = ">=2.0.6"
-scikit-image = {version = ">=0.20", markers = "python_version < \"3.12\""}
 setuptools = ">=65.6.1"
 smqtk-classifier = ">=0.19.0"
 smqtk-core = ">=0.19"
-smqtk-detection = ">=0.19.0"
+smqtk-detection = ">=0.22.0"
 smqtk-image-io = ">=0.17.1"
 tqdm = ">=4.64"
+typing-extensions = ">=4.5.0"
 
 [package.extras]
+albumentations = ["albumentations (>=2.0.0)"]
 graphics = ["opencv-python (>=4.6)"]
 headless = ["opencv-python-headless (>=4.6)"]
-pybsm = ["pybsm (>=0.8.0)"]
-pybsm-graphics = ["pybsm (>=0.8.0)", "pybsm[graphics] (>=0.8.0)"]
-pybsm-headless = ["pybsm (>=0.8.0)", "pybsm[headless] (>=0.8.0)"]
+maite = ["fastapi (>=0.110.0)", "maite (>=0.7.1,<0.8.0)", "pydantic (>=2.6.4)", "pydantic_settings (>=2.2.1)", "uvicorn (>=0.29.0)"]
+notebook-testing = ["albumentations (>=2.0.0)", "datasets (>=3.3.2)", "jupytext (>=1.16.7)", "matplotlib (>=3.7.1)", "numba (>=0.56.4)", "tabulate (>=0.9.0)", "torch (>=2.2.0)", "torchmetrics (>=1.0.0)", "torchvision (>=0.21.0)", "transformers (>=4.50.0)", "ultralytics (>=8.3.85)", "xaitk-jatic (>=0.5.0)"]
+pillow = ["Pillow (>=10.3.0)"]
+pybsm = ["pybsm (>=0.10.2)"]
+scikit-image = ["scikit-image (>=0.20) ; python_version < \"3.12\"", "scikit-image (>=0.22) ; python_version >= \"3.12\""]
+tools = ["Pillow (>=10.3.0)", "kwcoco (>=0.2.18)"]
+waterdroplet = ["scipy (>=1.10.0)", "shapely (>=2.0.7)"]
 
 [[package]]
 name = "numba"
@@ -6273,18 +6273,6 @@ docs = ["setuptools-rust", "sphinx", "sphinx-rtd-theme"]
 testing = ["black (==22.3)", "datasets", "numpy", "pytest", "requests", "ruff"]
 
 [[package]]
-name = "toml"
-version = "0.10.2"
-description = "Python Library for Tom's Obvious, Minimal Language"
-optional = false
-python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-groups = ["dev"]
-files = [
-    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
-    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
-]
-
-[[package]]
 name = "tomli"
 version = "2.2.1"
 description = "A lil' TOML parser"
@@ -7317,4 +7305,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.12"
-content-hash = "17e3f514b4e1f8c91772228b55f6007bb40e9d43c1edd84e02a8b8e5ce55dc93"
+content-hash = "90e4eae38da0cfc06b2f5b79f663befed835d96a49418f4e86f0569139279790"
