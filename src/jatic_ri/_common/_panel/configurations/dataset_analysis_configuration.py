@@ -7,6 +7,7 @@ Image Classification includes Survivor and the Dataeval tools
 import argparse
 import importlib
 import json
+import textwrap
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -133,12 +134,34 @@ class ConfigurationLandingPage(BaseApp):
         return followup_next_parameter, self.task, self.output_test_stages, self.local
 
     def _generate_checkbox_subsection(
-        self, checkbox: pn.widgets.Checkbox, label: str, description: str, section_height: int = 62
+        self,
+        checkbox: pn.widgets.Checkbox,
+        label: str,
+        description: str,
+        section_height: int = 62,
+        requires_config: bool = False,
     ) -> pn.Row:
-        """Construct a viewable object for the checkbox subsections.
+        """
+        Construct a viewable object for the checkbox subsections.
+
         NOTE: Section height default is set at 62 for single line descriptions. This is a
         departure from the figma spec. Resolving this will require additional css work.
         """
+
+        # build label + optional requires config icon
+        label_row = pn.Row(
+            pn.pane.Markdown(
+                label,
+                styles=self.styles.style_text_subtitle,
+                stylesheets=[self.styles.css_paragraph],
+            ),
+            pn.Spacer(sizing_mode="stretch_width"),
+            (
+                pn.widgets.ButtonIcon(icon="settings", size="1.5em", styles={"opacity": "0.5"})
+                if requires_config
+                else pn.Spacer(width=0)
+            ),
+        )
 
         return pn.Row(
             pn.Spacer(width=24),
@@ -149,11 +172,7 @@ class ConfigurationLandingPage(BaseApp):
                 ),
                 pn.Column(
                     pn.Spacer(height=4),
-                    pn.pane.Markdown(
-                        label,
-                        styles=self.styles.style_text_subtitle,
-                        stylesheets=[self.styles.css_paragraph],
-                    ),
+                    label_row,
                     pn.pane.Markdown(
                         description,
                         styles=self.styles.style_text_body2,
@@ -166,79 +185,95 @@ class ConfigurationLandingPage(BaseApp):
             ),
         )
 
-    def view_core_analysis_tools(self) -> pn.Column:
-        """ "view of the core analysis row of the app"""
-        tool_viewable = pn.Column(
+    def view_analysis_tools(self) -> pn.Column:
+        """View of the analysis tools row of the app."""
+
+        # build list of rows, starting & ending with spacers
+        tools_viewable = [
             pn.Spacer(height=24),
-            self._generate_checkbox_subsection(self.cleaning, "Cleaning", "Identify potential image quality issues."),
-            pn.Spacer(height=12),
             self._generate_checkbox_subsection(
-                self.shift, "Shift", "Estimate the dataset drift and out-of-distribution fraction."
+                self.cleaning,
+                "Cleaning",
+                "Identify potential image quality issues.",
             ),
             pn.Spacer(height=12),
-            self._generate_checkbox_subsection(self.bias, "Bias", "Measure sampling bias and correlation."),
-            pn.Spacer(height=24),
-            styles={
-                "background-color": self.styles.color_white,
-                "border-color": self.styles.color_border,
-                "border-width": "thin",
-                "border-style": "solid",
-                "border-radius": "8px",
-            },
-            width=697,
-        )
-        if self.task == "image_classification":
-            tool_viewable.insert(4, pn.Spacer(height=12))
-            tool_viewable.insert(
-                5,
-                self._generate_checkbox_subsection(
-                    self.feasibility, "Feasibility", "Estimate asymptotic model performance."
-                ),
-            )
-        return tool_viewable
+            self._generate_checkbox_subsection(
+                self.shift,
+                "Shift",
+                "Estimate the dataset drift and out-of-distribution fraction.",
+            ),
+            pn.Spacer(height=12),
+            self._generate_checkbox_subsection(
+                self.bias,
+                "Bias",
+                "Measure sampling bias and correlation.",
+            ),
+        ]
 
-    def view_configurable_tools(self) -> pn.Column:
-        """View of the configurable tools row of the app"""
-        survivor_checkbox = pn.widgets.Checkbox.from_param(
+        # task-specific tools
+        if self.task == "image_classification":
+            tools_viewable += [
+                pn.Spacer(height=12),
+                self._generate_checkbox_subsection(
+                    self.feasibility,
+                    "Feasibility",
+                    "Estimate asymptotic model performance.",
+                ),
+            ]
+
+        # Survivor
+        survivor_cb = pn.widgets.Checkbox.from_param(
             self.param.show_survivor_config,
             name="",
             stylesheets=[self.styles.css_checkbox],
         )
-        tool_viewable = pn.Column(
-            pn.Spacer(height=24),
+
+        # add survivor checkbox
+        tools_viewable += [
+            pn.Spacer(height=12),
             self._generate_checkbox_subsection(
-                survivor_checkbox,
+                survivor_cb,
                 "Survivor",
-                "Identify pieces of data (e.g. images with ground truth labels) in an evaluation dataset "
-                "that are most valuable for ranking models.",
+                "Identify pieces of data (e.g. images with ground truth labels) "
+                "in an evaluation dataset that are most valuable for ranking models.",
+                requires_config=True,
                 section_height=76,
             ),
-            pn.Spacer(height=12),
-            pn.Spacer(height=24),
-            styles={
-                "background-color": self.styles.color_white,
-                "border-color": self.styles.color_border,
-                "border-width": "thin",
-                "border-style": "solid",
-                "border-radius": "8px",
-            },
-            width=697,
-        )
+        ]
+
         if self.task == "object_detection":
+            # Reallabel
             reallabel_checkbox = pn.widgets.Checkbox.from_param(
                 self.param.show_reallabel_config,
                 name="",
                 stylesheets=[self.styles.css_checkbox],
             )
-            tool_viewable.insert(
-                3,
+
+            tools_viewable += [
+                pn.Spacer(height=12),
                 self._generate_checkbox_subsection(
                     reallabel_checkbox,
                     "Reallabel",
                     "Identify potentially missing and erroneous ground truth labels in object-detection datasets.",
+                    requires_config=True,
                 ),
-            )
-        return tool_viewable
+            ]
+
+        # close out with bottom spacer
+        tools_viewable.append(pn.Spacer(height=24))
+
+        # wrap everything in the bordered container
+        return pn.Column(
+            *tools_viewable,
+            styles={
+                "background-color": self.styles.color_white,
+                "border-color": self.styles.color_border,
+                "border-width": "thin",
+                "border-style": "solid",
+                "border-radius": "8px",
+            },
+            width=697,
+        )
 
     def panel(self) -> pn.Column:
         """Visualize the landing page"""
@@ -254,52 +289,33 @@ class ConfigurationLandingPage(BaseApp):
                 styles=self.styles.style_text_h2,
                 stylesheets=[self.styles.css_paragraph],
             ),
-            pn.pane.Markdown(
-                "Setup your dataset analysis configuration to include tools from various JATIC "
-                "products. Once complete, you will be able to download the configuration file to "
-                "test your models and datasets",
-                styles=self.styles.style_text_body2,
-                stylesheets=[self.styles.css_paragraph],
-            ),
         )
 
-        core_analysis_row = pn.Row(
+        analysis_row = pn.Row(
             pn.Column(
                 pn.pane.Markdown(
-                    "Core analysis tools",
+                    "Analysis Tool Selection",
                     styles=self.styles.style_text_h3,
                     stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.pane.Markdown(
-                    "Select from a set of JATIC analysis tools designed to assess the quality, "
-                    "consistency, and structure of your dataset. These tools require no additional "
-                    "configuration.",
+                    textwrap.dedent(
+                        """
+                        Setup your dataset analysis configuration to include tools from
+                        various JATIC products. These tools are designed to assess the
+                        quality, consistency and structure of your dataset.
+
+                        Some tools, marked with ⚙️, require additional configuration on
+                        the following pages.
+                        """
+                    ),
                     styles=self.styles.style_text_body2,
                     stylesheets=[self.styles.css_paragraph],
                     width=395,
                 ),
             ),
             pn.Spacer(width=124),
-            self.view_core_analysis_tools,
-        )
-
-        configurable_row = pn.Row(
-            pn.Column(
-                pn.pane.Markdown(
-                    "Configurable analysis tools",
-                    styles=self.styles.style_text_h3,
-                    stylesheets=[self.styles.css_paragraph],
-                ),
-                pn.pane.Markdown(
-                    "Explore these configurable JATIC analysis tools that address unique dataset "
-                    "challenges. These will be configured on the following pages.",
-                    styles=self.styles.style_text_body2,
-                    stylesheets=[self.styles.css_paragraph],
-                    width=395,
-                ),
-            ),
-            pn.Spacer(width=124),
-            self.view_configurable_tools,
+            self.view_analysis_tools,
         )
 
         return pn.Column(
@@ -311,11 +327,11 @@ class ConfigurationLandingPage(BaseApp):
                     pn.Spacer(height=24),
                     self.horizontal_line(),
                     pn.Spacer(height=24),
-                    core_analysis_row,
+                    analysis_row,
                     pn.Spacer(height=24),
                     self.horizontal_line(),
                     pn.Spacer(height=24),
-                    configurable_row,
+                    # configurable_row,
                 ),
                 pn.Spacer(width=24),
             ),
@@ -485,22 +501,24 @@ class DatasetAnalysisConfigApp(BaseApp):
                 }
             )
 
-    def panel(self) -> pn.Column:
+    def panel(self) -> pn.viewable.ServableMixin:
         """Visualize the DA OD configuration app"""
-        return pn.panel(
-            pn.Column(
-                self.pipeline.stage,
+        main_column = pn.Column(
+            self.pipeline.stage,
+            pn.Row(
+                pn.HSpacer(),
                 pn.Row(
-                    pn.HSpacer(),
-                    pn.Row(
-                        self.pipeline.prev_button,
-                        self.pipeline.next_button,
-                    ),
-                    pn.Spacer(width=48),
+                    self.pipeline.prev_button,
+                    self.pipeline.next_button,
                 ),
-                styles={"background": self.styles.color_main_bg},
-                width=self.styles.app_width,
-            )
+                pn.Spacer(width=48),
+            ),
+            pn.Spacer(width=24),
+        )
+        return pn.panel(
+            main_column,
+            styles={"background": self.styles.color_main_bg},
+            width=self.styles.app_width,
         )
 
 
