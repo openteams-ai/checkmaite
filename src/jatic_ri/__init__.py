@@ -62,7 +62,7 @@ if not user_mps_fallback:
 
 import torch  # noqa: E402
 
-if not user_mps_fallback and torch.mps.is_available():
+if not user_mps_fallback and torch.backends.mps.is_available():
     warnings.warn(
         "MPS fallback has been enabled. "
         "Please set the environment variable PYTORCH_ENABLE_MPS_FALLBACK=0 "
