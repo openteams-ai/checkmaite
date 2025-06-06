@@ -133,6 +133,7 @@ conda-lock-test:
     - micromamba activate $CONDA_ENV_NAME
     - make conda-env  # create conda env from conda-lock file
     - pip install . --no-deps
+    - micromamba list
   script:
     - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
 
@@ -161,6 +162,7 @@ pages-branch:
   extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: docs
+  needs: []
   artifacts:
       expose_as: 'Documentation Build'
       paths:
@@ -175,9 +177,8 @@ pages-branch:
   variables:
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
   rules:
-    # If changes are make to an active merge request.
+    # If changes are made to an active merge request.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: on_success
     # Don't run this rule if on main branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never

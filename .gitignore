@@ -143,6 +143,8 @@ venv.bak/
 /site
 /public
 /docs/how-tos/config.json  # run artifact
+/docs/how-tos/temp_yolo_dataset/  # run artifact
+/docs/tutorials/xaitk_example_output/  # run artifact
 
 # mypy
 .mypy_cache/

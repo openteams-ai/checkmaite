@@ -52,4 +52,4 @@ candidate for fine tuning.
 
 Robin's workflow is summarized below. 
 
-![Demo workflow diagram](assets/demo_workflow.png)
+![Demo workflow diagram](../assets/demo_workflow.png)

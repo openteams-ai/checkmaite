@@ -32,10 +32,8 @@ nav:  # navigation links on sidebar
     - explanations/index.md
   - How-tos:
     - how-tos/index.md
-    - Dataset Analysis Configuration: how-tos/dataset_analysis_configuration.ipynb
-    - Dataset Analysis Testbed: how-tos/Dataset_Analysis_Testbed.ipynb
-    - Model Evaluation Configuration: how-tos/model_evaluation_configuration.ipynb
-    - Model Evaluation Testbed: how-tos/Model_Evaluation_Testbed.ipynb
+    - Object Detection Workflow via API: how-tos/ri_api_od.ipynb
+    - Image Classification Workflow via API: how-tos/ri_api_ic.ipynb
   - Tutorials:
     - tutorials/index.md
     - RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
@@ -44,6 +42,7 @@ nav:  # navigation links on sidebar
     - Development Strategy: reference/development.md
     - Persona: reference/persona.md
   - Community:
+    - Setup: community/setup.md
     - Contributing: community/contributing.md
 markdown_extensions:
   - admonition  # enables callout boxes
@@ -58,6 +57,7 @@ plugins:
   - mkdocs-jupyter:
       execute: true
       kernel_name: python3
+      allow_errors: false
   - search
 
 exclude_docs: |

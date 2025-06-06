@@ -9,6 +9,7 @@ import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
 import PIL.Image
+from IPython.display import HTML
 
 
 def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
@@ -94,3 +95,28 @@ def create_metrics_bar_plot(
     plt.close(fig)
 
     return fig
+
+
+def create_expandable_output(outputs: dict | list, max_preview_length: int = 100) -> HTML:
+    """Display test stage results concisely with collapsible sections for long values."""
+    items = outputs.items() if isinstance(outputs, dict) else [("Output", outputs)]
+    parts = []
+    for name, value in items:
+        text = str(value)
+        if len(text) <= max_preview_length:
+            parts.append(f"""
+            <div style="margin-bottom:15px;">
+                <strong>{name}:</strong> {text}
+            </div>""")
+        else:
+            preview = text[:max_preview_length] + "..."
+            parts.append(f"""
+            <div style="margin-bottom:15px;">
+                <strong>{name}:</strong> {preview}
+                <details style="margin-top:5px;">
+                    <summary>Show full output</summary>
+                    <pre style="background-color:#f5f5f5;padding:10px;margin-top:5px;">{text}</pre>
+                </details>
+            </div>
+            """)
+    return HTML("".join(parts))
