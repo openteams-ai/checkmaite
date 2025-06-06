@@ -22,7 +22,7 @@ from gradient.slide_deck.shapes import Text
 from gradient.slide_deck.shapes.image_shapes import GradientImage
 from gradient.templates_and_layouts.generic_layouts import SectionByItem
 
-from jatic_ri import cache_path
+from jatic_ri import PACKAGE_DIR, cache_path
 from jatic_ri._common.test_stages.impls._dataeval_utils import (
     DIMENSION_LIST,
     RATIO_LIST,
@@ -333,7 +333,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         ]
 
         left_item = GradientImage(
-            src=Path("src/jatic_ri/_sample_imgs/toc.png"), width=100, height=100, top=0.5, left=0.5
+            src=Path(PACKAGE_DIR.joinpath("_sample_imgs/toc.png")), width=100, height=100, top=0.5, left=0.5
         )
         return create_two_item_text_slide(
             deck=self._deck, title="Table of Contents", left_item=left_item, right_item=right_item

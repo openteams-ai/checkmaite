@@ -3,36 +3,20 @@
 
 <div class="grid cards" markdown >
 
--   :material-hammer-wrench:{ .lg .middle } __Dataset Analysis Configuration__
+-   :material-connection:{ .lg .middle } __Object Detection Workflow via API__
 
     ---
 
-    A UI to set up your dataset analysis configurations using JATIC tools.
+    Reference Implementation API access for Object Detection workflows.
 
-    [:octicons-arrow-right-24: Dataset Analysis Config](dataset_analysis_configuration.html)
+    [:octicons-arrow-right-24: Object Detection Workflow via API](ri_api_od.html)
 
--   :material-cog:{ .lg .middle } __Model Evaluation Configuration__
-
-    ---
-
-    A UI to set up your model evaluation configurations using JATIC tools.
-
-    [:octicons-arrow-right-24: Model Evaluation Config](model_evaluation_configuration.html)
-
--   :material-chart-line:{ .lg .middle } __Dataset Analysis Testbed__
+-   :material-connection:{ .lg .middle } __Image Classification Workflow via API__
 
     ---
 
-    A UI to run pre-configured analyses on your datasets.
+    Reference Implementation API access for Image Classification workflows.
 
-    [:octicons-arrow-right-24: Dataset Analysis Testbed](Dataset_Analysis_Testbed.html)
-
--   :material-brain:{ .lg .middle } __Model Evaluation Testbed__
-
-    ---
-
-    A UI to run pre-configured analyses on your models.
-
-    [:octicons-arrow-right-24: Model Evaluation Testbed](Model_Evaluation_Testbed.html)
+    [:octicons-arrow-right-24: Image Classification Workflow via API](ri_api_ic.html)
 
 </div>
