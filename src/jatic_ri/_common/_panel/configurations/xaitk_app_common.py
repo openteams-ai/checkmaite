@@ -73,7 +73,7 @@ class BaseXAITKApp(BaseApp):
         fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
         if sal_array is not None:
             ax.imshow(img_array, alpha=0.7, cmap="gray")
-            ax.imshow(sal_array, alpha=0.3, cmap="jet")
+            ax.imshow(sal_array, alpha=0.3, cmap="seismic")
             ax.set_title(self.get_sal_plot_title(), fontdict={"fontsize": 6})
         ax.axis("off")
         plt.tight_layout()

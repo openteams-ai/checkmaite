@@ -123,7 +123,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                         plt.imshow(gray_img, alpha=0.7, cmap="gray")
                         plt.xticks(())
                         plt.yticks(())
-                        plt.imshow(np.asarray(sal_maps[color_idx][0]), cmap="jet", alpha=0.3)
+                        plt.imshow(np.asarray(sal_maps[color_idx][0]), cmap="seismic", alpha=0.3)
                         plt.colorbar()
                         fig.tight_layout()
                         plt.close(fig)
@@ -153,7 +153,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                     plt.xticks(())
                     plt.yticks(())
 
-                    plt.imshow(sal_map, cmap="jet", alpha=0.3)
+                    plt.imshow(sal_map, cmap="seismic", alpha=0.3)
                     plt.colorbar()
                     fig.tight_layout()
                     plt.close(fig)
