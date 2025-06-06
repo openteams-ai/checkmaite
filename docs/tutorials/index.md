@@ -10,4 +10,12 @@
 
     [:octicons-arrow-right-24: RealLabel Tutorial](reallabel_tutorial.ipynb)
 
+-   :material-hammer-wrench:{ .lg .middle } __XAITK Tutorial__
+
+    ---
+
+    The Explainable AI Toolkit for saliency (XAITK - Saliency) is an open source framework for visual saliency algorithm interfaces and implementations.
+
+    [:octicons-arrow-right-24: XAITK Tutorial](xaitk_tutorial.ipynb)
+
 </div>

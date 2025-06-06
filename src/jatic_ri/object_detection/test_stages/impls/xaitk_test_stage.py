@@ -160,7 +160,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
                         facecolor="none",
                     ),
                 )
-                plt.imshow(sal_map, cmap="jet", alpha=0.3)
+                plt.imshow(sal_map, cmap="seismic", alpha=0.3)
                 cbar = plt.colorbar(location="bottom")
                 cbar.set_label("Pixel relevance to detection")
                 fig.tight_layout()

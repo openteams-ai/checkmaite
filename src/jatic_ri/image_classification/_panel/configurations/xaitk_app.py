@@ -311,7 +311,7 @@ class XAITKAppIC(BaseXAITKApp):
         img_array = np.asarray(img)
         fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
         ax.imshow(img_array, alpha=0.7, cmap="gray")
-        ax.imshow(sal_array, alpha=0.3, cmap="jet")
+        ax.imshow(sal_array, alpha=0.3, cmap="seismic")
         ax.set_title(f"{self.get_sal_plot_title()}  {title}", fontdict={"fontsize": 6})
         ax.axis("off")
         plt.tight_layout()
