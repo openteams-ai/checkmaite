@@ -28,7 +28,7 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     app.panel()
 
     # load in the config values
-    app.config_file.value = json.dumps(json_config_me_od)
+    app.output_test_stages = json_config_me_od
 
     ## Set up dataset
     # for OD - use sample dataset in the test suite
@@ -90,7 +90,7 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     app.panel()
 
     # load in the config values
-    app.config_file.value = json.dumps(json_config_me_ic)
+    app.output_test_stages = json_config_me_ic
 
     app.dataset_1_selector.value = "YOLO dataset"
     app.dataset_1_directory.value = str(yolo_dataset)

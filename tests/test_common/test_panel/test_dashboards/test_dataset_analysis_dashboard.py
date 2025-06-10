@@ -37,7 +37,7 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
     app.panel()
 
     # load in the config values
-    app.config_file.value = json.dumps(json_config_da_od)
+    app.output_test_stages = json_config_da_od
 
     ## Set up dataset
     # for OD - use sample dataset in the test suite
@@ -144,7 +144,7 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     app.panel()
 
     # load in the config values
-    app.config_file.value = json.dumps(baseline_eval_config_od)
+    app.output_test_stages = baseline_eval_config_od
 
     app.use_cache = True
     app.run_analysis_button.disabled = False
@@ -231,7 +231,7 @@ def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir
     app.panel()
 
     # load in the config values
-    app.config_file.value = json.dumps(json_config_da_ic)
+    app.output_test_stages = json_config_da_ic
 
     app.dataset_1_selector.value = "YOLO dataset"
     app.dataset_1_directory.value = str(yolo_dataset)
@@ -298,7 +298,7 @@ def test_dataset_analysis_dashboard_od_mockrun_only(tmp_cache_path):
         }
 
         # load in the config values
-        app.config_file.value = json.dumps(od_config)
+        app.output_test_stages = od_config
 
         ## Set up dataset
         # for OD - use sample dataset in the test suite
