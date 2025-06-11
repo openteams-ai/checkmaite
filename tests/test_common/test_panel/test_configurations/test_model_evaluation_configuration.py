@@ -135,6 +135,8 @@ def test_route_me_nrtk_only(task):
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
     # add perturber factory
     app.pipeline._state.add_button.clicks += 1
+    # add perturber factory
+    app.pipeline._state.add_button.clicks += 1
 
     # go to next stage
     app.pipeline.next_button.clicks += 1
@@ -142,8 +144,13 @@ def test_route_me_nrtk_only(task):
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
     final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 2  # task and nrtk should be present
+    assert len(final_output) == 3  # task and 2 nrtk should be present
     assert f"NRTKApp{app.suffix}_0" in final_output.keys()
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
 
 
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
@@ -196,6 +203,11 @@ def test_route_me_nrtk_xaitk(task):
     assert len(final_output) == 3  # task, nrtk and xaitk should be present
     assert f"NRTKApp{app.suffix}_0" in final_output.keys()
     assert f"XAITKApp{app.suffix}_0" in final_output.keys()
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
 
 
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
@@ -259,6 +271,13 @@ def test_route_me_config_load_od(json_config_me_od):
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
+    assert len(app.pipeline._state.output_test_stages) == len(json_config_me_od)
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(json_config_me_od) - 1 == len(app.pipeline._state.test_stages)
+
 
 def test_route_me_config_load_ic(json_config_me_ic):
     """
@@ -280,6 +299,13 @@ def test_route_me_config_load_ic(json_config_me_ic):
 
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
+
+    assert len(app.pipeline._state.output_test_stages) == len(json_config_me_ic)
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(json_config_me_ic) - 1 == len(app.pipeline._state.test_stages)
 
 
 def test_me_workflow_change():
