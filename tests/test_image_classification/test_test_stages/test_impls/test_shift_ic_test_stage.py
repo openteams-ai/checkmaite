@@ -8,4 +8,4 @@ def test_shift_ic_deck_name():
     assert test_stage._deck == "image_classification_dataset_evaluation"
 
     # smoke-test
-    test_stage.load_datasets(None, "Dataset1", None, "Dataset2")  # type: ignore
+    test_stage.load_datasets(None, "Dataset1", None, "Dataset2")  # pyright: ignore[reportArgumentType]

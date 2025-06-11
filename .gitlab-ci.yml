@@ -33,7 +33,7 @@ stages:
   interruptible: true
   allow_failure: false
   rules:
-    # If changes are make to an active merge request.
+    # If changes are made to an active merge request.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: on_success
     # If changes are pushed to the default branch.

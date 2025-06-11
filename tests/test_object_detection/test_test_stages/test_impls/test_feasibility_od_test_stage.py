@@ -58,10 +58,10 @@ class TestFeasibilityTestStage:
         threshold = 0.5
         test_stage = DatasetObjectDetectionFeasibilityTestStage()
         test_stage.load_threshold(threshold)
-        test_stage.load_dataset(None, "DUMMY_ID")  # type: ignore
-        test_stage.load_model(None, "model")
-        test_stage.load_eval_tool(None)
-        test_stage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=uap)
+        test_stage.load_dataset(None, "DUMMY_ID")  # pyright: ignore[reportArgumentType]
+        test_stage.load_model(None, "model")  # pyright: ignore[reportArgumentType]
+        test_stage.load_eval_tool(None)  # pyright: ignore[reportArgumentType]
+        test_stage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=uap)  # pyright: ignore[reportAttributeAccessIssue]
 
         slides = test_stage.collect_report_consumables()
         assert len(slides) == 1  # Only UAP

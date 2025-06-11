@@ -16,9 +16,9 @@ As these conventions are incorporated into the reference implementation, they ma
 
 ### Model conventions
 
-- Model classes and wrappers created within the reference implementation (and any models that will be evaluated using the reference implementation) will be built with the underlying model API (pytorch, tensorflow, keras, etc.) object accessible under an attribute called `model`. For example, a thinly wrapped `fasterrcnn_resnet50_fpn` model called `wrapped` will have the underlying `fasterrcnn_resnet50_fpn` model accessible via a call to `wrapped.model`. Because `model` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# type: ignore` on those lines that depend on the `model` attribute.
+- Model classes and wrappers created within the reference implementation (and any models that will be evaluated using the reference implementation) will be built with the underlying model API (pytorch, tensorflow, keras, etc.) object accessible under an attribute called `model`. For example, a thinly wrapped `fasterrcnn_resnet50_fpn` model called `wrapped` will have the underlying `fasterrcnn_resnet50_fpn` model accessible via a call to `wrapped.model`. Because `model` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `model` attribute.
 
-- Model classes within the reference implementation will have a mapping from the ids to the names of the classes that they predict, under the attribute `index2label`. This class attribute will be of type `dict[int, str]`. Because `index2label` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# type: ignore` on those lines that depend on the `index2label` attribute.
+- Model classes within the reference implementation will have a mapping from the ids to the names of the classes that they predict, under the attribute `index2label`. This class attribute will be of type `dict[int, str]`. Because `index2label` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
 
 - Object detection models will return MAITE-compliant object detection [targets](https://gitlab.jatic.net/jatic/cdao/maite/-/blob/main/src/maite/_internals/protocols/object_detection.py?ref_type=heads#L27), which consist of `ArrayLike` of predicted classes, `ArrayLike` of scores, and `ArrayLike` of bounding boxes.
 
@@ -46,7 +46,7 @@ In order for users to be able to bring their own models to the reference impleme
 
 ### Dataset conventions
 
-- Dataset classes and wrappers created within the reference implementation (and any datasets used within the RI) will have the mapping from id to classes accessible under the attribute `index2label`, and will return a `dict[int, str]`. Because `index2label` is not an attribute of the protocols for datasets, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# type: ignore` on those lines that depend on the `index2label` attribute.
+- Dataset classes and wrappers created within the reference implementation (and any datasets used within the RI) will have the mapping from id to classes accessible under the attribute `index2label`, and will return a `dict[int, str]`. Because `index2label` is not an attribute of the protocols for datasets, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
 
 - Object detection bounding boxes will be defined as `ArrayLikes` of integers in the `xyxy` format (the top-left and bottom-right corners of the bounding box).
 
@@ -71,7 +71,7 @@ In order for users to be able to bring their own datasets to the reference imple
 - Classes for computing metrics within the reference implementation will follow these conventions:
   - The `Metric` class will have an attribute called `return_key` which describes the top-level performance metric:
     - E.g., for a metric that computes `map_50`, the `return_key` will be `map_50`.
-    - Because `return_key` is not an attribute of the protocols for metrics, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# type: ignore` on those lines that depend on the `return_key` attribute.
+    - Because `return_key` is not an attribute of the protocols for metrics, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `return_key` attribute.
   
   - The list of keys returned by `compute()` will include a key that matches the `return_key` of the metric, which describes the top-level performance of predictions against the ground truth provided in the `update()` method.
   

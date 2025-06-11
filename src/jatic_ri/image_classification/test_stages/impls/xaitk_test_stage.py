@@ -111,13 +111,13 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
 
             gray_img = rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy()
 
-            gt_label = self.model.metadata["index2label"][int(np.argmax(targets))]  # type: ignore
+            gt_label = self.model.metadata["index2label"][int(np.argmax(targets))]  # pyright: ignore[reportTypedDictNotRequiredAccess]
             conf_dict = self.config.model_dump()
 
             if "MCRISEStack" in conf_dict["saliency_generator"]["type"]:
                 fill_colors = conf_dict["saliency_generator"][conf_dict["saliency_generator"]["type"]]["fill_colors"]
                 for color_idx, color_value in enumerate(fill_colors):
-                    for sal_idx in self.model.metadata["index2label"]:  # type: ignore
+                    for sal_idx in self.model.metadata["index2label"]:  # pyright: ignore[reportTypedDictNotRequiredAccess]
                         fig = plt.figure()
                         plt.axis("off")
                         plt.imshow(gray_img, alpha=0.7, cmap="gray")
@@ -138,7 +138,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                                     f"Image: {i}\n"
                                     f"Fill Color: {color_value}\n"
                                     f"GT: {gt_label}\n"
-                                    f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # type: ignore
+                                    f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # pyright: ignore[reportTypedDictNotRequiredAccess]
                                 ),
                                 "image_path": Path(save_figure_to_tempfile(fig)),
                             },
@@ -167,7 +167,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                                 f"Model: {self.model_id}\n"
                                 f"Image: {i}\n"
                                 f"GT: {gt_label}\n"
-                                f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # type: ignore
+                                f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # pyright: ignore[reportTypedDictNotRequiredAccess]
                             ),
                             "image_path": Path(save_figure_to_tempfile(fig)),
                         },

@@ -21,7 +21,7 @@ from jatic_ri._common.models import set_device
 def _to_image(v: Any) -> Any:
     if isinstance(v, (str, Path, io.BufferedIOBase)):
         with contextlib.suppress(Exception):
-            v = PIL.Image.open(v)  # type: ignore[reportArgumentType]
+            v = PIL.Image.open(v)  # pyright: ignore[reportArgumentType]
             v.load()
     elif isinstance(v, matplotlib.figure.Figure):
         with io.BytesIO() as b:

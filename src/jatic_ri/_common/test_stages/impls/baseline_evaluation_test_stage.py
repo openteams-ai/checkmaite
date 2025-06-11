@@ -95,7 +95,7 @@ class BaselineEvaluationBase(
             del result["per_class_flag"]
             class_metrics = {
                 label: result.pop(str(index), None)
-                for index, label in self.model.metadata["index2label"].items()  # type: ignore[reportTypedDictNotRequiredAccess]
+                for index, label in self.model.metadata["index2label"].items()  # pyright: ignore[reportTypedDictNotRequiredAccess]
             }
             if result.keys() != {overall_metric_name}:
                 raise RuntimeError(
