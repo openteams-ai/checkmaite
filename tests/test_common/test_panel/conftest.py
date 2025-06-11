@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 
 
@@ -31,7 +33,8 @@ def json_config_me_od(nrtk_config_od, xaitk_config_od, baseline_eval_config_od):
     """Json configuration output from the model evaluation object detection app"""
     return {
         "task": "object_detection",
-        "nrtk": nrtk_config_od,
+        "nrtk1": nrtk_config_od,
+        "nrtk2": copy.deepcopy(nrtk_config_od),
         "xaitk": xaitk_config_od,
         "baseline_eval": baseline_eval_config_od,
     }

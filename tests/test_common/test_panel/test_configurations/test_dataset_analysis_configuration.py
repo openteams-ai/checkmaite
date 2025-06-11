@@ -211,6 +211,11 @@ def test_route_da_od_reallabel_survivor():
     assert "reallabel_test_stage" in final_output.keys()
     assert "survivor_test_stage" in final_output.keys()
 
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
+
 
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
 def test_route_da_od_survivor(task):
@@ -278,6 +283,13 @@ def test_route_da_config_load_od(json_config_da_od):
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
+    assert len(app.pipeline._state.output_test_stages) == len(json_config_da_od)
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(json_config_da_od) - 1 == len(app.pipeline._state.test_stages)
+
 
 def test_route_da_config_load_ic(json_config_da_ic):
     """
@@ -300,6 +312,13 @@ def test_route_da_config_load_ic(json_config_da_ic):
 
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+
+    assert len(app.pipeline._state.output_test_stages) == len(json_config_da_ic)
+
+    # convert the on-disk formatted configs into instantiated test stages
+    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+
+    assert len(json_config_da_ic) - 1 == len(app.pipeline._state.test_stages)
 
 
 def test_da_workflow_change():
