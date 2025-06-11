@@ -169,7 +169,7 @@ class SurvivorTestStageBase(
             maite_dataset=self.dataset,
             config=self._config,
             metrics=metrics,
-            spark_session=SparkSession.builder.getOrCreate(),  # type: ignore
+            spark_session=SparkSession.builder.getOrCreate(),  # pyright: ignore[reportAttributeAccessIssue]
         )
 
         output_data = survivor.run()
@@ -177,14 +177,14 @@ class SurvivorTestStageBase(
 
         label_count_plot = self._label_count_plot(df)
         heatmap_plots = []
-        for metadata_column in self._config.heatmap_plot_columns:  # type: ignore[reportOptionalIterable]
+        for metadata_column in self._config.heatmap_plot_columns:  # pyright: ignore[reportOptionalIterable]
             heatmap_plot = self._heatmap_plot(output_data.metrics_with_survivor_label_df, metadata_column)
             heatmap_plots.append(heatmap_plot)
 
         return SurvivorOutputs(
-            raw_output_df=output_data.raw_output_df,  # type: ignore[reportArgumentType]
-            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,  # type: ignore[reportArgumentType]
-            label_count_plot=label_count_plot,  # type: ignore[reportArgumentType]
+            raw_output_df=output_data.raw_output_df,  # pyright: ignore[reportArgumentType]
+            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,  # pyright: ignore[reportArgumentType]
+            label_count_plot=label_count_plot,  # pyright: ignore[reportArgumentType]
             heatmap_plots=heatmap_plots,
         )
 

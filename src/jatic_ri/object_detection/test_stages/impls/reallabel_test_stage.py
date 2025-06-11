@@ -215,7 +215,7 @@ class RealLabelTestStage(
             .orderBy(sf.col("count").desc())
             .drop("count")
             .first()
-            .asDict()  # type: ignore
+            .asDict()  # pyright: ignore[reportOptionalMemberAccess]  # handled above
         )
 
         results_for_most_populous_image_df = default_reallabel_results.filter(
@@ -266,14 +266,14 @@ class RealLabelTestStage(
             )
 
             return RealLabelOutputs(
-                results=default_reallabel_results,  # type: ignore[reportArgumentType]
-                example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # type: ignore[reportArgumentType]
-                classification_disagreements_df=reallabel_results.classification_disagreements_df,  # type: ignore[reportArgumentType]
-                verbose_df=reallabel_results.verbose_df,  # type: ignore[reportArgumentType]
-                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # type: ignore[reportArgumentType]
-                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,  # type: ignore[reportArgumentType]
-                wanrs_df=reallabel_results.wanrs_df,  # type: ignore[reportArgumentType]
-                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,  # type: ignore[reportArgumentType]
+                results=default_reallabel_results,  # pyright: ignore[reportArgumentType]
+                example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # pyright: ignore[reportArgumentType]
+                classification_disagreements_df=reallabel_results.classification_disagreements_df,  # pyright: ignore[reportArgumentType]
+                verbose_df=reallabel_results.verbose_df,  # pyright: ignore[reportArgumentType]
+                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # pyright: ignore[reportArgumentType]
+                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,  # pyright: ignore[reportArgumentType]
+                wanrs_df=reallabel_results.wanrs_df,  # pyright: ignore[reportArgumentType]
+                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,  # pyright: ignore[reportArgumentType]
             )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
@@ -288,16 +288,16 @@ class RealLabelTestStage(
         num_false_negatives = (default_results_df["reallabel_type"] == "Likely Missed").sum()
         num_true_positives = (default_results_df["reallabel_type"] == "Likely Correct").sum()
 
-        sentence_formatting = {
+        sentence_formatting: dict[str, Any] = {
             "fontsize": 18,
             "bold": True,
         }
 
-        bullet_formatting = {
+        bullet_formatting: dict[str, Any] = {
             "fontsize": 16,
         }
 
-        spaces_formatting = {
+        spaces_formatting: dict[str, Any] = {
             "fontsize": 12,
         }
 
@@ -325,7 +325,7 @@ class RealLabelTestStage(
                             *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
                             *bullet_point("False Negative: (Potentially Missing Label)\n"),
                             # Spacing
-                            SubText("\n" * 1, **spaces_formatting),  # type: ignore
+                            SubText("\n" * 1, **spaces_formatting),
                             # Paragraph 2
                             SubText(
                                 "In this dataset, RealLabel has found:\n",
@@ -339,7 +339,7 @@ class RealLabelTestStage(
                             ),
                             SubText(
                                 f"{num_true_positives}\n",
-                                **bullet_formatting,  # type: ignore
+                                **bullet_formatting,
                                 bold=True,
                             ),
                             *bullet_point(
@@ -349,7 +349,7 @@ class RealLabelTestStage(
                             ),
                             SubText(
                                 f"{num_false_positives}\n",
-                                **bullet_formatting,  # type: ignore
+                                **bullet_formatting,
                                 bold=True,
                             ),
                             *bullet_point(
@@ -359,10 +359,10 @@ class RealLabelTestStage(
                             ),
                             SubText(
                                 f"{num_false_negatives}\n",
-                                **bullet_formatting,  # type: ignore
+                                **bullet_formatting,
                                 bold=True,
                             ),
-                            SubText("\n" * 1, **spaces_formatting),  # type: ignore
+                            SubText("\n" * 1, **spaces_formatting),
                             SubText(
                                 "An example image "
                                 f"({','.join({f'{k}: {v}' for k, v in reallabel_results.example_image.id.items()})})"

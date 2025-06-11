@@ -41,7 +41,7 @@ class OutputsBase(BaseModel):
     @classmethod
     def _traverse(cls, obj: Any, fn: Callable[[Any], Any]) -> Any:
         if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
-            return type(obj)(**cls._traverse(dataclasses.asdict(obj), fn))  # type: ignore[reportArgumentType]
+            return type(obj)(**cls._traverse(dataclasses.asdict(obj), fn))  # pyright: ignore[reportArgumentType]
         if isinstance(obj, tuple) and hasattr(obj, "_fields"):
             # named tuple
             return type(obj)(*cls._traverse(tuple(obj), fn))

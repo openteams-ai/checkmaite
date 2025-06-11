@@ -59,8 +59,8 @@ class HuggingFaceDetector:
 
     def __init__(self, model_name: str, threshold: float, device: str) -> None:
         from transformers import (
-            AutoImageProcessor,  # type: ignore
-            AutoModelForObjectDetection,  # type: ignore
+            AutoImageProcessor,
+            AutoModelForObjectDetection,
         )
 
         # Upstream issue https://github.com/huggingface/transformers/issues/37615 with no response.
@@ -87,7 +87,7 @@ class HuggingFaceDetector:
 
     def __call__(self, batch: od.InputBatchType) -> od.TargetBatchType:
         """Callable implementation for HuggingFaceDetector"""
-        from torchvision.transforms.functional import get_image_size  # type: ignore
+        from torchvision.transforms.functional import get_image_size
 
         # tensor bridging
         input_tensor = torch.from_numpy(np.array(batch))
@@ -128,22 +128,24 @@ class HuggingFaceDetector:
 class XAITKAppOD(BaseXAITKApp):
     """App for building XAITKTestStages for object detection"""
 
-    title = param.String(default="Configure XAITK Saliency Generation Testing")
+    title = param.String(default="Configure XAITK Saliency Generation Testing")  # pyright: ignore[reportAssignmentType]
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         #   model initialization
         model_name = "facebook/detr-resnet-50"
-        self.jatic_detector: od.Model = HuggingFaceDetector(
-            model_name=model_name, threshold=0.5, device=set_device(None)
+        self.jatic_detector: od.Model = HuggingFaceDetector(  # pyright: ignore[reportAttributeAccessIssue]
+            model_name=model_name,
+            threshold=0.5,
+            device=set_device(None),  # pyright: ignore[reportArgumentType]
         )
         self.detector = JATICDetector(
             detector=self.jatic_detector,
-            ids=sorted(self.jatic_detector.index2label.keys()),
+            ids=sorted(self.jatic_detector.index2label.keys()),  # pyright: ignore[reportAttributeAccessIssue]
             img_batch_size=5,
         )
         # id2label mapping should be used from model protocol
         # metadata after relevant updates to protocols are added
-        self.id2label = self.jatic_detector.index2label
+        self.id2label = self.jatic_detector.index2label  # pyright: ignore[reportAttributeAccessIssue]
         self.pad_perc = 0.4
 
         self.stack_select = pn.widgets.Select(
@@ -198,11 +200,11 @@ class XAITKAppOD(BaseXAITKApp):
                 )
                 saliency_generator.fill = fill
 
-            self.output_test_stages[f"{self.__class__.__name__}_{idx}"] = {
+            self.output_test_stages[f"{self.__class__.__name__}_{idx}"] = {  # pyright: ignore[reportIndexIssue]
                 "TYPE": "XAITKTestStage",
                 "CONFIG": {
                     "name": f"saliency_{self.__class__.__name__}_{idx}",
-                    "saliency_generator": to_config_dict(saliency_generator),
+                    "saliency_generator": to_config_dict(saliency_generator),  # pyright: ignore[reportPossiblyUnboundVariable]
                     "img_batch_size": widget_value["img_batch_size"],
                 },
             }
@@ -216,7 +218,7 @@ class XAITKAppOD(BaseXAITKApp):
         bboxes = np.empty((0, 4))
         scores = np.empty((0, len(labels)))
         for det in dets:
-            bbox = det[0]
+            bbox = det[0]  # pyright: ignore[reportIndexIssue]
 
             bboxes = np.vstack(
                 (
@@ -228,7 +230,7 @@ class XAITKAppOD(BaseXAITKApp):
                 )
             )
 
-            score_dict = det[1]
+            score_dict = det[1]  # pyright: ignore[reportIndexIssue]
             score_array = [score_dict[label] for label in labels]
 
             scores = np.vstack(
@@ -247,11 +249,11 @@ class XAITKAppOD(BaseXAITKApp):
         confs = list()  # noqa: C408
         for det in dets:
             score_dict = det[1]
-            cls_name = max(score_dict, key=score_dict.get)
+            cls_name = max(score_dict, key=score_dict.get)  # pyright: ignore[reportCallIssue, reportArgumentType]
             confs.append(score_dict[cls_name])
 
         indices = sorted(range(len(confs)), key=lambda i: confs[i], reverse=True)
-        top_10_dets = [dets[i] for i in indices[0:10]]
+        top_10_dets = [dets[i] for i in indices[0:10]]  # pyright: ignore[reportIndexIssue]
         dropdown_options = dict()  # noqa: C408
         for i, det in enumerate(top_10_dets):
             score_dict = det[1]
@@ -285,9 +287,9 @@ class XAITKAppOD(BaseXAITKApp):
             saliency_generator.fill = fill
 
         dets = list(self.detector([img]))[0]
-        det = list(dets)[int(self.select_widget.value)]
-        bboxes, scores = self.dets_to_mats_output([det])
-        sal_maps = saliency_generator(img, bboxes, scores, self.detector)
+        det = list(dets)[int(self.select_widget.value)]  # pyright: ignore[reportArgumentType]
+        bboxes, scores = self.dets_to_mats_output([det])  # pyright: ignore[reportArgumentType]
+        sal_maps = saliency_generator(img, bboxes, scores, self.detector)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         return sal_maps, bboxes
 
@@ -405,7 +407,7 @@ if __name__ == "__main__":
         sd.panel().save(os.path.join("artifacts", "xaitk_app.html"), resources=INLINE)
     elif len(sys.argv) > 1:
         msg = f"Got unexpected flag: {sys.argv[1]}"
-        sys.stderr(msg)
+        sys.stderr(msg)  # pyright: ignore[reportCallIssue]
         sys.exit(1)
     else:
         pn.serve(sd.panel(), host="127.0.0.1", port=5008)

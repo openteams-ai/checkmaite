@@ -29,3 +29,10 @@ repos:
         name: check conda-lock
         language: system
         entry: make check-conda-lock
+      
+      - id: check-linter-ignore
+        name: 'Check for non-specific linter ignores'
+        entry: poetry run python scripts/check_bare_pyright_ignore.py
+        types: [python]
+        language: system
+        exclude: check_bare_pyright_ignore.py|test_check_bare_pyright_ignore.py

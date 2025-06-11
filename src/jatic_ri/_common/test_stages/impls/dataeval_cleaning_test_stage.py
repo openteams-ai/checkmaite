@@ -407,7 +407,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         )
 
         # build gradient slide for label analysis
-        result_content, label_df = label_table(label_stats, index2label=self.dataset.metadata["index2label"])  # type: ignore
+        result_content, label_df = label_table(label_stats, index2label=self.dataset.metadata["index2label"])  # pyright: ignore[reportTypedDictNotRequiredAccess, reportArgumentType]
         title = "Label Analysis"
         content = []
         content.append(Text("Description: ", bold=True, fontsize=22))

@@ -304,7 +304,7 @@ class VisdroneODModel:
 
         output_batch = []
         for pred in predictions_batch:
-            num_bboxes = len(pred)  # type: ignore
+            num_bboxes = len(pred)  # pyright: ignore[reportArgumentType]
 
             bboxes = np.empty((num_bboxes, 4), dtype=np.float32)
             labels = np.empty(num_bboxes, dtype=np.int32)

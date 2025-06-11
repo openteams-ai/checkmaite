@@ -175,7 +175,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
                         "right_item": (
                             f"**Model:** {self.model_id}\n"
                             f"**Image ID**: {datum.img_id}\n"
-                            f"**Prediction:** {self.model.metadata['index2label'][int(datum.labels[sal_idx])]}\n"  # type: ignore
+                            f"**Prediction:** {self.model.metadata['index2label'][int(datum.labels[sal_idx])]}\n"  # pyright: ignore[reportTypedDictNotRequiredAccess]
                             f"**Confidence:** {scores[sal_idx]:.2f}\n\n\n"
                             f"Note: The Confidence is the metric score that the given detection had in the original "
                             f"(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."

@@ -45,8 +45,8 @@ class HuggingFaceClassifier:
 
     def __init__(self, model_name: str, device: str) -> None:
         from transformers import (
-            AutoImageProcessor,  # type: ignore
-            AutoModelForImageClassification,  # type: ignore
+            AutoImageProcessor,
+            AutoModelForImageClassification,
         )
 
         # Upstream issue https://github.com/huggingface/transformers/issues/37615 with no response.
