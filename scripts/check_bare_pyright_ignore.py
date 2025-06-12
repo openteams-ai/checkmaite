@@ -3,7 +3,6 @@ and '# type: ignore' comments that are actual code comments (not in strings/docs
 Annotated comments like '# pyright: ignore[code]' are ignored by this script.
 """
 
-# pyright: reportUnnecessaryTypeIgnoreComment=false
 import dataclasses
 import re
 import sys
