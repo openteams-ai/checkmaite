@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from gradient.slide_deck.shapes import Item, Text
+from gradient.slide_deck.shapes import Item, SubText, Text
 from gradient.templates_and_layouts.generic_layouts import ItemByNarrowText, SectionByItem, TableText, TwoItem
 from gradient.templates_and_layouts.generic_layouts.section_by_stacked_items import SectionByStackedItems
 
@@ -13,7 +13,7 @@ def create_section_by_item_slide(
     deck: str,
     title: str,
     heading: str,
-    text: list[str],
+    text: list[str] | list[list[SubText]],
     table: pd.DataFrame | None = None,
     image_path: Path | None = None,
 ) -> dict[str, Any]:

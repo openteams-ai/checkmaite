@@ -1,5 +1,6 @@
 """DataEval Bias Common Test Stage"""
 
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -7,12 +8,16 @@ import pandas as pd
 import pydantic
 import torch
 from dataeval.data import Embeddings, Images, Metadata
-from dataeval.metrics.bias import balance, coverage, diversity, parity
+from dataeval.metrics.bias import balance, coverage, diversity
 from gradient import SubText
+from gradient.slide_deck.shapes import Text
+from gradient.slide_deck.shapes.image_shapes import GradientImage
+from gradient.templates_and_layouts.generic_layouts import SectionByItem
 from pydantic import Field
 
+from jatic_ri import PACKAGE_DIR, cache_path
 from jatic_ri._common.models import set_device
-from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
+from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18, plot_blank_or_single_image
 from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
@@ -21,7 +26,11 @@ from jatic_ri._common.test_stages.interfaces.test_stage import (
     TestStage,
 )
 from jatic_ri.util._types import Device, Image
-from jatic_ri.util.slide_deck import create_section_by_item_slide, create_section_by_stacked_items_slide
+from jatic_ri.util.slide_deck import (
+    create_section_by_item_slide,
+    create_table_text_slide,
+    create_two_item_text_slide,
+)
 from jatic_ri.util.utils import temp_image_file
 
 
@@ -57,7 +66,8 @@ class DataevalBiasBalanceOutputs(OutputsBase):
     classwise: np.ndarray
     factor_names: list[str]
     class_names: list[str]
-    image: Image
+    image_classwise: Image
+    image_metadata: Image
 
 
 class DataevalBiasDiversityOutputs(OutputsBase):
@@ -66,12 +76,6 @@ class DataevalBiasDiversityOutputs(OutputsBase):
     factor_names: list[str]
     class_names: list[str]
     image: Image
-
-
-class DataevalBiasParityOutputs(OutputsBase):
-    score: np.ndarray
-    p_value: np.ndarray
-    factor_names: list[str]
 
 
 class DataevalBiasCoverageOutputs(OutputsBase):
@@ -85,7 +89,6 @@ class DataevalBiasCoverageOutputs(OutputsBase):
 class DataevalBiasOutputs(pydantic.BaseModel):
     balance: DataevalBiasBalanceOutputs | None = None
     diversity: DataevalBiasDiversityOutputs | None = None
-    parity: DataevalBiasParityOutputs | None = None
     coverage: DataevalBiasCoverageOutputs
 
 
@@ -152,18 +155,21 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         if metadata.factor_names:
             bal_out = balance(metadata, num_neighbors=self.num_neighbors)
             bal_dict = bal_out.data()
-            bal_dict["image"] = bal_out.plot()
+            bal_dict["image_metadata"] = bal_out.plot(plot_classwise=False)
+            if len(np.unique(metadata.class_labels)) != len(metadata.class_names):
+                bal_dict["image_classwise"] = bal_out.plot(
+                    plot_classwise=True, row_labels=np.unique(metadata.class_labels)
+                )
+            else:
+                bal_dict["image_classwise"] = bal_out.plot(plot_classwise=True)
 
             div_out = diversity(metadata, method=self.diversity_method)
             div_dict = div_out.data()
             div_dict["image"] = div_out.plot()
 
-            par_out = parity(metadata)
-            par_dict = par_out.data()
         else:
             bal_dict = None
             div_dict = None
-            par_dict = None
 
         cov_out = coverage(
             embeddings,
@@ -177,92 +183,104 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         if len({image.shape for image in images}) == 1:
             cov_dict["image"] = cov_out.plot(images)
 
-        return DataevalBiasOutputs.model_validate(
-            {"balance": bal_dict, "diversity": div_dict, "parity": par_dict, "coverage": cov_dict}
-        )
+        return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect consumables"""
         if self._stored_run is None:
             raise RuntimeError("Can only collect consumables after run() was called")
-        dataset_id = self._stored_run.dataset_ids[0]
         outputs: DataevalBiasOutputs = self._stored_run.outputs
 
-        report_list = [
-            self._report_coverage(outputs.coverage, dataset_id),
-        ]
+        report_list = [self._generate_table_of_contents()]
+
+        report_list.append(self._report_coverage(outputs.coverage))
+
         if outputs.balance is not None:
-            report_list.append(self._report_balance(outputs.balance, dataset_id))
+            report_list.append(self._report_balance_metadata_factors(outputs.balance))
+            report_list.append(self._report_balance_classwise(outputs.balance))
+
         if outputs.diversity is not None:
-            report_list.append(self._report_diversity(outputs.diversity, dataset_id))
-        if outputs.parity is not None:
-            report_list.append(self._report_parity(outputs.parity, dataset_id))
+            report_list.append(self._report_diversity(outputs.diversity))
+
+        # TODO: reactivate this when we have a next steps section from Team Aria
+        # report_list.append(self._report_next_steps())
+
         return report_list
 
-    def _report_coverage(self, coverage: DataevalBiasCoverageOutputs, dataset_id: str) -> dict[str, Any]:
-        """Format coverage results for Gradient consumption"""
-        # Gradient specific kwargs
-        title = f"Dataset: {dataset_id} | Category Bias"
-        heading = "Metric: Coverage"
+    def _generate_table_of_contents(self) -> dict[str, Any]:
+        "Generates a table of contents for the report."
 
-        # Calculate results from coverage outputs
-        uncovered_count = len(coverage.uncovered_indices)
-        uncovered_percent = round(uncovered_count / coverage.total, 1)
-
-        action_str = (
-            "Increase representation of rare but relevant samples in areas of poor coverage"
-            if uncovered_count > 0
-            else "No action required"
-        )
-        text = [
-            [SubText("Result:", bold=True)],
-            f"Coverage: {uncovered_percent*100}% uncovered images in dataset",
-            [SubText("Tests for:", bold=True)],
-            "• Adequate sampling of data",
-            [SubText("Risks:", bold=True)],
-            "• Poor real-world performance",
-            "• Lack of robustness",
-            "• Poor generalization",
-            [SubText("Actions:", bold=True)],
-            f"• {action_str}",
+        right_item = [
+            "\n",
+            "* Coverage Analysis",
+            "* Balance Analysis",
+            "* Diversity Analysis",
+            "* Next Steps",
         ]
+
+        left_item = GradientImage(
+            src=Path(PACKAGE_DIR.joinpath("_sample_imgs/toc.png")), width=100, height=100, top=0.5, left=0.5
+        )
+        return create_two_item_text_slide(
+            deck=self._deck, title="Bias Table of Contents", left_item=left_item, right_item=right_item
+        )
+
+    def _report_coverage(self, coverage: DataevalBiasCoverageOutputs) -> dict[str, Any]:
+        """Format coverage results for Gradient consumption"""
+        title = "Coverage Analysis"
+
+        uncovered_count = len(coverage.uncovered_indices)
+        uncovered_percent = round(uncovered_count / coverage.total, 2)
 
         cov_df = pd.DataFrame(
             {
-                "Poor Coverage": [f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"],
-                "Threshold": [round(coverage.coverage_radius, 2)],
+                "Potentially under-represented images": [
+                    f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"
+                ]
             },
         )
 
-        # Gradient slide creation
-        slide_kwargs = {"deck": self._deck, "title": title, "heading": heading, "text": text, "table": cov_df}
-        # Image is only available if the input dataset had homogeneous-sized images
-        if coverage.image is not None:
-            return create_section_by_stacked_items_slide(
-                **slide_kwargs,
-                image_path=temp_image_file(coverage.image),
-            )
-        return create_section_by_item_slide(**slide_kwargs)
+        content = Text(
+            [
+                SubText("Description: ", bold=True),
+                SubText(
+                    "Coverage uses AI to identify potentially under-represented images "
+                    "that warrant further investigation. Under-represented images are "
+                    "those which are closely-related to, at most, a small amount of other "
+                    "images in the dataset.\n"
+                ),
+            ],
+            fontsize=22,
+        )
 
-    def _report_balance(self, outputs: DataevalBiasBalanceOutputs, dataset_id: str) -> dict[str, Any]:
+        return create_table_text_slide(deck=self._deck, title=title, text=content, data=cov_df)
+
+    def _report_balance_metadata_factors(self, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
         """Format balance results for Gradient consumption"""
-        title = f"Dataset: {dataset_id} | Category Bias"
-        heading = "Metric: Balance"
-
-        rollup = np.sum(outputs.factors[0, 1:] > 0.5)
+        title = "Balance Analysis 1"
+        heading = "   "
 
         text = [
-            [SubText("Result:", bold=True)],
-            f"Balance: {rollup} factors co-occurring with class label",
-            [SubText("Tests for:", bold=True)],
-            "• Spurious correlations",
-            [SubText("Risks:", bold=True)],
-            "• Model trained with data are not equitable (not fair)",
-            "• Models learn shortcuts",
-            "• Poor real-world performance",
-            "• Lack of robustness / poor generalization",
-            [SubText("Action:", bold=True)],
-            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+            [
+                SubText("Description: ", bold=True, fontsize=20),
+                SubText(
+                    "Balance can help uncover potential model bias by identifying "
+                    "spurious correlations between metadata and class labels. For "
+                    "example, a model might incorrectly learn to associate vehicles"
+                    "with the metadata ‘occlusions’ if training images always show "
+                    "vehicles partially hidden by other objects. This learned behaviour "
+                    "might then fail if a vehicle was to appear fully visible.",
+                    fontsize=20,
+                ),
+            ],
+            [
+                SubText(
+                    "Values approaching or exceeding 0.5 in the heat map should be "
+                    "further investigated to prevent a model from potentially learning "
+                    "a harmful shortcut.",
+                    fontsize=20,
+                )
+            ],
         ]
 
         return create_section_by_item_slide(
@@ -270,28 +288,72 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             title=title,
             heading=heading,
             text=text,
-            image_path=temp_image_file(outputs.image),
+            image_path=temp_image_file(outputs.image_metadata),
         )
 
-    def _report_diversity(self, outputs: DataevalBiasDiversityOutputs, dataset_id: str) -> dict[str, Any]:
+    def _report_balance_classwise(self, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
+        """Format balance results for Gradient consumption"""
+        title = "Balance Analysis 2"
+        heading = "   "
+
+        text = [
+            [
+                SubText("Description: ", bold=True, fontsize=20),
+                SubText(
+                    "Balance can also help uncover potential model bias by identifying "
+                    "relative class imbalance. Correlations between an individual class "
+                    "and all other class labels indicate that a specific class is "
+                    "over-represented compared to other classes. This can become a problem "
+                    "if operational data does not also have this imbalance.",
+                    fontsize=20,
+                ),
+            ],
+            [
+                SubText(
+                    "Values approaching or exceeding 0.5 in the heat map should be further " "investigated.",
+                    fontsize=20,
+                )
+            ],
+        ]
+
+        return create_section_by_item_slide(
+            deck=self._deck,
+            title=title,
+            heading=heading,
+            text=text,
+            image_path=temp_image_file(outputs.image_classwise),
+        )
+
+    def _report_diversity(self, outputs: DataevalBiasDiversityOutputs) -> dict[str, Any]:
         """Format diversity results for Gradient consumption"""
-        title = f"Dataset: {dataset_id} | Category Bias"
-        heading = "Metric: Diversity"
-
-        rollup = np.sum(outputs.diversity_index < 0.5)
+        title = "Diversity Analysis"
+        heading = "   "
 
         text = [
-            [SubText("Result:", bold=True)],
-            f"Diversity: {rollup} factors with low diversity",
-            [SubText("Tests for:", bold=True)],
-            "• Evenness of distribution of factors",
-            [SubText("Risks:", bold=True)],
-            "• Model trained with data are not equitable (not fair)",
-            "• Models learn shortcuts",
-            "• Poor real-world performance",
-            "• Lack of robustness / poor generalization",
-            [SubText("Action:", bold=True)],
-            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+            [
+                SubText("Description: ", bold=True, fontsize=20),
+                SubText(
+                    "Diversity measures how well each metadata factor is sampled over its range of "
+                    "possible values. Values near 1 indicate wide sampling, while values near 0 "
+                    "indicate imbalanced sampling e.g. all datapoints taking a single value.",
+                    fontsize=20,
+                ),
+            ],
+            [
+                SubText(
+                    "The categories of most interest are those with values that are between 0.1 "
+                    "and 0.4. The data for each metadata factor in these ranges should be inspected "
+                    " to see if the sampled values are appropriate for operational data.",
+                    fontsize=20,
+                )
+            ],
+            [
+                SubText(
+                    "Values below 0.1 are generally so heavily imbalanced that a genuine problem "
+                    "should be immediately obvious.",
+                    fontsize=20,
+                )
+            ],
         ]
 
         return create_section_by_item_slide(
@@ -302,40 +364,35 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             image_path=temp_image_file(outputs.image),
         )
 
-    def _report_parity(self, outputs: DataevalBiasParityOutputs, dataset_id: str) -> dict[str, Any]:
-        """Format parity results for Gradient consumption"""
-        title = f"Dataset: {dataset_id} | Category Bias"
-        heading = "Metric: Parity"
+    def _report_next_steps(self) -> dict[str, Any]:
+        "Generates a report for the next steps to investigating issues that may arise during analysis."
 
-        metadata_pvalues = np.round(outputs.p_value, 3)
-        rollup = np.sum(metadata_pvalues < 0.05)
+        dir_ = Path(cache_path() / "bias-test-stage-artifacts")
+        dir_.mkdir(parents=True, exist_ok=True)
+        filepath = dir_ / "blank_img.png"
+        plot_blank_or_single_image(filepath)
 
-        metadata_parity_table = pd.DataFrame(
-            {
-                "Metadata Factor": outputs.factor_names,
-                "Chi-Square": np.round(outputs.score, 2),
-                "P-value": metadata_pvalues,
-            },
-        )
-
-        text = [
-            [SubText("Result:", bold=True)],
-            f"Parity: {rollup} factors correlated with labels",
-            [SubText("Tests for:", bold=True)],
-            " • Evenness of distribution of factors",
-            [SubText("Risks:", bold=True)],
-            " • Model trained with data are not equitable (not fair)",
-            " • Models learn shortcuts",
-            " • Poor real-world performance",
-            " • Lack of robustness / poor generalization",
-            [SubText("Action:", bold=True)],
-            f"• {'Ensure balanced representation of all classes for all metadata' if rollup else 'No action required'}",
+        title = "Bias Analysis"
+        heading = "Next Steps\n"
+        content = [
+            Text(t, fontsize=14)
+            for t in (
+                "Below are the recommended next steps to investigating issues that may arise during analysis.",
+                [SubText("In general:", bold=True)],
+                "1. Insert text here",
+                "2. Insert text here",
+                "3. Insert text here",
+            )
         ]
 
-        return create_section_by_item_slide(
-            deck=self._deck,
-            title=title,
-            heading=heading,
-            text=text,
-            table=metadata_parity_table,
-        )
+        return {
+            "deck": self._deck,
+            "layout_name": "SectionByItem",
+            "layout_arguments": {
+                SectionByItem.ArgKeys.TITLE.value: title,
+                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
+            },
+        }
