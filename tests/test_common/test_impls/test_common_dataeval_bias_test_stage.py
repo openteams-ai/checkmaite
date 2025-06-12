@@ -8,7 +8,6 @@ from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
     create_section_by_item_slide,
-    create_section_by_stacked_items_slide,
 )
 from jatic_ri.util.utils import save_figure_to_tempfile
 
@@ -59,28 +58,3 @@ class TestCommonBiasUtilityFunctions:
         create_deck(
             [result_template], path=Path("artifacts"), deck_name=f"test_create_text_data_slide_table={str(with_table)}"
         )
-
-    def test_create_section_by_stacked_items_slide(self, fake_image):
-        """Tests SectionByStackedItems arguments are correctly populated"""
-        table = pd.DataFrame({"dummy": [0]})
-        image_path = Path(fake_image)
-        result_template = create_section_by_stacked_items_slide(
-            deck="DECK",
-            title="TITLE",
-            heading="HEADING",
-            text=["A", "B", "C"],
-            table=table,
-            image_path=image_path,
-        )
-        assert result_template["deck"] == "DECK"
-        assert result_template["layout_name"] == "SectionByStackedItems"
-
-        layout_args = result_template["layout_arguments"]
-        assert layout_args["title"] == "TITLE"
-        assert layout_args["line_section_heading"] == "HEADING"
-        assert layout_args["line_section_half"]
-        assert isinstance(layout_args["line_section_body"], list)
-        assert isinstance(layout_args["item_section_table"], pd.DataFrame)
-        assert isinstance(layout_args["item_section_bottom"], Path)
-
-        create_deck([result_template], path=Path("artifacts"), deck_name="test_create_text_table_data_slide")
