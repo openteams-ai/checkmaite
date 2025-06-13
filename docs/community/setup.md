@@ -43,22 +43,26 @@ curl -sSL https://install.python-poetry.org | python3 - --version 2.1.2
 (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py - --version 2.1.2
 ```
 
+### For regular users
+
 You can build the environment by running:
 
 ```bash
-poetry install --extras dev
+poetry install
 ```
 
-This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using: 
+### For package developers
+
+If you plan to contribute to the project or need development tools, install with development dependencies:
+
+```bash
+poetry install --with dev
+```
+
+This project utilizes `pre-commit` for linting and formatting. **Developers** should also install the `pre-commit` hooks using: 
 
 ```bash
 poetry run pre-commit install
-```
-
-Finally, install the package itself
-
-```bash
-poetry run pip install -e .
 ```
 </details>
 
