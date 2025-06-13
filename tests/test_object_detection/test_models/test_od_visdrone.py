@@ -66,6 +66,7 @@ def test_valid_model_initialization(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
     assert model.name == f"visdrone-centernet-{fname}"
+    assert model.metadata["id"] == "visdrone_resnet18_kitware"
 
 
 def test_metadata_fields(fake_model_location):

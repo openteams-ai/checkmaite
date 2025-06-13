@@ -59,7 +59,7 @@ def test_torch_metric_wrapper(dummy_data):
 
     preds, targets = dummy_data
     fake_torch_metric = FakeTorchMetric()
-    metric_wrapper = TorchODMetric(fake_torch_metric, return_key=None)
+    metric_wrapper = TorchODMetric(fake_torch_metric, return_key=None, metric_id="fake_torch_metric")
 
     # wrapper should always return an identical result as original metric object
     initial_result = metric_wrapper.compute()
@@ -131,3 +131,18 @@ def test_multiclass_map50_torch_metric_compute(dummy_data):
     assert "per_class_flag" in result, "Expected 'per_class_flag' key in result"
     assert result["2"] == torch.tensor([0.0]), "Expected class '2' to have mAP of 0"
     assert 0.0 <= result["map_50_classwise"] <= 1.0, "Expected mAP@0.5 to be between 0 and 1"
+
+
+def test_create_torch_od_metric_id_with_factory_functions():
+    """
+    Test creating two similar TorchODMetric objects that differ by configuration.
+    Verify they have different metadata IDs.
+    """
+    # Create a standard mAP@50 metric
+    map_metric1 = map50_torch_metric_factory()
+
+    # Create a multiclass mAP@50 metric (different configuration)
+    map_metric2 = multiclass_map50_torch_metric_factory()
+
+    # Assert that they have different metadata IDs
+    assert map_metric1.metadata["id"] != map_metric2.metadata["id"]

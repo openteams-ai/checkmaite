@@ -23,11 +23,13 @@ def create_fake_yolo_dataset(root_dir, split, classes, num_images_per_class, ima
 @pytest.fixture(scope="session")
 def fake_dataset(tmp_path_factory):
     dataset_root = tmp_path_factory.mktemp("yolo_dataset")
-    create_fake_yolo_dataset(
-        root_dir=dataset_root,
-        split="test",
-        classes=CLASSES,
-        num_images_per_class=NUM_IMAGES_PER_CLASS,
-        image_shape=IMG_SHAPE,
-    )
-    return dataset_root, CLASSES, NUM_IMAGES_PER_CLASS, IMG_SHAPE
+    # Create both test and train splits
+    for split in ["test", "train"]:
+        create_fake_yolo_dataset(
+            root_dir=dataset_root,
+            split=split,
+            classes=CLASSES,
+            num_images_per_class=NUM_IMAGES_PER_CLASS,
+            image_shape=IMG_SHAPE,
+        )
+    return str(dataset_root), CLASSES, NUM_IMAGES_PER_CLASS, IMG_SHAPE

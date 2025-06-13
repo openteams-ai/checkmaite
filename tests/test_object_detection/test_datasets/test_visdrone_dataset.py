@@ -1,3 +1,5 @@
+import re
+import shutil
 from pathlib import Path
 
 import torch
@@ -17,8 +19,29 @@ class TestVisdroneDetectionDataset:
 
     def test_metadata_default(self):
         dataset = VisdroneDetectionDataset(self.ROOT)
+        assert re.match(r"visdrone_[0-9a-f]{8}$", dataset.metadata["id"])
+        dataset2 = VisdroneDetectionDataset(self.ROOT)
+        # Assert that the two datasets have same ID
+        assert dataset.metadata["id"] == dataset2.metadata["id"]
 
-        assert dataset.metadata["id"] == "visdrone"
+    def test_different_dirs_no_id_match(self, tmp_path):
+        # Create first dataset with original ROOT
+        dataset1 = VisdroneDetectionDataset(self.ROOT)
+
+        # Create a temporary directory with subset of the data
+        temp_root = tmp_path / "temp_visdrone"
+        temp_root.mkdir(parents=True)
+
+        # Move the dataset into a tmp dir
+        for subdir in ["images", "annotations"]:
+            (temp_root / subdir).mkdir()
+            shutil.copytree(self.ROOT / subdir, temp_root / subdir, dirs_exist_ok=True)
+
+        # Create second dataset with the temporary directory
+        dataset2 = VisdroneDetectionDataset(temp_root)
+
+        # Assert that the two datasets have different IDs
+        assert dataset1.metadata["id"] != dataset2.metadata["id"]
 
     def test_metadata_index2label(self):
         dataset = VisdroneDetectionDataset(self.ROOT)

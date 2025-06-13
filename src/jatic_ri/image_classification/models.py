@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import torch
@@ -18,6 +19,7 @@ from jatic_ri._common.models import (
     to_torch_batch,
     validate_input_batch,
 )
+from jatic_ri.util.utils import id_hash
 
 if TYPE_CHECKING:
     from torch import nn
@@ -60,10 +62,10 @@ class TorchvisionICModel:
         *,
         model_name: str,
         device: str | None = None,
-        weights_path: str | None = None,
-        config_path: str | None = None,
+        weights_path: str | Path | None = None,
+        config_path: str | Path | None = None,
         index2label_key: str = "index2label",
-        model_id: str = "torchvisionIC",
+        model_id: str | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -73,7 +75,8 @@ class TorchvisionICModel:
             weights_path: Path to pickle file with pretrained weights.
             config_path: Path to config file with metadata for pretrained weights.
             index2label_key: Config key for mapping from class labels to output categories.
-            model_id: Unique identifier for this model
+            model_id: Optional identifier for model. If omitted,
+                a unique one will be generated from the other input arguments.
             **kwargs: Additional parameters passed to `torchvision` base class. See
               `torchvision` for more details.
         """
@@ -122,6 +125,10 @@ class TorchvisionICModel:
             self.index2label = get_default_index2label(torchvision_weights_constructor)
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
 
+        # Generate model_id if not provided
+        if model_id is None:
+            model_id = f"{self._model_name}_{id_hash(weights_path=weights_path, config_path=config_path)}"
+
         self.model.eval()  # sets model to inference mode rather than training mode
         self.metadata = {"id": model_id, "index2label": self.index2label}
 
@@ -149,9 +156,9 @@ class ModelSpecification(TypedDict):
     """Model metadata required for loading models via the RI wrappers"""
 
     # full filepath to model weights file
-    model_weights_path: NotRequired[str]
+    model_weights_path: NotRequired[str | Path]
     # full filepath to model config file
-    model_config_path: NotRequired[str]
+    model_config_path: NotRequired[str | Path]
     # model type, keys map to model wrappers
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
     model_type: Literal[
@@ -174,7 +181,6 @@ def load_models(
                 model_name=meta_dict.get("model_type"),
                 weights_path=meta_dict.get("model_weights_path"),
                 config_path=meta_dict.get("model_config_path"),
-                model_id=meta_dict.get("model_type"),
                 **kwargs,
             )
 

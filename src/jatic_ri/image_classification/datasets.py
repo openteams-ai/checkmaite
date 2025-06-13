@@ -10,6 +10,8 @@ import numpy as np
 from maite.protocols import DatasetMetadata, DatumMetadata
 from PIL import Image
 
+from jatic_ri.util.utils import id_hash
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
@@ -51,12 +53,14 @@ class YoloClassificationDataset:
         Return the number of data elements in the dataset.
     """
 
-    def __init__(self, dataset_id: str, root_dir: str, split: Literal["train", "test", "validation"] = "test") -> None:
+    def __init__(
+        self, root_dir: str, dataset_id: str | None = None, split: Literal["train", "test", "validation"] = "test"
+    ) -> None:
         """
         Args:
-            dataset_id: Identifier for dataset that will be stored in dataset metadata. Name should
-                be chosen to help users quickly identify what the dataset contains and/or how it was created.
             root_dir: Root directory of the dataset.
+            dataset_id: Optional identifier for dataset. If omitted,
+                a unique one will be generated from the other input arguments.
             split: Dataset split to use (e.g., "train", "test", "validation"). Defaults to "test".
         """
 
@@ -72,6 +76,9 @@ class YoloClassificationDataset:
         self._index2label = dict(enumerate(labels))  # 0-indexing
         self._label2index = {val: idx for idx, val in enumerate(labels)}  # 0-indexing
 
+        # Generate dataset_id if not provided
+        if dataset_id is None:
+            dataset_id = f"yolo_classification_{id_hash(root_dir=root_dir, split=split)}"
         self._metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
 
     @staticmethod
@@ -143,7 +150,6 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloCl
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "YoloClassificationDataset":
             loaded[name] = YoloClassificationDataset(
-                dataset_id="_".join([str(dataset_metadata["data_dir"]), dataset_metadata["split_folder"]]),
                 root_dir=dataset_metadata["data_dir"],
                 split=dataset_metadata["split_folder"],
             )

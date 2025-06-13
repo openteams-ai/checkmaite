@@ -21,6 +21,7 @@ from jatic_ri._common.models import (
     validate_input_batch,
 )
 from jatic_ri.object_detection.datasets import DetectionTarget
+from jatic_ri.util.utils import id_hash
 
 if TYPE_CHECKING:
     from torch import nn
@@ -81,19 +82,29 @@ class TorchvisionODModel:
         weights_path: str | None = None,
         config_path: str | None = None,
         index2label_key: str = "index2label",
-        model_id: str = "torchvisionOD",
+        model_id: str | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Args:
-            model_name: Name of torchvision model to instantiate.
-            device: Device to use (e.g., 'cpu', 'cuda').
-            weights_path: Path to pickle file with pretrained weights.
-            config_path: Path to config file with metadata for pretrained weights.
-            index2label_key: Config key for mapping from class labels to output categories.
-            model_id: unique identifier for this model
-            **kwargs: Additional parameters passed to `torchvision` base class. See
-              `torchvision` for more details.
+        Initialize the torchvision object detection model.
+
+        Parameters
+        ----------
+        model_name : str
+            Name of torchvision model to instantiate
+        device : str, optional
+            Device to use (e.g., 'cpu', 'cuda')
+        weights_path : str, optional
+            Path to pickle file with pretrained weights
+        config_path : str, optional
+            Path to config file with metadata for pretrained weights
+        index2label_key : str, default="index2label"
+            Config key for mapping from class labels to output categories
+        model_id : str, optional
+            Optional identifier for model. If omitted,
+                a unique one will be generated from the other input arguments.
+        **kwargs : dict
+            Additional parameters passed to `torchvision` base class
         """
         if model_name not in SUPPORTED_TORCHVISION_MODELS:
             raise ValueError(f"Model {model_name} is not currently supported by jatic_ri.")
@@ -149,6 +160,10 @@ class TorchvisionODModel:
         else:  # we are loading torchvision pre-trained weights into model
             self.index2label = get_default_index2label(torchvision_weights_constructor)
             self.model = maybe_download_weights(model, torchvision_weights_constructor, self.device, **kwargs)
+
+        # Generate model_id if not provided
+        if model_id is None:
+            model_id = f"{self._model_name}_{id_hash(weights_path=weights_path, config_path=config_path)}"
 
         self.metadata = {"id": model_id, "index2label": self.index2label}
         self.model.eval()  # sets model to inference mode rather than training mode
@@ -208,21 +223,30 @@ class VisdroneODModel:
         batch_size: int = 3,
         num_workers: int = 0,  # default 0 easiest solution to https://github.com/pytorch/pytorch/issues/87688
         max_dets: int = 500,
-        model_id: str = "visdrone",
+        model_id: str | None = None,
     ) -> None:
         """
-        Args:
-            arch: Model backbone architecture. One of: "res2net50", "resnet50", "resnet18".
-            model_pickle_dir: Directory where the model weights are stored or will be downloaded.
-                Defaults to the current working directory if not provided.
-            model_name: Name of the file that contains the model weights.
-                Defaults to `centernet-{arch}` if not provided.
-            device: Device to use for inference (e.g., "cpu", "cuda").
-                If None, automatically detects a GPU if available, otherwise falls back to CPU.
-            batch_size: Number of samples to process per batch.
-            num_workers: Number of worker subprocesses used for data loading. `0` loads data in the main process.
-            max_dets: Maximum number of detections to return per image.
-            model_id: Unique identifier associated with this model instance.
+        Initialize the VisDrone object detection model.
+
+        Parameters
+        ----------
+        arch : str
+            Model backbone architecture. One of: "res2net50", "resnet50", "resnet18"
+        model_pickle_dir : str, optional
+            Directory where the model weights are stored or will be downloaded
+        model_name : str, optional
+            Name of the file that contains the model weights
+        device : str or torch.device, optional
+            Device to use for inference (e.g., "cpu", "cuda")
+        batch_size : int, default=3
+            Number of samples to process per batch
+        num_workers : int, default=0
+            Number of worker subprocesses used for data loading
+        max_dets : int, default=500
+            Maximum number of detections to return per image
+        model_id : str, optional
+            Optional identifier for model. If omitted,
+                a unique one will be generated from the other input arguments.
         """
         from smqtk_detection.impls.detect_image_objects.centernet import (
             CenterNetVisdrone,
@@ -276,6 +300,13 @@ class VisdroneODModel:
             10: "motor",
             11: "others",
         }
+
+        # Generate model_id if not provided
+        if model_id is None:
+            # NOTE: User cannot bring their own weights for Visdrone models - `model_pickle_dir` is a location for
+            # downloading the model weights at Kitware-trained paths specified in `_weights_urls`.
+            model_id = f"visdrone_{arch}_kitware"
+
         self.metadata = {"id": model_id, "index2label": self.index2label}
 
     def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
@@ -372,7 +403,6 @@ def load_models(
                 model_name=meta_dict["model_type"],
                 weights_path=meta_dict.get("model_weights_path"),
                 config_path=meta_dict.get("model_config_path"),
-                model_id=meta_dict["model_type"],
                 **kwargs,
             )
 
@@ -382,7 +412,6 @@ def load_models(
             wrapper = VisdroneODModel(
                 arch=meta_dict["model_type"],
                 model_pickle_dir=meta_dict.get("model_weights_path"),
-                model_id=meta_dict["model_type"],
             )
             loaded[name] = wrapper
 

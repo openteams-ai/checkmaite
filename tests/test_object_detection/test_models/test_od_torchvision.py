@@ -1,4 +1,5 @@
 import json
+import re
 
 import numpy as np
 import pytest
@@ -81,6 +82,12 @@ def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
         model_wrapper(input_batch=[random_img])[0].scores.numpy()
         == model_wrapper_2(input_batch=[random_img])[0].scores.numpy()
     ).all()
+
+    assert all(
+        re.match(r"ssdlite320_mobilenet_v3_large_[0-9a-f]{8}$", model_id)
+        for model_id in [model_wrapper.metadata["id"], model_wrapper_2.metadata["id"]]
+    )
+    assert model_wrapper.metadata["id"] != model_wrapper_2.metadata["id"]
 
 
 def test_missing_config(tmpdir):

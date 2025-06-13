@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -50,7 +51,7 @@ def set_device(device: str | None | torch.device) -> torch.device:
 
 
 def get_index2label_from_model_config(
-    config_path: str, model_config: dict[str, Any], index2label_key: str
+    config_path: str | Path, model_config: dict[str, Any], index2label_key: str
 ) -> dict[int, str]:
     if index2label_key not in model_config:
         raise FileNotFoundError(f"The config_file at {config_path} is missing a {index2label_key} key.")
