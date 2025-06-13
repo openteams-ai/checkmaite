@@ -1,6 +1,8 @@
 """utils"""
 
+import hashlib
 import io
+import json
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -120,3 +122,19 @@ def create_expandable_output(outputs: dict | list, max_preview_length: int = 100
             </div>
             """)
     return HTML("".join(parts))
+
+
+def id_hash(**kwargs: Any) -> str:
+    """Generate a consistent hash from keyword arguments.
+
+    Parameters
+    ----------
+    **kwargs : Any
+        Key-value pairs to include in the hash generation
+
+    Returns
+    -------
+    str
+        First 8 characters of the SHA-256 hash of the JSON-serialized kwargs
+    """
+    return hashlib.sha256(json.dumps(kwargs, default=str, sort_keys=True).encode()).hexdigest()[:8]

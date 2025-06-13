@@ -10,6 +10,8 @@ from torchmetrics import Accuracy, F1Score
 from torchmetrics import Metric as TorchMetric
 from torchmetrics.classification.stat_scores import MulticlassStatScores
 
+from jatic_ri.util.utils import id_hash
+
 __all__: list[str] = [
     "TorchICMulticlassMetric",
     "accuracy_multiclass_torch_metric_factory",
@@ -39,7 +41,17 @@ class TorchICMulticlassMetric(ic.Metric):
     (Reference: https://torchmetrics.readthedocs.io/en/v0.10.2/pages/classification.html#input-types)
     """
 
-    def __init__(self, ic_metric: TorchMetric, return_key: str, *, metric_id: str = "torchICMulticlass") -> None:
+    def __init__(self, ic_metric: TorchMetric, return_key: str, *, metric_id: str) -> None:
+        """Initialize a TorchICMulticlassMetric.
+
+        Parameters:
+            ic_metric: A TorchMetric instance for multiclass classification metrics
+            return_key: The key to use in the returned dictionary from compute()
+            metric_id: Identifier for metric.
+
+        Raises:
+            InvalidMetricTypeError: If the provided metric is not a multiclass metric
+        """
         if not issubclass(type(ic_metric), MulticlassStatScores):
             raise InvalidMetricTypeError(
                 """
@@ -108,7 +120,12 @@ def accuracy_multiclass_torch_metric_factory(
     """
 
     _tm_accuracy = Accuracy(task="multiclass", num_classes=num_classes, average=average)
-    return TorchICMulticlassMetric(_tm_accuracy, return_key="accuracy")
+
+    return TorchICMulticlassMetric(
+        _tm_accuracy,
+        return_key="accuracy",
+        metric_id=f"torch_ic_accuracy_{id_hash(num_classes=num_classes, average=average)}",
+    )
 
 
 def f1score_multiclass_torch_metric_factory(
@@ -132,5 +149,10 @@ def f1score_multiclass_torch_metric_factory(
         not consider this value as it will add complexity to workflows which are not necessary for
         our use case.  We also do not parameterize 'multidim_average' (it will default to "global").
     """
+
     _tm_f1score = F1Score(task="multiclass", num_classes=num_classes, average=average)
-    return TorchICMulticlassMetric(_tm_f1score, return_key="f1_score")
+    return TorchICMulticlassMetric(
+        _tm_f1score,
+        return_key="f1_score",
+        metric_id=f"torch_ic_f1score_{id_hash(num_classes=num_classes, average=average)}",
+    )

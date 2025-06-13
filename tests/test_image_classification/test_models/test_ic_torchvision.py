@@ -1,4 +1,5 @@
 import json
+import re
 
 import numpy as np
 import pytest
@@ -57,6 +58,12 @@ def test_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     # maybe overkill, but useful smoke-test
     random_img = dummy_cpu_image_batch[0]
     assert (model_wrapper(input_batch=[random_img])[0] == model_wrapper_2(input_batch=[random_img])[0]).all()
+
+    assert all(
+        re.match(r"alexnet_[0-9a-f]{8}$", model_id)
+        for model_id in [model_wrapper.metadata["id"], model_wrapper_2.metadata["id"]]
+    )
+    assert model_wrapper.metadata["id"] != model_wrapper_2.metadata["id"]
 
 
 def test_invalid_model_name():

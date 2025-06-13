@@ -9,6 +9,8 @@ from maite.protocols import object_detection as od
 from torchmetrics import Metric as TorchMetric
 from torchmetrics.detection import MeanAveragePrecision
 
+from jatic_ri.util.utils import id_hash
+
 __all__ = [
     "TorchODMetric",
     "TorchODMultiClassMap50",
@@ -31,7 +33,19 @@ class TorchODMetric:
     returning a specific metric (if not specified, then all metrics will be returned).
     """
 
-    def __init__(self, od_metric: TorchMetric, return_key: str | None = None, *, metric_id: str = "torchOD") -> None:
+    def __init__(self, od_metric: TorchMetric, return_key: str | None = None, *, metric_id: str) -> None:
+        """
+        Initialize the Torch object detection metric wrapper.
+
+        Parameters
+        ----------
+        od_metric : TorchMetric
+            The torchmetrics object detection metric to wrap
+        return_key : str, optional
+            The specific metric key to return.
+        metric_id : str
+            Identifier for metric.
+        """
         self._od_metric = od_metric
         self.return_key: str | None = return_key
         self.metadata = MetricMetadata(id=metric_id)
@@ -84,11 +98,7 @@ class TorchODMultiClassMap50(TorchODMetric):
     """
 
     def __init__(
-        self,
-        _class_map50: MeanAveragePrecision,
-        return_key: str | None = "map_50_classwise",
-        *,
-        metric_id: str = "mAP_per_class",
+        self, _class_map50: MeanAveragePrecision, return_key: str | None = "map_50_classwise", *, metric_id: str
     ) -> None:
         super().__init__(od_metric=_class_map50, return_key=return_key, metric_id=metric_id)
 
@@ -118,29 +128,33 @@ class TorchODMultiClassMap50(TorchODMetric):
 
 def map50_torch_metric_factory() -> od.Metric:
     "Factory for creating a MAITE-compliant wrapper of the MAP-50 torchmetric with reasonable defaults."
-    _tm_map50 = MeanAveragePrecision(
-        box_format="xyxy",
-        iou_type="bbox",
-        iou_thresholds=[0.5],
-        rec_thresholds=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        max_detection_thresholds=[1, 10, 100],
-        class_metrics=False,
-        extended_summary=False,
-        average="macro",
-    )
-    return TorchODMetric(_tm_map50, return_key="map_50", metric_id="mAP_50")
+    map50_params = {
+        "box_format": "xyxy",
+        "iou_type": "bbox",
+        "iou_thresholds": [0.5],
+        "rec_thresholds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "max_detection_thresholds": [1, 10, 100],
+        "class_metrics": False,
+        "extended_summary": False,
+        "average": "macro",
+    }
+    _tm_map50 = MeanAveragePrecision(**map50_params)
+    return TorchODMetric(_tm_map50, return_key="map_50", metric_id=f"mAP_50_{id_hash(**map50_params)}")
 
 
 def multiclass_map50_torch_metric_factory() -> od.Metric:
     "Factory for creating a MAITE-compliant wrapper of the multi-class MAP-50 torchmetric with reasonable defaults."
-    _class_map50 = MeanAveragePrecision(
-        box_format="xyxy",
-        iou_type="bbox",
-        iou_thresholds=[0.5],
-        rec_thresholds=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        max_detection_thresholds=[1, 10, 100],
-        class_metrics=True,
-        extended_summary=False,
-        average="macro",
+    mc_map50_params = {
+        "box_format": "xyxy",
+        "iou_type": "bbox",
+        "iou_thresholds": [0.5],
+        "rec_thresholds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "max_detection_thresholds": [1, 10, 100],
+        "class_metrics": True,
+        "extended_summary": False,
+        "average": "macro",
+    }
+    _class_map50 = MeanAveragePrecision(**mc_map50_params)
+    return TorchODMultiClassMap50(
+        _class_map50, return_key="map_50_classwise", metric_id=f"mAP_50_classwise_{id_hash(**mc_map50_params)}"
     )
-    return TorchODMultiClassMap50(_class_map50, return_key="map_50_classwise")

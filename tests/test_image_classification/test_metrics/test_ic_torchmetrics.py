@@ -97,4 +97,4 @@ def test_error_with_non_multiclass_metric() -> None:
     multilabel_metric = Accuracy(task="multilabel", num_classes=10, num_labels=10)
 
     with pytest.raises(InvalidMetricTypeError):
-        _ = TorchICMulticlassMetric(multilabel_metric, return_key="_")
+        _ = TorchICMulticlassMetric(multilabel_metric, return_key="_", metric_id="test_multilabel_metric")

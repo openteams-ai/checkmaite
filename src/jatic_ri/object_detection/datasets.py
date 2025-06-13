@@ -16,6 +16,8 @@ from torchvision.datasets import CocoDetection
 from torchvision.ops.boxes import box_convert
 from torchvision.transforms.functional import pil_to_tensor
 
+from jatic_ri.util.utils import id_hash
+
 SUPPORTED_DATASET_TYPES = ["CocoDetectionDataset"]
 
 
@@ -77,7 +79,20 @@ class CocoDetectionDataset(Dataset):
     If your dataset includes custom metadata fields, ensure they are placed inside the `image` field.
     """
 
-    def __init__(self, root: str | Path, ann_file: str, dataset_id: str = "coco") -> None:
+    def __init__(self, root: str | Path, ann_file: str, dataset_id: str | None = None) -> None:
+        """
+        Initialize the COCO detection dataset.
+
+        Parameters
+        ----------
+        root : str or Path
+            Root directory of the dataset containing the images
+        ann_file : str
+            Full filepath to the annotation file for the dataset
+        dataset_id : str, optional
+            Optional identifier for dataset. If omitted,
+                a unique one will be generated from the other input arguments.
+        """
         self.dataset: CocoDetection = CocoDetection(
             root,
             annFile=ann_file,
@@ -88,6 +103,11 @@ class CocoDetectionDataset(Dataset):
         self._index2label = {x["id"]: x["name"] for x in content["categories"]}
         self._n_classes = len(self._index2label)
         self._images = content["images"]
+
+        # Generate dataset_id if not provided
+        if dataset_id is None:
+            dataset_id = f"coco_{id_hash(root=root, ann_file=ann_file)}"
+
         self.metadata = DatasetMetadata(id=dataset_id, index2label=self._index2label)
 
     def __len__(self) -> int:
@@ -161,7 +181,20 @@ class YoloDetectionDataset(Dataset):
         Return the number of data elements in the dataset.
     """
 
-    def __init__(self, yaml_dataset: str, ann_dir: str, dataset_id: str = "yolo") -> None:
+    def __init__(self, yaml_dataset: str, ann_dir: str, dataset_id: str | None = None) -> None:
+        """
+        Initialize the YOLO detection dataset.
+
+        Parameters
+        ----------
+        yaml_dataset : str
+            Full filepath to the yaml file containing dataset metadata
+        ann_dir : str
+            Full path to the directory containing the annotation folders
+        dataset_id : str, optional
+            Optional identifier for dataset. If omitted,
+                a unique one will be generated from the other input arguments.
+        """
         with open(yaml_dataset) as fd:
             content = yaml.safe_load(fd)
 
@@ -171,6 +204,11 @@ class YoloDetectionDataset(Dataset):
         self._images = sorted(os.listdir(content["train"]))
         self._ann_dir = ann_dir
         self._annotations = sorted(os.listdir(ann_dir))
+
+        # Generate dataset_id if not provided
+        if dataset_id is None:
+            dataset_id = f"yolo_{id_hash(yaml_dataset=yaml_dataset, ann_dir=ann_dir)}"
+
         self.metadata = {"id": dataset_id, "index2label": content["names"]}
 
     def __len__(self) -> int:
@@ -243,8 +281,23 @@ class VisdroneDetectionDataset(Dataset):
         Return the number of data elements in the dataset.
     """
 
-    def __init__(self, root: str | Path, *, dataset_id: str = "visdrone") -> None:
+    def __init__(self, root: str | Path, *, dataset_id: str | None = None) -> None:
+        """
+        Initialize the VisDrone detection dataset.
+
+        Parameters
+        ----------
+        root : str or Path
+            Root directory of the dataset containing images and annotations folders
+        dataset_id : str, optional
+            Optional identifier for dataset. If omitted,
+                a unique one will be generated from the other input arguments.
+        """
         self.root = Path(root).expanduser().resolve()
+        # Generate dataset_id if not provided
+        if dataset_id is None:
+            dataset_id = f"visdrone_{id_hash(root=self.root)}"
+
         self.metadata = {
             "id": dataset_id,
             # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
@@ -341,21 +394,14 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDe
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "CocoDetectionDataset":
             loaded[name] = CocoDetectionDataset(
-                root=str(dataset_metadata["data_dir"]),
-                ann_file=str(dataset_metadata["metadata_path"]),
-                dataset_id=Path(dataset_metadata["data_dir"]).name,
+                root=str(dataset_metadata["data_dir"]), ann_file=str(dataset_metadata["metadata_path"])
             )
         elif dataset_metadata["dataset_type"] == "YoloDetectionDataset":
             loaded[name] = YoloDetectionDataset(
-                yaml_dataset=str(dataset_metadata["metadata_path"]),
-                ann_dir=str(dataset_metadata["data_dir"]),
-                dataset_id=Path(dataset_metadata["data_dir"]).name,
+                yaml_dataset=str(dataset_metadata["metadata_path"]), ann_dir=str(dataset_metadata["data_dir"])
             )
         elif dataset_metadata["dataset_type"] == "VisdroneDetectionDataset":
-            loaded[name] = VisdroneDetectionDataset(
-                root=str(dataset_metadata["data_dir"]),
-                dataset_id=Path(dataset_metadata["data_dir"]).name,
-            )
+            loaded[name] = VisdroneDetectionDataset(root=str(dataset_metadata["data_dir"]))
         else:
             raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")
     return loaded

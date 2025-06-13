@@ -62,3 +62,17 @@ def test_load_datasets(fake_dataset):
     }
     loaded = load_datasets(datasets=datasets)
     assert loaded
+
+
+def test_different_splits_no_id_match(fake_dataset, tmp_path):
+    """Test that datasets generate auto-generated IDs and they are not the same for different splits."""
+    dataset_root, classes, num_images_per_class, _ = fake_dataset
+
+    # Create first dataset with test split
+    dataset1 = YoloClassificationDataset(root_dir=dataset_root, split="test")
+
+    # Create second dataset with train split
+    dataset2 = YoloClassificationDataset(root_dir=dataset_root, split="train")
+
+    # Assert that the two datasets have different IDs
+    assert dataset1.metadata["id"] != dataset2.metadata["id"]
