@@ -14,7 +14,7 @@ help:
 .PHONY: init
 #: Initialize project
 init:
-	poetry install --extras dev
+	poetry install --with dev
 	poetry run pre-commit install
 	poetry env info
 	$(HIDE)echo "Created virtual environment"
