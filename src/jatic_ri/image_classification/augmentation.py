@@ -19,7 +19,14 @@ CLASSIFICATION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBat
 
 
 class JaticAugmentationMetadata(DatumMetadataType):
-    """DatumMetadataType with extra key."""
+    """DatumMetadataType with extra key.
+
+    Attributes
+    ----------
+    nrtk_perturber : dict[str, Any]
+        The NRTK perturber configuration.
+
+    """
 
     nrtk_perturber: dict[str, Any]
 
@@ -32,8 +39,17 @@ class JATICClassificationAugmentation(Augmentation):
 
     Parameters
     ----------
-    augment : nrtk.interfaces.perturb_image.PerturbImage
+    augment : PerturbImage
         Object used to apply augmentations to an image.
+    augumentation_id : str, optional
+        Identifier for the augmentation, by default "JATICClassification".
+
+    Attributes
+    ----------
+    augment : PerturbImage
+        Object used to apply augmentations to an image.
+    metadata : AugmentationMetadata
+        Metadata for the augmentation.
     """
 
     def __init__(self, augment: PerturbImage, augumentation_id: str = "JATICClassification") -> None:
@@ -41,9 +57,20 @@ class JATICClassificationAugmentation(Augmentation):
         self.metadata = AugmentationMetadata(id=augumentation_id)
 
     def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
-        """
+        """Extract augmented image from NRTK output.
+
         Returned augmented images can be as NDArray or tuple of NDArray.
         If tuple, the first element is the augmented image and the second is the dtype.
+
+        Parameters
+        ----------
+        img : NDArray | tuple[NDArray, Any]
+            The output from an NRTK perturber.
+
+        Returns
+        -------
+        NDArray[Any]
+            The augmented image.
         """
         if isinstance(img, tuple):
             return img[0]
@@ -53,7 +80,19 @@ class JATICClassificationAugmentation(Augmentation):
         self,
         batch: CLASSIFICATION_BATCH_T,
     ) -> CLASSIFICATION_BATCH_T:
-        """Apply augmentations to the given data batch."""
+        """Apply augmentations to the given data batch.
+
+        Parameters
+        ----------
+        batch : CLASSIFICATION_BATCH_T
+            A batch of data containing images, annotations, and metadata.
+
+        Returns
+        -------
+        CLASSIFICATION_BATCH_T
+            A batch of augmented data containing augmented images, original
+            annotations, and updated metadata.
+        """
         imgs, anns, metadata = batch
         imgs = np.asarray(imgs)
         imgs_new = np.transpose(imgs, (0, 2, 3, 1))

@@ -1,6 +1,6 @@
 """Module for Object Detection Survivor panel app.
 
-Run with `--ci` flag to save the app as html instead of serving it.
+Run with ``--ci`` flag to save the app as html instead of serving it.
 """
 
 import os
@@ -16,16 +16,27 @@ from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, App
 
 
 class SurvivorAppOD(BaseApp):
-    """Survivor panel app.  Creates a GUI interface that allows the user to enter and export SurvivorConfig values.
+    """Survivor panel app.
 
-    Attributes:
-        title (param.String): Settings pane title.
-        otb_threshold (param.Number): Threshold for on the bubble data. Defaults to 0.5.
-        easy_hard_threshold (param.Number): Threshold for easy/hard data. Defaults to 0.5.
-        similarity_strategy (param.ObjectSelector): The behavior to convert the scores (currently in data scoring).
-            Default: "Exact"
-        round_precision (param.Integer): Precision for rounding. Defaults to 2.
-        bins (param.String): Bins to use when `similarity_strategy` is set to "Binned". Defaults to "0, 0.25, 0.5, 1.0"
+    Creates a GUI interface that allows the user to enter and export
+    SurvivorConfig values.
+
+    Attributes
+    ----------
+    title : param.String
+        Settings pane title.
+    otb_threshold : param.Number
+        Threshold for on the bubble data. Defaults to 0.5.
+    easy_hard_threshold : param.Number
+        Threshold for easy/hard data. Defaults to 0.5.
+    similarity_strategy : param.ObjectSelector
+        The behavior to convert the scores (currently in data scoring).
+        Default: "Exact"
+    round_precision : param.Integer
+        Precision for rounding. Defaults to 2.
+    bins : param.String
+        Bins to use when `similarity_strategy` is set to "Binned".
+        Defaults to "0, 0.25, 0.5, 1.0"
     """
 
     title: param.String = param.String(default="Survivor - Evaluate the impact of images on T&E results")
@@ -47,9 +58,10 @@ class SurvivorAppOD(BaseApp):
 
     @param.depends("bins", watch=True)
     def _parse_bin_string(self) -> None:
-        """Parse `self.bins` and set `self._bins` to output.
+        """Parse ``self.bins`` and set ``self._bins`` to output.
 
-        Will look for either a single integer or a comma separated list of integers/floats.
+        Will look for either a single integer or a comma separated list of
+        integers/floats.
         """
         just_number = re.compile(r"^\d+$")
         list_of_numbers = re.compile(r"^(\d+(\.\d*)?,(\s)?)*(\d+(\.\d*)?)$")
@@ -62,9 +74,11 @@ class SurvivorAppOD(BaseApp):
             self.status_source.emit("Invalid Bins argument")
 
     def _run_export(self) -> None:
-        """Exports a dictionary representation of the SurvivorConfig entered by the user.
+        """Export a dictionary representation of the SurvivorConfig.
 
-        The output is exported to the `self.output_tests_stages` dictionary under the "survivor_test_stage" key.
+        The configuration is entered by the user. The output is exported to the
+        ``self.output_tests_stages`` dictionary under the
+        "survivor_test_stage" key.
         """
         conversion_type_mapping = {
             "Exact": "original",
@@ -97,7 +111,13 @@ class SurvivorAppOD(BaseApp):
         self.output_test_stages["survivor_test_stage"] = {"TYPE": "SurvivorTestStage", "CONFIG": config}
 
     def settings_pane(self) -> pn.Column:
-        """View of settings"""
+        """Return the settings pane view.
+
+        Returns
+        -------
+        pn.Column
+            The settings pane.
+        """
         return pn.Column(
             self.view_title,
             pn.widgets.FloatInput.from_param(
@@ -126,8 +146,14 @@ class SurvivorAppOD(BaseApp):
 
     @param.depends("similarity_strategy")
     def similarity_option_pane(self) -> pn.Row | pn.viewable.Viewable:
-        """View of optional similarity strategy options,
-        changes with changes to similarity threshold
+        """Return the view of optional similarity strategy options.
+
+        This view changes with changes to similarity threshold.
+
+        Returns
+        -------
+        pn.Row | pn.viewable.Viewable
+            The similarity option pane.
         """
         # if binned is selected, display the bins widget
         if self.similarity_strategy == "Binned":
@@ -153,7 +179,13 @@ class SurvivorAppOD(BaseApp):
         return pn.Row()  # i.e. empty element
 
     def panel(self) -> pn.Column:
-        """High level panel app"""
+        """Return the high-level panel app.
+
+        Returns
+        -------
+        pn.Column
+            The main panel application column.
+        """
         return pn.Column(
             self.view_header,
             self.settings_pane,

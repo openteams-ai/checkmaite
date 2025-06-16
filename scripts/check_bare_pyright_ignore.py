@@ -19,7 +19,17 @@ COMMENT_PREFIX_PATTERN = re.compile(r"^#\s*(pyright|type):\s*ignore(?:\s|$)")
 
 @dataclasses.dataclass
 class CustomLinterError:
-    """Dataclass for custom linter errors."""
+    """Represents a specific type of linter error.
+
+    Attributes
+    ----------
+    code : str
+        A short code identifying the error type (e.g., "BARE_PYRIGHT_IGNORE").
+    message : str
+        A human-readable message describing the error.
+    fix : str
+        A suggestion on how to fix the error.
+    """
 
     code: str
     message: str
@@ -46,7 +56,27 @@ TYPE_IGNORE_ERROR = CustomLinterError(
 
 
 def main() -> None:  # noqa: C901
-    """Check for custom linter errors in Python files."""
+    """Check Python files for disallowed linter directive comments.
+
+    Iterates through Python files specified as command-line arguments.
+    For each file, it tokenizes the content and inspects comments to
+    identify and report:
+    - Bare '# pyright: ignore' comments.
+    - Malformed '# pyright: ignore[<category>]' comments.
+    - '# type: ignore' comments.
+
+    Error messages, including the file path, line number, and offending line,
+    are printed to standard output for each violation.
+
+    The script exits with a status code of 1 if any disallowed comments
+    or processing errors are found, and 0 otherwise.
+
+    Raises
+    ------
+    SystemExit
+        If disallowed comments or processing errors are encountered, exits with status 1.
+        Otherwise, exits with status 0.
+    """
     found_linter_error = False
 
     for filename in sys.argv[1:]:

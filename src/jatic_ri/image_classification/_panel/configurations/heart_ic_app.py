@@ -13,7 +13,16 @@ from jatic_ri._common._panel.configurations.heart_app_common import HeartBaseApp
 
 
 class HeartICApp(HeartBaseApp):
-    """App for building Heart Image Classification Panel"""
+    """App for building Heart Image Classification Panel.
+
+    Parameters
+    ----------
+    styles : AppStyling, optional
+        Styling configuration, by default DEFAULT_STYLING.
+    **params : dict[str, object]
+        Additional parameters for the `param.Parameterized` base class.
+
+    """
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
         super().__init__(styles, **params)

@@ -15,6 +15,26 @@ if TYPE_CHECKING:
 
 
 def load_torchvision_constructor(model_name: str, supported_torchvision_models: dict[str, str]) -> object:
+    """Load a TorchVision model constructor.
+
+    Parameters
+    ----------
+    model_name : str
+        The name of the model to load.
+    supported_torchvision_models : dict[str, str]
+        A dictionary mapping model names to their constructor names in
+        torchvision.
+
+    Returns
+    -------
+    object
+        The TorchVision model constructor.
+
+    Raises
+    ------
+    ImportError
+        If there is an error importing the model constructor.
+    """
     try:
         return getattr(
             importlib.import_module("torchvision.models.detection"),
@@ -27,20 +47,26 @@ def load_torchvision_constructor(model_name: str, supported_torchvision_models: 
 
 
 def set_device(device: str | None | torch.device) -> torch.device:
-    """
-    Determines the appropriate `torch.device` based on the provided input.
+    """Determine the appropriate `torch.device` based on the provided input.
 
-    If `device` is None, it selects the best available option:
-    - `"cuda"` if a CUDA-capable GPU is available.
-    - `"mps"` if running on macOS with an Apple Metal backend.
-    - `"cpu"` otherwise.
-
-    If `device` is provided as a string, it must be a valid PyTorch device identifier
-    such as `"cpu"`, `"cuda"`, `"cuda:0"`, `"mps"`, etc.
-    For a complete list of valid device strings, see:
+    If `device` is None, it selects the best available option: "cuda" if a
+    CUDA-capable GPU is available, "mps" if running on macOS with an Apple
+    Metal backend, or "cpu" otherwise. If `device` is provided as a string,
+    it must be a valid PyTorch device identifier such as "cpu", "cuda",
+    "cuda:0", "mps", etc. For a complete list of valid device strings, see:
     https://pytorch.org/docs/stable/tensor_attributes.html#torch-device
-    """
 
+    Parameters
+    ----------
+    device : str or None or torch.device
+        The device to use. Can be a string (e.g., "cuda", "cpu"),
+        a `torch.device` object, or None to auto-detect.
+
+    Returns
+    -------
+    torch.device
+        The selected `torch.device` object.
+    """
     if device is None:
         if torch.cuda.is_available():
             return torch.device("cuda")
@@ -53,6 +79,30 @@ def set_device(device: str | None | torch.device) -> torch.device:
 def get_index2label_from_model_config(
     config_path: str | Path, model_config: dict[str, Any], index2label_key: str
 ) -> dict[int, str]:
+    """Extract index-to-label mapping from a model configuration.
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the configuration file (used for error messages).
+    model_config : dict[str, Any]
+        The model configuration dictionary.
+    index2label_key : str
+        The key in `model_config` that holds the index-to-label mapping.
+
+    Returns
+    -------
+    dict[int, str]
+        A dictionary mapping class indices to label names.
+
+    Raises
+    ------
+    FileNotFoundError
+        If `index2label_key` is not found in `model_config`.
+    TypeError
+        If the value associated with `index2label_key` is not a list or
+        dict.
+    """
     if index2label_key not in model_config:
         raise FileNotFoundError(f"The config_file at {config_path} is missing a {index2label_key} key.")
     if isinstance(model_config[index2label_key], list):
@@ -65,6 +115,19 @@ def get_index2label_from_model_config(
 def get_default_index2label(
     torchvision_weights_constructor: Any,
 ) -> dict[int, str]:
+    """Get the default index-to-label mapping from TorchVision weights.
+
+    Parameters
+    ----------
+    torchvision_weights_constructor : Any
+        The TorchVision weights constructor object (e.g.,
+        `FasterRCNN_ResNet50_FPN_Weights`).
+
+    Returns
+    -------
+    dict[int, str]
+        A dictionary mapping class indices to label names.
+    """
     default = torchvision_weights_constructor.DEFAULT
     return dict(enumerate(default.meta["categories"]))
 
@@ -75,12 +138,48 @@ def maybe_download_weights(
     device: torch.device,
     **kwargs: Any,
 ) -> nn.Module:
+    """Load a model with default TorchVision weights, downloading if necessary.
+
+    Parameters
+    ----------
+    model : Any
+        The model class (e.g.,
+        `torchvision.models.detection.fasterrcnn_resnet50_fpn`).
+    torchvision_weights_constructor : Any
+        The TorchVision weights constructor (e.g.,
+        `FasterRCNN_ResNet50_FPN_Weights`).
+    device : torch.device
+        The device to move the model to.
+    **kwargs : Any
+        Additional keyword arguments to pass to the model constructor.
+
+    Returns
+    -------
+    nn.Module
+        The instantiated model with loaded weights, moved to the specified
+        device.
+    """
     # if weights not already in cache, they are downloaded here
     default = torchvision_weights_constructor.DEFAULT
     return model(weights=default, **kwargs).to(device)
 
 
 def validate_input_batch(input_batch: Sequence[ArrayLike]) -> None:
+    """Validate the format and consistency of an input batch of images.
+
+    Checks for CHW ordering and consistent shapes across images in the batch.
+
+    Parameters
+    ----------
+    input_batch : Sequence[ArrayLike]
+        A sequence of image-like arrays.
+
+    Raises
+    ------
+    ValueError
+        If input data is not CHW-ordered or if images in the batch have
+        inconsistent shapes.
+    """
     total_channels, orig_img_height, orig_img_width = np.asarray(input_batch[0]).shape
     # channels can be used as a proxy to confirm CHW-ordering
     if not (1 <= total_channels <= 4):
@@ -99,7 +198,22 @@ def validate_input_batch(input_batch: Sequence[ArrayLike]) -> None:
 
 
 def to_torch_batch(input_batch: Sequence[ArrayLike], device: torch.device) -> torch.Tensor:
-    # we are not writing to the underlying array in this method and hence we suppress this warning
+    """Convert a sequence of array-like images to a PyTorch tensor batch.
+
+    Parameters
+    ----------
+    input_batch : Sequence[ArrayLike]
+        A sequence of image-like arrays.
+    device : torch.device
+        The device to move the resulting tensor to.
+
+    Returns
+    -------
+    torch.Tensor
+        A PyTorch tensor representing the batch of images.
+    """
+    # we are not writing to the underlying array in this method and hence we
+    # suppress this warning
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",

@@ -1,4 +1,9 @@
-"""DataEval Bias Common Test Stage"""
+"""DataEval Bias Common Test Stage.
+
+Measures four aspects of bias in a single dataset: balance, coverage,
+diversity, and parity. Programmatically generates a Gradient report with bias
+measurements, potential risks, and actions to reduce bias if found.
+"""
 
 from pathlib import Path
 from typing import Any, Literal
@@ -98,14 +103,45 @@ class DataevalBiasRun(RunBase):
 
 
 class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlugin[TDataset]):
-    """
-    Measures four aspects of bias in a single dataset and programmatically generates a Gradient report
-    with the measurements of bias, potential risks, and any actions required to reduce bias if found
+    """Measures bias in a single dataset.
 
-    Bias is measured using four metrics: balance, coverage, diversity, parity.
+    Generates a Gradient report with bias measurements, potential risks, and
+    actions to reduce bias. Bias is measured using four metrics: balance,
+    coverage, diversity, and parity. Balance, diversity, and parity assess
+    correlations between metadata factors and class labels. Coverage is
+    calculated using only the images.
 
-    Balance, diversity, and parity calculate different aspects of correlation
-    between metadata factors and class labels, while coverage is calculated using only the images
+    Parameters
+    ----------
+    metadata_to_exclude : list[str], optional
+        Dataset metadata to exclude from bias analysis. Defaults to None.
+    num_neighbors : int, optional
+        Number of neighbors for mutual information in balance calculation.
+        Defaults to 5.
+    diversity_method : Literal["simpson", "shannon"], optional
+        Methodology for defining diversity. Defaults to "simpson".
+    radius_type : Literal["adaptive", "naive"], optional
+        Function to determine radius for coverage. Defaults to "adaptive".
+    percent : float, optional
+        Percent of observations considered uncovered (adaptive radius only).
+        Defaults to 0.01.
+
+    Attributes
+    ----------
+    _RUN_TYPE : type[DataevalBiasRun]
+        The type of the run object associated with this test stage.
+    device : torch.device
+        The device to use for computations.
+    metadata_to_exclude : list[str]
+        Dataset metadata to exclude from bias analysis.
+    num_neighbors : int
+        Number of neighbors for mutual information in balance calculation.
+    diversity_method : Literal["simpson", "shannon"]
+        Methodology for defining diversity.
+    radius_type : Literal["adaptive", "naive"]
+        Function to determine radius for coverage.
+    percent : float
+        Percent of observations considered uncovered (adaptive radius only).
     """
 
     _RUN_TYPE = DataevalBiasRun
@@ -143,8 +179,16 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
     def _run(self) -> DataevalBiasOutputs:
-        """Run bias analysis using coverage and parity"""
+        """Run bias analysis.
 
+        Performs bias analysis using coverage, and optionally balance, diversity,
+        and parity if metadata is available.
+
+        Returns
+        -------
+        DataevalBiasOutputs
+            The outputs of the bias analysis.
+        """
         model, transform = get_resnet18()
         images = Images(self.dataset)
         embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device).to_numpy()
@@ -186,7 +230,22 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect consumables"""
+        """Collect consumables for the report.
+
+        Gathers the results from the bias analysis run and formats them
+        for inclusion in a Gradient report.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, each representing a slide or section
+            in the Gradient report.
+
+        Raises
+        ------
+        RuntimeError
+            If `run()` has not been called before collecting consumables.
+        """
         if self._stored_run is None:
             raise RuntimeError("Can only collect consumables after run() was called")
         outputs: DataevalBiasOutputs = self._stored_run.outputs
@@ -208,8 +267,13 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         return report_list
 
     def _generate_table_of_contents(self) -> dict[str, Any]:
-        "Generates a table of contents for the report."
+        """Generates a table of contents for the report.
 
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the table of contents slide.
+        """
         right_item = [
             "\n",
             "* Coverage Analysis",
@@ -226,7 +290,18 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
     def _report_coverage(self, coverage: DataevalBiasCoverageOutputs) -> dict[str, Any]:
-        """Format coverage results for Gradient consumption"""
+        """Format coverage results for Gradient consumption.
+
+        Parameters
+        ----------
+        coverage : DataevalBiasCoverageOutputs
+            The coverage analysis outputs.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the coverage analysis slide.
+        """
         title = "Coverage Analysis"
 
         uncovered_count = len(coverage.uncovered_indices)
@@ -256,7 +331,18 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         return create_table_text_slide(deck=self._deck, title=title, text=content, data=cov_df)
 
     def _report_balance_metadata_factors(self, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
-        """Format balance results for Gradient consumption"""
+        """Format balance results (metadata factors) for Gradient consumption.
+
+        Parameters
+        ----------
+        outputs : DataevalBiasBalanceOutputs
+            The balance analysis outputs.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the balance analysis slide for metadata factors.
+        """
         title = "Balance Analysis 1"
         heading = "   "
 
@@ -292,7 +378,18 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
     def _report_balance_classwise(self, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
-        """Format balance results for Gradient consumption"""
+        """Format balance results (classwise) for Gradient consumption.
+
+        Parameters
+        ----------
+        outputs : DataevalBiasBalanceOutputs
+            The balance analysis outputs.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the balance analysis slide for classwise balance.
+        """
         title = "Balance Analysis 2"
         heading = "   "
 
@@ -325,7 +422,18 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
     def _report_diversity(self, outputs: DataevalBiasDiversityOutputs) -> dict[str, Any]:
-        """Format diversity results for Gradient consumption"""
+        """Format diversity results for Gradient consumption.
+
+        Parameters
+        ----------
+        outputs : DataevalBiasDiversityOutputs
+            The diversity analysis outputs.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the diversity analysis slide.
+        """
         title = "Diversity Analysis"
         heading = "   "
 
@@ -365,8 +473,15 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         )
 
     def _report_next_steps(self) -> dict[str, Any]:
-        "Generates a report for the next steps to investigating issues that may arise during analysis."
+        """Generate a report for the next steps.
 
+        This outlines how to investigate issues that may arise during analysis.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing the next steps slide.
+        """
         dir_ = Path(cache_path() / "bias-test-stage-artifacts")
         dir_.mkdir(parents=True, exist_ok=True)
         filepath = dir_ / "blank_img.png"

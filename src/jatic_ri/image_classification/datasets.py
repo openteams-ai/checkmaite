@@ -29,8 +29,7 @@ class MissingYoloDataSplitError(ClassificationDatasetWrapperError):
 
 
 class YoloClassificationDataset:
-    """
-    A dataset handler for YOLO image classification datasets.
+    """A dataset handler for YOLO image classification datasets.
 
     This class is designed to load datasets formatted as per the YOLO image
     classification dataset specification. See the official documentation at
@@ -42,28 +41,29 @@ class YoloClassificationDataset:
         A typed dictionary containing at least an 'id' field of type str
         and a index2label mapping from id to labels.
 
-    Methods
-    -------
-    __getitem__(self, ind: int) -> tuple[NDArray, NDArray, DatumMetadataType]
-        Provide map-style access to dataset elements. Returned tuple elements
-        correspond to model input type, model target type, and datum-specific metadata type,
-        respectively.
-
-    __len__(self) -> int
-        Return the number of data elements in the dataset.
     """
 
     def __init__(
         self, root_dir: str, dataset_id: str | None = None, split: Literal["train", "test", "validation"] = "test"
     ) -> None:
-        """
-        Args:
-            root_dir: Root directory of the dataset.
-            dataset_id: Optional identifier for dataset. If omitted,
-                a unique one will be generated from the other input arguments.
-            split: Dataset split to use (e.g., "train", "test", "validation"). Defaults to "test".
-        """
+        """Initialize YoloClassificationDataset.
 
+        Parameters
+        ----------
+        root_dir : str
+            Root directory of the dataset.
+        dataset_id : str | None, optional
+            Optional identifier for dataset. If omitted, a unique one will be
+            generated from the other input arguments. By default None.
+        split : Literal["train", "test", "validation"], optional
+            Dataset split to use (e.g., "train", "test", "validation").
+            Defaults to "test".
+
+        Raises
+        ------
+        MissingYoloDataSplitError
+            If the specified data split subdirectory does not exist.
+        """
         try:
             # convention adopted is to order labels alphabetically
             self._images = sorted(self._get_filepaths_by_split(Path(f"{root_dir}/{split}")))
@@ -83,14 +83,15 @@ class YoloClassificationDataset:
 
     @staticmethod
     def _get_filepaths_by_split(dataset_split: Path) -> list[Path]:
-        """
-        Get the filepaths for images in a YOLO classification dataset structure.
+        """Get the filepaths for images in a YOLO classification dataset structure.
 
-        Args:
-            dataset_split: Path to the dataset split directory e.g. "<dataset_root>/test"
+        Parameters
+        ----------
+        dataset_split : Path
+            Path to the dataset split directory e.g. "<dataset_root>/test".
 
-        Returns:
-            List of filepaths relative to dataset_split for all images in dataset
+        list[Path]
+            List of filepaths relative to `dataset_split` for all images in dataset.
         """
         filepaths = []
         for class_dir in Path(dataset_split).iterdir():
@@ -100,16 +101,46 @@ class YoloClassificationDataset:
 
     @property
     def metadata(self) -> DatasetMetadata:
-        """Return typed dictionary with dataset metadata."""
+        """Dataset metadata.
+
+        Returns
+        -------
+        DatasetMetadata
+            Typed dictionary with dataset metadata.
+        """
         return self._metadata
 
     def __len__(self) -> int:
-        """Return length of dataset."""
+        """Length of the dataset.
+
+        Returns
+        -------
+        int
+            The number of items in the dataset.
+        """
         return len(self._images)
 
     def __getitem__(self, index: int) -> tuple[NDArray[Any], NDArray[Any], DatumMetadata]:
-        """Get `index`-th element from dataset."""
+        """Get `index`-th element from dataset.
 
+        Parameters
+        ----------
+        index : int
+            Index of the element to retrieve.
+
+        Returns
+        -------
+        tuple[NDArray[Any], NDArray[Any], DatumMetadata]
+            A tuple containing:
+            - Image data as a NumPy array (CHW format).
+            - One-hot encoded label as a NumPy array.
+            - Datum metadata.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+        """
         try:
             image_path = self._images[index]
         except IndexError as e:
@@ -131,21 +162,53 @@ class YoloClassificationDataset:
 
 
 class DatasetSpecification(TypedDict):
-    """Dataset metadata required for loading datasets via the RI wrappers"""
+    """Dataset metadata required for loading datasets via the RI wrappers.
+
+    Attributes
+    ----------
+    dataset_type : Literal["YoloClassificationDataset"]
+        Dataset class as a string.
+        TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194
+        and maite pyright<=1.1.320
+    data_dir : str
+        Full filepath to the data directory to use. For YOLO, this is the split
+        directory. The root directory of images is expected to be the parent of
+        this directory.
+    split_folder : Literal["train", "test", "validation"]
+        Folder name of the split folder to load inside of the root dataset
+        directory.
+    """
 
     # Dataset class as a string
-    # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    # TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
     dataset_type: Literal["YoloClassificationDataset"]
-    # Full filepath to the data directory to use. For yolo, this is the split dir.
+    # Full filepath to the data directory to use. For YOLO, this is the split dir.
     # The root directory of images is expected to be the parent of this directory.
     data_dir: str
-    # Folder name of the split folder to load inside of the root dataset directory
+    # Folder name of the split folder to load inside of the root dataset directory.
     split_folder: Literal["train", "test", "validation"]
 
 
 def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloClassificationDataset]:
-    """Simplified programmatic loading of datasets from on dictionary of
-    DatasetSpecifications."""
+    """Simplified programmatic loading of datasets from a dictionary of DatasetSpecifications.
+
+    Parameters
+    ----------
+    datasets : dict[str, DatasetSpecification]
+        A dictionary where keys are dataset names and values are DatasetSpecification
+        objects.
+
+    Returns
+    -------
+    dict[str, YoloClassificationDataset]
+        A dictionary of loaded datasets, where keys are dataset names and values
+        are YoloClassificationDataset instances.
+
+    Raises
+    ------
+    RuntimeError
+        If an unsupported dataset type is encountered.
+    """
     loaded = {}
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "YoloClassificationDataset":

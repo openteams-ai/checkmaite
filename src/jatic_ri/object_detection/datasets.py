@@ -23,18 +23,18 @@ SUPPORTED_DATASET_TYPES = ["CocoDetectionDataset"]
 
 @dataclass
 class DetectionTarget:
-    """
-    Detection Target.
+    """Detection Target.
 
-    Attributes
+    Parameters
     ----------
-    boxes
+    boxes : ArrayLike
         Coordinates of bounding boxes where objects are detected, in xyxy format,
-        shape: (n_boxes, 4)
-    labels
-        Labels of detected images, shape: (n_boxes,)
-    scores
-        How confident the model is in each detection, shape: (n_boxes, n_classes)
+        shape: (n_boxes, 4).
+    labels : ArrayLike
+        Labels of detected images, shape: (n_boxes,).
+    scores : ArrayLike
+        How confident the model is in each detection, shape: (n_boxes, n_classes).
+
     """
 
     boxes: ArrayLike
@@ -43,9 +43,7 @@ class DetectionTarget:
 
 
 class CocoDetectionDataset(Dataset):
-    """
-    A dataset protocol for object detection ML subproblem providing datum-level
-    data access.
+    """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the an object detection dataset returns a `Tuple` of
     types `Tensor`, `DetectionTarget`, and `Dict[str, Any]`. These correspond to
@@ -53,30 +51,34 @@ class CocoDetectionDataset(Dataset):
 
     Parameters
     ----------
-    root: str or Path
-        Root directory of the dataset
-    ann_file: str
-        Full filepath to the annotation file for the dataset
+    root : str or Path
+        Root directory of the dataset.
+    ann_file : str
+        Full filepath to the annotation file for the dataset.
+    dataset_id : str, optional
+        Identifier for the dataset, by default "coco".
 
     Attributes
     ----------
+    dataset : CocoDetection
+        The underlying CocoDetection dataset.
+    metadata : DatasetMetadata
+        Metadata about the dataset, including id and label mapping.
     classes
         Mapping from ids to labels.
 
     Methods
     -------
-    __getitem__(self, index: int) -> Tuple[Tensor, DetectionTarget, Dict[str, Any]]
-        Provide mapping-style access to dataset elements. Returned tuple elements
-        correspond to input type, target type, and datum-specific metadata,
-        respectively.
-
-    __len__() -> int
+    __getitem__(index)
+        Provide mapping-style access to dataset elements.
+    __len__()
         Return the number of data elements in the dataset.
 
     Notes
-    ------
+    -----
     The RI team follows the convention of using the `image` field to store all relevant metadata.
     If your dataset includes custom metadata fields, ensure they are placed inside the `image` field.
+
     """
 
     def __init__(self, root: str | Path, ann_file: str, dataset_id: str | None = None) -> None:
@@ -111,11 +113,35 @@ class CocoDetectionDataset(Dataset):
         self.metadata = DatasetMetadata(id=dataset_id, index2label=self._index2label)
 
     def __len__(self) -> int:
-        """Return length of dataset."""
+        """Return length of dataset.
+
+        Returns
+        -------
+        int
+            The number of data elements in the dataset.
+
+        """
         return len(self.dataset)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
-        """Get `index`-th element from dataset."""
+        """Get `index`-th element from dataset.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        tuple[torch.Tensor, DetectionTarget, DatumMetadataType]
+            A tuple containing the image tensor, detection target, and metadata.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
         try:
             # get original data item
             img_pt, annotations = self.dataset[index]
@@ -147,9 +173,7 @@ class CocoDetectionDataset(Dataset):
 
 
 class YoloDetectionDataset(Dataset):
-    """
-    A dataset protocol for object detection ML subproblem providing datum-level
-    data access.
+    """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the an object detection dataset returns a `Tuple` of
     types `Tensor`, `DetectionTarget`, and `Dict[str, Any]`. These correspond to
@@ -160,25 +184,27 @@ class YoloDetectionDataset(Dataset):
 
     Parameters
     ----------
-    yaml_dataset: str
-        Full filepath to the yaml file containing dataset metadata
-    ann_dir: str
-        Full path to the root directory containing the annotation folders
+    yaml_dataset : str
+        Full filepath to the yaml file containing dataset metadata.
+    ann_dir : str
+        Full path to the root directory containing the annotation folders.
+    dataset_id : str, optional
+        Identifier for the dataset, by default "yolo".
 
     Attributes
     ----------
+    metadata : dict
+        Metadata about the dataset, including id and label mapping.
     classes
         Mapping from ids to labels.
 
     Methods
     -------
-    __getitem__(self, index: int) -> Tuple[Tensor, DetectionTarget, Dict[str, Any]]
-        Provide mapping-style access to dataset elements. Returned tuple elements
-        correspond to input type, target type, and datum-specific metadata,
-        respectively.
-
-    __len__() -> int
+    __getitem__(index)
+        Provide mapping-style access to dataset elements.
+    __len__()
         Return the number of data elements in the dataset.
+
     """
 
     def __init__(self, yaml_dataset: str, ann_dir: str, dataset_id: str | None = None) -> None:
@@ -212,11 +238,35 @@ class YoloDetectionDataset(Dataset):
         self.metadata = {"id": dataset_id, "index2label": content["names"]}
 
     def __len__(self) -> int:
-        """Return length of dataset."""
+        """Return length of dataset.
+
+        Returns
+        -------
+        int
+            The number of data elements in the dataset.
+
+        """
         return len(self._images)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
-        """Get `index`-th element from dataset."""
+        """Get `index`-th element from dataset.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        tuple[torch.Tensor, DetectionTarget, DatumMetadataType]
+            A tuple containing the image tensor, detection target, and metadata.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
         try:
             image = self._images[index]
             annotation = self._annotations[index]
@@ -252,9 +302,7 @@ class YoloDetectionDataset(Dataset):
 
 
 class VisdroneDetectionDataset(Dataset):
-    """
-    A dataset protocol for object detection ML subproblem providing datum-level
-    data access.
+    """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the object detection dataset returns a `Tuple` of
     types `Tensor`, `DetectionTarget`, and `Dict[str, Any]`. These correspond to
@@ -262,23 +310,27 @@ class VisdroneDetectionDataset(Dataset):
 
     Parameters
     ----------
-    root: str or Path
-        Root directory of the dataset
+    root : str or Path
+        Root directory of the dataset.
+    dataset_id : str, optional
+        Identifier for the dataset, by default "visdrone".
 
     Attributes
     ----------
+    root : Path
+        Resolved path to the root directory of the dataset.
+    metadata : dict
+        Metadata about the dataset, including id and label mapping.
     classes
         Mapping from ids to labels.
 
     Methods
     -------
-    __getitem__(self, index: int) -> Tuple[Tensor, DetectionTarget, Dict[str, Any]]
-        Provide mapping-style access to dataset elements. Returned tuple elements
-        correspond to input type, target type, and datum-specific metadata,
-        respectively.
-
-    __len__(self) -> int
+    __getitem__(index)
+        Provide mapping-style access to dataset elements.
+    __len__()
         Return the number of data elements in the dataset.
+
     """
 
     def __init__(self, root: str | Path, *, dataset_id: str | None = None) -> None:
@@ -320,16 +372,49 @@ class VisdroneDetectionDataset(Dataset):
         self._samples = self._load_samples(self.root)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
-        """Get `index`-th element from dataset."""
+        """Get `index`-th element from dataset.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        tuple[torch.Tensor, DetectionTarget, DatumMetadataType]
+            A tuple containing the image tensor, detection target, and metadata.
+
+        """
         image_path, target, metadata = self._samples[index]
         image = pil_to_tensor(Image.open(image_path))
         return image, target, metadata
 
     def __len__(self) -> int:
-        """Return length of dataset."""
+        """Return length of dataset.
+
+        Returns
+        -------
+        int
+            The number of data elements in the dataset.
+
+        """
         return len(self._samples)
 
     def _load_samples(self, root: Path) -> list[tuple[Path, DetectionTarget, DatumMetadataType]]:
+        """Load samples from the VisDrone dataset structure.
+
+        Parameters
+        ----------
+        root : Path
+            The root directory of the VisDrone dataset.
+
+        Returns
+        -------
+        list[tuple[Path, DetectionTarget, DatumMetadataType]]
+            A list of samples, where each sample is a tuple containing the image path,
+            detection target, and metadata.
+
+        """
         images_folder = root / "images"
         annotations_folder = root / "annotations"
 
@@ -373,7 +458,23 @@ class VisdroneDetectionDataset(Dataset):
 
 
 class DatasetSpecification(TypedDict):
-    """Dataset metadata required for loading datasets via the RI wrappers"""
+    """Dataset metadata required for loading datasets via the RI wrappers.
+
+    Attributes
+    ----------
+    dataset_type : Literal["CocoDetectionDataset", "YoloDetectionDataset", "VisdroneDetectionDataset"]
+        The type of the dataset.
+        TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
+    metadata_path : str | Path
+        Full path to the metadata file. For Coco datasets, this is the annotation file.
+        For yolo datasets, this is the yaml file.
+    data_dir : str | Path
+        Full path to the directory containing:
+        - the annotation files for yolo,
+        - the split directory for coco, or
+        - the root data directory for visdrone.
+
+    """
 
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
     dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset", "VisdroneDetectionDataset"]
@@ -387,10 +488,30 @@ class DatasetSpecification(TypedDict):
     data_dir: str | Path
 
 
-def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, CocoDetectionDataset | YoloDetectionDataset]:
-    """Simplified programmatic loading of datasets from on dictionary of
-    DatasetSpecifications."""
-    loaded = {}
+def load_datasets(
+    datasets: dict[str, DatasetSpecification],
+) -> dict[str, CocoDetectionDataset | YoloDetectionDataset | VisdroneDetectionDataset]:
+    """Simplified programmatic loading of datasets from a dictionary of DatasetSpecifications.
+
+    Parameters
+    ----------
+    datasets : dict[str, DatasetSpecification]
+        A dictionary where keys are dataset names and values are DatasetSpecification
+        objects.
+
+    Returns
+    -------
+    dict[str, CocoDetectionDataset | YoloDetectionDataset | VisdroneDetectionDataset]
+        A dictionary of loaded datasets, where keys are dataset names and values are
+        the corresponding dataset objects.
+
+    Raises
+    ------
+    RuntimeError
+        If an unsupported dataset type is encountered.
+
+    """
+    loaded: dict[str, CocoDetectionDataset | YoloDetectionDataset | VisdroneDetectionDataset] = {}
     for name, dataset_metadata in datasets.items():
         if dataset_metadata["dataset_type"] == "CocoDetectionDataset":
             loaded[name] = CocoDetectionDataset(

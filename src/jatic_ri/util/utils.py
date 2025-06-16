@@ -15,16 +15,17 @@ from IPython.display import HTML
 
 
 def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
-    """Save matplot figure object to temporary file and return filename
+    """Save matplotlib figure object to a temporary file and return its filename.
 
     Parameters
     ----------
-    fig: matplotlib.figure.Figure
-      In-memory mpl figure object
+    fig : matplotlib.figure.Figure
+        In-memory mpl figure object.
 
     Returns
     -------
-    [str] filename of the temporary file
+    str
+        Filename of the temporary file.
     """
 
     buf = io.BytesIO()
@@ -41,7 +42,21 @@ def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
     return filename
 
 
-def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:  # noqa: D103
+def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:
+    """Save a PIL Image to a temporary file and return its path.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The image to save.
+    suffix : str, optional
+        The suffix for the temporary file (default is ".png").
+
+    Returns
+    -------
+    pathlib.Path
+        The path to the temporary image file.
+    """
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
         image.save(f)
         return Path(f.name)
@@ -53,22 +68,23 @@ def create_metrics_bar_plot(
     threshold: float,
     width: float = 0.75,
 ) -> matplotlib.figure.Figure:
-    """Generate a matplotlib bar chart from metric results
+    """Generate a matplotlib bar chart from metric results.
 
     Parameters
     ----------
-    metrics:
-        Results of `metric.compute`. Keys are the metric name, values are float
-    metric_key:
-        Key name for the metric. Will be colored differently than the other bars
-    threshold:
-        Threshold value, will appear as horizontal line on bar chart
-    width:
-        [Optional] Width of the bars
+    metrics : dict[str, float | Any]
+        Results of `metric.compute`. Keys are the metric name, values are float.
+    metric_key : str
+        Key name for the metric. Will be colored differently than the other bars.
+    threshold : float
+        Threshold value, will appear as horizontal line on bar chart.
+    width : float, optional
+        Width of the bars (default is 0.75).
 
     Returns
     -------
-    [matplotlib.figure.Figure] Bar chart showing all of the metrics
+    matplotlib.figure.Figure
+        Bar chart showing all of the metrics.
     """
     default_color = "blue"
     metric_color = "orange"
@@ -100,7 +116,22 @@ def create_metrics_bar_plot(
 
 
 def create_expandable_output(outputs: dict | list, max_preview_length: int = 100) -> HTML:
-    """Display test stage results concisely with collapsible sections for long values."""
+    """Display test stage results concisely with collapsible sections for long values.
+
+    Parameters
+    ----------
+    outputs : dict | list
+        The data to display. If a dictionary, its items (key-value pairs) are
+        displayed. If a list, it is treated as a single entry under the name "Output".
+    max_preview_length : int, optional
+        The maximum number of characters to show in the preview before
+        collapsing the content (default is 100).
+
+    Returns
+    -------
+    IPython.display.HTML
+        An HTML object representing the expandable output.
+    """
     items = outputs.items() if isinstance(outputs, dict) else [("Output", outputs)]
     parts = []
     for name, value in items:

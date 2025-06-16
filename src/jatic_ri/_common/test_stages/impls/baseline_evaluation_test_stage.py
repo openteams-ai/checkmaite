@@ -49,20 +49,29 @@ class BaselineEvaluationBase(
     ThresholdPlugin,
     EvalToolPlugin,
 ):
-    """Baseline evaluation implementation of TestStage interface with single model, dataset and metric plugins
+    """Baseline evaluation implementation of TestStage interface.
+
+    This test stage uses single model, dataset, and metric plugins,
+    along with threshold and evaluation tool plugins.
 
     Parameters
     ----------
-
-    Inherited attributes:
-        eval_tool: EvaluationTool
-        model: gen.Model
-        model_id: str
-        dataset: gen.Dataset
-        dataset_id: str
-        metric: gen.Metric
-        metric_id: str
-        threshold: float
+    eval_tool : EvaluationTool
+        The evaluation tool instance.
+    model : gen.Model
+        The loaded model instance.
+    model_id : str
+        Identifier for the loaded model.
+    dataset : gen.Dataset
+        The loaded dataset instance.
+    dataset_id : str
+        Identifier for the loaded dataset.
+    metric : gen.Metric
+        The loaded metric instance.
+    metric_id : str
+        Identifier for the loaded metric.
+    threshold : float
+        The threshold value for evaluation.
     """
 
     _RUN_TYPE = BaselineEvaluationRun
@@ -71,7 +80,19 @@ class BaselineEvaluationBase(
         return BaselineEvaluationConfig()
 
     def _run(self) -> BaselineEvaluationOutputs:
-        """Run the test stage, and store any outputs of the evaluation in test stage"""
+        """Run the test stage and store evaluation outputs.
+
+        Returns
+        -------
+        BaselineEvaluationOutputs
+            The outputs of the baseline evaluation.
+
+        Raises
+        ------
+        RuntimeError
+            If the evaluation returns no results or if per-class metrics
+            are malformed.
+        """
         result, _, _ = self.eval_tool.evaluate(
             model=self.model,
             model_id=self.model_id,
@@ -110,16 +131,28 @@ class BaselineEvaluationBase(
         )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
-        load_cached_results method
-        Please return a list of dictionaries, one dictionary per slide
+        """Access data for Gradient report generation.
 
-        For each dictionary, please include the following keys:
-        - "deck": (str) image_classification_model_evaluation, object_detection_model_evaluation,
-                        image_classification_dataset_evaluation
-        - "layout_name": (str) find the layout name in the jatic_increment_5_gradient_demo_repo, linked below
-        https://gitlab.jatic.net/jatic/morse/jatic-increment-5-gradient-demo-repo/-/tree/main/src/jatic_increment_5_gradient_demo_repo/cards?ref_type=heads
-        - "layout_arguments": (dict) arguments pertaining to the specific layout
+        Retrieves in-depth data produced during the `run` method or loaded
+        from cache, formatted for Gradient slide creation.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide.
+            Each dictionary must contain the following keys:
+
+            - "deck" (str): Target deck (e.g.,
+              "image_classification_model_evaluation").
+            - "layout_name" (str): Name of the layout from the Gradient demo
+              repo. See JATIC Increment 5 Gradient Demo Repo for details.
+            - "layout_arguments" (dict): Arguments specific to the chosen layout.
+
+        Raises
+        ------
+        Exception
+            If `_stored_run` is None, meaning the test stage has not been run
+            or results haven't been loaded.
         """
         run = self._stored_run
         if run is None:
@@ -170,7 +203,25 @@ class BaselineEvaluationBase(
 def create_per_class_bar_plot(
     overall_metric_name: str, overall_metric_value: float, class_metrics: dict[str, float], threshold: float
 ) -> Figure:
-    bar_color = "blue"
+    """Create a bar plot for per-class metrics alongside overall metric and threshold.
+
+    Parameters
+    ----------
+    overall_metric_name : str
+        Name of the overall metric (e.g., "Accuracy").
+    overall_metric_value : float
+        Value of the overall metric.
+    class_metrics : dict[str, float]
+        Dictionary mapping class names to their metric values.
+    threshold : float
+        Threshold value to be plotted as a horizontal line.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The matplotlib Figure object containing the plot.
+    """
+    bar_color = "blue"  # TODO: make these configurable with AppStyling
     threshold_line_color = "red"
     overall_line_color = "orange"
 
@@ -184,10 +235,10 @@ def create_per_class_bar_plot(
         ax.bar(index[idx], value, color=bar_color)
 
     # plot and label the threshold line
-    ax.axhline(threshold, color=threshold_line_color)
+    ax.axhline(threshold, color=threshold_line_color)  # TODO: make these configurable with AppStyling
     plt.text(len(index), threshold, "Threshold", va="center", color=threshold_line_color)
     # plot and label the overall metric line
-    ax.axhline(overall_metric_value, color=overall_line_color)
+    ax.axhline(overall_metric_value, color=overall_line_color)  # TODO: make these configurable with AppStyling
     plt.text(len(index), overall_metric_value, f"Overall {overall_metric_name}", color=overall_line_color)
 
     ax.set_title(f"Class-wise Metric: {overall_metric_name}")

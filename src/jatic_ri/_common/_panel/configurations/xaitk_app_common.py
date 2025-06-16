@@ -29,7 +29,37 @@ XAITK_LOGO = IMAGE_DIR / "XAITK_logo.png"
 
 
 class BaseXAITKApp(BaseApp):
-    """App for building XAITKTestStages"""
+    """App for building XAITKTestStages.
+
+    Parameters
+    ----------
+    styles : AppStyling, optional
+        Styling configuration, by default DEFAULT_STYLING.
+    **params : dict[str, object]
+        Additional parameters for the `param.Parameterized` base class.
+
+    Attributes
+    ----------
+    md_text : param.String
+        Markdown text to be displayed in the saliency generation config widget.
+    saliency_gen_button : pn.widgets.Button
+        Button to test saliency map generation settings.
+    select_widget : pn.widgets.Select
+        Widget to select a class for saliency map generation.
+    original_plot : pn.pane.Matplotlib
+        Pane to display the original sample image.
+    augmented_plot : pn.pane.Matplotlib
+        Pane to display the saliency map.
+    left_column_width : int
+        Width of the left column in the app layout.
+    saliency_widget : list[pn.Card]
+        List containing the card for saliency generation parameters.
+    widget_values : list
+        List to store widget values (currently unused).
+    sample_image : pn.pane.Matplotlib
+        Pane for displaying the sample image, defaults to `original_plot`.
+
+    """
 
     md_text: str = param.String()
 
@@ -68,7 +98,20 @@ class BaseXAITKApp(BaseApp):
         self.sample_image = self.original_plot
 
     def create_sal_plot(self, img: PilImg | None, sal_array: np.ndarray | None) -> Figure:
-        """Return matplotlib figure of the original sample image with a saliency map"""
+        """Create a matplotlib figure displaying an image and its saliency map.
+
+        Parameters
+        ----------
+        img : PilImg | None
+            The input image. If None, a black placeholder is used.
+        sal_array : np.ndarray | None
+            The saliency map array. If None, only the image is shown (or placeholder).
+
+        Returns
+        -------
+        Figure
+            A matplotlib Figure object with the image and saliency map.
+        """
         img_array = np.asarray(img) if img is not None else np.zeros((5, 5))
         fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
         if sal_array is not None:
@@ -81,15 +124,33 @@ class BaseXAITKApp(BaseApp):
         return fig
 
     def get_sal_plot_size(self) -> tuple[int, int]:
-        """Return size of saliency plot"""
+        """Return the size of the saliency plot.
+
+        Returns
+        -------
+        tuple[int, int]
+            The width and height of the plot in inches.
+        """
         return (2, 2)
 
     def get_sal_plot_title(self) -> str:
-        """Return str of saliency plot title"""
+        """Return the title for the saliency plot.
+
+        Returns
+        -------
+        str
+            The title string for the saliency plot.
+        """
         return "Saliency Map"
 
     def add_saliency_gen_config_widget(self) -> pn.Column:
-        """Saliency Generation config widget"""
+        """Create the saliency generation configuration widget.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing widgets for saliency generation parameters.
+        """
         return pn.Column(
             pn.widgets.IntInput(
                 name="Number of Masks",
@@ -124,7 +185,14 @@ class BaseXAITKApp(BaseApp):
         )
 
     def collect_widget_values(self) -> dict:
-        """Collect all the values on the current widgets"""
+        """Collect all the values from the saliency configuration widgets.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the current values of the saliency
+            generation parameters.
+        """
         saliency_params = self.saliency_widget[0].objects[0].objects
 
         return {
@@ -134,11 +202,23 @@ class BaseXAITKApp(BaseApp):
         }
 
     def view_plots(self) -> pn.Row:
-        """View of the plots"""
+        """Create a view of the original and augmented (saliency) plots.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the original plot and the saliency plot.
+        """
         return pn.Row(self.original_plot, self.augmented_plot)
 
     def view_logo(self) -> pn.pane.Image:
-        """View XAITK logo"""
+        """Create a view of the XAITK logo.
+
+        Returns
+        -------
+        pn.pane.Image
+            A Panel Image pane displaying the XAITK logo.
+        """
         return pn.pane.Image(
             str(XAITK_LOGO),
             width=140,
@@ -147,7 +227,13 @@ class BaseXAITKApp(BaseApp):
         )
 
     def panel(self) -> pn.Column:
-        """High level view of the full app"""
+        """Create the main panel layout for the XAITK application.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column representing the entire application view.
+        """
         return pn.Column(
             self.view_header,
             pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),

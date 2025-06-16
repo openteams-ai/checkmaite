@@ -35,14 +35,42 @@ from jatic_ri.util.utils import temp_image_file
 
 
 class RealLabelImageOutput(OutputsBase):
-    """Example image result for RealLabelTestStageResults."""
+    """Example image result for RealLabelTestStageResults.
+
+    Attributes
+    ----------
+    image : Image
+        The example image.
+    id : dict[str, Any]
+        The ID of the example image.
+    """
 
     image: Image
     id: dict[str, Any]
 
 
 class RealLabelOutputs(OutputsBase):
-    """Results class for RealLabelTestStage"""
+    """Results class for RealLabelTestStage.
+
+    Attributes
+    ----------
+    results : DataFrame
+        The main RealLabel results DataFrame.
+    example_image : RealLabelImageOutput
+        An example image output.
+    classification_disagreements_df : DataFrame | None, optional
+        DataFrame of classification disagreements. Defaults to None.
+    verbose_df : DataFrame | None, optional
+        Verbose DataFrame with detailed information. Defaults to None.
+    sequence_priority_score_df : DataFrame | None, optional
+        DataFrame of sequence priority scores. Defaults to None.
+    sequence_priority_score_balanced_df : DataFrame | None, optional
+        DataFrame of balanced sequence priority scores. Defaults to None.
+    wanrs_df : DataFrame | None, optional
+        DataFrame of WANRS scores. Defaults to None.
+    aggregated_confidence_df : DataFrame | None, optional
+        DataFrame of aggregated confidence scores. Defaults to None.
+    """
 
     results: DataFrame
     example_image: RealLabelImageOutput
@@ -56,13 +84,21 @@ class RealLabelOutputs(OutputsBase):
 
 # reallabel already provides a pydantic model for its configuration so we just mix in our base
 class RealLabelConfig(_NativeRealLabelConfig, ConfigBase):
-    """Config class for RealLabelTestStage"""
+    """Config class for RealLabelTestStage."""
 
     pass
 
 
 class RealLabelRun(RunBase):
-    """Run class for RealLabelTestStage"""
+    """Run class for RealLabelTestStage.
+
+    Attributes
+    ----------
+    config : RealLabelConfig
+        The configuration for the RealLabel run.
+    outputs : RealLabelOutputs
+        The outputs of the RealLabel run.
+    """
 
     config: RealLabelConfig
     outputs: RealLabelOutputs
@@ -71,12 +107,18 @@ class RealLabelRun(RunBase):
 class _RealLabelDatasetWrapper(od.Dataset):
     """A wrapper for the MAITE Dataset for use with RealLabel.
 
-    This wrapper allows us to copy a generic MAITE Dataset and easily update the attributes e.g. targets
-    which are not part of the MAITE Dataset protocol.
+    This wrapper allows us to copy a generic MAITE Dataset and easily update the attributes
+    (e.g., targets) which are not part of the MAITE Dataset protocol.
     """
 
     def __init__(self, dataset: od.Dataset) -> None:
-        """Initialize the RealLabelDatasetWrapper."""
+        """Initialize the RealLabelDatasetWrapper.
+
+        Parameters
+        ----------
+        dataset : od.Dataset
+            The MAITE dataset to wrap.
+        """
         self.metadata: DatasetMetadata = dataset.metadata
         self.images: list[ArrayLike] = []
         self.targets: list[od.ObjectDetectionTarget] = []
@@ -91,7 +133,13 @@ class _RealLabelDatasetWrapper(od.Dataset):
         return (self.images[ind], self.targets[ind], self.datum_metadata[ind])
 
     def __len__(self) -> int:
-        """Get the length of the dataset."""
+        """Get the length of the dataset.
+
+        Returns
+        -------
+        int
+            The number of items in the dataset.
+        """
         return len(self.images)
 
 
@@ -108,17 +156,29 @@ class RealLabelTestStage(
 
     For more info see our docs! https://jatic.pages.jatic.net/morse/reallabel/
 
-    This test stage also uses MAITE-wrapped models and datasets, and MAITE itself, to produce the model inference
-    results needed if they are not present in the cache before running RealLabel itself.
+    This test stage also uses MAITE-wrapped models and datasets, and MAITE itself,
+    to produce the model inference results needed if they are not present in the
+    cache before running RealLabel itself.
 
-    Attributes:
-        config: The RealLabel Config object that should be used when running Reallabel.
-        outputs: A `RealLabelTestStageResults` object containing the results of the RealLabel analysis,
-            including DataFrames and an example visualization image path.
-        models: The dictionary of model names to their MAITE-wrapped model objects whose
-            inference should be used when running RealLabel.
-        dataset: The MAITE-wrapped dataset object on which the models should run inference
-            and produce results.
+    Parameters
+    ----------
+    config : _NativeRealLabelConfig | dict[str, Any]
+        The RealLabel Config object that should be used when running
+        Reallabel, or a dict representing a RealLabel config in a
+        JSON readable format.
+
+    Attributes
+    ----------
+    _config : RealLabelConfig
+        The RealLabel Config object that should be used when running Reallabel.
+    models : dict[str, od.Model]
+        The dictionary of model names to their MAITE-wrapped model objects whose
+        inference should be used when running RealLabel.
+    dataset : od.Dataset
+        The MAITE-wrapped dataset object on which the models should run inference
+        and produce results.
+    eval_tool : EvaluationTool
+        The evaluation tool for predictions.
     """
 
     _RUN_TYPE = RealLabelRun
@@ -132,9 +192,12 @@ class RealLabelTestStage(
     ) -> None:
         """Initialize the RealLabel test stage.
 
-        Args:
-            config (Union[Config, dict[str, Any]]): The RealLabel Config object that should be used when running
-                Reallabel. Or a dict representing a RealLabel config in a json readable format.
+        Parameters
+        ----------
+        config : _NativeRealLabelConfig | dict[str, Any]
+            The RealLabel Config object that should be used when running
+            Reallabel, or a dict representing a RealLabel config in a
+            JSON readable format.
         """
         super().__init__()
 
@@ -151,7 +214,14 @@ class RealLabelTestStage(
         return self._config
 
     def _compute_maite_inference_result(self) -> dict[str, od.Dataset]:  # pragma: no cover
-        """Generate metrics from maite models."""
+        """Generate inference results from MAITE models.
+
+        Returns
+        -------
+        dict[str, od.Dataset]
+            A dictionary mapping model names to datasets containing their predictions
+            as targets.
+        """
         maite_inference_result = {}
         # Run all the models
         for model_name in self.models:
@@ -179,7 +249,22 @@ class RealLabelTestStage(
         return maite_inference_result
 
     def _run(self) -> RealLabelOutputs:
-        """Run RealLabel test stage."""
+        """Run RealLabel test stage.
+
+        Returns
+        -------
+        RealLabelOutputs
+            The results of the RealLabel analysis.
+
+        Raises
+        ------
+        RuntimeError
+            If the RealLabel result pyspark DataFrame is empty.
+        ValueError
+            If the example image cannot be found in the dataset.
+        RuntimeError
+            If the image array type is not understood.
+        """
         self.validate_plugins()
 
         # compute the inference results from the models
@@ -277,7 +362,19 @@ class RealLabelTestStage(
             )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect all report consumables."""
+        """Collect all report consumables.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the report.
+
+        Raises
+        ------
+        RuntimeError
+            If the TestStage has not been run before accessing outputs.
+        """
         if self._stored_run is None:
             raise RuntimeError("TestStage must be run before accessing outputs")
         reallabel_results = self._stored_run.outputs

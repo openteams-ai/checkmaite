@@ -106,7 +106,17 @@ DEFAULT_IC_METRIC_RETURN_KEY: str = list(DEFAULT_IC_METRIC_RESPONSE.keys())[0]
 
 
 class RestartingIterator(Iterable):
-    """This custom iterator will restart (not raise StopIteration) after reaching last item of the iterable."""
+    """Custom iterator that restarts after reaching the end of the iterable.
+
+    This iterator will not raise StopIteration. Instead, it will reset
+    and start from the beginning of the iterable.
+
+    Parameters
+    ----------
+    iterable : Iterable
+        The iterable to wrap.
+
+    """
 
     def __init__(self, iterable):
         self.iterable = iterable
@@ -124,36 +134,61 @@ class RestartingIterator(Iterable):
 
 
 class FakeICModel(ic.Model):
-    """This MAITE-compliant fake (stub) IC model can be instantiated with canned responses to its __call__ function for testing.
-    A restarting iterator class is used so that a fake model can handle an indefinite number of calls of arbitrary batch sizes.
+    """MAITE-compliant fake (stub) IC model for testing.
 
-    IMPORTANT - if the default stub values do not meet your testing requirements, consult the RI Team (in GitLab)
-    before implementing a custom instance of this class.  As much as possible, we would like to have as many test cases as possible use
-    the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
-    data for different scenarios.
+    This model can be instantiated with canned responses to its`__call__`
+    function. A restarting iterator class is used so that a fake model can
+    handle an indefinite number of calls of arbitrary batch sizes.
 
-    Per RI conventions, our model classes must expose the model API (e.g. torch.nn.Module) as `model` attribute.
-    NOTE: the initialized Torchvision `model` does not actually do inference when this wrapper class is called.  Nor does the index2label contained
+    IMPORTANT - if the default stub values do not meet your testing
+    requirements, consult the RI Team (in GitLab) before implementing a
+    custom instance of this class. As much as possible, we would like to
+    have as many test cases as possible use the default attributes/fixture,
+    so expanding the defaults to cover additional scenarios is likely
+    preferable to creating different fake data for different scenarios.
+
+    Per RI conventions, our model classes must expose the model API
+    (e.g. ``torch.nn.Module``) as `model` attribute.
+    NOTE: the initialized Torchvision `model` does not actually do inference
+    when this wrapper class is called. Nor does the`index2label` contained
     in this fake model's metadata align with this model object.
 
-    Attributes:
-        model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for RI tools.
-        prediction_data (Sequence[ArrayLike]): A Sequence of responses to provide, sequentially and repeating, as the model is called.
-        The __call__ method will batch these responses into a return batch of the correct size.
+    Parameters
+    ----------
+    model_metadata : ModelMetadata, optional
+        Includes `id` and `index2label`. `index2label` is not required by
+        MAITE definition but _may_ be for RI tools.
+        Defaults to`DEFAULT_IC_MODEL_METADATA`.
+    prediction_data : Sequence[ArrayLike], optional
+        A Sequence of responses to provide, sequentially and repeating, as
+        the model is called. The`__call__` method will batch these
+        responses into a return batch of the correct size.
+        The default value should suffice for most (if not all) test cases.
+        It is a list of 20 predictions of a 10-class multiclass
+        classification task. The data has been configured so that 18 of the
+        20 predictions are correct when run against the default fake IC
+        dataset. If a different response pattern is needed, the
+       `prediction_data` argument can be used.
+        For example:
+        ``prediction_data = [ torch.Tensor([0,1,0,0]) ]`` will return a
+        prediction representing class 2 of 4 for every target passed to
+        the model.
+        ``prediction_data = [ torch.Tensor([1,0,0]), torch.Tensor([0,1,0]), torch.Tensor([0,0,1])]``
+        will sequentially rotate between picking classes with index 0, 1, 2
+        of three possible classes.
+        A fake model can also be pre-loaded with the desired responses to a
+        known dataset order. (This is how the default value is implemented
+        vis-a-vis the default values for the`FakeICDataset`.)
+        Defaults to`DEFAULT_IC_MODEL_PREDICTIONS`.
 
-            The default value should suffice for most (if not all) test cases.  It is a list of 20 predictions of a 10-class multiclass classification
-            task.  The data has been configured so that 18 of the 20 predictions are correct when run against the default fake IC dataset.  If a different
-            response pattern is needed, the prediction_data argument can be used.
-
-            For example:
-
-                prediction_data = [ torch.Tensor([0,1,0,0]) ] will return a prediction representing class 2 of 4 for every target passed to the model.
-
-                prediction_data = [ torch.Tensor([1,0,0]), torch.Tensor([0,1,0]), torch.Tensor([0,0,1])] will sequentially rotate between picking classes
-                with index 0, 1, 2 of three possible classes.
-
-            A fake model can also be pre-loaded with the desired responses to a known dataset order.  (This is how the default value is implemented
-            vis-a-vis the default values for the FakeICDataset.)
+    Attributes
+    ----------
+    metadata : ModelMetadata
+        Model metadata.
+    prediction_iter : RestartingIterator
+        Iterator for prediction data.
+    model : torch.nn.Module
+        Underlying PyTorch model.
     """
 
     def __init__(
@@ -175,21 +210,49 @@ class FakeICModel(ic.Model):
 
 
 class FakeICDataset(ic.Dataset):
-    """
-    This MAITE-compliant fake IC dataset can be instantiated with any MAITE-compliant representations of sequences of (1)images, (2) corresponding class
-    ground truths, and (3) corresponding metadata.
+    """MAITE-compliant fake IC dataset for testing.
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI Team (in GitLab) before implementing a custom instance of
-    this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
-    cover additional scenarios is likely preferable to creating different fake data for different scenarios.
+    This dataset can be instantiated with any MAITE-compliant representations
+    of sequences of (1) images, (2) corresponding class ground truths, and
+    (3) corresponding metadata.
 
-    The user can make pre-seed their own dataset with any MAITE-compliant data.
+    IMPORTANT - if the default fake values do not meet your testing
+    requirements, consult the RI Team (in GitLab) before implementing a
+    custom instance of this class. As much as possible, we would like to
+    have as many test cases as possible use the default attributes/fixture,
+    so expanding the defaults to cover additional scenarios is likely
+    preferable to creating different fake data for different scenarios.
 
-    Attributes:
-        images (Sequence[ArrayLike]): A Sequence (e.g. list) of images represented in an ArrayLike format (e.g. a torch Tensor)
-        targets (Sequence[ArrayLike]): A Sequence of ground truth targets, typically as a 1D array of one-hot encodings, shape (C,).
-        datum_metadata (Sequence[dict[str,Any]]): A dictionary of metadata associated with each image.
-        metadata (DatasetMetadata): This is the metadata that applies to the whole dataset, specifically its 'id' and 'index2label' dict
+    The user can pre-seed their own dataset with any MAITE-compliant data.
+
+    Parameters
+    ----------
+    images : Sequence[ArrayLike], optional
+        A Sequence (e.g. list) of images represented in an ArrayLike format
+        (e.g. a torch Tensor).
+        Defaults to a list of 20 tensors of shape (3, 11, 17).
+    targets : Sequence[ArrayLike], optional
+        A Sequence of ground truth targets, typically as a 1D array of
+        one-hot encodings, shape (C,).
+        Defaults to`DEFAULT_IC_DATASET_TARGETS`.
+    datum_metadata : Sequence[dict[str, Any]], optional
+        A dictionary of metadata associated with each image.
+        Defaults to a list of dicts with "id" keys from 0 to 19.
+    dataset_metadata : DatasetMetadata, optional
+        Metadata that applies to the whole dataset, specifically its 'id'
+        and 'index2label' dict.
+        Defaults to`DEFAULT_IC_DATASET_METADATA`.
+
+    Attributes
+    ----------
+    images : Sequence[ArrayLike]
+        Sequence of images.
+    targets : Sequence[ArrayLike]
+        Sequence of ground truth targets.
+    datum_metadata : Sequence[dict[str, Any]]
+        Sequence of metadata for each datum.
+    metadata : DatasetMetadata
+        Dataset metadata.
     """
 
     def __init__(
@@ -212,22 +275,52 @@ class FakeICDataset(ic.Dataset):
 
 
 class FakeICMetric(ic.Metric):
-    """
-    This MAITE-compliant fake IC metric can be instantiatiated with a canned response to its compute() method.  By default, it will return
-    the value of constant DEFAULT_IC_METRIC_RESPONSE to any invocation of compute().
+    """MAITE-compliant fake IC metric for testing.
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the RI Team (in GitLab) before implementing a custom instance of
-    this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
-    cover additional scenarios is likely preferable to creating different fake data for different scenarios.
+     This metric can be instantiated with a canned response to its ``compute()``
+     method. By default, it will return the value of constant
+    `DEFAULT_IC_METRIC_RESPONSE` to any invocation of ``compute()``.
 
-    Attributes:
-        calculated_metrics (dict[str,Any]): A FakeICMetric instantiated with a value here will return that value whenever compute() is called on the object.
-        Conventions (/docs/conventions.md) require each value in the returned dict of compute() must (1) be safely cast to a float, and (2) possess
-        <value>.numpy() method. This is not required  in MAITE as of verison 0.6.1.
-        return_key (str): The Metric class will have an attribute called return_key which describes the top-level performance metric.
+     IMPORTANT - if the default fake values do not meet your testing
+     requirements, consult the RI Team (in GitLab) before implementing a
+     custom instance of this class. As much as possible, we would like to
+     have as many test cases as possible use the default attributes/fixture,
+     so expanding the defaults to cover additional scenarios is likely
+     preferable to creating different fake data for different scenarios.
 
-    NOTE: Worth considering whether we should update this "metric" with some computationally trivial behavior that would make 'call' more than a stub.
-    For example, it could just count the number of calls to update() it has received.
+     Parameters
+     ----------
+     calculated_metrics : dict[str, Any], optional
+         A`FakeICMetric` instantiated with a value here will return that
+         value whenever ``compute()`` is called on the object.
+         Conventions (/docs/conventions.md) require each value in the
+         returned dict of ``compute()`` must (1) be safely cast to a float,
+         and (2) possess ``<value>.numpy()`` method. This is not required
+         in MAITE as of version 0.6.1.
+         Defaults to`DEFAULT_IC_METRIC_RESPONSE`.
+     metric_metadata : MetricMetadata, optional
+         Metadata for the metric.
+         Defaults to`DEFAULT_IC_METRIC_METADATA`.
+     return_key : str, optional
+         The Metric class will have an attribute called`return_key` which
+         describes the top-level performance metric.
+         Defaults to`DEFAULT_IC_METRIC_RETURN_KEY`.
+
+     Attributes
+     ----------
+     calculated_metrics : dict[str, Any]
+         The metrics to be returned by ``compute()``.
+     metadata : MetricMetadata
+         Metric metadata.
+     return_key : str
+         Key for the primary metric.
+
+     Notes
+     -----
+     Worth considering whether we should update this "metric" with some
+     computationally trivial behavior that would make 'call' more than a
+     stub. For example, it could just count the number of calls to
+     ``update()`` it has received.
     """
 
     def __init__(
