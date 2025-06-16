@@ -20,7 +20,13 @@ from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
 
 
 class NRTKAppOD(NRTKBaseApp):
-    """App for building NRTKTestStages"""
+    """App for building NRTKTestStages.
+
+    Attributes
+    ----------
+    title : param.String
+        The title of the application.
+    """
 
     title = param.String(default="Configure Natural Robustness Testing")
 
@@ -28,8 +34,11 @@ class NRTKAppOD(NRTKBaseApp):
         super().__init__(styles, **params)
 
     def _run_export(self) -> None:
-        """This function collects all configurations in a dictionary object
-        that is shared across app pages."""
+        """Collect all configurations into the output_test_stages dictionary.
+
+        This dictionary is shared across app pages. If no configurations are
+        found, a status message is emitted.
+        """
         if len(self.test_stages) == 0:
             self.status_source.emit("No configurations found. Press Add Test Stage to add a configuration.")
             return

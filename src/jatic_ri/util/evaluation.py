@@ -48,11 +48,22 @@ CacheablePredsAndData: TypeAlias = tuple[  # One tuple containing...
 
 
 class RICache(ABC):
-    """Abstract Class for using cache for evaluation and prediction"""
+    """Abstract Class for using cache for evaluation and prediction."""
 
     @abstractmethod
     def read_predictions(self, filename: str) -> CacheablePredsAndData | None:
-        """Reads a prediction from the cache"""
+        """Reads a prediction from the cache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to read the prediction from.
+
+        Returns
+        -------
+        CacheablePredsAndData | None
+            The cached prediction data, or None if not found.
+        """
         pass
 
     @abstractmethod
@@ -61,22 +72,49 @@ class RICache(ABC):
         filename: str,
         prediction: CacheablePredsAndData,
     ) -> None:
-        """Writes a prediction to the cache"""
+        """Writes a prediction to the cache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to write the prediction to.
+        prediction : CacheablePredsAndData
+            The prediction data to cache.
+        """
         pass
 
     @abstractmethod
     def read_metric(self, filename: str) -> TMetricResult | None:
-        """Reads a metric from the cache"""
+        """Reads a metric from the cache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to read the metric from.
+
+        Returns
+        -------
+        TMetricResult | None
+            The cached metric result, or None if not found.
+        """
         pass
 
     @abstractmethod
     def write_metric(self, filename: str, metric_results: TMetricResult) -> None:
-        """Writes a metric to the cache"""
+        """Writes a metric to the cache.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to write the metric to.
+        metric_results : TMetricResult
+            The metric results to cache.
+        """
         pass
 
     @abstractmethod
     def clear_cache(self) -> None:
-        """Clears the cache dir"""
+        """Clears the cache dir."""
         pass
 
 
@@ -88,19 +126,19 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
     """
     A simple, deterministic data loader that batches data from a given dataset.
 
-    This data loader takes a dataset and splits it into batches of a given size. It ensures deterministic
-    batching, meaning the order and size of batches are consistent.
+    This data loader takes a dataset and splits it into batches of a given size.
+    It ensures deterministic batching, meaning the order and size of batches
+    are consistent.
     """
 
     def __init__(self, dataset: Dataset[TInput, TTarget, TMetadata], batch_size: int) -> None:
-        """
-        Initializes the data loader with the provided dataset and batch size.
+        """Initialize the data loader.
 
         Parameters
         ----------
         dataset : Dataset[TInput, TTarget, TMetadata]
-            The dataset from which data will be loaded, containing input, target, and metadata.
-
+            The dataset from which data will be loaded, containing input,
+            target, and metadata.
         batch_size : int
             The number of examples per batch.
         """
@@ -108,23 +146,22 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
         self.batch_size = batch_size
 
     def __iter__(self) -> Iterator[tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]]:
-        """
-        Iterates over the dataset in batches, collates the data into input, target, and metadata batches,
-        and yields them.
+        """Iterate over the dataset in batches.
 
-        This method divides the dataset into batches of size `batch_size` (or smaller for the last batch),
-        collates each batch, and yields a tuple containing:
-        - input data batch (Sequence[TInput]),
-        - target data batch (Sequence[TTarget]),
-        - metadata batch (Sequence[TMetadata]).
+        This method divides the dataset into batches of size `batch_size`
+        (or smaller for the last batch), collates each batch, and yields
+        a tuple containing:
+        - input data batch (Sequence[TInput])
+        - target data batch (Sequence[TTarget])
+        - metadata batch (Sequence[TMetadata])
 
-        Returns
-        -------
-        iterator of tuple
-            An iterator that yields batches, where each batch is a tuple containing:
-            - input_batch (Sequence[TInput]): A batch of input data.
-            - target_batch (Sequence[TTarget]): A batch of target data.
-            - metadata_batch (Sequence[TMetadata]): A batch of metadata.
+        Yields
+        ------
+        tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]
+            A tuple containing:
+            - input_batch: A batch of input data.
+            - target_batch: A batch of target data.
+            - metadata_batch: A batch of metadata.
         """
         total_batches = (len(self.dataset) + self.batch_size - 1) // self.batch_size
         for batch_no in range(total_batches):
@@ -142,24 +179,25 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
         self,
         batch_data_as_singles: Iterable[tuple[TInput, TTarget, TMetadata]],
     ) -> tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]:
-        """
-        Collates a batch of data from an iterable of individual data points into three separate batches:
-        input data, target data, and metadata.
+        """Collate a batch of data.
+
+        Collates data from an iterable of individual data points into three
+        separate batches: input data, target data, and metadata.
 
         Parameters
         ----------
-        batch_data_as_singles : iterable of tuple
-            An iterable of tuples, where each tuple contains an individual data point in the format
-            (input_datum, target_datum, metadata_datum). Each datum is of type TInput, TTarget, and
-            TMetadata, respectively.
+        batch_data_as_singles : Iterable[tuple[TInput, TTarget, TMetadata]]
+            An iterable of tuples, where each tuple contains an individual
+            data point in the format (input_datum, target_datum, metadata_datum).
+            Each datum is of type TInput, TTarget, and TMetadata, respectively.
 
         Returns
         -------
-        tuple of sequences
+        tuple[Sequence[TInput], Sequence[TTarget], Sequence[TMetadata]]
             A tuple containing three sequences:
-            - input_batch (Sequence[TInput]): A batch of input data.
-            - target_batch (Sequence[TTarget]): A batch of target data.
-            - metadata_batch (Sequence[TMetadata]): A batch of metadata associated with the data.
+            - input_batch: A batch of input data.
+            - target_batch: A batch of target data.
+            - metadata_batch: A batch of metadata associated with the data.
         """
         input_batch: list[TInput] = []
         target_batch: list[TTarget] = []
@@ -174,21 +212,9 @@ class SimpleDataLoader(Generic[TInput, TTarget, TMetadata]):
 class EvaluationTool:
     """
     A class for evaluating machine learning models on datasets using specified metrics.
+
     The class handles model, dataset, and metrics, including caching mechanisms
     for predictions and metric results.
-
-    Methods
-    -------
-    compute_metric
-        Processes a metric over predictions and batched data, using caching if available.
-
-    predict
-        Generates predictions using a specified model and dataset,
-        checking for cached results before computing predictions.
-
-    evaluate
-        Evaluates a model on a dataset using a specified metric.
-        Utilizes compute_prediction and compute_metric and their caching mechanisms.
     """
 
     def __init__(self, ri_cache: Cache_Option[Any] = None) -> None:
@@ -201,31 +227,31 @@ class EvaluationTool:
         prediction: Sequence[SomeTargetBatchType],
         data: Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
     ) -> dict[str, Any]:
-        """
-        Compute a specified metric over predictions and batched data.
+        """Compute a specified metric over predictions and batched data.
 
         Parameters
         ----------
         metric : Metric
-            The metric object to be computed. This can be a custom metric function or an identifier
-            for a predefined metric.
-        cache_id : str
-            A unique identifier for caching purposes. in this case a file name.
+            The metric object to be computed. This can be a custom metric
+            function or an identifier for a predefined metric.
+        filename : str
+            A unique identifier for caching purposes (file name).
             Used to store or retrieve intermediate results.
-        prediction : sequence of list of dicts
-            A sequence of prediction data, where each element is a list of dictionaries representing
-            predicted values.
-        data : sequence of tuples
-            A sequence of tuples containing three elements:
-                - A list of ground truth values.
-                - A list of any additional values associated with each data point.
-                - A list containing metadata.
+        prediction : Sequence[SomeTargetBatchType]
+            A sequence of prediction data, where each element is a batch of
+            predictions.
+        data : Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
+            A sequence of tuples, where each tuple corresponds to a batch and
+            contains:
+            - Input batch
+            - Target (ground truth) batch
+            - Metadata batch
 
         Returns
         -------
-        result : dict
-            A dictionary where keys are metric identifiers or names, and values are the computed
-            metric values for the predictions and data.
+        dict[str, Any]
+            A dictionary where keys are metric identifiers or names, and
+            values are the computed metric values for the predictions and data.
         """
         if self.ri_cache:
             cache = self.ri_cache.read_metric(filename)
@@ -250,7 +276,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
         return_augmented_data: bool = False,
     ) -> tuple[
-        Sequence[ic.TargetBatchType], Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]]
+        Sequence[ic.TargetBatchType],
+        Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]],
     ]: ...
 
     @overload
@@ -265,7 +292,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
         return_augmented_data: bool = False,
     ) -> tuple[
-        Sequence[od.TargetBatchType], Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]]
+        Sequence[od.TargetBatchType],
+        Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]],
     ]: ...
 
     def predict(
@@ -279,17 +307,21 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
         return_augmented_data: bool = False,
     ) -> tuple[
-        Sequence[SomeTargetBatchType], Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
+        Sequence[SomeTargetBatchType],
+        Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
     ]:
-        """
-        Prediction tool that checks cache with the provided ID before running evaluation.
-        If cache is available (hit), returns the cached results.
+        """Generate predictions using a model and dataset.
 
-        Note the "<object>_id" parameters are required because MAITE v0.6.0 does not require the types to contain
-        id metadata.  MAITE v0.7.1 requires Model, Dataset, Metric, Datum, and Augumentation to include a metadata
-        property which has a required string 'id'.  We will deprecate "<object>_id" in favor of <object>.metadata.id
-        when upgrading MAITE.
+        This tool checks the cache with the provided ID before running predictions.
+        If cached results are available (cache hit), it returns them.
 
+        Note
+        ----
+        The "<object>_id" parameters are required because MAITE v0.6.0 does not
+        mandate that types include ID metadata. MAITE v0.7.1 requires Model,
+        Dataset, Metric, Datum, and Augmentation to have a metadata property
+        with a required 'id' string. We will deprecate "<object>_id" in favor
+        of `<object>.metadata.id` when upgrading MAITE.
 
         Parameters
         ----------
@@ -297,30 +329,39 @@ class EvaluationTool:
             The model to be used for generating predictions.
         model_id : str
             A unique identifier for the model.
-        dataset : Dataset
+        dataset : Dataset[Any, Any, Any]
             The dataset to generate predictions on.
         dataset_id : str
             A unique identifier for the dataset.
-        dataloader (Optional) : TDataloader
+        dataloader : TDataloader, optional
             A dataloader that facilitates batch processing of the dataset.
-        batch_size : int
-            The batch size to be used for prediction. Default is 1, meaning predictions will be
-            generated one sample at a time.
-        augmentation : None = None
-            NOT IMPLEMENTED: only raise appropriate error if called.
-        return_augmented_data : bool = False
-            Set to True to return post-augmentation data as a function output. Note that caching the data requires a lot
-            of memory.
+            If None, a `SimpleDataLoader` is used.
+        batch_size : int, default=1
+            The batch size to be used for prediction.
+        augmentation : None, optional
+            NOT IMPLEMENTED. If provided, raises an `InvalidArgument` error.
+        return_augmented_data : bool, default=False
+            Set to True to return post-augmentation data as a function output.
+            Note that caching this data requires significant memory.
 
         Returns
         -------
-        predictions : tuple
+        tuple[
+            Sequence[SomeTargetBatchType],
+            Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
+        ]
             A tuple containing two sequences:
-            - The first sequence is a list of dictionaries representing predicted values for each data point.
-            - The second sequence contains tuples with three elements:
-              1) A list of inputs (e.g. images). This will be empty unless return_augmented_data is set
-              2) A list of targets (ground truth) for each input
-              3) A list of metadata
+            1. Predictions: A sequence of batches, where each batch contains
+               the model's predictions.
+            2. Data: A sequence of batches, where each batch is a tuple of:
+               - Input data (empty if `return_augmented_data` is False)
+               - Target (ground truth) data
+               - Metadata
+
+        Raises
+        ------
+        InvalidArgument
+            If `augmentation` is not None, as this feature is not implemented.
         """
         if augmentation is not None:
             raise InvalidArgument(
@@ -410,15 +451,19 @@ class EvaluationTool:
         Sequence[SomeTargetBatchType] | None,
         Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]] | None,
     ]:
-        """
-        Evaluates the model on the given dataset using the specified metric.
-        The function checks for the availability of the model, dataset, and metric,
-        and performs the evaluation to compute the metric values.
+        """Evaluate the model on a dataset using a specified metric.
 
-        Note the "<object>_id" parameters are required because MAITE v0.6.0 does not require the types to contain
-        id metadata.  MAITE v0.7.1 requires Model, Dataset, Metric, Datum, and Augumentation to include a metadata
-        property which has a required string 'id'.  We will deprecate "<object>_id" in favor of <object>.metadata.id
-        when upgrading MAITE.
+        This function checks for the availability of the model, dataset, and
+        metric, and performs the evaluation to compute the metric values.
+        It utilizes caching for both predictions and metric results.
+
+        Note
+        ----
+        The "<object>_id" parameters are required because MAITE v0.6.0 does not
+        mandate that types include ID metadata. MAITE v0.7.1 requires Model,
+        Dataset, Metric, Datum, and Augmentation to have a metadata property
+        with a required 'id' string. We will deprecate "<object>_id" in favor
+        of `<object>.metadata.id` when upgrading MAITE.
 
         Parameters
         ----------
@@ -426,38 +471,51 @@ class EvaluationTool:
             The model to be evaluated.
         model_id : str
             A unique identifier for the model.
-        dataset : Dataset
+        dataset : Dataset[Any, Any, Any]
             The dataset to evaluate the model on.
         dataset_id : str
-            A unique identifier for the dataset, used for managing or caching the dataset.
-        dataloader (Optional): TDataloader
-            A dataloader used to batch and load the dataset, enabling efficient evaluation of the model.
+            A unique identifier for the dataset.
         metric : Metric
-            The metric function or identifier used to evaluate the model's performance on the dataset.
+            The metric to evaluate the model's performance.
         metric_id : str
-            A unique identifier for the metric, used for managing or caching the metric computation.
-        batch_size : int, optional
-            The batch size to be used for evaluation. Default is 1, meaning the evaluation is performed one
-            sample at a time.
-        return_predictions : bool = False
-            Set to True to include predictions in second element of return tuple
-        return_augmented_data : bool = False
-            Set to True to include the batches of data (extracted from the dataset) in the return tuple.
-            Note that "augmented" is a misnomer since EvaluationTool does not support 'augmentation' inputs, but
-            this matches the MAITE evaluate signature.
-        augmentation : None = None
-            NOT IMPLEMENTED: only raise appropriate error if called.
+            A unique identifier for the metric.
+        batch_size : int, default=1
+            The batch size for evaluation.
+        dataloader : TDataloader, optional
+            A dataloader for batching and loading the dataset. If None,
+            a `SimpleDataLoader` is used.
+        return_augmented_data : bool, default=False
+            If True, include batches of data (from the dataset) in the
+            return tuple. "Augmented" is a misnomer here as augmentations
+            are not supported, but it matches the MAITE `evaluate` signature.
+        return_preds : bool, default=False
+            If True, include predictions in the return tuple.
+        augmentation : None, optional
+            NOT IMPLEMENTED. If provided, raises an `InvalidArgument` error.
 
         Returns
         -------
-        result : tuple
+        tuple[
+            dict[str, Any],
+            Sequence[SomeTargetBatchType] | None,
+            Sequence[tuple[SomeInputBatchType,SomeTargetBatchType,SomeMetadataBatchType]] | None
+        ]
             A 3-tuple containing:
-            - A dictionary where keys are metric identifiers and values are the computed metric values.
-            - A Sequence (batches) of list of predictions IF return_preds=true, else None
-            - A Sequence (batches) of tuples IF return_augmented_data=true, else None, containing:
-                - A list of data (e.g. images). This will be empty unless return_augmented_data is set.
-                - A list of targets (ground truth).
-                - A list of metadata.
+            1. Metric results: A dictionary where keys are metric identifiers
+               and values are the computed metric values.
+            2. Predictions: A sequence of prediction batches if `return_preds`
+               is True, else None.
+            3. Data: A sequence of data batches if `return_augmented_data`
+               is True, else None. Each data batch is a tuple of:
+               - Input data (empty if `return_augmented_data` is False and
+                 not returned by `predict`)
+               - Target (ground truth) data
+               - Metadata
+
+        Raises
+        ------
+        InvalidArgument
+            If `augmentation` is not None, as this feature is not implemented.
         """
         if augmentation is not None:
             raise InvalidArgument(

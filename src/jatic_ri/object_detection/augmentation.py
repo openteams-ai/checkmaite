@@ -21,7 +21,18 @@ OBJ_DETECTION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatc
 
 @dataclass
 class JATICDetectionTarget:
-    """Dataclass for the datum-level JATIC output detection format."""
+    """Dataclass for the datum-level JATIC output detection format.
+
+    Attributes
+    ----------
+    boxes : np.ndarray[Any, Any]
+        Bounding boxes.
+    labels : np.ndarray[Any, Any]
+        Labels for bounding boxes.
+    scores : np.ndarray[Any, Any]
+        Scores for bounding boxes.
+
+    """
 
     boxes: np.ndarray[Any, Any]
     labels: np.ndarray[Any, Any]
@@ -38,6 +49,9 @@ class JATICDetectionAugmentation(Augmentation):
     ----------
     augment : PerturbImage
         Augmentations to apply to an image.
+    augmentation_id : str, optional
+        Identifier for the augmentation, by default "JATICDetection".
+
     """
 
     def __init__(self, augment: PerturbImage, *, augmentation_id: str = "JATICDetection") -> None:
@@ -45,9 +59,21 @@ class JATICDetectionAugmentation(Augmentation):
         self.metadata = AugmentationMetadata(id=augmentation_id)
 
     def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
-        """
+        """Extract augmented image.
+
         Returned augmented images can be as NDArray or tuple of NDArray.
         If tuple, the first element is the augmented image and the second is the dtype.
+
+        Parameters
+        ----------
+        img : NDArray | tuple[NDArray, Any]
+            Augmented image, possibly in a tuple with dtype.
+
+        Returns
+        -------
+        NDArray[Any]
+            The extracted augmented image.
+
         """
         if isinstance(img, tuple):
             return img[0]
@@ -57,7 +83,20 @@ class JATICDetectionAugmentation(Augmentation):
         self,
         batch: OBJ_DETECTION_BATCH_T,
     ) -> OBJ_DETECTION_BATCH_T:
-        """Apply augmentations to the given data batch."""
+        """Apply augmentations to the given data batch.
+
+        Parameters
+        ----------
+        batch : OBJ_DETECTION_BATCH_T
+            A batch of data containing images, annotations, and metadata.
+
+        Returns
+        -------
+        OBJ_DETECTION_BATCH_T
+            A batch of augmented data, including augmented images, resized
+            bounding boxes, and updated metadata.
+
+        """
         imgs, anns, metadata = batch
 
         # iterate over (parallel) elements in batch

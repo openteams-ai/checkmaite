@@ -1,6 +1,9 @@
 """Module for Object Detection RealLabel panel app.
 
-Run with `--ci` flag to save the app as html instead of serving it.
+Notes
+-----
+Run with ``--ci`` flag to save the app as html instead of serving it.
+
 """
 
 import os
@@ -16,26 +19,42 @@ from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, App
 
 
 class RealLabelApp(BaseApp):
-    """RealLabel panel App. Creates a GUI interface that allows the user to enter and export RealLabelConfig values.
+    """RealLabel panel App.
 
-    In this app, Reallabel is not doing any confidence calibration. Instead we tell RealLabel that the "score"
-    column should be treated as pre-calibrated by giving that column name to
-    `RealLabelConfig.calibrated_confidence_column`. This is in alignment with reallabel.MAITERealLabel as it
-    populates MAITE ODT scores into the `score` column by default.
+    Creates a GUI interface that allows the user to enter and export
+    RealLabelConfig values.
 
-    Attributes:
-        title (param.String): settings pane title.
-        iou_threshold (param.Number): threshold for IoU calculation. Defaults to 0.5.
-        likely_missed_min_confidence (param.Number): The aggregated confidence value above which a model ensemble
-            ground truth disagreement will be interpreted as a potentially missing label.
-            Defaults to 0.5.
-        likely_wrong_max_confidence (param.Number): The aggregated confidence value below which a model ensemble
-            ground truth disagreement will be interpreted as a likely either extraneous or incorrect.
-            Defaults to 0.5.
-        class_agnostic (param.Boolean): Set to True for when you only care about the LOCATIONS of
-            bounding boxes (and not their labels). Defaults to True.
-        run_with_ground_truth (param.Boolean): Set to False when you want to run RealLabel on an unlabeled dataset.
-            Defaults to True.
+    In this app, Reallabel is not doing any confidence calibration. Instead we
+    tell RealLabel that the "score" column should be treated as pre-calibrated
+    by giving that column name to `RealLabelConfig.calibrated_confidence_column`.
+    This is in alignment with reallabel.MAITERealLabel as it populates MAITE
+    ODT scores into the `score` column by default.
+
+    Parameters
+    ----------
+    title : param.String
+        Settings pane title.
+    iou_threshold : param.Number
+        Threshold for IoU calculation. Defaults to 0.5.
+    likely_missed_min_confidence : param.Number
+        The aggregated confidence value above which a model ensemble
+        ground truth disagreement will be interpreted as a potentially missing
+        label. Defaults to 0.5.
+    likely_wrong_max_confidence : param.Number
+        The aggregated confidence value below which a model ensemble
+        ground truth disagreement will be interpreted as a likely either
+        extraneous or incorrect. Defaults to 0.5.
+    class_agnostic : param.Boolean
+        Set to True for when you only care about the LOCATIONS of
+        bounding boxes (and not their labels). Defaults to True.
+    run_with_ground_truth : param.Boolean
+        Set to False when you want to run RealLabel on an unlabeled dataset.
+        Defaults to True.
+    styles : AppStyling, optional
+        Styling configuration, by default DEFAULT_STYLING.
+    **params : dict[str, Any]
+        Additional parameters for the `param.Parameterized` base class.
+
     """
 
     title: param.String = param.String(default="RealLabel - Identify potential errors in ground truth")
@@ -60,9 +79,12 @@ class RealLabelApp(BaseApp):
         super().__init__(styles, **params)
 
     def _run_export(self) -> None:
-        """Exports a dictionary representation of the RealLabelConfig entered by the user.
+        """Export RealLabelConfig.
 
-        The output is exported to the `self.output_tests_stages` dictionary under the "reallabel_test_stage" key.
+        Exports a dictionary representation of the RealLabelConfig entered
+        by the user. The output is exported to the
+        `self.output_tests_stages` dictionary under the
+        "reallabel_test_stage" key.
         """
 
         # Just giving the option to call any RealLabel output
@@ -94,7 +116,13 @@ class RealLabelApp(BaseApp):
         }
 
     def settings_pane(self) -> pn.Column:
-        """View of settings"""
+        """Return the settings pane view.
+
+        Returns
+        -------
+        pn.Column
+            The settings pane view.
+        """
         return pn.Column(
             self.view_title,
             pn.widgets.FloatInput.from_param(
@@ -153,7 +181,13 @@ class RealLabelApp(BaseApp):
         )
 
     def panel(self) -> pn.Column:
-        """High level panel app"""
+        """Return the high-level panel app view.
+
+        Returns
+        -------
+        pn.Column
+            The high-level panel app view.
+        """
         return pn.Column(
             self.view_header,
             self.settings_pane,

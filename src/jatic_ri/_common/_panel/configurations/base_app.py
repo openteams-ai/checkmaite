@@ -19,7 +19,110 @@ pn.extension("tabulator", "filedropper")
 
 
 class AppStyling(BaseModel):
-    """Pydantic v2 model for styling parameters."""
+    """Pydantic v2 model for styling parameters.
+
+    Attributes
+    ----------
+    app_width : int
+        Base setting for application width.
+    color_blue_900 : str
+        Hex code for a specific shade of blue.
+    color_blue_800 : str
+        Hex code for a specific shade of blue.
+    color_blue_700 : str
+        Hex code for a specific shade of blue.
+    color_blue_600 : str
+        Hex code for a specific shade of blue.
+    color_blue_500 : str
+        Hex code for a specific shade of blue.
+    color_blue_400 : str
+        Hex code for a specific shade of blue.
+    color_blue_300 : str
+        Hex code for a specific shade of blue.
+    color_blue_200 : str
+        Hex code for a specific shade of blue.
+    color_blue_100 : str
+        Hex code for a specific shade of blue.
+    color_white : str
+        Hex code for white.
+    color_gray_900 : str
+        Hex code for a specific shade of gray.
+    color_gray_800 : str
+        Hex code for a specific shade of gray.
+    color_gray_700 : str
+        Hex code for a specific shade of gray.
+    color_gray_600 : str
+        Hex code for a specific shade of gray.
+    color_gray_500 : str
+        Hex code for a specific shade of gray.
+    color_gray_400 : str
+        Hex code for a specific shade of gray.
+    color_gray_300 : str
+        Hex code for a specific shade of gray.
+    color_gray_200 : str
+        Hex code for a specific shade of gray.
+    widget_width : int
+        Default width for widgets.
+    widget_height : str
+        Default height for widgets.
+    width_input_default : int
+        Default width for input widgets.
+    width_subwidget_offset : int
+        Offset for sub-widget width.
+    color_main_bg : str | None
+        Derived main background color.
+    color_maintext : str | None
+        Derived main text color.
+    color_subtext : str | None
+        Derived subtext color.
+    color_border : str | None
+        Derived border color.
+    font_family : str | None
+        Derived font family.
+    style_text_h1 : dict[str, str] | None
+        Derived style for H1 text.
+    style_text_h2 : dict[str, str] | None
+        Derived style for H2 text.
+    style_text_h3 : dict[str, str] | None
+        Derived style for H3 text.
+    style_text_subtitle : dict[str, str] | None
+        Derived style for subtitle text.
+    style_text_body1 : dict[str, str] | None
+        Derived style for body1 text.
+    style_text_body2 : dict[str, str] | None
+        Derived style for body2 text.
+    style_border : dict[str, str] | None
+        Derived style for borders.
+    widget_stylesheet : str | None
+        Derived stylesheet for widgets.
+    button_bgcolor : str | None
+        Derived background color for buttons.
+    button_textcolor : str | None
+        Derived text color for buttons.
+    text_color_styling : str | None
+        Derived CSS for text color styling.
+    info_button_style : str | None
+        Derived CSS for info button style.
+    css_paragraph : str | None
+        Derived CSS for paragraphs.
+    css_center_text : str | None
+        Derived CSS for centering text.
+    css_checkbox : str | None
+        Derived CSS for checkboxes.
+    css_button : str | None
+        Derived CSS for buttons.
+    css_switch : str | None
+        Derived CSS for switches.
+    css_dropdown : str | None
+        Derived CSS for dropdowns.
+    css_config_input : str | None
+        Derived CSS for config inputs.
+    css_tabulator_table : str | None
+        Derived CSS for tabulator tables.
+    css_filedropper : str | None
+        Derived CSS for file droppers.
+
+    """
 
     # Allow us to set attributes in the validator
     model_config = ConfigDict(validate_assignment=False)
@@ -89,7 +192,11 @@ class AppStyling(BaseModel):
 
     @model_validator(mode="after")
     def compute_derived(self):  # noqa: ANN201
-        """Compute derived fields based on the base settings."""
+        """Compute derived fields based on the base settings.
+
+        This method is a Pydantic model validator that runs after
+        initialization to populate derived styling attributes.
+        """
         # alias locals for readability
         cg200 = self.color_gray_200
         cg900 = self.color_gray_900
@@ -209,16 +316,49 @@ DEFAULT_STYLING = AppStyling()
 
 
 class BaseApp(param.Parameterized):
-    """Base class for all the individual configuration pages.
-    This class holds common methods and visualization elements.
+    """Base class for all individual configuration pages.
 
-    The individual pages should utilize:
-    * a custom title
-    * call `self.view_status_bar` for the status bar visualization
-      * to change the text on the status bar, use `self.status_source.emit("Your text")``
-    * call `self.view_header` for the header visualization (with JATIC logo)
-    * call `self.view_title` for the title visualization
-    * apply styles from the `self.styles` object
+    This class holds common methods and visualization elements. Individual
+    pages should utilize:
+    - a custom title
+    - call `self.view_status_bar` for the status bar visualization
+      - to change the text on the status bar, use `self.status_source.emit("Your text")`
+    - call `self.view_header` for the header visualization (with JATIC logo)
+    - call `self.view_title` for the title visualization
+    - apply styles from the `self.styles` object
+
+    Parameters
+    ----------
+    output_test_stages : param.Dict
+        Dictionary for holding all the output configurations. This dictionary
+        is passed between all the stages and is used in the final stage to
+        generate the json file.
+    local : param.Boolean
+        Flag for local deployment.
+    workflow : param.Selector
+        Selector for the workflow type (e.g., "model_evaluation", "dataset_analysis").
+    task : param.Selector
+        Selector for the task type (e.g., "object_detection", "image_classification").
+    ready : param.Boolean
+        Flag indicating when the app is ready to advance to the next stage.
+    testbed_config : param.Dict
+        Configuration for the testbed.
+    title : str
+        Title of the application page. Individual apps should override this.
+    styles : AppStyling
+        Styling configuration object.
+
+    Attributes
+    ----------
+    output_path : str
+        Path for output.
+    status_source : streamz.Stream
+        Stream for status text updates.
+    status_pane : pn.pane.Streamz
+        Panel pane to display status messages.
+    next_button : pn.widgets.Button
+        Button to proceed to the next stage.
+
     """
 
     ##################################################
@@ -268,16 +408,26 @@ class BaseApp(param.Parameterized):
 
     @property
     def suffix(self) -> str:
-        """Task abbreviation used for suffixing variables"""
+        """Task abbreviation used for suffixing variables.
+
+        Returns
+        -------
+        str
+            "OD" if the task is "object_detection", "IC" otherwise.
+        """
         return "OD" if self.task == "object_detection" else "IC"
 
     def _run_export(self) -> None:
         """Individual implementation of export process.
-        This method should populate the self.output_test_stages with
-        {tool_name: test_stage_dict}. The dictionary you provide should
-        be JSON serializable and should be readable by your individual
-        TestStage class.
-        EVERY IMPLEMENTATION SHOULD OVERWRITE THIS METHOD.
+
+        This method should populate `self.output_test_stages` with
+        `{tool_name: test_stage_dict}`. The dictionary provided should
+        be JSON serializable and readable by the individual TestStage class.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not overridden in a subclass.
         """
         # for demo purposes only:
         self.output_test_stages[self.__class__.__name__] = {"TYPE": "base app test"}
@@ -285,20 +435,37 @@ class BaseApp(param.Parameterized):
 
     @param.output(task=param.Selector, output_test_stages=param.Dict, local=param.Boolean)
     def output(self) -> tuple:
-        """Output handler for passing variables from one pipeline page to another"""
+        """Output handler for passing variables from one pipeline page to another.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the task, output test stages, and local flag.
+        """
         self._run_export()
         return self.task, self.output_test_stages, self.local
 
     def _next_button_callback(self, event: param.Event) -> None:  # noqa: ARG002
-        """Callback for the Next button to advance to the next stage"""
+        """Callback for the Next button to advance to the next stage.
+
+        Parameters
+        ----------
+        event : param.Event
+            The event triggered by the button click.
+        """
         self.ready = True
 
     def horizontal_line(self) -> pn.pane.HTML:
         """Creates a horizontal line in an HTML element.
-        This is a function because the same panel object
-        cannot be visualized twice so in order to reuse
-        this code snippet, we need to create a new object
-        every time we need a line.
+
+        This is a function because the same panel object cannot be visualized
+        twice. To reuse this code snippet, a new object must be created
+        every time a line is needed.
+
+        Returns
+        -------
+        pn.pane.HTML
+            A Panel HTML pane representing a horizontal line.
         """
         return pn.pane.HTML(
             """""",
@@ -314,9 +481,15 @@ class BaseApp(param.Parameterized):
         )
 
     def view_status_bar(self) -> pn.Column:
-        """View of status bar. Change the text on the status bar by modifying
-        the `self.status_source.emit` method.
-        DO NOT OVERWRITE THIS METHOD
+        """View of status bar.
+
+        Change the text on the status bar by modifying the
+        `self.status_source.emit` method.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the status bar.
         """
         return pn.Column(
             pn.Spacer(height=20),
@@ -331,8 +504,12 @@ class BaseApp(param.Parameterized):
         )
 
     def view_title(self) -> pn.pane.Markdown:
-        """View of the app title
-        DO NOT OVERWRITE THIS METHOD
+        """View of the app title.
+
+        Returns
+        -------
+        pn.pane.Markdown
+            A Panel Markdown pane displaying the application title.
         """
         return pn.pane.Markdown(
             self.title,
@@ -340,7 +517,13 @@ class BaseApp(param.Parameterized):
         )
 
     def view_header(self) -> pn.Row:
-        """View header row with JATIC logo"""
+        """View header row with JATIC logo.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the JATIC logo.
+        """
         return pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
             styles={"background": self.styles.color_blue_900},

@@ -1,8 +1,11 @@
-"""
-This module contains the XAITKApp class, which is an implementation of BaseApp.
-It is able to configure and create multiple XAITKTestStage classes for consumption.
+"""XAITKApp for Object Detection.
 
-Run with `--ci` flag to save the app as html instead of serving it.
+This module contains the XAITKAppOD class, an implementation of BaseXAITKApp
+for object detection. It allows configuration and creation of XAITKTestStage
+instances for object detection tasks.
+
+To save the app as HTML instead of serving it, run with the ``--ci`` flag.
+
 """
 
 # Python generic imports
@@ -47,7 +50,18 @@ STACK_OPTIONS = ["D-RISE", "RandomGrid"]
 
 @dataclass
 class DetectionTarget:
-    """Dataclass that conforms with MAITE's ObjectDetectionTarget"""
+    """Dataclass conforming to MAITE's ObjectDetectionTarget.
+
+    Attributes
+    ----------
+    boxes : torch.Tensor
+        Bounding box coordinates.
+    labels : torch.Tensor
+        Class labels for each box.
+    scores : torch.Tensor
+        Confidence scores for each detection.
+
+    """
 
     boxes: torch.Tensor
     labels: torch.Tensor
@@ -55,7 +69,18 @@ class DetectionTarget:
 
 
 class HuggingFaceDetector:
-    """MAITE wrapper for HuggingFaceDetector"""
+    """MAITE wrapper for HuggingFace object detection models.
+
+    Parameters
+    ----------
+    model_name : str
+        Name of the HuggingFace model to load.
+    threshold : float
+        Detection threshold.
+    device : str
+        Device to run the model on (e.g., "cpu", "cuda").
+
+    """
 
     def __init__(self, model_name: str, threshold: float, device: str) -> None:
         from transformers import (
@@ -82,11 +107,28 @@ class HuggingFaceDetector:
 
     @property
     def index2label(self) -> dict[int, Hashable]:
-        """Class id to label mapping"""
+        """Return mapping from class ID to label."""
         return self.model.config.id2label
 
     def __call__(self, batch: od.InputBatchType) -> od.TargetBatchType:
-        """Callable implementation for HuggingFaceDetector"""
+        """Perform inference on a batch of images.
+
+        Parameters
+        ----------
+        batch : od.InputBatchType
+            A batch of input images.
+
+        Returns
+        -------
+        od.TargetBatchType
+            A batch of detection targets.
+
+        Raises
+        ------
+        ValueError
+            If input tensor dimensions are invalid.
+
+        """
         from torchvision.transforms.functional import get_image_size
 
         # tensor bridging
@@ -126,7 +168,44 @@ class HuggingFaceDetector:
 
 
 class XAITKAppOD(BaseXAITKApp):
-    """App for building XAITKTestStages for object detection"""
+    """App for building XAITKTestStages for object detection.
+
+    This application allows users to configure and generate saliency maps
+    for object detection models using XAITK.
+
+    Parameters
+    ----------
+    styles : AppStyling, optional
+        Styling configuration, by default DEFAULT_STYLING.
+    **params : dict[str, object]
+        Additional parameters for the `param.Parameterized` base class.
+
+    Attributes
+    ----------
+    title : param.String
+        The title of the application page.
+    jatic_detector : od.Model
+        The JATIC object detection model.
+    detector : JATICDetector
+        The XAITK-JATIC wrapper for the object detection model.
+    id2label : dict
+        Mapping from class ID to label name.
+    pad_perc : float
+        Padding percentage for cropping images around detections.
+    stack_select : pn.widgets.Select
+        Widget to select the saliency generation stack (e.g., D-RISE, RandomGrid).
+    md_text : str
+        Markdown text providing context about the sample saliency generation.
+    test_img : Path
+        Path to the test image.
+    select_widget : pn.widgets.Select
+        Widget to select a specific detection from the top-10 detections.
+    saliency_gen_button : pn.widgets.Button
+        Button to trigger saliency map generation.
+    sample_image : pn.pane.Matplotlib
+        Pane to display the sample image with optional bounding boxes.
+
+    """
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")  # pyright: ignore[reportAssignmentType]
 
@@ -174,8 +253,12 @@ class XAITKAppOD(BaseXAITKApp):
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(bboxes=None), tight=True)
 
     def _run_export(self) -> None:
-        """This function collects all configurations in a dictionary object
-        that is shared across app pages."""
+        """Collect configurations and prepare XAITKTestStage definitions.
+
+        This method gathers widget values, configures the selected saliency
+        generator (D-RISE or RandomGrid), and stores the test stage
+        configurations in `self.output_test_stages`.
+        """
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
         generator_type = self.stack_select.value
@@ -212,7 +295,21 @@ class XAITKAppOD(BaseXAITKApp):
     def dets_to_mats_output(
         self, dets: Iterable[Iterable[tuple[AxisAlignedBoundingBox, dict[Hashable, float]]]]
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Output detection and score matrices"""
+        """Convert detection results to bounding box and score matrices.
+
+        Parameters
+        ----------
+        dets : Iterable[Iterable[tuple[AxisAlignedBoundingBox, dict[Hashable, float]]]]
+            An iterable of detections, where each detection contains a bounding
+            box and a dictionary of class scores.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            A tuple containing:
+            - bboxes (np.ndarray): An array of bounding boxes [N, 4].
+            - scores (np.ndarray): An array of class scores [N, num_classes].
+        """
         labels = sorted(self.id2label.keys())
 
         bboxes = np.empty((0, 4))
@@ -243,7 +340,17 @@ class XAITKAppOD(BaseXAITKApp):
         return bboxes, scores
 
     def get_top_10_detections(self) -> dict:
-        """Retrieve the top-10 detections based on conf scores"""
+        """Retrieve the top-10 detections from the test image.
+
+        Detections are sorted by their confidence scores in descending order.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping a descriptive string of the detection
+            (index, class name, score) to its original index in the
+            full list of detections.
+        """
         img = np.asarray(Image.open(self.test_img))
         dets = list(self.detector([img]))[0]
         confs = list()  # noqa: C408
@@ -262,7 +369,24 @@ class XAITKAppOD(BaseXAITKApp):
         return dropdown_options
 
     def generate_saliency(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Method to generate saliency maps for a given saliency algorithm and detection model"""
+        """Generate saliency maps for a selected detection.
+
+        This method uses the configured saliency generator (D-RISE or RandomGrid)
+        and the object detection model to produce saliency maps for the
+        detection chosen via `self.select_widget`.
+
+        Parameters
+        ----------
+        img : np.ndarray
+            The input image as a NumPy array.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            A tuple containing:
+            - sal_maps (np.ndarray): The generated saliency maps.
+            - bboxes (np.ndarray): The bounding box of the selected detection.
+        """
         widget_value = self.collect_widget_values()
         generator_type = self.stack_select.value
 
@@ -294,9 +418,16 @@ class XAITKAppOD(BaseXAITKApp):
         return sal_maps, bboxes
 
     def saliency_gen_button_callback(self, _event: object) -> None:
-        """
-        Callback for saliency_gen_button.
-        Generate saliency and display results
+        """Handle the saliency generation button click event.
+
+        This callback generates saliency maps for the selected detection,
+        updates the status bar, and displays the original detection crop
+        and the corresponding saliency map.
+
+        Parameters
+        ----------
+        _event : object
+            The event object from the button click (unused).
         """
         img = np.asarray(Image.open(self.test_img))
         gray_img = np.asarray(Image.open(self.test_img).convert("L"))
@@ -324,7 +455,19 @@ class XAITKAppOD(BaseXAITKApp):
         self.status_source.emit("Saliency generation test completed")
 
     def create_det_plot(self, img: PilImg | None) -> Figure:
-        """Return matplotlib figure of the detction from the original sample image"""
+        """Create a Matplotlib figure displaying a cropped detection.
+
+        Parameters
+        ----------
+        img : PilImg | None
+            The cropped image of the detection. If None, a placeholder
+            is used.
+
+        Returns
+        -------
+        Figure
+            A Matplotlib figure object.
+        """
         img_array = np.asarray(img) if img is not None else np.zeros((5, 5))
         fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
         ax.imshow(img_array)
@@ -335,7 +478,25 @@ class XAITKAppOD(BaseXAITKApp):
         return fig
 
     def create_sample_image(self, bboxes: np.ndarray | None, include_dets: bool = False) -> Figure:
-        """View Sample Input Image"""
+        """Create a Matplotlib figure of the sample input image.
+
+        Optionally, a bounding box for a selected detection can be overlaid.
+
+        Parameters
+        ----------
+        bboxes : np.ndarray | None
+            An array containing bounding box coordinates [x1, y1, x2, y2].
+            If `include_dets` is True and `bboxes` is provided, the first
+            bounding box is drawn.
+        include_dets : bool, optional
+            Whether to include the detection bounding box on the image,
+            by default False.
+
+        Returns
+        -------
+        Figure
+            A Matplotlib figure object.
+        """
         img = np.asarray(Image.open(self.test_img))
         fig, ax = plt.subplots(figsize=(4, 3))
         ax.set_title("Sample Image")
@@ -349,16 +510,36 @@ class XAITKAppOD(BaseXAITKApp):
         return fig
 
     def update_plot(self, bboxes: np.ndarray) -> None:
-        """Update Matplotlib Image/Plot"""
+        """Update the sample image plot to include detection bounding boxes.
+
+        Parameters
+        ----------
+        bboxes : np.ndarray
+            An array containing bounding box coordinates to display.
+        """
         self.sample_image.object = self.create_sample_image(include_dets=True, bboxes=bboxes)
 
     @pn.depends("stack_select.value")
     def view_generator_params(self) -> pn.Column:
-        """Generator params helper"""
+        """Return a Panel column containing generator selection and parameters.
+
+        This view is dependent on the value of `stack_select`.
+
+        Returns
+        -------
+        pn.Column
+            A Panel column with the stack selector and saliency widget.
+        """
         return pn.Column(self.stack_select, self.saliency_widget[0])
 
     def panel(self) -> pn.Column:
-        """High level view of the full app"""
+        """Construct the main Panel layout for the application.
+
+        Returns
+        -------
+        pn.Column
+            The main Panel layout.
+        """
         return pn.Column(
             self.view_header,
             pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),

@@ -1,4 +1,9 @@
-"""DataEval classes and methods between image classification and object detection test stages"""
+"""DataEval classes and methods for dataset shift detection.
+
+This module provides the `DatasetShiftTestStageBase` class, which is used
+for detecting dataset shift between two datasets. It is intended to be
+subclassed for specific data types like image classification or object detection.
+"""
 
 from functools import partial
 from typing import Any
@@ -71,23 +76,24 @@ class DataevalShiftRun(RunBase):
 
 
 class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugin[TDataset]):
-    """Detects dataset shift between two datasets using various methods
+    """Detects dataset shift between two datasets using various methods.
 
-    Performs three drift detection and two out of distribution tests
-    against dataset 2 using dataset 1 as the reference
-    - Drift: Maximum mean discrepency, Cramer-von Mises, and Kolmogorov-Smirnov
-    - OOD: AE, VAEGMM
+    Performs three drift detection and two out-of-distribution tests
+    against dataset 2 using dataset 1 as the reference.
+    - Drift: Maximum mean discrepancy, Cramer-von Mises, and Kolmogorov-Smirnov
+    - OOD: Autoencoder (AE)
 
     Attributes
     ----------
-    outputs : dict[str, Any] | None, default None
-        Dictionary where key is the metric category and values are method OutputClass results as dicts
-    cache : Cache[dict[str, Any]] | None, default JSONCache(encoder=NumpyEncoder)
-        Cache object that can load in pre-run results into self.outputs
-    device : Literal["cpu"], default "cpu"
-        The device to run preprocessing models on
+    device : Device
+        The device to run preprocessing models on. Defaults to "cpu".
+    _dim : int
+        The dimensionality of the embeddings. Defaults to 128.
+    _RUN_TYPE : type[DataevalShiftRun]
+        The type of the run object associated with this test stage.
     _deck : str
-        Deck name used for Gradient's Title slide. Should be overwritten in subclasses
+        Deck name used for Gradient's Title slide. Should be overwritten in
+        subclasses.
     """
 
     _RUN_TYPE = DataevalShiftRun
@@ -102,8 +108,16 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         return DataevalShiftConfig(device=self.device)
 
     def _run_drift(self) -> DataevalShiftDriftOutputs:
-        """Runs MMD, CVM, and KS methods against images"""
+        """Run MMD, CVM, and KS drift detection methods.
 
+        Compares embeddings of`dataset_2` against`dataset_1`.
+
+        Returns
+        -------
+        DataevalShiftDriftOutputs
+            An object containing the outputs from MMD, CVM, and KS drift
+            detectors.
+        """
         model, transform = get_resnet18(self._dim)
         emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, self.device)
         emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, self.device)
@@ -119,8 +133,16 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         )
 
     def _run_ood(self) -> DataevalShiftOODOutputs:
-        """Runs AE and VAEGMM ood methods against images"""
+        """Run Autoencoder (AE) based Out-of-Distribution (OOD) detection.
 
+         Trains an AE on`dataset_1` and then detects OOD samples in
+        `dataset_2`.
+
+         Returns
+         -------
+         DataevalShiftOODOutputs
+             An object containing the outputs from the OOD AE detector.
+        """
         _, transform = get_resnet18(self._dim)
         emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
         emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
@@ -136,23 +158,34 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         )
 
     def _run(self) -> DataevalShiftOutputs:
-        """Run methods for drift and ood detectors"""
-        return DataevalShiftOutputs.model_validate({"drift": self._run_drift(), "ood": self._run_ood()})
-
-    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
-        """Generates gradient compliant kwargs using the drift outputs of MMD, KS, and CVM methods
-
-        Parameters
-        ----------
-        outputs:
-            Drift method output classes of MMD, KS, and CVM as dictionaries
+        """Run methods for drift and OOD detectors.
 
         Returns
         -------
-        dict
-            Single `SectionByItem` slide containing drift text and corresponding dataframe
+        DataevalShiftOutputs
+            An object containing the combined outputs from drift and OOD
+            detection.
         """
+        return DataevalShiftOutputs.model_validate({"drift": self._run_drift(), "ood": self._run_ood()})
 
+    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
+        """Generate Gradient compliant kwargs for drift detection results.
+
+        Uses outputs from MMD, KS, and CVM methods.
+
+        Parameters
+        ----------
+        drift_outputs : DataevalShiftDriftOutputs
+            Outputs from the drift detection methods (MMD, KS, CVM).
+        dataset_ids : list[str]
+            A list containing the IDs of the two datasets being compared.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representing a`SectionByItem` slide, containing
+            drift analysis text and a corresponding DataFrame.
+        """
         drift_fields = {
             field_name: {"drifted": field_value.drifted, "distance": field_value.distance, "p_val": field_value.p_val}
             for field_name, field_value in drift_outputs
@@ -198,23 +231,27 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         }
 
     def _collect_ood(self, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
-        """
-        Parses ood results into a report consumable slide
+        """Parse OOD results into a report-consumable slide.
 
-        This function creates a table of the number of ood samples and the threshold used to calculate them.
-        At this moment, image path access as well as index retrieval from the dataset are unimplemented
+        Creates a table showing the number of OOD samples and the threshold
+        used for their calculation.
+        Note: Image path access and index retrieval from the dataset are not
+        currently implemented.
 
         Parameters
         ----------
-        outputs:
-            The out of distribution specific results containing "is_ood", "instance_scores", and "feature_scores"
+        ood_outputs : DataevalShiftOODOutputs
+            Outputs from the OOD detection methods, containing`is_ood`,
+           `instance_scores`, and`feature_scores`.
+        dataset_ids : list[str]
+            A list containing the IDs of the two datasets.
 
         Returns
         -------
-        dict
-            Single `SectionByItem` slide containing OOD text and corresponding dataframe
+        dict[str, Any]
+            A dictionary representing a`SectionByItem` slide, containing
+            OOD analysis text and a corresponding DataFrame.
         """
-
         ood_fields = {
             field_name: {"is_ood": field_value.is_ood, "instance_score": field_value.instance_score}
             for field_name, field_value in ood_outputs
@@ -270,8 +307,19 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Converts results from drift and ood into a Gradient consumable list of slides"""
+        """Convert results from drift and OOD detection into a Gradient-consumable list of slides.
 
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+
+        Raises
+        ------
+        RuntimeError
+            If the TestStage has not been run before calling this method.
+        """
         if self._stored_run is None:
             raise RuntimeError("TestStage must be run before accessing outputs")
         outputs = self._stored_run.outputs

@@ -18,19 +18,38 @@ MALFORMED_PYRIGHT_IGNORE_MSG = (
 )
 
 
-def run_script_under_test(file_paths):
-    """Helper method to run the script with given file paths."""
+def run_script_under_test(file_paths: list[str]) -> subprocess.CompletedProcess:
+    """Run the script under test with given file paths.
+
+    Parameters
+    ----------
+    file_paths : list[str]
+        A list of file paths to pass to the script.
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+        The result of the script execution.
+    """
     cmd = [sys.executable, str(SCRIPT_PATH)] + file_paths
     # Use encoding="utf-8" to decode stdout/stderr consistently
     return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")  # noqa: S603
 
 
 @pytest.fixture
-def temp_file_creator():
-    """Fixture to create temporary files and ensure their cleanup."""
+def temp_file_creator() -> callable:
+    """Fixture to create temporary files and ensure their cleanup.
+
+    Yields
+    ------
+    callable
+        A function that creates a temporary file with the given content
+        and returns its path. The created file is registered for cleanup
+        after the test.
+    """
     created_files = []
 
-    def _create(content, suffix=".py", mode="w", encoding="utf-8"):
+    def _create(content: str | bytes, suffix: str = ".py", mode: str = "w", encoding: str | None = "utf-8") -> str:
         # The file needs to persist after close() for the script to read it.
         tmp_file = tempfile.NamedTemporaryFile(mode=mode, delete=False, suffix=suffix, encoding=encoding)
         tmp_file.write(content)
@@ -82,8 +101,18 @@ def test_no_files_provided():
         ("commented_out_specific_ignore", "# print('hello') # pyright: ignore[code]\n"),
     ],
 )
-def test_file_no_bare_ignore(temp_file_creator, content_description, file_content):
-    """Test script with files containing valid (non-bare) type ignores."""
+def test_file_no_bare_ignore(temp_file_creator: callable, content_description: str, file_content: str):
+    """Test script with files containing valid (non-bare) type ignores.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    content_description : str
+        Description of the test case content.
+    file_content : str
+        Content to write to the temporary file.
+    """
     tmpfile_path = temp_file_creator(file_content)
     process = run_script_under_test([tmpfile_path])
     assert process.returncode == 0, f"Script should exit 0 for {content_description}. Stdout: {process.stdout}"
@@ -163,10 +192,26 @@ def test_file_with_various_bare_ignores(
     content_description,
     file_content,
     expected_error_line_no,
-    expected_error_line_stripped_content,
-    expected_reason_msg,
+    expected_error_line_stripped_content: str,
+    expected_reason_msg: str,
 ):
-    """Test script with various forms of 'pyright: ignore' comments that should fail."""
+    """Test script with various forms of 'pyright: ignore' comments that should fail.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    content_description : str
+        Description of the test case content.
+    file_content : str
+        Content to write to the temporary file.
+    expected_error_line_no : int
+        Expected line number of the error.
+    expected_error_line_stripped_content : str
+        Expected stripped content of the error line.
+    expected_reason_msg : str
+        Expected reason message for the error.
+    """
     tmpfile_path = temp_file_creator(file_content)
     process = run_script_under_test([tmpfile_path])
 
@@ -185,8 +230,14 @@ def test_file_with_various_bare_ignores(
     ), f"Failed for {content_description}: stdout mismatch. Expected '{expected_line_output.strip()}' in '{process.stdout.strip()}'"
 
 
-def test_file_with_type_ignore_comment(temp_file_creator):
-    """Test script with a file containing a '# type: ignore' comment."""
+def test_file_with_type_ignore_comment(temp_file_creator: callable):
+    """Test script with a file containing a '# type: ignore' comment.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     file_content = "problem_line = 1  # type: ignore\n"
     stripped_line_content = "problem_line = 1  # type: ignore"
     tmpfile_path = temp_file_creator(file_content)
@@ -208,8 +259,14 @@ def test_file_with_type_ignore_comment(temp_file_creator):
     )
 
 
-def test_empty_file(temp_file_creator):
-    """Test script with an empty file."""
+def test_empty_file(temp_file_creator: callable):
+    """Test script with an empty file.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     tmpfile_path = temp_file_creator("")
     process = run_script_under_test([tmpfile_path])
     assert process.returncode == 0
@@ -224,8 +281,14 @@ def test_non_existent_file():
     assert f"Error processing file {non_existent_path}:" in process.stdout
 
 
-def test_file_with_non_utf8_encoding(temp_file_creator):
-    """Test script with a file that is not UTF-8 encoded."""
+def test_file_with_non_utf8_encoding(temp_file_creator: callable):
+    """Test script with a file that is not UTF-8 encoded.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     # Create a file with Latin-1 encoding that will fail UTF-8 decoding
     content_latin1 = "print('olé')".encode("latin-1")
     tmpfile_path = temp_file_creator(content_latin1, mode="wb", encoding=None)  # Write bytes
@@ -236,8 +299,14 @@ def test_file_with_non_utf8_encoding(temp_file_creator):
     assert "decode byte" in process.stdout.lower()
 
 
-def test_multiple_files_no_issues(temp_file_creator):
-    """Test with multiple files, none having bare ignores."""
+def test_multiple_files_no_issues(temp_file_creator: callable):
+    """Test with multiple files, none having bare ignores.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     content1 = "print(1) # pyright: ignore[call-arg]\n"
     content2 = "print(2) # pyright: ignore [name-defined]\n"
     tmpfile1_path = temp_file_creator(content1)
@@ -247,8 +316,14 @@ def test_multiple_files_no_issues(temp_file_creator):
     assert process.stdout == ""
 
 
-def test_multiple_files_one_bare_ignore(temp_file_creator):
-    """Test with multiple files, one having a bare ignore."""
+def test_multiple_files_one_bare_ignore(temp_file_creator: callable):
+    """Test with multiple files, one having a bare ignore.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     content1 = "print(1) # pyright: ignore[call-arg]\n"
     content2_bare = "print(2) # pyright: ignore\n"
     tmpfile1_path = temp_file_creator(content1)
@@ -261,8 +336,14 @@ def test_multiple_files_one_bare_ignore(temp_file_creator):
     assert tmpfile1_path not in process.stdout  # Ensure clean file is not reported
 
 
-def test_multiple_files_all_bare_ignores(temp_file_creator):
-    """Test with multiple files, all having bare ignores."""
+def test_multiple_files_all_bare_ignores(temp_file_creator: callable):
+    """Test with multiple files, all having bare ignores.
+
+    Parameters
+    ----------
+    temp_file_creator : callable
+        Fixture to create temporary files.
+    """
     content1_bare = "a = 1  # pyright: ignore\n"
     content2_bare = "b = 2  # pyright: ignore\n"
     tmpfile1_path = temp_file_creator(content1_bare)

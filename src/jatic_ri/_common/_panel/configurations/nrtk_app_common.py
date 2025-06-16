@@ -36,7 +36,119 @@ NRTK_LOGO = IMAGE_DIR / "NRTK_logo.png"
 
 
 class NRTKBaseApp(BaseApp):
-    """App for building NRTKTestStages"""
+    """App for building NRTKTestStages.
+
+    Parameters
+    ----------
+    title : param.String
+        The title of the application.
+    next_parameter : param.Selector
+        Selector for the next stage in the workflow.
+
+    Attributes
+    ----------
+    add_button : pn.widgets.Button
+        Button to add a test stage.
+    clear_button : pn.widgets.Button
+        Button to clear all test stages.
+    perturber_select : pn.widgets.Select
+        Widget to select the perturber implementation.
+    test_perturber_button : pn.widgets.Button
+        Button to test the current perturber settings.
+    original_plot : pn.pane.Matplotlib
+        Pane to display the original image.
+    augmented_plot : pn.pane.Matplotlib
+        Pane to display the augmented image.
+    left_column_width : int
+        Width of the left column in the layout.
+    all_widgets : list
+        List of all widgets for perturber configuration.
+    test_stages : list
+        List to store configured test stages.
+    finished_factory_display : list
+        List to display information about finished factories.
+    name_input : pn.widgets.TextInput
+        Input for the stage name.
+    factory_selector : pn.widgets.Select
+        Selector for the factory type.
+    theta_keys_input : pn.widgets.LiteralInput
+        Input for theta keys (for PybsmPerturber).
+    thetas_input : pn.widgets.LiteralInput
+        Input for theta values (for PybsmPerturber).
+    theta_key : pn.widgets.Select
+        Selector for the theta key (for Step/LinSpace/OneStep factories).
+    start : pn.widgets.FloatInput
+        Input for the start value (for Step/LinSpace factories).
+    stop : pn.widgets.FloatInput
+        Input for the stop value (for Step/LinSpace factories).
+    step : pn.widgets.FloatInput or pn.widgets.IntInput
+        Input for the step value (for Step/LinSpace factories).
+    to_int : pn.widgets.Checkbox
+        Checkbox to indicate if the output should be integer (for Step factory).
+    theta_value : pn.widgets.FloatInput
+        Input for the theta value (for OneStep factory).
+    altitude_provider : pn.widgets.FloatInput
+        Input for altitude (PyBSM).
+    ground_range_provider : pn.widgets.FloatInput
+        Input for ground range (PyBSM).
+    scenario_name_provider : pn.widgets.TextInput
+        Input for scenario name (PyBSM).
+    ihaze_provider : pn.widgets.Select
+        Selector for IHAZE value (PyBSM).
+    aircraft_speed_provider : pn.widgets.FloatInput
+        Input for aircraft speed (PyBSM).
+    target_reflectance_provider : pn.widgets.FloatInput
+        Input for target reflectance (PyBSM).
+    target_temperature_provider : pn.widgets.FloatInput
+        Input for target temperature (PyBSM).
+    background_reflectance_provider : pn.widgets.FloatInput
+        Input for background reflectance (PyBSM).
+    background_temperature_provider : pn.widgets.FloatInput
+        Input for background temperature (PyBSM).
+    ha_windspeed_provider : pn.widgets.FloatInput
+        Input for high altitude windspeed (PyBSM).
+    cn2at1m_provider : pn.widgets.FloatInput
+        Input for refractive index structure parameter (PyBSM).
+    d_provider : pn.widgets.FloatInput
+        Input for effective aperture diameter (PyBSM).
+    f_provider : pn.widgets.FloatInput
+        Input for focal length (PyBSM).
+    sensor_name_provider : pn.widgets.TextInput
+        Input for sensor name (PyBSM).
+    px_provider : pn.widgets.FloatInput
+        Input for detector pitch (PyBSM).
+    opt_trans_wavelengths_provider : pn.widgets.LiteralInput
+        Input for optical transmission wavelengths (PyBSM).
+    optics_transmission_provider : pn.widgets.LiteralInput
+        Input for optics transmission (PyBSM).
+    eta_provider : pn.widgets.FloatInput
+        Input for relative linear obscuration (PyBSM).
+    int_time_provider : pn.widgets.FloatInput
+        Input for integration time (PyBSM).
+    dark_current_provider : pn.widgets.FloatInput
+        Input for detector dark current (PyBSM).
+    read_noise_provider : pn.widgets.FloatInput
+        Input for RMS read noise (PyBSM).
+    max_N_provider : pn.widgets.FloatInput
+        Input for maximum ADC level (PyBSM).
+    bit_depth_provider : pn.widgets.FloatInput
+        Input for bit depth (PyBSM).
+    max_well_fill_provider : pn.widgets.FloatInput
+        Input for max well fill (PyBSM).
+    s_x_provider : pn.widgets.FloatInput
+        Input for RMS jitter amplitude X (PyBSM).
+    s_y_provider : pn.widgets.FloatInput
+        Input for RMS jitter amplitude Y (PyBSM).
+    da_x_provider : pn.widgets.FloatInput
+        Input for angular drift rate X (PyBSM).
+    da_y_provider : pn.widgets.FloatInput
+        Input for angular drift rate Y (PyBSM).
+    qe_provider : pn.widgets.LiteralInput
+        Input for quantum efficiency (PyBSM).
+    qewavelengths_provider : pn.widgets.LiteralInput
+        Input for quantum efficiency wavelengths (PyBSM).
+
+    """
 
     title = param.String(default="Configure Natural Robustness Testing")
     next_parameter = param.Selector(
@@ -105,16 +217,35 @@ class NRTKBaseApp(BaseApp):
         self.perturber_select.link(self.perturber_select, callbacks={"value": single_perturber_callback})
 
     def __extract_aug_img(self, img: NDArray | tuple[NDArray, Any]) -> NDArray[Any]:
-        """
+        """Extract augmented image from possible tuple output.
+
         Returned augmented images can be as NDArray or tuple of NDArray.
         If tuple, the first element is the augmented image and the second is the dtype.
+
+        Parameters
+        ----------
+        img : NDArray | tuple[NDArray, Any]
+            The input image, which can be a NumPy array or a tuple containing
+            the array and its dtype.
+
+        Returns
+        -------
+        NDArray[Any]
+            The extracted augmented image as a NumPy array.
         """
         if isinstance(img, tuple):
             return img[0]
         return img
 
     def add_perturber_config_widget(self) -> pn.Column:
-        """Add perturber factory config widget"""
+        """Add perturber factory config widget.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the configuration widgets for the
+            selected perturber.
+        """
         from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 
         pert_impl = self.perturber_select.value
@@ -154,8 +285,15 @@ class NRTKBaseApp(BaseApp):
         return pn.Column(self.factory_selector, self.name_input, self.factory_config)
 
     @pn.depends("factory_selector.value")
-    def factory_config(self) -> dict:
-        """Get factory config"""
+    def factory_config(self) -> pn.Column:
+        """Get factory configuration widgets based on selected factory.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the specific configuration widgets for the
+            selected factory type.
+        """
         pert_impl = self.perturber_select.value
         factory_impl = self.factory_selector.value
 
@@ -200,6 +338,7 @@ class NRTKBaseApp(BaseApp):
         return pn.Column(bad_factory_text)
 
     def _pybsm_parameter_init(self) -> None:
+        """Initialize PyBSM specific parameter widgets."""
         self.altitude_provider = pn.widgets.FloatInput(name="Altitude (m)")
         self.altitude_provider.description = (
             "Sensor height above ground level in meters. The database includes the following "
@@ -333,6 +472,13 @@ class NRTKBaseApp(BaseApp):
         self.qewavelengths_provider.value = [3e-07, 4e-07, 5e-07, 6e-07, 7e-07, 8e-07, 9e-07, 1e-06, 1.1e-06]
 
     def _setup_scenario_parameters(self) -> pn.Column:
+        """Set up widgets for PyBSM scenario parameters.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the scenario parameter widgets.
+        """
         additional_params = pn.Card(
             self.scenario_name_provider,
             self.ihaze_provider,
@@ -354,6 +500,13 @@ class NRTKBaseApp(BaseApp):
         return pn.Column(self.altitude_provider, self.ground_range_provider, additional_params)
 
     def _setup_sensor_parameters(self) -> pn.Column:
+        """Set up widgets for PyBSM sensor parameters.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the sensor parameter widgets.
+        """
         additional_params = pn.Card(
             self.sensor_name_provider,
             self.px_provider,
@@ -385,7 +538,16 @@ class NRTKBaseApp(BaseApp):
         return pn.Column(self.d_provider, self.f_provider, additional_params)
 
     def add_test_stage_callback(self, _event: object) -> None:
-        """Creates a new purturber widget when add_button is clicked"""
+        """Callback for the 'Add Test Stage' button.
+
+        Creates a new perturber configuration based on current widget values
+        and adds it to the list of test stages.
+
+        Parameters
+        ----------
+        _event : object
+            The event object from the button click (unused).
+        """
         factory_config = self.build_factory_json()
         if len(factory_config) == 0:
             return
@@ -412,12 +574,26 @@ class NRTKBaseApp(BaseApp):
         )
 
     def clear_test_stage_callback(self, _event: object) -> None:
-        """Clears all the stored widgets when the clear_button is clicked"""
+        """Callback for the 'Clear Test Stages' button.
+
+        Clears all stored test stage configurations.
+
+        Parameters
+        ----------
+        _event : object
+            The event object from the button click (unused).
+        """
         self.test_stages = []
         self.finished_factory_display = []
 
     def create_original_plot(self) -> plt.Figure:
-        """Create plot of base image"""
+        """Create a Matplotlib figure of the base image.
+
+        Returns
+        -------
+        plt.Figure
+            A Matplotlib figure object displaying the original image.
+        """
         # Configure path to datasets
         img = np.asarray(Image.open(EXAMPLE_IMG))
         fig, ax = plt.subplots(figsize=(3, 3))
@@ -428,7 +604,16 @@ class NRTKBaseApp(BaseApp):
         return fig
 
     def test_perturber_button_callback(self, _event: object) -> None:  # noqa PT019
-        """Run final factory and display results"""
+        """Callback for the 'Test Perturber Settings' button.
+
+        Runs the configured perturber factory on a sample image and displays
+        the original and augmented images.
+
+        Parameters
+        ----------
+        _event : object
+            The event object from the button click (unused).
+        """
         from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 
         self.status_source.emit("Perturbing...")
@@ -449,7 +634,16 @@ class NRTKBaseApp(BaseApp):
         self.augmented_plot.visible = True
         self.status_source.emit("Finished Perturbing")
 
-    def _parse_pybsm_factory_config(self) -> (dict, dict):
+    def _parse_pybsm_factory_config(self) -> tuple[dict, dict]:
+        """Parse PyBSM factory configuration from widgets.
+
+        Returns
+        -------
+        tuple[dict, dict]
+            A tuple containing two dictionaries:
+            - scenario_config: Configuration for the PyBSM scenario.
+            - sensor_config: Configuration for the PyBSM sensor.
+        """
         scenario_config = {
             "name": self.scenario_name_provider.value,
             "ihaze": self.ihaze_provider.value,
@@ -497,7 +691,15 @@ class NRTKBaseApp(BaseApp):
         return scenario_config, sensor_config
 
     def build_factory_json(self) -> dict:
-        """Collect all the values on the current widgets"""
+        """Collect all values from current widgets to build factory JSON.
+
+        Returns
+        -------
+        dict
+            A dictionary representing the configuration for the selected
+            perturber factory. Returns an empty dictionary if there's an error
+            or if the factory is not supported.
+        """
         from nrtk.impls.perturb_image.pybsm.scenario import PybsmScenario
         from nrtk.impls.perturb_image.pybsm.sensor import PybsmSensor
 
@@ -560,8 +762,16 @@ class NRTKBaseApp(BaseApp):
 
     @pn.depends("add_button.clicks", "clear_button.clicks", "perturber_select.value")
     def view_sweep_params(self) -> pn.Row:
-        """When the add new perturber button is clicked or the "clear pertubers"
-        button is clicked, this will trigger and update the view of the widgets"""
+        """Update sweep parameters view.
+
+        Updates when the 'Add Test Stage' or 'Clear Test Stages' buttons are
+        clicked, or when the perturber selection changes.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the sweep parameter configuration widgets.
+        """
         # using pn.Card here to match the look of the collapsible config section
         return pn.Row(
             pn.Spacer(width=5),  # added spacer for visual separation
@@ -578,11 +788,23 @@ class NRTKBaseApp(BaseApp):
         )
 
     def view_plots(self) -> pn.Column:
-        """View of the plots"""
+        """View for displaying original and augmented image plots.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing the original and augmented image plots.
+        """
         return pn.Column(self.original_plot, self.augmented_plot)
 
     def view_logo(self) -> pn.pane.Image:
-        """View NRTK logo"""
+        """View NRTK logo.
+
+        Returns
+        -------
+        pn.pane.Image
+            A Panel Image pane displaying the NRTK logo.
+        """
         return pn.pane.Image(
             str(NRTK_LOGO),
             width=140,
@@ -591,7 +813,13 @@ class NRTKBaseApp(BaseApp):
         )
 
     def panel(self) -> pn.Column:
-        """High level view of the full app"""
+        """High-level view of the full application panel.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column representing the entire application layout.
+        """
         left_column = pn.Column(
             self.perturber_select,
             pn.Spacer(height=10),  # added spacer for visual separation

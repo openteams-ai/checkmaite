@@ -1,5 +1,10 @@
-"""Base Dashboard for Testbeds
-This dashboard object is subclassed by the ME and DA Dashboards."""
+"""Base dashboard for JATIC RI testbeds.
+
+This module provides the `BaseTestbed` class, which serves as a foundational
+Panel application for model evaluation and dataset analysis workflows. It
+includes common UI elements, styling, and logic for configuring and running
+test stages.
+"""
 
 from __future__ import annotations
 
@@ -91,9 +96,85 @@ TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 
 
 class BaseTestbed(BaseApp):
-    """Base Testbed. This class is inherited by the
-    dataset analysis and model evaluation testbed classes. It contains
-    css styling, common widgets, and common functions"""
+    """Base class for testbed applications.
+
+    This class is inherited by dataset analysis and model evaluation
+    testbed classes. It provides common CSS styling, widgets, and
+    functions for building interactive testing pipelines.
+
+    Parameters
+    ----------
+    styles : AppStyling
+        Styling configuration object.
+    **params : dict[str, Any]
+        Additional parameters for the `param.Parameterized` base class.
+
+    Attributes
+    ----------
+    title : param.String
+        The title of the testbed application.
+    test_stages : param.Dict
+        Dictionary holding configured test stage instances.
+    redraw_models_trigger : param.Integer
+        Trigger to redraw model configuration widgets.
+    loaded_models : param.Dict
+        Dictionary of loaded model instances.
+    multi_model_visible : param.Boolean
+        Controls visibility of multi-model selection UI.
+    loaded_datasets : param.Dict
+        Dictionary of loaded dataset instances.
+    dataset_2_visible : param.Boolean
+        Controls visibility of UI elements for a second dataset.
+    threshold : param.String
+        Input for target threshold if a test stage requires it.
+    threshold_visible : param.Boolean
+        Controls visibility of the threshold input widget.
+    use_caches : param.Boolean
+        Flag to enable/disable caching for test stage runs and `EvaluationTool`.
+    results_df : param.DataFrame
+        Pandas DataFrame to store and display analysis results.
+    output_dir : param.Path
+        Directory for storing all output files, including reports.
+    metric_selector : pn.widgets.Select
+        Widget for selecting the evaluation metric.
+    model_widgets : dict
+        Stores Panel widgets related to model configuration.
+    add_model : pn.widgets.Button
+        Button to add UI elements for configuring an additional model.
+    run_analysis_button : pn.widgets.Button
+        Button to trigger the execution of the configured analysis.
+    dataset_1_selector : pn.widgets.Select
+        Widget to select the type for the primary dataset.
+    dataset_2_selector : pn.widgets.Select
+        Widget to select the type for the comparison dataset.
+    dataset_1_directory : pn.widgets.TextInput
+        Input widget for the primary dataset's image/data directory.
+    dataset_2_directory : pn.widgets.TextInput
+        Input widget for the comparison dataset's image/data directory.
+    dataset_1_metadata_path : pn.widgets.TextInput
+        Input widget for the primary dataset's metadata file path.
+    dataset_2_metadata_path : pn.widgets.TextInput
+        Input widget for the comparison dataset's metadata file path.
+    status_source : streamz.Stream
+        Stream for emitting status updates to the UI.
+    status_pane : pn.pane.Streamz
+        Panel pane to display status messages.
+    dataset_label_map : dict
+        Mapping from UI dataset labels to internal dataset class names.
+    metric_label_map : dict
+        Mapping from UI metric labels to internal metric factory names.
+    model_label_map : dict
+        Mapping from UI model labels to internal model keys.
+    torchvision_models : dict
+        Supported TorchVision models for the current task.
+    visdrone_models : dict, optional
+        Supported VisDrone models (specific to Object Detection).
+    loaded_metric : Any
+        The instantiated metric object.
+    eval_tool : EvaluationTool
+        The evaluation tool instance used by test stages.
+
+    """
 
     title = param.String(default="Object Detection Testing Pipeline")
 
@@ -248,17 +329,29 @@ class BaseTestbed(BaseApp):
 
     @abstractmethod
     def _run_button_callback(self, event: Any = None) -> None:
-        """
-        Callback that runs when the run button is clicked
-        When called, this is a placeholder method that is overridden by subclasses
+        """Callback executed when the main run button is clicked.
+
+        This method is a placeholder and must be overridden by subclasses to
+        implement the specific analysis logic.
+
+        Parameters
+        ----------
+        event : Any, optional
+            The event object, by default None.
         """
         pass
 
     @with_loading("run_analysis_button")
     def _run_analysis_loading(self, event: Any = None) -> None:
-        """
-        This function runs when `run_analysis_button` is clicked, allows for
-        loading spinner to be shown while the callback is executing
+        """Wrapper for `_run_button_callback` to show a loading spinner.
+
+        This function is connected to the `run_analysis_button` click event.
+        It displays a loading spinner while `_run_button_callback` executes.
+
+        Parameters
+        ----------
+        event : Any, optional
+            The event object, by default None.
         """
         self._run_button_callback(event)
 
@@ -293,14 +386,21 @@ class BaseTestbed(BaseApp):
             self.status_source.emit("Configuration file failed to load properly.")
 
     def _on_model_type_change(self, event: Any) -> None:  # pragma: no cover
-        """Callback listening for changes to all model selector widgets.
-        When called, this uses the name of the model selector widget
-        to look up the model_weights_path widget and change the value of the placeholder
-        text. This allows us to dynamically change the placeholder text
-        to guide users to upload the proper type of file.
+        """Handle changes in model type selection widgets.
 
-        XREF: additional behavior changes happen when `model_weights_path` is changed,
-        see `_on_model_weights_path_change`.
+        This callback updates the placeholder text and enabled state of
+        associated model weights and config path widgets based on the
+        selected model type.
+
+        Parameters
+        ----------
+        event : Any
+            The event object triggered by a model selector widget change.
+
+        Notes
+        -----
+        Additional behavior changes related to `model_weights_path` are
+        handled by `_on_model_weights_path_change`.
         """
         # get a list of model numbers as strings
         str_numbers = re.findall(r"\d+", event.obj.name)
@@ -364,8 +464,16 @@ class BaseTestbed(BaseApp):
         self.redraw_models_trigger += 1
 
     def add_model_button_callback(self, event: Any) -> None:  # noqa: ARG002
-        """Callback that runs when the add model button is clicked
-        When called, this adds a three new widgets for setting a new model.
+        """Add UI widgets for configuring an additional model.
+
+        This callback is triggered when the 'Add model' button is clicked.
+        It dynamically creates and adds a new set of widgets (model selector,
+        weights path, config path, remove button) to the UI.
+
+        Parameters
+        ----------
+        event : Any
+            The event object from the button click (can be None if called directly).
         """
 
         # get a list of model numbers as strings
@@ -429,8 +537,17 @@ class BaseTestbed(BaseApp):
         self.redraw_models_trigger += 1
 
     def load_models_from_widgets(self) -> bool:  # pragma: no cover
-        """Collect all the model metadata from widgets and instantiate the
-        model wrapper classes"""
+        """Load models based on current widget configurations.
+
+        Collects model metadata from the UI widgets, instantiates the
+        corresponding model wrapper classes, and stores them in
+        `self.loaded_models`.
+
+        Returns
+        -------
+        bool
+            True if models were loaded successfully, False otherwise.
+        """
 
         module = importlib.import_module(f"jatic_ri.{self.task}.models")
         model_meta_class = module.ModelSpecification
@@ -488,11 +605,16 @@ class BaseTestbed(BaseApp):
 
     @param.depends("redraw_models_trigger")
     def view_model_widget_pairs(self) -> pn.Column:
-        """Draw the model widgets except for the first one which is a special
-        case.
-        Whenever the "add model" button is called, first the widgets are
-        built in `add_model_button_callback` and then this method is triggered
-        to redraw the full dictionary of models
+        """Generate the view for dynamically added model configuration widgets.
+
+        This method is triggered by `redraw_models_trigger` and rebuilds the
+        Panel Column containing widget sets for all models beyond the first one.
+        The first model's widgets are typically handled separately in the main layout.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing rows of widgets for each additional model.
         """
         view = pn.Column()
         for value in self.model_widgets.values():
@@ -520,7 +642,13 @@ class BaseTestbed(BaseApp):
         return view
 
     def _view_dataset_1_selectors(self) -> pn.Column:
-        """View of the dataset 1 widgets"""
+        """Generate the view for primary dataset selection widgets.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing widgets for configuring the first dataset.
+        """
         return pn.Column(
             self.dataset_1_selector,
             pn.Row(
@@ -535,7 +663,16 @@ class BaseTestbed(BaseApp):
 
     @param.depends("dataset_2_visible")
     def _view_dataset_2_selectors(self) -> pn.Column:
-        """View of the dataset 2 selectors"""
+        """Generate the view for comparison (second) dataset selection widgets.
+
+        This view is conditional on `self.dataset_2_visible`.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing widgets for configuring the second dataset,
+            or an empty Column if not visible.
+        """
         if self.dataset_2_visible:
             return pn.Column(
                 self.dataset_2_selector,
@@ -551,8 +688,16 @@ class BaseTestbed(BaseApp):
         return pn.Column()
 
     def load_datasets_from_widgets(self) -> bool:
-        """Collect dataset metadata from widgets and instantiate
-        dataset wrapper objects"""
+        """Load datasets based on current widget configurations.
+
+        Collects dataset metadata from UI widgets, instantiates dataset
+        wrapper objects, and stores them in `self.loaded_datasets`.
+
+        Returns
+        -------
+        bool
+            True if datasets were loaded successfully, False otherwise.
+        """
         # Load dataset 1 (always required)
         if self.dataset_1_selector.value not in self.dataset_label_map:  # pragma: no cover
             self.status_source.emit("Please define dataset type")
@@ -604,9 +749,16 @@ class BaseTestbed(BaseApp):
         return True
 
     def _on_dataset_type_change(self, event) -> None:  # noqa: ANN001 # pragma: no cover
-        """Callback whenever either dataset 1 or dataset 2 type widget is changed.
-        Changes the visibility, name, placeholder, and description of the widgets
-        according to the dataset type.
+        """Handle changes in dataset type selection widgets.
+
+        This callback updates the visibility, name, placeholder text, and
+        description of associated dataset path and metadata widgets based on the
+        selected dataset type for either dataset 1 or dataset 2.
+
+        Parameters
+        ----------
+        event : Any
+            The event object triggered by a dataset selector widget change.
         """
 
         def _set_widget_parameters(
@@ -669,11 +821,20 @@ class BaseTestbed(BaseApp):
             raise RuntimeError("Dataset type selector not recognized.")
 
     def load_metric_from_widget(self) -> bool:
-        """Collect input from widget and instantiate metric object, set the result
-        into `self.loaded_metric`.
+        """Load the metric based on the current widget selection.
 
-        WARNING: This needs information about the dataset for IC usecases (number
-        of classes). Therefore, it must be run after the datasets are loaded.
+        Collects input from the metric selector widget, instantiates the
+        metric object, and stores it in `self.loaded_metric`.
+
+        Returns
+        -------
+        bool
+            True if the metric was loaded successfully.
+
+        Warnings
+        --------
+        For Image Classification tasks, this method requires dataset information
+        (number of classes) and thus must be run after datasets are loaded.
         """
         metrics_module = importlib.import_module(f"jatic_ri.{self.task}.metrics")
         metric_class_name = self.metric_label_map[self.metric_selector.value]
@@ -697,25 +858,33 @@ class BaseTestbed(BaseApp):
 
         Parameters
         ----------
-        configs: Contains the task definition and configurations for one or more test stages
+        configs : dict
+            Contains the task definition and configurations for one or more
+            test stages.
 
         Returns
         -------
-        True/False indicating successful instantiation of the test stages from the provided configs.
+        bool
+            True if test stages were successfully instantiated, False otherwise.
 
-        Example configs structure:
-        {
-            'task': 'object_detection',
-            'survivor': {
-                'TYPE': 'SurvivorTestStage',
-                'CONFIG': {'metric_column': 'metric',
-                    'conversion_type': 'original',
-                    'otb_threshold': 0.5,
-                    'easy_hard_threshold': 0.5
-                    }
-                }
+        Examples
+        --------
+        Example `configs` structure:
+
+        .. code-block:: python
+
+            {
+                "task": "object_detection",
+                "survivor": {
+                    "TYPE": "SurvivorTestStage",
+                    "CONFIG": {
+                        "metric_column": "metric",
+                        "conversion_type": "original",
+                        "otb_threshold": 0.5,
+                        "easy_hard_threshold": 0.5,
+                    },
+                },
             }
-
         """
         logger.debug("load pipeline")
         self.threshold_visible = False
@@ -753,8 +922,16 @@ class BaseTestbed(BaseApp):
         return True
 
     def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover # noqa: C901
-        """Loads the inputs to a given test stage based on
-        values set in the UI and in the class itself
+        """Load inputs into a given test stage.
+
+        Populates the provided `test_stage` with necessary inputs (datasets,
+        models, metrics, etc.) based on values set in the UI and the
+        test stage's plugin interfaces.
+
+        Parameters
+        ----------
+        test_stage : TestStage
+            The test stage instance to load inputs into.
         """
         self.status_source.emit(f"Loading inputs for {test_stage.__class__.__name__}")
         if isinstance(test_stage, TwoDatasetPlugin):
@@ -794,14 +971,35 @@ class BaseTestbed(BaseApp):
             test_stage.load_eval_tool(self.eval_tool)
 
     def _construct_report_filename(self) -> str:
-        """Construct a report filename of the output report based on the UI selections"""
+        """Construct a filename for the output report.
+
+        The filename is based on the configured test stages and the current timestamp.
+
+        Returns
+        -------
+        str
+            The generated report filename (without extension).
+        """
         return f"{'-'.join(self.test_stages.keys())}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
     def _run_all_tests(self) -> str:  # pragma: no cover
-        """Run all the tests on all the stages and returns either the path to the resulting
-        report (if self.local=True) or a link to download the report.
-        Common across IC/OD usecases.
-        Should be triggered in `_run_button_callback` implementation
+        """Execute all configured test stages and generate a report.
+
+        This method iterates through all test stages in `self.test_stages`,
+        loads their inputs, runs them, collects their report consumables,
+        and generates a PowerPoint report.
+
+        Returns
+        -------
+        str
+            If `self.local` is True, returns the path to the saved report file.
+            Otherwise, returns an HTML string for a download link to the report.
+
+        Notes
+        -----
+        This method is common across Image Classification and Object Detection
+        use cases. It should typically be triggered within the subclass's
+        `_run_button_callback` implementation.
         """
         self.status_source.emit("Processing. Please wait...")
 
@@ -840,11 +1038,17 @@ class BaseTestbed(BaseApp):
         )
 
     def horizontal_line(self) -> pn.pane.HTML:
-        """Creates a horizontal line in an HTML element.
-        This is a function because the same panel object
-        cannot be visualized twice so in order to reuse
-        this code snippet, we need to create a new object
-        every time we need a line.
+        """Create a Panel HTML pane representing a horizontal line.
+
+        Returns
+        -------
+        pn.pane.HTML
+            A Panel HTML pane for a styled horizontal line.
+
+        Notes
+        -----
+        This is a method because the same Panel object cannot be visualized
+        multiple times. A new object must be created each time a line is needed.
         """
         return pn.pane.HTML(
             """""",
@@ -860,9 +1064,19 @@ class BaseTestbed(BaseApp):
         )
 
     def view_status_bar(self) -> pn.Row:
-        """View of status bar. Change the text on the status bar by calling
-        the `self.status_source.emit` method.
-        DO NOT OVERWRITE THIS METHOD
+        """Generate the view for the status bar.
+
+        The status bar displays messages emitted to `self.status_source`.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the styled status bar.
+
+        Notes
+        -----
+        DO NOT OVERWRITE THIS METHOD in subclasses. To update status text,
+        use `self.status_source.emit("Your message")`.
         """
         return pn.Row(
             pn.Spacer(width=12),
@@ -888,7 +1102,15 @@ class BaseTestbed(BaseApp):
         )
 
     def view_header(self) -> pn.Row:
-        """View header row with JATIC logo"""
+        """Generate the view for the application header.
+
+        The header typically includes the JATIC logo.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the application header.
+        """
         return pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
             styles={"background": self.styles.color_blue_900},
@@ -896,7 +1118,14 @@ class BaseTestbed(BaseApp):
         )
 
     def view_config(self) -> pn.Column:
-        """View of the configuration file loader and advanced options"""
+        """Generate the view for displaying the current JSON configuration.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing a scrollable, preformatted display
+            of `self.output_test_stages`.
+        """
         logger.debug("view config container")
         return pn.Column(
             pn.pane.HTML(
@@ -908,7 +1137,14 @@ class BaseTestbed(BaseApp):
         )
 
     def view_config_input(self) -> pn.Column:
-        """View of the configuration file loader"""
+        """Generate the UI section for viewing the loaded configuration.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing elements to display the current
+            testbed configuration.
+        """
         logger.debug("view config input container")
         return pn.Column(
             pn.Spacer(height=20),
@@ -953,7 +1189,15 @@ class BaseTestbed(BaseApp):
         )
 
     def view_advanced(self) -> pn.Row:
-        """View of the advanced row that contains the use cache toggle and threshold entry"""
+        """Generate the UI section for advanced options.
+
+        This section typically includes controls for caching and threshold input.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing widgets for advanced settings.
+        """
         logger.debug("view threshold metric")
         return pn.Row(
             pn.Spacer(width=18),  # padding to the left of the box
@@ -1003,9 +1247,17 @@ class BaseTestbed(BaseApp):
         )
 
     def _view_df_tabulator(self) -> pn.widgets.Tabulator:
-        """View of the data analysis tabulator widget
-        This is broken out into a separate method to avoid challenges in
-        automatic updating of dataframe-based widgets
+        """Generate the Tabulator widget for displaying results.
+
+        Returns
+        -------
+        pn.widgets.Tabulator
+            A Panel Tabulator widget configured to display `self.results_df`.
+
+        Notes
+        -----
+        This is a separate method to facilitate dynamic updates of the
+        DataFrame-based widget.
         """
         formatters = {"Gradient Report": HTMLTemplateFormatter(template="<code><%= value %></code>")}
         # column widths can contain extra columns so here we assign all possible columns that
@@ -1027,7 +1279,15 @@ class BaseTestbed(BaseApp):
         )
 
     def view_results_row(self) -> pn.Row:
-        """View of the results row. This contains the table of results."""
+        """Generate the UI section for displaying test results.
+
+        This section contains the Tabulator widget for `self.results_df`.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row containing the test results table.
+        """
         return pn.Row(
             pn.Spacer(width=10),  # padding to the left of the section
             pn.Column(
@@ -1044,7 +1304,13 @@ class BaseTestbed(BaseApp):
         )
 
     def view_run_row(self) -> pn.Row:
-        """View of the run row that contains the `Run Analysis` button."""
+        """Generate the UI row containing the 'Run Analysis' button.
+
+        Returns
+        -------
+        pn.Row
+            A Panel Row with the main action button for running the analysis.
+        """
         return pn.Row(
             pn.layout.HSpacer(),
             self.run_analysis_button,
@@ -1053,9 +1319,17 @@ class BaseTestbed(BaseApp):
         )
 
     def view_title_row(self) -> pn.Column:
-        """View of the title row which contains the task (OD/IC),
-        objective (Model Evaluation/Dataset Analysis), and a
-        brief description of the app"""
+        """Generate the UI section for the application title and description.
+
+        This typically includes the task type (e.g., Object Detection),
+        the workflow objective (e.g., Model Evaluation), and a brief
+        description.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing title and descriptive text elements.
+        """
         return pn.Column(
             pn.Spacer(height=10),
             pn.pane.Markdown(
@@ -1076,7 +1350,17 @@ class BaseTestbed(BaseApp):
         )
 
     def panel(self) -> pn.Column:
-        """View of the entire dashboard"""
+        """Construct the main Panel layout for the entire dashboard.
+
+        This method assembles all the individual view components (header,
+        status bar, configuration sections, results, etc.) into a cohesive
+        Panel application.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column representing the complete dashboard UI.
+        """
         return pn.Column(
             self.view_header,  # full width
             # rest of the app has some padding on left and right

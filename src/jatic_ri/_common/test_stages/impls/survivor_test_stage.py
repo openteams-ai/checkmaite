@@ -36,7 +36,18 @@ class SurvivorConfig(_NativeSurvivorConfig, ConfigBase):
     @pydantic.field_validator("heatmap_plot_columns")
     @classmethod
     def validate_heatmap_plot_columns(cls, value: list[str] | None) -> list[str]:
-        """Validate heatmap plot columns."""
+        """Validate heatmap plot columns.
+
+        Parameters
+        ----------
+        value : list[str] | None
+            The input list of heatmap plot columns.
+
+        Returns
+        -------
+        list[str]
+            The validated list of heatmap plot columns, defaulting to an empty list if None.
+        """
         if value is None:
             return []
 
@@ -71,12 +82,14 @@ class SurvivorTestStageBase(
         self,
         config: _NativeSurvivorConfig | dict[str, Any],
     ) -> None:
-        """Create instance of SurvivorTestStage
+        """Create instance of SurvivorTestStage.
 
-        Args:
-            config: config for survivor run.
+        Parameters
+        ----------
+        config : _NativeSurvivorConfig | dict[str, Any]
+            Configuration for the survivor run. Can be a SurvivorConfig object
+            or a dictionary.
         """
-
         super().__init__()
 
         if isinstance(config, pydantic.BaseModel):
@@ -87,8 +100,18 @@ class SurvivorTestStageBase(
         return self._config
 
     def __run_metrics(self) -> dict[str, pr.ArrayLike]:
-        """Create metrics by model for use in MAITESurvivor."""
-        all_model_metrics_per_datum = {}
+        """Create metrics by model for use in MAITESurvivor.
+
+        This method calculates metrics for each model on a per-datum basis.
+        It leverages cached predictions if available.
+
+        Returns
+        -------
+        dict[str, pr.ArrayLike]
+            A dictionary where keys are model IDs and values are numpy arrays
+            of metric results for each datum.
+        """
+        all_model_metrics_per_datum: dict[str, pr.ArrayLike] = {}
         for model in self.models:
             model_metrics_per_datum = []
             # Since Survivor's implementation is unique in that it runs metric calculations on each individual in
@@ -123,7 +146,18 @@ class SurvivorTestStageBase(
         return all_model_metrics_per_datum
 
     def _label_count_plot(self, raw_output_df: pyspark.sql.DataFrame) -> Figure:
-        """Create a histogram plot of the label counts."""
+        """Create a histogram plot of the label counts.
+
+        Parameters
+        ----------
+        raw_output_df : pyspark.sql.DataFrame
+            The raw output DataFrame from the MAITESurvivor run.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            A matplotlib Figure object representing the histogram plot.
+        """
         # Create a histogram plot of the label counts
         with tempfile.TemporaryDirectory() as output_dir:
             histogram_plot = HistogramBarPlot(
@@ -140,6 +174,20 @@ class SurvivorTestStageBase(
         metrics_with_survivor_label_df: pyspark.sql.DataFrame,
         metadata_field: str,
     ) -> Figure:
+        """Create a heatmap plot for a given metadata field.
+
+        Parameters
+        ----------
+        metrics_with_survivor_label_df : pyspark.sql.DataFrame
+            DataFrame containing metrics and survivor labels.
+        metadata_field : str
+            The metadata field for which to create the heatmap.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            A matplotlib Figure object representing the heatmap plot.
+        """
         with tempfile.TemporaryDirectory() as output_dir:
             heatmap_plot = HeatmapPlot(
                 title=f"{metadata_field} Distribution",
@@ -158,7 +206,17 @@ class SurvivorTestStageBase(
         return named_figure.figure
 
     def _run(self) -> SurvivorOutputs:
-        """Run Survivor if no cached results are found."""
+        """Run Survivor analysis.
+
+        This method executes the MAITESurvivor analysis, generating
+        raw output, metrics with survivor labels, a label count plot,
+        and heatmap plots based on the configuration.
+
+        Returns
+        -------
+        SurvivorOutputs
+            An object containing the results of the Survivor analysis.
+        """
         self.validate_plugins()
 
         # run metrics
@@ -189,7 +247,22 @@ class SurvivorTestStageBase(
         )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect report consumables for the SurvivorTestStage."""
+        """Collect report consumables for the SurvivorTestStage.
+
+        This method formats the Survivor analysis results into a list of
+        dictionaries suitable for generating a Gradient report.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+
+        Raises
+        ------
+        RuntimeError
+            If the TestStage has not been run before calling this method.
+        """
         if self._stored_run is None:
             raise RuntimeError("TestStage must be run before accessing outputs")
         outputs = self._stored_run.outputs

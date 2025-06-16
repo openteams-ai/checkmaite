@@ -16,7 +16,16 @@ from jatic_ri.object_detection.metrics import (
 
 @pytest.fixture
 def dummy_data():
-    """Dummy predictions and targets that satisfy MAITE ObjectDetectionTarget interface."""
+    """Create dummy predictions and targets.
+
+    These satisfy the MAITE ObjectDetectionTarget interface.
+
+    Returns
+    -------
+    tuple[list[DetectionTarget], list[DetectionTarget]]
+        A tuple containing a list of prediction DetectionTarget objects and a list
+        of ground truth DetectionTarget objects.
+    """
 
     @dataclass
     class DetectionTarget:
@@ -39,7 +48,13 @@ def dummy_data():
 
 
 class FakeTorchMetric:
-    """A simplified implementation of the torchmetric Metric ABC."""
+    """A simplified mock of the torchmetric.Metric ABC.
+
+    Attributes
+    ----------
+    _fake_data : dict[str, Any]
+        A dictionary to store fake data for testing.
+    """
 
     def __init__(self) -> None:
         self._fake_data: dict[str, Any] = {}
@@ -55,7 +70,16 @@ class FakeTorchMetric:
 
 
 def test_torch_metric_wrapper(dummy_data):
-    """Check that wrapper gives equivalent results as original metric object"""
+    """Test the TorchODMetric wrapper.
+
+    Checks that the wrapper gives equivalent results as the original metric object
+    and correctly converts input types.
+
+    Parameters
+    ----------
+    dummy_data : tuple
+        A tuple containing dummy prediction and target data.
+    """
 
     preds, targets = dummy_data
     fake_torch_metric = FakeTorchMetric()
@@ -79,7 +103,15 @@ def test_torch_metric_wrapper(dummy_data):
 
 
 def test_map50_torch_metric_update(dummy_data):
-    """Test update method adds data correctly."""
+    """Test the update method of the mAP@0.5 torch metric.
+
+    Ensures that the update method adds data correctly without raising errors.
+
+    Parameters
+    ----------
+    dummy_data : tuple
+        A tuple containing dummy prediction and target data.
+    """
 
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
@@ -88,7 +120,15 @@ def test_map50_torch_metric_update(dummy_data):
 
 
 def test_map50_torch_metric_compute(dummy_data):
-    """Test compute method returns the expected mAP@0.5 value."""
+    """Test the compute method of the mAP@0.5 torch metric.
+
+    Ensures that the compute method returns the expected mAP@0.5 value.
+
+    Parameters
+    ----------
+    dummy_data : tuple
+        A tuple containing dummy prediction and target data.
+    """
 
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
@@ -99,7 +139,15 @@ def test_map50_torch_metric_compute(dummy_data):
 
 
 def test_map50_torch_metric_reset(dummy_data):
-    """Test reset method clears cached data."""
+    """Test the reset method of the mAP@0.5 torch metric.
+
+    Ensures that the reset method clears cached data.
+
+    Parameters
+    ----------
+    dummy_data : tuple
+        A tuple containing dummy prediction and target data.
+    """
 
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
@@ -120,7 +168,15 @@ def test_map50_torch_metric_reset(dummy_data):
 
 
 def test_multiclass_map50_torch_metric_compute(dummy_data):
-    """Test compute method returns the expected mAP@0.5 value."""
+    """Test the compute method of the multiclass mAP@0.5 torch metric.
+
+    Ensures that the compute method returns the expected classwise mAP@0.5 values.
+
+    Parameters
+    ----------
+    dummy_data : tuple
+        A tuple containing dummy prediction and target data.
+    """
 
     preds, targets = dummy_data
     mc_map50_torch_metric = multiclass_map50_torch_metric_factory()

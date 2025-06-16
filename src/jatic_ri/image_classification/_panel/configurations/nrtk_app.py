@@ -1,8 +1,9 @@
-"""
-This module contains the NRTKApp class, which is an implemntation of NRTKBaseApp.
-It is able to configure and create NRTKTestStages for consumption
+"""NRTKApp for Image Classification.
 
-Run with `--ci` flag to save the app as html instead of serving it.
+This module contains the NRTKAppIC class, an implementation of NRTKBaseApp
+for image classification. It configures and creates NRTKTestStages.
+
+Run with the ``--ci`` flag to save the app as HTML instead of serving it.
 """
 
 # Python generic imports
@@ -19,7 +20,20 @@ from jatic_ri._common._panel.configurations.nrtk_app_common import NRTKBaseApp
 
 
 class NRTKAppIC(NRTKBaseApp):
-    """App for building NRTKTestStages"""
+    """App for building NRTKTestStages for image classification.
+
+    Parameters
+    ----------
+    styles : AppStyling, optional
+        Styling configuration, by default DEFAULT_STYLING.
+    **params : dict[str, object]
+        Additional parameters for the `param.Parameterized` base class.
+
+    Attributes
+    ----------
+    title : param.String
+        The title of the application.
+    """
 
     title = param.String(default="Configure Natural Robustness Testing")
 
@@ -27,8 +41,10 @@ class NRTKAppIC(NRTKBaseApp):
         super().__init__(styles, **params)
 
     def _run_export(self) -> None:
-        """This function collects all configurations in a dictionary object
-        that is shared across app pages."""
+        """Collect all configurations into a dictionary.
+
+        This dictionary is shared across application pages.
+        """
         if len(self.test_stages) == 0:
             self.status_source.emit("No configurations found. Press Add Test Stage to add a configuration.")
             return

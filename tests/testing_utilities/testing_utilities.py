@@ -18,9 +18,17 @@ def assert_spark_dataframes_equal(
 ) -> None:
     """Check whether a SparkDataFrame has the same values as a pandas.DataFrame.
 
-    :param actual: Spark dataframe
-    :param expected: The expected dataframe as a Pandas dataframe
-    :param orderby: Optional param used to order columns in a dataframe
+    Parameters
+    ----------
+    actual : DataFrame
+        Spark dataframe.
+    expected : pd.DataFrame
+        The expected dataframe as a Pandas dataframe.
+    orderby : str | list[str] | None, optional
+        Optional param used to order columns in a dataframe.
+    **kwargs : Any
+        Additional keyword arguments passed to `pd.testing.assert_frame_equal`.
+
     """
     expected_sorted = (
         expected.sort_values(orderby).reset_index(drop=True) if orderby is not None else expected.reset_index(drop=True)

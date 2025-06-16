@@ -65,21 +65,28 @@ TOutputs = TypeVar("TOutputs", bound=BaseModel)
 
 
 class RunBase(BaseModel, Generic[TConfig, TOutputs]):
-    """
-    Abstract base class representing the results of an immutable execution run.
+    """Abstract base class representing the results of an immutable execution run.
 
     This class encapsulates the configuration, inputs (datasets, models),
     metric used, and the specific outputs generated during a run, typically
     by a JATIC tool.
 
-    Attributes:
-        test_stage_id: Unique identifier of the test stage that produced this run
-        config: The configuration object used for this run.
-        dataset_ids: Sequence of unique identifiers for the datasets used.
-        model_ids: Sequence of unique identifiers for the models used.
-        metric_id: Identifier for the primary metric evaluated or generated.
-        outputs: The specific results produced by the run, with type defined
-                 by the generic parameter `TOutputs`.
+    Parameters
+    ----------
+    test_stage_id : str
+        Unique identifier of the test stage that produced this run.
+    config : TConfig
+        The configuration object used for this run.
+    dataset_ids : list[str]
+        Sequence of unique identifiers for the datasets used.
+    model_ids : list[str]
+        Sequence of unique identifiers for the models used.
+    metric_id : str
+        Identifier for the primary metric evaluated or generated.
+    outputs : TOutputs
+        The specific results produced by the run, with type defined
+        by the generic parameter `TOutputs`.
+
     """
 
     model_config = ConfigDict(frozen=True)
@@ -99,20 +106,27 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
         model_ids: list[str],
         metric_id: str,
     ) -> str:
-        """
-        Computes a unique identifier (SHA-256 hash) for a run configuration.
+        """Compute a unique identifier (SHA-256 hash) for a run configuration.
 
         The UID is deterministically generated based on the provided configuration
         object, dataset identifiers, model identifiers, and metric identifier.
 
-        Args:
-            test_stage_id: Unique identifier of the test stage
-            config: The configuration object.
-            dataset_ids: A sequence of dataset unique identifiers.
-            model_ids: A sequence of model unique identifiers.
-            metric_id: The unique identifier for the metric used.
+        Parameters
+        ----------
+        test_stage_id : str
+            Unique identifier of the test stage.
+        config : TConfig
+            The configuration object.
+        dataset_ids : list[str]
+            A sequence of dataset unique identifiers.
+        model_ids : list[str]
+            A sequence of model unique identifiers.
+        metric_id : str
+            The unique identifier for the metric used.
 
-        Returns:
+        Returns
+        -------
+        str
             A string representing the hexadecimal SHA-256 hash of the inputs.
         """
         uid_content = {
@@ -138,7 +152,18 @@ run_cache = RunCache()
 
 # TODO: this is only used validating the plugins and should be removed as soon as the plugins are gone
 class RIValidationError(Exception):
-    """Exception raised for validation errors."""
+    """Exception raised for validation errors.
+
+    Parameters
+    ----------
+    message : str, optional
+        Description of the error. Default is "Validation error occurred.".
+
+    Attributes
+    ----------
+    message : str
+        Description of the error.
+    """
 
     def __init__(self, message: str = "Validation error occurred.") -> None:
         self.message = message
@@ -146,9 +171,10 @@ class RIValidationError(Exception):
 
 
 class Number(enum.Enum):
-    """
-    Enumeration to specify the cardinality (number of supported items)
-    for models, datasets, or metrics within a tool.
+    """Enumeration for cardinality of models, datasets, or metrics.
+
+    Specifies the number of supported items (e.g., models, datasets, metrics)
+    for a tool or plugin.
     """
 
     ZERO = enum.auto()
@@ -158,7 +184,20 @@ class Number(enum.Enum):
 
 
 class TestStage(Generic[TOutputs], ABC):
-    """Base class for running a test and recieving report values"""
+    """Base class for running a test and receiving report values.
+
+    Attributes
+    ----------
+    _RUN_TYPE : type[RunBase]
+        The type of the run object associated with this test stage.
+    _deck : str
+        Identifier for the report deck.
+    _task : str
+        Identifier for the task type.
+    _batch_size : int
+        Batch size for processing data. Default is 1.
+        (Note: Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages")
+    """
 
     _RUN_TYPE: ClassVar[type[RunBase]]
 
@@ -172,7 +211,13 @@ class TestStage(Generic[TOutputs], ABC):
 
     @property
     def supports_datasets(self) -> Number:
-        """Indicates the number of datasets this plugin supports."""
+        """Number of datasets this plugin supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value (ZERO, ONE, TWO) indicating dataset support.
+        """
         if isinstance(self, TwoDatasetPlugin):
             return Number.TWO
         if isinstance(self, SingleDatasetPlugin):
@@ -181,7 +226,13 @@ class TestStage(Generic[TOutputs], ABC):
 
     @property
     def supports_models(self) -> Number:
-        """Indicates the number of models this plugin supports."""
+        """Number of models this plugin supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value (ZERO, ONE, MANY) indicating model support.
+        """
         if isinstance(self, MultiModelPlugin):
             return Number.MANY
         if isinstance(self, SingleModelPlugin):
@@ -190,7 +241,13 @@ class TestStage(Generic[TOutputs], ABC):
 
     @property
     def supports_metric(self) -> Number:
-        """Indicates whether this plugin supports a metric."""
+        """Whether this plugin supports a metric.
+
+        Returns
+        -------
+        Number
+            An enumeration value (ZERO, ONE) indicating metric support.
+        """
         if isinstance(self, MetricPlugin):
             return Number.ONE
         return Number.ZERO
@@ -255,8 +312,21 @@ class TestStage(Generic[TOutputs], ABC):
         return f"{type(self).__module__}.{type(self).__name__}"
 
     def run(self, use_stage_cache: bool = True) -> RunBase:
-        """Run the test stage leveraging cache if available and store any outputs of the evaluation in test stage"""
+        """Run the test stage.
 
+        Leverages cache if available and stores outputs of the evaluation
+        in the test stage.
+
+        Parameters
+        ----------
+        use_stage_cache : bool, optional
+            Whether to use cached results if available, by default True.
+
+        Returns
+        -------
+        RunBase
+            The results of the test stage execution.
+        """
         config = self._create_config()
         dataset_ids, model_ids, metric_id = self._extract_run_inputs()
 
@@ -286,32 +356,53 @@ class TestStage(Generic[TOutputs], ABC):
     # TODO: update signature to accept config, models, datasets and metrics
     @abstractmethod
     def _run(self) -> TOutputs:
-        """Override this with logic to execute test stage and return outputs"""
+        """Execute the core logic of the test stage.
+
+        This method should be overridden by subclasses to implement the
+        specific test stage functionality.
+
+        Returns
+        -------
+        TOutputs
+            The outputs generated by the test stage.
+        """
 
     @abstractmethod
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
-        load_cached_results method
+        """Collect data for generating a report.
 
-        Please return a list of dictionaries, one dictionary per slide
+        Accesses in-depth data needed by Gradient to produce a report. This data
+        is typically generated in the `_run` method or loaded from cached results.
 
-        For each dictionary, please include the following keys:
-        - "deck": (str) image_classification_model_evaluation, object_detection_model_evaluation,
-          object_detection_dataset_evaluation
-        - "layout_name": (str) find the layout name in the jatic_increment_5_gradient_demo_repo, linked below
-        https://gitlab.jatic.net/jatic/morse/jatic-increment-5-gradient-demo-repo/-/tree/main/src/jatic_increment_5_gradient_demo_repo/cards?ref_type=heads
-        - "layout_arguments": (dict) arguments pertaining to the specific layout
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            in the report. Each dictionary should contain the following keys:
 
-        For example:
-        # I have one slide, meant for the object detection dataset evaluation report
-        [
-            {"deck": "object_detection_dataset_evaluation",
-            "layout_name": "OneImageText",
-            "layout_arguments": {
-                "title": "This is my cool title",
-                "text": "This is my cool text",
-                "image_path": Path("path/to/my/image")
-                }
-            }
-        ]
+            - "deck" (str): Identifier for the report deck (e.g.,
+              "image_classification_model_evaluation",
+              "object_detection_model_evaluation",
+              "object_detection_dataset_evaluation").
+            - "layout_name" (str): Name of the layout for the slide. Layout names
+              can be found in the jatic_increment_5_gradient_demo_repo:
+              https://gitlab.jatic.net/jatic/morse/jatic-increment-5-gradient-demo-repo/-/tree/main/src/jatic_increment_5_gradient_demo_repo/cards?ref_type=heads
+            - "layout_arguments" (dict): Arguments specific to the chosen layout.
+
+        Examples
+        --------
+        Example for one slide in an object detection dataset evaluation report:
+
+        >>> def collect_report_consumables(self):
+        ...     return [
+        ...         {
+        ...             "deck": "object_detection_dataset_evaluation",
+        ...             "layout_name": "OneImageText",
+        ...             "layout_arguments": {
+        ...                 "title": "This is my cool title",
+        ...                 "text": "This is my cool text",
+        ...                 "image_path": Path("path/to/my/image"),
+        ...             },
+        ...         }
+        ...     ]
         """

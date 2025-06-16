@@ -41,7 +41,17 @@ STACK_OPTIONS = ["RISE", "MC-RISE"]
 
 
 class HuggingFaceClassifier:
-    """MAITE wrapper for HuggingFaceClassifier"""
+    """
+    MAITE wrapper for HuggingFaceClassifier.
+
+    Parameters
+    ----------
+    model_name : str
+        The name of the HuggingFace model to load.
+    device : str
+        The device to run the model on (e.g., "cpu", "cuda").
+
+    """
 
     def __init__(self, model_name: str, device: str) -> None:
         from transformers import (
@@ -67,11 +77,35 @@ class HuggingFaceClassifier:
 
     @property
     def index2label(self) -> dict[int, Hashable]:
-        """Class id to label mapping"""
+        """
+        Class id to label mapping.
+
+        Returns
+        -------
+        dict[int, Hashable]
+            A dictionary mapping class IDs to their corresponding labels.
+        """
         return self.model.config.id2label
 
     def __call__(self, batch: ic.InputBatchType) -> ic.TargetBatchType:
-        """Callable implementation for HuggingFaceClassifier"""
+        """
+        Callable implementation for HuggingFaceClassifier.
+
+        Parameters
+        ----------
+        batch : ic.InputBatchType
+            A batch of input images.
+
+        Returns
+        -------
+        ic.TargetBatchType
+            A batch of target predictions.
+
+        Raises
+        ------
+        ValueError
+            If the input tensor does not have 4 dimensions.
+        """
         # tensor bridging
         input_tensor = torch.as_tensor(np.array(batch))
         if input_tensor.ndim != 4:
@@ -89,7 +123,29 @@ class HuggingFaceClassifier:
 
 
 class XAITKAppIC(BaseXAITKApp):
-    """App for building XAITKTestStages for image classification"""
+    """
+    App for building XAITKTestStages for image classification.
+
+    Attributes
+    ----------
+    title : param.String
+        The title of the application page.
+    jatic_classifier : ic.Model
+        The JATIC image classification model.
+    classifier : JATICImageClassifier
+        The XAITK-JATIC wrapped image classifier.
+    id2label : dict[int, Hashable]
+        Mapping from class ID to label.
+    stack_select : pn.widgets.Select
+        Widget to select the saliency generation stack (RISE or MC-RISE).
+    test_img : Path
+        Path to the test image.
+    select_widget : pn.widgets.Select
+        Widget to select the class for saliency map generation.
+    sample_image : pn.pane.Matplotlib
+        Panel pane to display the sample image.
+
+    """
 
     title = param.String(default="Configure XAITK Saliency Generation Testing")
 
@@ -123,6 +179,16 @@ class XAITKAppIC(BaseXAITKApp):
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(), tight=True)
 
     def stack_select_callback(self, target: object, _event: object) -> None:  # noqa ARG001
+        """
+        Callback for stack_select widget. Updates the saliency_widget.
+
+        Parameters
+        ----------
+        target : object
+            The object that triggered the event.
+        _event : object
+            The event object.
+        """
         self.saliency_widget = [
             pn.Card(
                 self.add_saliency_gen_config_widget(),
@@ -133,7 +199,14 @@ class XAITKAppIC(BaseXAITKApp):
         ]
 
     def add_saliency_gen_config_widget(self) -> pn.Column:
-        """Saliency Generation config widget"""
+        """
+        Create and return the saliency generation configuration widget.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column containing widgets for saliency generation parameters.
+        """
 
         generator_type = self.stack_select.value
         basic_component = pn.Column(
@@ -187,8 +260,12 @@ class XAITKAppIC(BaseXAITKApp):
         return basic_component
 
     def _run_export(self) -> None:
-        """This function collects all configurations in a dictionary object
-        that is shared across app pages."""
+        """
+        Collect all configurations into a dictionary object.
+
+        This dictionary is shared across app pages and defines the
+        XAITKTestStage configurations.
+        """
         widget_values = self.collect_widget_values()
         self.widget_values.append(widget_values)
         generator_type = self.stack_select.value
@@ -224,15 +301,36 @@ class XAITKAppIC(BaseXAITKApp):
             }
 
     def get_sal_plot_size(self) -> tuple[int, int]:
-        """Return size of saliency plot"""
+        """
+        Return the size of the saliency plot.
+
+        Returns
+        -------
+        tuple[int, int]
+            A tuple representing the (width, height) of the saliency plot in inches.
+        """
         return (4, 3)
 
     def get_sal_plot_title(self) -> str:
-        """Return str of saliency plot title"""
+        """
+        Return the title string for the saliency plot.
+
+        Returns
+        -------
+        str
+            The title for the saliency plot, including the selected class.
+        """
         return f"Saliency Map (class: {self.id2label[self.select_widget.value]})"
 
     def collect_widget_values(self) -> dict:
-        """Collect all the values on the current widgets"""
+        """
+        Collect all the values from the current saliency configuration widgets.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the current values of the saliency parameters.
+        """
         saliency_params = self.saliency_widget[0].objects[0].objects
         generator_type = self.stack_select.value
 
@@ -248,7 +346,19 @@ class XAITKAppIC(BaseXAITKApp):
         return values
 
     def generate_saliency(self, img: np.ndarray) -> np.ndarray:
-        """Method to generate saliency maps for a given saliency algorithm and classification model"""
+        """
+        Generate saliency maps for a given image, saliency algorithm, and classification model.
+
+        Parameters
+        ----------
+        img : np.ndarray
+            The input image as a NumPy array.
+
+        Returns
+        -------
+        np.ndarray
+            The generated saliency maps.
+        """
         widget_value = self.collect_widget_values()
         generator_type = self.stack_select.value
 
@@ -275,8 +385,14 @@ class XAITKAppIC(BaseXAITKApp):
 
     def saliency_gen_button_callback(self, _event: object) -> None:
         """
-        Callback for saliency_gen_button.
-        Generate saliency and display results
+        Callback for the saliency generation button.
+
+        Generates saliency maps based on current configurations and displays the results.
+
+        Parameters
+        ----------
+        _event : object
+            The event object from the button click.
         """
         self.augmented_plot.visible = False
         img = np.asarray(Image.open(self.test_img))
@@ -307,7 +423,25 @@ class XAITKAppIC(BaseXAITKApp):
         self.status_source.emit("Saliency generation test completed")
 
     def create_sal_plot_mc_rise(self, img: np.ndarray, sal_array: np.ndarray, title: str) -> Figure:
-        """Return matplotlib figure of the original sample image with a saliency map"""
+        """
+        Create a Matplotlib figure for an MC-RISE saliency map.
+
+        The figure shows the original sample image overlaid with a saliency map.
+
+        Parameters
+        ----------
+        img : np.ndarray
+            The original image (grayscale) as a NumPy array.
+        sal_array : np.ndarray
+            The saliency map array.
+        title : str
+            The title suffix for the plot (e.g., fill color).
+
+        Returns
+        -------
+        Figure
+            A Matplotlib Figure object.
+        """
         img_array = np.asarray(img)
         fig, ax = plt.subplots(figsize=self.get_sal_plot_size())
         ax.imshow(img_array, alpha=0.7, cmap="gray")
@@ -319,7 +453,14 @@ class XAITKAppIC(BaseXAITKApp):
         return fig
 
     def create_sample_image(self) -> Figure:
-        """View Sample Input Image"""
+        """
+        Create a Matplotlib figure of the sample input image.
+
+        Returns
+        -------
+        Figure
+            A Matplotlib Figure object displaying the sample image.
+        """
         img = np.asarray(Image.open(self.test_img))
         fig, ax = plt.subplots(figsize=(4, 3))
         ax.set_title("Sample Image")
@@ -330,16 +471,32 @@ class XAITKAppIC(BaseXAITKApp):
         return fig
 
     def update_plot(self) -> None:
-        """Update Matplotlib Image/Plot"""
+        """Update the Matplotlib image/plot for the sample image."""
         self.sample_image.object = self.create_sample_image()
 
     @pn.depends("stack_select.value")
     def view_generator_params(self) -> pn.Column:
-        """Generator params helper"""
+        """
+        Return a Panel Column containing the generator selection and its parameters.
+
+        This view depends on the value of `stack_select`.
+
+        Returns
+        -------
+        pn.Column
+            A Panel Column with the stack selector and saliency widget.
+        """
         return pn.Column(self.stack_select, self.saliency_widget[0])
 
     def panel(self) -> pn.Column:
-        """High level view of the full app"""
+        """
+        Construct and return the main Panel layout for the application.
+
+        Returns
+        -------
+        pn.Column
+            The main Panel Column representing the application's UI.
+        """
         return pn.Column(
             pn.Row(self.view_title, pn.layout.HSpacer(), self.view_logo),
             pn.Row(

@@ -47,7 +47,10 @@ from jatic_ri.util.slide_deck import (
 
 
 class DataevalCleaningConfig(ConfigBase):
-    "Configuration options for the DataevalCleaningTestStage can be specified here."
+    """Configuration options for the DataevalCleaningTestStage.
+
+    Can be specified here.
+    """
 
 
 class DataevalCleaningDuplicatesOutputs(OutputsBase):
@@ -117,8 +120,11 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
     """
     Dataset Cleaning TestStage Base implementation.
 
-    Performs dataset cleaning by identifying duplicates (exact and near) as well as statistical outliers
-    using various pixel and image statistics on the dataset.
+    Dataset Cleaning TestStage Base implementation.
+
+    Performs dataset cleaning by identifying duplicates (exact and near)
+    as well as statistical outliers using various pixel and image
+    statistics on the dataset.
     """
 
     _RUN_TYPE = DataevalCleaningRun
@@ -134,8 +140,18 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         VisualStatsOutput,
         LabelStatsOutput,
     ]:
-        "Compute statistics for the images in the dataset."
+        """Compute statistics for the images in the dataset.
 
+        Returns
+        -------
+        tuple[
+            HashStatsOutput,
+            DimensionStatsOutput,
+            VisualStatsOutput,
+            LabelStatsOutput,
+        ]
+            A tuple containing hash, dimension, visual, and label statistics.
+        """
         hashes = hashstats(self.dataset)
 
         img_dim_stats = dimensionstats(self.dataset)
@@ -154,9 +170,21 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         """
         Compute z-score-based outliers for selected dimension and visual metrics.
 
-        This method applies a z-score threshold of 3 to identify outliers in the
-        dataset's statistics. It filters the results to include only categories
-        defined in `DIMENSION_LIST` or `VISUAL_LIST`.
+        This method applies a z-score threshold of 3 to identify outliers
+        in the dataset's statistics. It filters the results to include
+        only categories defined in `DIMENSION_LIST` or `VISUAL_LIST`.
+
+        Parameters
+        ----------
+        dim_stats : DimensionStatsOutput | None, optional
+            Dimension statistics, by default None.
+        viz_stats : VisualStatsOutput | None, optional
+            Visual statistics, by default None.
+
+        Returns
+        -------
+        dict[int, dict[str, float]]
+            A dictionary of outliers.
         """
         all_outliers_dict = {}
 
@@ -186,14 +214,29 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         categories: list[str],
     ) -> dict[int, dict[str, float]]:
         """
-        Identifies outliers in a given metric, enforcing an upper threshold of 1.0
-        for ratio-based metrics when necessary. (A ratio of bounding-box to image should
-        never exceed one as the bounding-box should always be contained inside the image.)
+        Identifies outliers in a given metric.
 
-        This function perfoms a simple check to see if the value is greater than 1.0. If so,
-        it flags the value as an outlier.
+        Enforces an upper threshold of 1.0 for ratio-based metrics when
+        necessary. (A ratio of bounding-box to image should never exceed
+        one as the bounding-box should always be contained inside the image.)
+
+        This function performs a simple check to see if the value is
+        greater than 1.0. If so, it flags the value as an outlier.
+
+        Parameters
+        ----------
+        outlier_result : dict[int, dict[str, float]]
+            The dictionary to store outlier results.
+        stats : DimensionStatsOutput
+            Dimension statistics.
+        categories : list[str]
+            List of categories to check.
+
+        Returns
+        -------
+        dict[int, dict[str, float]]
+            The updated outlier results dictionary.
         """
-
         for category in categories:
             data = getattr(stats, category)
             if over_1 := np.flatnonzero(data > 1).tolist():
@@ -208,7 +251,20 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
     def _dictionary_merge(
         self, dict1: dict[int, dict[str, float]], dict2: dict[int, dict[str, float]]
     ) -> dict[int, dict[str, float]]:
-        "Merges two outlier result dictionaries together"
+        """Merge two outlier result dictionaries together.
+
+        Parameters
+        ----------
+        dict1 : dict[int, dict[str, float]]
+            The first dictionary.
+        dict2 : dict[int, dict[str, float]]
+            The second dictionary.
+
+        Returns
+        -------
+        dict[int, dict[str, float]]
+            The merged dictionary.
+        """
         for key, inner in dict2.items():
             if key in dict1:
                 dict1[key].update(inner)
@@ -220,9 +276,19 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         """
         Compute z-score-based outliers for selected ratio metrics.
 
-        This method applies a z-score threshold of 3 to identify outliers in the
-        dataset's statistics. It filters the results to include only categories
-        defined in `RATIO_LIST`.
+        This method applies a z-score threshold of 3 to identify outliers
+        in the dataset's statistics. It filters the results to include
+        only categories defined in `RATIO_LIST`.
+
+        Parameters
+        ----------
+        ratio_stats : DimensionStatsOutput
+            Ratio statistics.
+
+        Returns
+        -------
+        dict[int, dict[str, float]]
+            A dictionary of outliers.
         """
         outliers_dict = {}
 
@@ -238,10 +304,24 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         self, box_dim_stats: DimensionStatsOutput, box_viz_stats: VisualStatsOutput, ratiostats: DimensionStatsOutput
     ) -> dict[int, dict[str, float]]:
         """
-        Computes outliers related to bounding boxes.
+        Compute outliers related to bounding boxes.
 
-        This includes standard visual/dimensional outliers from bounding box stats,
-        as well as adjusted outliers for ratio metrics.
+        This includes standard visual/dimensional outliers from bounding
+        box stats, as well as adjusted outliers for ratio metrics.
+
+        Parameters
+        ----------
+        box_dim_stats : DimensionStatsOutput
+            Bounding box dimension statistics.
+        box_viz_stats : VisualStatsOutput
+            Bounding box visual statistics.
+        ratiostats : DimensionStatsOutput
+            Ratio statistics.
+
+        Returns
+        -------
+        dict[int, dict[str, float]]
+            A dictionary of outliers.
         """
         box_result = self._compute_basic_outliers(dim_stats=box_dim_stats, viz_stats=box_viz_stats)
         ratio_result = self._compute_ratio_outliers(ratio_stats=ratiostats)
@@ -252,8 +332,18 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         return self._dictionary_merge(box_result, adjusted_ratio_result)
 
     def _run(self) -> DataevalCleaningOutputs:
-        "Executes the full statistics and outlier detection pipeline for the dataset."
+        """Execute the full statistics and outlier detection pipeline for the dataset.
 
+        Returns
+        -------
+        DataevalCleaningOutputs
+            The outputs of the cleaning process.
+
+        Raises
+        ------
+        ValueError
+            If the task is not 'ic' or 'od'.
+        """
         hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats()
 
         duplicates = Duplicates().from_stats(hashes)
@@ -311,14 +401,43 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         total: int,
         is_images: bool = True,
     ) -> dict[str, Any]:
+        """Add a slide with a table of metrics to the report.
+
+        Parameters
+        ----------
+        deck : str
+            The deck to add the slide to.
+        title : str
+            The title of the slide.
+        text : Text
+            The text content of the slide.
+        metrics_subset : list[str]
+            A subset of metrics to display.
+        all_metrics : dict[str, list]
+            All available metrics.
+        total : int
+            The total number of items.
+        is_images : bool, optional
+            Whether the metrics are for images, by default True.
+
+        Returns
+        -------
+        dict[str, Any]
+            The slide definition.
+        """
         metric_df = create_metric_dataframe_data(
             is_images=is_images, metrics_subset=metrics_subset, all_metrics=all_metrics, total=total
         )
         return create_table_text_slide(deck=deck, title=title, text=text, data=metric_df)
 
     def _generate_table_of_contents(self) -> dict[str, Any]:
-        "Generates a table of contents for the report."
+        """Generate a table of contents for the report.
 
+        Returns
+        -------
+        dict[str, Any]
+            The slide definition for the table of contents.
+        """
         right_item = [
             "\n",
             "* Image Duplicate Analysis",
@@ -342,7 +461,20 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
     def _generate_duplicates_report(
         self, duplicates: DataevalCleaningDuplicatesOutputs, dataset_size: int
     ) -> dict[str, Any]:
-        "Generates a report for image duplicates."
+        """Generate a report for image duplicates.
+
+        Parameters
+        ----------
+        duplicates : DataevalCleaningDuplicatesOutputs
+            The duplicate analysis outputs.
+        dataset_size : int
+            The total size of the dataset.
+
+        Returns
+        -------
+        dict[str, Any]
+            The slide definition for the duplicates report.
+        """
         exact = duplicates.exact
         near = duplicates.near
 
@@ -382,8 +514,24 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
         ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
     ) -> list[dict[str, Any]]:
-        "Generates a report for image and target statistics."
+        """Generate a report for image and target statistics.
 
+        Parameters
+        ----------
+        img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+            Image dimension and visual statistics.
+        label_stats : DataevalCleaningLabelStatsOutputs
+            Label statistics.
+        box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None
+            Bounding box dimension and visual statistics.
+        ratio_stats : DataevalCleaningDimensionStatsOutputs | None
+            Ratio statistics.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the statistics report.
+        """
         stat_slides = []
 
         content = [
@@ -449,7 +597,22 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
         dataset_size: int,
     ) -> list[dict[str, Any]]:
-        "Generates a report for image outliers."
+        """Generate a report for image outliers.
+
+        Parameters
+        ----------
+        img_outliers : dict[int, dict[str, float]]
+            Image outlier data.
+        img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+            Image dimension and visual statistics.
+        dataset_size : int
+            The total size of the dataset.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the image outliers report.
+        """
         outlier_slides = []
         # chosen based on expert analysis on what is/isn't most relevant to users
         metrics = DIMENSION_LIST + VISUAL_LIST
@@ -498,8 +661,23 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
         total_targets: int,
     ) -> list[dict[str, Any]]:
-        "Generates a report for target outliers."
+        """Generate a report for target outliers.
 
+        Parameters
+        ----------
+        target_outliers : dict[int, dict[str, float]] | None
+            Target outlier data.
+        box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+            Bounding box dimension and visual statistics.
+        total_targets : int
+            The total number of targets.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the target outliers report,
+            or an empty list if no target outliers.
+        """
         if target_outliers is None:
             return []
 
@@ -545,8 +723,16 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         return outlier_slides
 
     def _generate_next_steps_report(self) -> dict[str, Any]:
-        "Generates a report for the next steps to investigating issues that may arise during analysis."
+        """Generate a report for next steps.
 
+        Provides recommendations for investigating issues that may arise
+        during analysis.
+
+        Returns
+        -------
+        dict[str, Any]
+            The slide definition for the next steps report.
+        """
         dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
         dir_.mkdir(parents=True, exist_ok=True)
         filepath = dir_ / "blank_img.png"
@@ -583,8 +769,18 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         }
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
-        "Collects reports for duplicates and outliers for both image and target data."
+        """Collect reports for duplicates and outliers for image and target data.
 
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the full report.
+
+        Raises
+        ------
+        RuntimeError
+            If the test stage has not been run before accessing outputs.
+        """
         table_of_contents = self._generate_table_of_contents()
         if self._stored_run is None:
             raise RuntimeError("TestStage must be run before accessing outputs")
