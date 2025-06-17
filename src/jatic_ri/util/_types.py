@@ -35,6 +35,8 @@ def _to_image(v: Any) -> Any:
         A PIL.Image.Image object if conversion is successful,
         otherwise the original input `v`.
     """
+    if isinstance(v, bytes):
+        v = io.BytesIO(v)
     if isinstance(v, (str, Path, io.BufferedIOBase)):
         with contextlib.suppress(Exception):
             v = PIL.Image.open(v)  # pyright: ignore[reportArgumentType]
