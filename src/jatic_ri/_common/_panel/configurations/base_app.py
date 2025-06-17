@@ -3,6 +3,8 @@ This module contains the BaseApp class, which serves as the base class for all i
 It provides common methods and visualization elements that can be utilized by the individual pages.
 """
 
+from pathlib import Path
+
 import panel as pn
 import param
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -350,14 +352,14 @@ class BaseApp(param.Parameterized):
 
     Attributes
     ----------
-    output_path : str
-        Path for output.
     status_source : streamz.Stream
         Stream for status text updates.
     status_pane : pn.pane.Streamz
         Panel pane to display status messages.
     next_button : pn.widgets.Button
         Button to proceed to the next stage.
+    output_dir : str
+        Directory where report files will be saved.
 
     """
 
@@ -374,7 +376,7 @@ class BaseApp(param.Parameterized):
     ready = param.Boolean(default=False)  # flag for when the app is ready to advance to next stage
     testbed_config = param.Dict(default={})
     ##################################################
-
+    output_dir = param.Path(default=Path.cwd().joinpath("report"), check_exists=False)
     ##################################################
     # individual apps should override these parameters
     title: str = param.String(default="Base class title: please update")
@@ -383,7 +385,6 @@ class BaseApp(param.Parameterized):
     def __init__(self, styles: AppStyling, **params: dict[str, object]) -> None:
         super().__init__(**params)
         self.styles = styles
-        self.output_path = ""
 
         # Create a Stream that will carry text updates
         self.status_source = Stream()

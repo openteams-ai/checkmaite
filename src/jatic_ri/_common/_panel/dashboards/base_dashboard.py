@@ -220,7 +220,7 @@ class BaseTestbed(BaseApp):
     results_df = param.DataFrame(pd.DataFrame({}))
 
     # Location for storing all output
-    output_dir = param.Path(default=Path.cwd(), check_exists=False)
+    output_dir = param.Path(default=Path.cwd().joinpath("report"), check_exists=False)
 
     def __init__(self, styles: AppStyling, **params: dict[str, Any]) -> None:
         super().__init__(styles, **params)
