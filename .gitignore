@@ -183,4 +183,5 @@ centernet-resnet18.pth
 config.json 
 
 # Tutorial notebook outputs
+/docs/tutorials/nrtk_example_output
 /docs/tutorials/xaitk_example_output
