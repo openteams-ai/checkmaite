@@ -1,6 +1,7 @@
 """Combined app for JATIC Console, integrating various configurations and final testbed."""
 
 import json
+import logging
 from typing import Any
 
 import panel as pn
@@ -54,7 +55,7 @@ class LandingPage(BaseApp):
 
         super().__init__(styles, **params)
         self.workflow = workflow
-        self._update_next_parameter_for_config()  # set the next parameter based on the workflow
+        self._update_next_parameter_for_config()  # pyright: ignore[reportCallIssue]  # set the next parameter based on the workflow
 
         button_width = 195
         self.od_button = pn.widgets.Button(
@@ -106,14 +107,14 @@ class LandingPage(BaseApp):
         else:
             raise ValueError(f"Invalid workflow: {self.workflow}")
 
-    def ic_button_callback(self, event: param.Event) -> None:  # noqa: ARG002
+    def ic_button_callback(self, event: param.parameterized.Event) -> None:  # noqa: ARG002
         """Callback for the Image Classification button"""
         # set task
         self.task = "image_classification"
         # move to next stage
         self.ready = True
 
-    def od_button_callback(self, event: param.Event) -> None:  # noqa: ARG002
+    def od_button_callback(self, event: param.parameterized.Event) -> None:  # noqa: ARG002
         """Callback for the Object Detection button"""
         # set task
         self.task = "object_detection"
@@ -130,6 +131,9 @@ class LandingPage(BaseApp):
         """Callback for the file dropper"""
         # our file dropper widget only accepts one file so we just need to grab the
         # the first value from the dictionary
+        if not isinstance(self.file_dropper.value, dict) or not self.file_dropper.value:
+            logging.warning("File dropper value is either not a valid dictionary or is empty.")
+            return
         value = next(iter(self.file_dropper.value.values()))
         self.output_test_stages = json.loads(value)
         self.task = self.output_test_stages.get("task", "object_detection")  # default to OD if not set
@@ -168,9 +172,29 @@ class LandingPage(BaseApp):
                     styles=self.styles.style_text_h2,
                     stylesheets=[self.styles.css_paragraph],
                 ),
+                pn.Row(
+                    pn.Spacer(width=38),  # Line up with "S" in "1. Select a workflow"
+                    pn.Column(
+                        pn.pane.Markdown(
+                            (
+                                "**Dataset Analysis**: Understand and improve dataset quality by analyzing biases, "
+                                "label errors, and data distributions."
+                            ),
+                            width=380,
+                            styles=self.styles.style_text_body2,
+                            stylesheets=[self.styles.css_paragraph],
+                        ),
+                        pn.pane.Markdown(
+                            ("**Model Evaluation**: Analyze model performance, robustness, and explainability."),
+                            width=380,
+                            styles=self.styles.style_text_body2,
+                            stylesheets=[self.styles.css_paragraph],
+                        ),
+                    ),
+                ),
                 pn.Spacer(height=20),
             ),
-            pn.Spacer(width=206),  # align me/da toggle with od/ic buttons
+            pn.Spacer(width=10),
             pn.Column(
                 pn.Spacer(height=35),
                 self.me_da_toggle,
