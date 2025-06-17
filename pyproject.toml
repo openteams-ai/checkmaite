@@ -47,7 +47,7 @@ poetry = "==2.1.2"                                 # allow user to still use the
 packages = [{ include = "jatic_ri", from = "src" }]
 
 [tool.poetry.dependencies]
-heart-library = {git = "https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git", tag="0.5.0"}
+heart-library = "0.6.3"
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.4"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.6"}
@@ -185,5 +185,6 @@ filterwarnings = [
     "ignore:is_datetime64tz_dtype is deprecated:DeprecationWarning",
     "ignore:The operator .* is not currently supported on the MPS backend:UserWarning",
     "ignore:A new version of Albumentations is available",
+    "ignore:pkg_resources is deprecated as an API:UserWarning",
 ]
 xfail_strict = true
