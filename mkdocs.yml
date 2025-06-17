@@ -36,7 +36,15 @@ nav:  # navigation links on sidebar
     - Image Classification Workflow via API: how-tos/ri_api_ic.ipynb
   - Tutorials:
     - tutorials/index.md
+    - DataEval Bias Tutorial: tutorials/dataeval_bias_tutorial.ipynb
+    - DataEval Linting Tutorial: tutorials/dataeval_linting_tutorial.ipynb
+    - NRTK Tutorial:
+       - tutorials/nrtk_tutorial.ipynb
+       - NRTK Appendix - Perturbers and Factories: tutorials/_nrtk_tutorial_appendix_perturbers_and_factories.ipynb
     - RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
+    - Survivor Tutorial: tutorials/survivor_tutorial.ipynb
+    - XAITK Tutorial: tutorials/xaitk_tutorial.ipynb
+
   - Reference:
     - Conventions: reference/conventions.md
     - Development Strategy: reference/development.md
