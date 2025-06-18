@@ -195,7 +195,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
 
         drift_df = pd.DataFrame(
             {
-                "Method": list(drift_outputs),
+                "Method": [drift_output[0] for drift_output in drift_outputs],
                 "Has drifted?": ["Yes" if d["drifted"] else "No" for d in drift_fields.values()],
                 "Test statistic": [d["distance"] for d in drift_fields.values()],
                 "P-value": [d["p_val"] for d in drift_fields.values()],
@@ -270,7 +270,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
 
         ood_df = pd.DataFrame(
             {
-                "Method": list(ood_outputs),
+                "Method": [ood_output[0] for ood_output in ood_outputs],
                 "OOD Count": counts,
                 "OOD Percent": percents,
                 "Threshold": thresholds,
