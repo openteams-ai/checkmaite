@@ -224,7 +224,9 @@ class BaseTestbed(BaseApp):
 
     def __init__(self, styles: AppStyling, **params: dict[str, Any]) -> None:
         super().__init__(styles, **params)
-
+        # ensure we don't visualize multiple models (no add model button).
+        # Must be set before the add_model_button_callback and process_testbed_config
+        self.multi_model_visible = False
         self._process_testbed_config()
         self.styles = styles
         if not os.path.isdir(self.output_dir):
@@ -239,9 +241,6 @@ class BaseTestbed(BaseApp):
         self._update_task_related_objects()
         # holder for the model widgets (for dynamic handling of the number of models)
         self.model_widgets = {}
-        # ensure we don't visualize multiple models (no add model button).
-        # Must be set before the add_model_button_callback.
-        self.multi_model_visible = False
         # button for adding another model (adds two widgets per model)
         self.add_model = pn.widgets.Button(name="Add model")
         self.add_model.on_click(self.add_model_button_callback)
