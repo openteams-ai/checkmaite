@@ -176,16 +176,16 @@ class LandingPage(BaseApp):
                     pn.Spacer(width=38),  # Line up with "S" in "1. Select a workflow"
                     pn.Column(
                         pn.pane.Markdown(
-                            (
-                                "**Dataset Analysis**: Understand and improve dataset quality by analyzing biases, "
-                                "label errors, and data distributions."
-                            ),
+                            ("**Model Evaluation**: Analyze model performance, robustness, and explainability."),
                             width=380,
                             styles=self.styles.style_text_body2,
                             stylesheets=[self.styles.css_paragraph],
                         ),
                         pn.pane.Markdown(
-                            ("**Model Evaluation**: Analyze model performance, robustness, and explainability."),
+                            (
+                                "**Dataset Analysis**: Understand and improve dataset quality by analyzing biases, "
+                                "label errors, and data distributions."
+                            ),
                             width=380,
                             styles=self.styles.style_text_body2,
                             stylesheets=[self.styles.css_paragraph],
@@ -275,7 +275,7 @@ class LandingPage(BaseApp):
     def panel(self) -> pn.Column:
         """Visualize the Landing page app"""
         return pn.Column(
-            self.view_header,
+            self.view_header(display_task=False),
             self.view_title_row,
             self.horizontal_line(),
             self.view_workflow_row,
