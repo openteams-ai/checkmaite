@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "jatic-ri"
-version = "0.1.0"
+version = "0.1.2"
 description = "JATIC Reference Implementation"
 readme = "README.md"
 license = { text = "TBD" }
