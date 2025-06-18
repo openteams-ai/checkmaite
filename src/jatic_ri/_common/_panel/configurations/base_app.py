@@ -517,7 +517,7 @@ class BaseApp(param.Parameterized):
             styles=self.styles.style_text_h1,
         )
 
-    def view_header(self) -> pn.Row:
+    def view_header(self, display_task: bool = True) -> pn.Row:
         """View header row with JATIC logo.
 
         Returns
@@ -525,8 +525,26 @@ class BaseApp(param.Parameterized):
         pn.Row
             A Panel Row containing the JATIC logo.
         """
-        return pn.Row(
+        header = pn.Row(
             pn.pane.SVG(JATIC_LOGO_PATH, width=150),
             styles={"background": self.styles.color_blue_900},
             width=self.styles.app_width,
         )
+
+        if display_task:
+            header.extend(
+                [
+                    pn.Spacer(sizing_mode="stretch_width"),
+                    pn.pane.Markdown(
+                        self.task.replace("_", " ").title(),
+                        styles={
+                            **(self.styles.style_text_body2 or {}),
+                            "color": self.styles.color_white,
+                        },
+                        stylesheets=[self.styles.css_paragraph],
+                        align=("center", "center"),  # (horizontal, vertical) alignment
+                    ),
+                    pn.Spacer(width=24),
+                ]
+            )
+        return header

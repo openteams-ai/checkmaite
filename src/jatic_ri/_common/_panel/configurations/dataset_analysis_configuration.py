@@ -280,11 +280,6 @@ class DAConfigurationLandingPage(BaseApp):
 
         title_row = pn.Column(
             pn.pane.Markdown(
-                self.task.replace("_", " ").title(),
-                styles=self.styles.style_text_body2,
-                stylesheets=[self.styles.css_paragraph],
-            ),
-            pn.pane.Markdown(
                 "Dataset Analysis Configuration",
                 styles=self.styles.style_text_h2,
                 stylesheets=[self.styles.css_paragraph],
@@ -348,5 +343,5 @@ if __name__ == "__main__":
         "--task", "-t", type=str, default="object_detection", choices=["object_detection", "image_classification"]
     )
     args = parser.parse_args()
-    app = DAConfigurationLandingPage(args.task)
+    app = DAConfigurationLandingPage(task=args.task)
     app.panel().servable()
