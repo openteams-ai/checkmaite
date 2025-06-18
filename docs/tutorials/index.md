@@ -2,21 +2,33 @@
 
 <div class="grid cards" markdown >
 
--   :material-hammer-wrench:{ .lg .middle } __DataEval Bias Tutorial__
+-   :material-hammer-wrench:{ .lg .middle } __Dataeval Bias Tutorial__
 
     ---
 
-    The DataEval bias detection tools identify biases or correlations present in a dataset that may lead to shortcut learning in models.
+    The Dataeval bias detection tools identify biases or correlations present in a dataset that may lead to shortcut learning in models.
 
     [:octicons-arrow-right-24: Dataeval Bias Tutorial](dataeval_bias_tutorial.ipynb)
 
--   :material-hammer-wrench:{ .lg .middle } __DataEval Cleaning Tutorial__
+-   :material-hammer-wrench:{ .lg .middle } __Dataeval Feasibility Tutorial__
 
     ---
 
-    The DataEval cleaning tools analyze datasets to identify and remove invalid, irrelevant, or low-quality data, such as duplicates and statistical outliers.
+    [:octicons-arrow-right-24: Dataeval Feasibility Tutorial](dataeval_feasibility_tutorial.ipynb)
+
+-   :material-hammer-wrench:{ .lg .middle } __Dataeval Cleaning Tutorial__
+
+    ---
+
+    The Dataeval cleaning tools analyze datasets to identify and remove invalid, irrelevant, or low-quality data, such as duplicates and statistical outliers.
 
     [:octicons-arrow-right-24: Dataeval Cleaning Tutorial](dataeval_linting_tutorial.ipynb)
+
+-   :material-hammer-wrench:{ .lg .middle } __Dataeval Shift Tutorial__
+
+    ---
+
+    [:octicons-arrow-right-24: Dataeval Shift Tutorial](dataeval_shift_tutorial.ipynb)
 
 -   :material-hammer-wrench:{ .lg .middle } __NRTK Tutorial__
 
