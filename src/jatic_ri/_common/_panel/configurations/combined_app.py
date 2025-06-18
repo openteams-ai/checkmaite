@@ -168,12 +168,12 @@ class LandingPage(BaseApp):
             pn.Column(
                 pn.Spacer(height=20),
                 pn.pane.Markdown(
-                    "1. Select a workflow",
+                    "1. Select Pipeline",
                     styles=self.styles.style_text_h2,
                     stylesheets=[self.styles.css_paragraph],
                 ),
                 pn.Row(
-                    pn.Spacer(width=38),  # Line up with "S" in "1. Select a workflow"
+                    pn.Spacer(width=38),  # Line up with "S" in "1. Select Pipeline"
                     pn.Column(
                         pn.pane.Markdown(
                             ("**Model Evaluation**: Analyze model performance, robustness, and explainability."),
