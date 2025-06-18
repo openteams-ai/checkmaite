@@ -191,6 +191,8 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   script:
     - poetry install --with docs
     - poetry run mkdocs build -d public --no-directory-urls
+    - rm -rf public/how-tos/tscache
+    - rm -rf public/how-tos/visdrone_model_weights
   artifacts:
     paths:
     - public
