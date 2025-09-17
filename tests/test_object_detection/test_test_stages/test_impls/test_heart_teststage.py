@@ -46,6 +46,7 @@ ATTACK_CONFIGS = [
 ]
 
 
+@pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config):
     stage = HeartTestStage(attack_configs=[attack_config])
@@ -62,6 +63,7 @@ def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_met
     assert [o.result for o in cached_run.outputs.attacked] == [o.result for o in run.outputs.attacked]
 
 
+@pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_default_attack_parameters(
     mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config
@@ -78,6 +80,7 @@ def test_default_attack_parameters(
     assert default_attack_config.parameters == attack_config.parameters
 
 
+@pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_report_consumables(
     fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config
