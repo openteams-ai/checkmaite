@@ -191,8 +191,13 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         """
         model, transform = get_resnet18()
         images = Images(self.dataset)
+
         embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device).to_numpy()
         embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
+        # coverage tool expects sequence of vectors
+        if len(embeddings.shape) == 1:
+            embeddings = np.array([embeddings])
+
         metadata = Metadata(self.dataset, exclude=self.metadata_to_exclude)
 
         # metadata is not empty and hence valid to run balance, diversity, parity
@@ -215,9 +220,16 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             bal_dict = None
             div_dict = None
 
+        if num_observations := min(max(3, int(np.sqrt(len(images)))), 20) >= len(embeddings):
+            raise ValueError(
+                f"Need at least (num_observations + 1) points to compute k-NN coverage, "
+                f"got N={len(embeddings)} points, requested num_observations={num_observations}. "
+                "Please provide more images."
+            )
+
         cov_out = coverage(
             embeddings,
-            num_observations=min(max(3, int(np.sqrt(len(images)))), 20),
+            num_observations=num_observations,
             radius_type=self.radius_type,
             percent=self.percent,
         )
