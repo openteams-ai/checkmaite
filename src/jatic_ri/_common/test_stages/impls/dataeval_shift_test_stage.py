@@ -122,6 +122,13 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, self.device)
         emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, self.device)
 
+        if len(self.dataset_1) < 2 or len(self.dataset_2) < 2:
+            raise ValueError(
+                "Dataset drift detection is computed using unbiased statistics which require "
+                f"at least 2 datapoints, {min(len(self.dataset_1), len(self.dataset_2))} "
+                "datapoints were provided. Please provide more images as datapoints."
+            )
+
         detectors = {
             "mmd": partial(DriftMMD, device=self.device),
             "cvm": DriftCVM,
