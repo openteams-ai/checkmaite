@@ -1,21 +1,21 @@
 """augmentation"""
 
 import copy
+from collections.abc import Sequence
 from typing import Any, cast
 
 import numpy as np
 from maite.protocols import AugmentationMetadata
 from maite.protocols.image_classification import (
     Augmentation,
-    DatumMetadataBatchType,
     DatumMetadataType,
-    InputBatchType,
-    TargetBatchType,
+    InputType,
+    TargetType,
 )
 from nrtk.interfaces.perturb_image import PerturbImage
 from numpy.typing import NDArray
 
-CLASSIFICATION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatchType]
+CLASSIFICATION_BATCH_T = tuple[Sequence[InputType], Sequence[TargetType], Sequence[DatumMetadataType]]
 
 
 class JaticAugmentationMetadata(DatumMetadataType):

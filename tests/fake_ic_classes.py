@@ -92,7 +92,7 @@ DEFAULT_IC_DATASET_METADATA = DatasetMetadata(
 )
 
 DEFAULT_IC_METRIC_METADATA: MetricMetadata = MetricMetadata(
-    id="fake_ic_metric",
+    id="fake_metric",
 )
 
 # each value must (1) be safely cast to a float, and (2) possess <value>.numpy() method
@@ -333,7 +333,7 @@ class FakeICMetric(ic.Metric):
         self.metadata: MetricMetadata = metric_metadata
         self.return_key: str = return_key
 
-    def update(self, preds: ic.TargetBatchType, targets: ic.TargetBatchType) -> None:
+    def update(self, preds: Sequence[ic.TargetType], targets: Sequence[ic.TargetType]) -> None:
         pass
 
     def compute(self) -> dict[str, Any]:

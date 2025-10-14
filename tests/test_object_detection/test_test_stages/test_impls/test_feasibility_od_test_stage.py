@@ -24,11 +24,11 @@ class TestFeasibilityTestStage:
         """Test FeasibilityTestStage implementation runs without error on dummy data"""
 
         # Only need to mock first `predict` return value
-        # Tuple[Sequence[TargetBatchType], _]]
+        # Tuple[Sequence[Sequence[TargetType]], _]]
 
         # Enforce type annotations
-        batch: od.TargetBatchType = []
-        target_batches: Sequence[od.TargetBatchType] = []
+        batch: Sequence[od.TargetType] = []
+        target_batches: Sequence[Sequence[od.TargetType]] = []
 
         # Simulate batch creation of DataLoader due to type hinting issues
         for i in range(len(fake_od_dataset_default)):

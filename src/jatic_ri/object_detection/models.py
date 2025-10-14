@@ -3,6 +3,7 @@
 import importlib
 import json
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
@@ -168,7 +169,7 @@ class TorchvisionODModel:
         self.metadata = {"id": model_id, "index2label": self.index2label}
         self.model.eval()  # sets model to inference mode rather than training mode
 
-    def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
+    def __call__(self, input_batch: Sequence[od.InputType]) -> Sequence[od.TargetType]:
         """
         Make a model prediction for inputs in input batch. Elements of input batch
         are expected in the shape `(C, H, W)`.
@@ -309,7 +310,7 @@ class VisdroneODModel:
 
         self.metadata = {"id": model_id, "index2label": self.index2label}
 
-    def __call__(self, input_batch: od.InputBatchType) -> od.TargetBatchType:
+    def __call__(self, input_batch: Sequence[od.InputType]) -> Sequence[od.TargetType]:
         """
         Run object detection on a batch of inputs.
 

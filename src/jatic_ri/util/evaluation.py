@@ -10,9 +10,9 @@ from maite.protocols import ArrayLike
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
 
-SomeInputBatchType: TypeAlias = ic.InputBatchType | od.InputBatchType
-SomeTargetBatchType: TypeAlias = ic.TargetBatchType | od.TargetBatchType
-SomeMetadataBatchType: TypeAlias = ic.DatumMetadataBatchType | od.DatumMetadataBatchType
+SomeInputBatchType: TypeAlias = Sequence[ic.InputType] | Sequence[od.InputType]
+SomeTargetBatchType: TypeAlias = Sequence[ic.TargetType] | Sequence[od.TargetType]
+SomeMetadataBatchType: TypeAlias = Sequence[ic.DatumMetadataType] | Sequence[od.DatumMetadataType]
 SomeInputType: TypeAlias = ic.InputType | od.InputType
 SomeTargetType: TypeAlias = ic.TargetType | od.TargetType
 SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType
@@ -276,8 +276,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
         return_augmented_data: bool = False,
     ) -> tuple[
-        Sequence[ic.TargetBatchType],
-        Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]],
+        Sequence[Sequence[ic.TargetType]],
+        Sequence[tuple[Sequence[ic.InputType], Sequence[ic.TargetType], Sequence[ic.DatumMetadataType]]],
     ]: ...
 
     @overload
@@ -292,8 +292,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
         return_augmented_data: bool = False,
     ) -> tuple[
-        Sequence[od.TargetBatchType],
-        Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]],
+        Sequence[Sequence[od.TargetType]],
+        Sequence[tuple[Sequence[od.InputType], Sequence[od.TargetType], Sequence[od.DatumMetadataType]]],
     ]: ...
 
     def predict(
@@ -366,7 +366,7 @@ class EvaluationTool:
         if augmentation is not None:
             raise InvalidArgument(
                 "EvaluationTool has not implemented MAITE's augumentation capability. "
-                "Import maite.workflows.evaluate to use augmentations without a caching mechanism."
+                "Import maite.tasks.evaluate to use augmentations without a caching mechanism."
             )
 
         cache_file = f"{model_id}_{dataset_id}_{batch_size}.json"
@@ -409,8 +409,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
     ) -> tuple[
         dict[str, Any],
-        Sequence[ic.TargetBatchType],
-        Sequence[tuple[ic.InputBatchType, ic.TargetBatchType, ic.DatumMetadataBatchType]],
+        Sequence[Sequence[ic.TargetType]],
+        Sequence[tuple[Sequence[ic.InputType], Sequence[ic.TargetType], Sequence[ic.DatumMetadataType]]],
     ]: ...
 
     @overload
@@ -429,8 +429,8 @@ class EvaluationTool:
         augmentation: None = None,  # To match MAITE signature and return appropriate error
     ) -> tuple[
         dict[str, Any],
-        Sequence[od.TargetBatchType],
-        Sequence[tuple[od.InputBatchType, od.TargetBatchType, od.DatumMetadataBatchType]],
+        Sequence[Sequence[od.TargetType]],
+        Sequence[tuple[Sequence[od.InputType], Sequence[od.TargetType], Sequence[od.DatumMetadataType]]],
     ]: ...
 
     def evaluate(
@@ -520,7 +520,7 @@ class EvaluationTool:
         if augmentation is not None:
             raise InvalidArgument(
                 "EvaluationTool has not implemented MAITE's augumentation capability. "
-                "Import maite.workflows.evaluate to use augmentations without a caching mechanism."
+                "Import maite.tasks.evaluate to use augmentations without a caching mechanism."
             )
 
         cache_file_metric = f"{model_id}_{dataset_id}_{metric_id}_{batch_size}.json"

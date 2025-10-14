@@ -8,7 +8,7 @@ It is able to configure and create multiple XAITKTestStage classes for consumpti
 import os
 import sys
 import warnings
-from collections.abc import Hashable
+from collections.abc import Hashable, Sequence
 
 # 3rd party and JATIC package imports
 import maite.protocols.image_classification as ic
@@ -87,18 +87,18 @@ class HuggingFaceClassifier:
         """
         return self.model.config.id2label
 
-    def __call__(self, batch: ic.InputBatchType) -> ic.TargetBatchType:
+    def __call__(self, batch: Sequence[ic.InputType]) -> Sequence[ic.TargetType]:
         """
         Callable implementation for HuggingFaceClassifier.
 
         Parameters
         ----------
-        batch : ic.InputBatchType
+        batch : Sequence[ic.InputType]
             A batch of input images.
 
         Returns
         -------
-        ic.TargetBatchType
+        Sequence[ic.TargetType]
             A batch of target predictions.
 
         Raises

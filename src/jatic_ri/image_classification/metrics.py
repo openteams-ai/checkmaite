@@ -81,16 +81,16 @@ class TorchICMulticlassMetric(ic.Metric):
 
     def update(
         self,
-        preds: ic.TargetBatchType,
-        targets: ic.TargetBatchType,
+        preds: Sequence[ic.TargetType],
+        targets: Sequence[ic.TargetType],
     ) -> None:
         """Add predictions and targets to metric's cache for later calculation.
 
         Parameters
         ----------
-        preds : ic.TargetBatchType
+        preds : Sequence[ic.TargetType]
             A batch of predictions.
-        targets : ic.TargetBatchType
+        targets : Sequence[ic.TargetType]
             A batch of targets.
 
         Raises

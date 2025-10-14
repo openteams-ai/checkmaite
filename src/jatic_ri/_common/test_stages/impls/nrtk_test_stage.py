@@ -7,7 +7,8 @@ from abc import abstractmethod
 from typing import Any
 
 import pandas as pd
-from maite.workflows import evaluate
+from maite._internals.protocols import generic as gen
+from maite.tasks import evaluate
 
 # NRTK imports
 from nrtk.interfaces.perturb_image import PerturbImage
@@ -24,8 +25,6 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TModel,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
-from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
-from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 from jatic_ri.util._types import DeSerializablePlugfigurable
 
 
@@ -195,7 +194,5 @@ class NRTKTestStageBase(
         return NRTKTestStageOutputs(perturbations=perturbations)
 
     @abstractmethod
-    def _augmentation_wrapper(
-        self, perturber: PerturbImage
-    ) -> JATICDetectionAugmentation | JATICClassificationAugmentation:
+    def _augmentation_wrapper(self, perturber: PerturbImage) -> gen.Augmentation:
         """Takes in a perturber and returns a maite Augmentation"""

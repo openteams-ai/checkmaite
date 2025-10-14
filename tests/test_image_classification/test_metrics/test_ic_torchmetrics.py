@@ -1,6 +1,6 @@
 import pytest
 from maite.protocols import image_classification as ic
-from maite.workflows import evaluate
+from maite.tasks import evaluate
 from torchmetrics import Accuracy
 from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 
@@ -52,7 +52,7 @@ def test_ic_f1score_defaults() -> None:
 def test_calcualate_accuracy_micro(fake_ic_dataset_default: FakeICDataset, fake_ic_model_default: FakeICModel) -> None:
     """
     Tests that a default 'micro' accuracy (i.e. not an average of per-class accuracies) returns as expected.
-    metric_batch_input_data_ic["predictions"] is a Sequence[Sequence[Tensor(10,)]].  Each item in the first sequence represents one batch ic.TargetBatchType,
+    metric_batch_input_data_ic["predictions"] is a Sequence[Sequence[Tensor(10,)]].  Each item in the first sequence represents one batch Sequence[ic.TargetType],
     i.e. a Sequence of Tensors, each 1-dim tensor corresponds to one prediction of logits (or pseudo-probs) for each class
     metric_batch_input_data_ic["targets"] has a similar structure and represents ground truth one-hots.
 

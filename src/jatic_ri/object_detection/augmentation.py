@@ -1,6 +1,7 @@
 """augmentation"""
 
 import copy
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -8,15 +9,14 @@ import numpy as np
 from maite.protocols import AugmentationMetadata
 from maite.protocols.object_detection import (
     Augmentation,
-    DatumMetadataBatchType,
     DatumMetadataType,
-    InputBatchType,
-    TargetBatchType,
+    InputType,
+    TargetType,
 )
 from nrtk.interfaces.perturb_image import PerturbImage
 from numpy.typing import NDArray
 
-OBJ_DETECTION_BATCH_T = tuple[InputBatchType, TargetBatchType, DatumMetadataBatchType]
+OBJ_DETECTION_BATCH_T = tuple[Sequence[InputType], Sequence[TargetType], Sequence[DatumMetadataType]]
 
 
 @dataclass

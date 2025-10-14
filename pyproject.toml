@@ -47,16 +47,16 @@ poetry = "==2.1.2"                                 # allow user to still use the
 packages = [{ include = "jatic_ri", from = "src" }]
 
 [tool.poetry.dependencies]
-heart-library = "0.6.3"
+heart-library = "0.7.0"
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.4"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.6"}
 dataeval = "==0.86.7"                 
-maite = ">=0.7.0,<0.8.0"
-nrtk = "==0.22.0"
-pybsm = "==0.10.2"                                 # optional dep for nrtk, required here
+maite = "0.8.2"
+nrtk = "==0.25.0"
+pybsm = ">=0.12.0"                                 # optional dep for nrtk, required here
 xaitk-saliency = "==0.12.0"
-xaitk-jatic = "==0.5.1"
+xaitk-jatic = "==0.7.0"
 # external deps
 holoviews = ">=1.20.0"                             # arbitrary, required for panel pipelines
 httpx = ">=0.28.1"                                 # arbitrary, needed to run visdrone model
@@ -186,5 +186,7 @@ filterwarnings = [
     "ignore:The operator .* is not currently supported on the MPS backend:UserWarning",
     "ignore:A new version of Albumentations is available",
     "ignore:pkg_resources is deprecated as an API:UserWarning",
+    "ignore:The 'shapely.geos' module is deprecated.*:DeprecationWarning",  # TODO: investigate
+    "ignore:There is no current event loop:DeprecationWarning", # TODO: placeholder during MAITE 8 upgrade.  If upgrade does not fix, resolve explicitly or open new GLab issue
 ]
 xfail_strict = true
