@@ -13,7 +13,7 @@ To save the app as HTML instead of serving it, run with the ``--ci`` flag.
 import os
 import sys
 import warnings
-from collections.abc import Hashable, Iterable
+from collections.abc import Hashable, Iterable, Sequence
 from dataclasses import dataclass
 
 # 3rd party and JATIC package imports
@@ -110,17 +110,17 @@ class HuggingFaceDetector:
         """Return mapping from class ID to label."""
         return self.model.config.id2label
 
-    def __call__(self, batch: od.InputBatchType) -> od.TargetBatchType:
+    def __call__(self, batch: Sequence[od.InputType]) -> Sequence[od.TargetType]:
         """Perform inference on a batch of images.
 
         Parameters
         ----------
-        batch : od.InputBatchType
+        batch : Sequence[od.InputType]
             A batch of input images.
 
         Returns
         -------
-        od.TargetBatchType
+        Sequence[od.TargetType]
             A batch of detection targets.
 
         Raises
@@ -154,7 +154,7 @@ class HuggingFaceDetector:
             target_sizes=target_sizes,
         )
 
-        predictions: od.TargetBatchType = list()  # noqa: C408
+        predictions: Sequence[od.TargetType] = list()  # noqa: C408
         for result in hf_results:
             predictions.append(
                 DetectionTarget(

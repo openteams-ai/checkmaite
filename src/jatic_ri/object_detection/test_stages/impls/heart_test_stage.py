@@ -14,7 +14,7 @@ from heart_library.estimators.object_detection.pytorch import (
     JaticPyTorchObjectDetector,
 )
 from maite.protocols import ArrayLike
-from maite.workflows import evaluate
+from maite.tasks import evaluate
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.interfaces.plugins import (

@@ -2,7 +2,7 @@
 
 import pytest
 from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
-from nrtk.impls.perturb_image.pybsm.perturber import PybsmPerturber
+from nrtk.impls.perturb_image.pybsm.pybsm_perturber import PybsmPerturber
 from nrtk.impls.perturb_image_factory.generic.linspace_step import LinSpacePerturbImageFactory
 from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
 from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactory

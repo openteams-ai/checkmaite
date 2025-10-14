@@ -11,7 +11,6 @@ from nrtk.interfaces.perturb_image import PerturbImage
 # SMQTK imports
 # Import TestStage
 from jatic_ri._common.test_stages.impls.nrtk_test_stage import NRTKTestStageBase
-from jatic_ri.image_classification.augmentation import JATICClassificationAugmentation
 from jatic_ri.object_detection.augmentation import JATICDetectionAugmentation
 
 
@@ -26,7 +25,5 @@ class NRTKTestStage(NRTKTestStageBase[od.Dataset, od.Model, od.Metric]):
         self._deck = "object_detection_dataset_evaluation"
         self._task = "object_detection"
 
-    def _augmentation_wrapper(
-        self, perturber: PerturbImage
-    ) -> JATICDetectionAugmentation | JATICClassificationAugmentation:
+    def _augmentation_wrapper(self, perturber: PerturbImage) -> JATICDetectionAugmentation:
         return JATICDetectionAugmentation(perturber)

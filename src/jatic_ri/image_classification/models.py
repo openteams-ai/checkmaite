@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
@@ -132,7 +133,7 @@ class TorchvisionICModel:
         self.model.eval()  # sets model to inference mode rather than training mode
         self.metadata = {"id": model_id, "index2label": self.index2label}
 
-    def __call__(self, input_batch: ic.InputBatchType) -> ic.TargetBatchType:
+    def __call__(self, input_batch: Sequence[ic.InputType]) -> Sequence[ic.TargetType]:
         """
         Make a model prediction for inputs in input batch. Elements of input batch
         are expected in the shape `(C, H, W)`.
