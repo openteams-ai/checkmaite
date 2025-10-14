@@ -41,9 +41,7 @@ nav:  # navigation links on sidebar
       - Feasibility: tutorials/dataeval_feasibility_tutorial.ipynb
       - Linting: tutorials/dataeval_linting_tutorial.ipynb
       - Shift: tutorials/dataeval_shift_tutorial.ipynb
-    - NRTK Tutorial:
-      - tutorials/nrtk_tutorial.ipynb
-      - NRTK Appendix - Perturbers and Factories: tutorials/_nrtk_tutorial_appendix_perturbers_and_factories.ipynb
+    - NRTK Tutorial: tutorials/nrtk_tutorial.ipynb
     - RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
     - Survivor Tutorial: tutorials/survivor_tutorial.ipynb
     - XAITK Tutorial: tutorials/xaitk_tutorial.ipynb
