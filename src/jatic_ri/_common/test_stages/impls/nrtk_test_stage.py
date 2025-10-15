@@ -1,20 +1,14 @@
 """NRTKTestStage implementation"""
 
-# Python generic imports
-
 import re
-from abc import abstractmethod
 from typing import Any
 
 import pandas as pd
-from maite._internals.protocols import generic as gen
 from maite.tasks import evaluate
-
-# NRTK imports
-from nrtk.interfaces.perturb_image import PerturbImage
 from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
+from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
 
-# Local imports
 from jatic_ri._common.test_stages.interfaces.plugins import (
     MetricPlugin,
     SingleDatasetPlugin,
@@ -177,22 +171,31 @@ class NRTKTestStageBase(
 
         perturbations = list()  # noqa: C408
         for perturber in self.config.perturber_factory:
-            augmentation = self._augmentation_wrapper(perturber)
-
-            perturbed_metrics, _, _ = evaluate(
-                model=self.model,
-                dataset=self.dataset,
-                metric=self.metric,
-                batch_size=1,
-                augmentation=augmentation,
-                return_augmented_data=False,
-                return_preds=False,
-            )
+            if self._task == "object_detection":
+                augmentation = JATICDetectionAugmentation(augment=perturber, augment_id="JATICDetection")
+                perturbed_metrics, _, _ = evaluate(
+                    model=self.model,
+                    dataset=self.dataset,
+                    metric=self.metric,
+                    batch_size=1,
+                    augmentation=augmentation,
+                    return_augmented_data=False,
+                    return_preds=False,
+                )
+            elif self._task == "image_classification":
+                augmentation = JATICClassificationAugmentation(augment=perturber, augment_id="JATICClassification")
+                perturbed_metrics, _, _ = evaluate(
+                    model=self.model,
+                    dataset=self.dataset,
+                    metric=self.metric,
+                    batch_size=1,
+                    augmentation=augmentation,
+                    return_augmented_data=False,
+                    return_preds=False,
+                )
+            else:
+                raise ValueError(f"Invalid value for _task provided, _task:{self._task}")
 
             perturbations.append(perturbed_metrics)
 
         return NRTKTestStageOutputs(perturbations=perturbations)
-
-    @abstractmethod
-    def _augmentation_wrapper(self, perturber: PerturbImage) -> gen.Augmentation:
-        """Takes in a perturber and returns a maite Augmentation"""
