@@ -2,7 +2,6 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
@@ -14,7 +13,6 @@ from jatic_ri.image_classification.datasets import YoloClassificationDataset
 from jatic_ri.image_classification.metrics import accuracy_multiclass_torch_metric_factory
 from jatic_ri.image_classification.models import TorchvisionICModel
 from jatic_ri.util.dashboard_utils import rehydrate_test_stage_ic
-from jatic_ri.util.evaluation import EvaluationTool
 
 
 @pytest.fixture(scope="session")
@@ -92,10 +90,6 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
         test_stage.load_model(model_ic, model_id="model_1")
     elif isinstance(test_stage, MultiModelPlugin):
         test_stage.load_models(models={"model_1": model_ic})
-
-    eval_tool = EvaluationTool()
-    if isinstance(test_stage, EvalToolPlugin):
-        test_stage.load_eval_tool(eval_tool)
 
     # run the stage, saving output to the class
     test_stage.run(use_stage_cache=False)

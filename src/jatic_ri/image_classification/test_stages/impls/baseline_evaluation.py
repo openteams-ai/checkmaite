@@ -15,7 +15,6 @@ class BaselineEvaluation(BaselineEvaluationBase[ic.Model, ic.Dataset, ic.Metric]
         outputs: TData | None
         cache: Cache[TData] | None = None
         use_stage_cache: bool = False
-        eval_tool: EvaluationTool
         model: ic.Model
         model_id: str
         dataset: ic.Dataset

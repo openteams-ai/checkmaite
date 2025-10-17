@@ -9,7 +9,6 @@ import pydantic
 from matplotlib.figure import Figure
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     MetricPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
@@ -19,6 +18,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TModel,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, RunBase, TestStage
+from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util.utils import create_metrics_bar_plot, save_figure_to_tempfile
 
 
@@ -47,7 +47,6 @@ class BaselineEvaluationBase(
     SingleDatasetPlugin[TDataset],
     MetricPlugin[TMetric],
     ThresholdPlugin,
-    EvalToolPlugin,
 ):
     """Baseline evaluation implementation of TestStage interface.
 
@@ -56,8 +55,6 @@ class BaselineEvaluationBase(
 
     Parameters
     ----------
-    eval_tool : EvaluationTool
-        The evaluation tool instance.
     model : gen.Model
         The loaded model instance.
     model_id : str
@@ -93,13 +90,12 @@ class BaselineEvaluationBase(
             If the evaluation returns no results or if per-class metrics
             are malformed.
         """
-        result, _, _ = self.eval_tool.evaluate(
+        result, _, _ = evaluate(
             model=self.model,
-            model_id=self.model_id,
             metric=self.metric,
-            metric_id=self.metric_id,
             dataset=self.dataset,
             dataset_id=self.dataset_id,
+            return_augmented_data=True,
         )
         if result is None:
             raise RuntimeError(

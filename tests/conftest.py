@@ -21,8 +21,6 @@ from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImag
 from PIL import Image
 
 import jatic_ri
-import jatic_ri.util
-import jatic_ri.util.evaluation
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
 from tests.fake_od_classes import FakeODDataset, FakeODMetric, FakeODModel
 
@@ -63,8 +61,9 @@ def tmp_cache_path(tmp_path):
 
 @pytest.fixture
 def artifact_dir(tmp_path):
-    with _tmp_cache_path(Path(os.environ.get("ARTIFACT_DIR", tmp_path))) as p:
-        yield p
+    path = Path(os.environ.get("ARTIFACT_DIR", tmp_path)).expanduser().resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 class DummyObjectDetectionTarget(od.ObjectDetectionTarget):
@@ -96,6 +95,8 @@ def dummy_model_od() -> od.Model:
     """Creates and returns a dummy maite-compliant model"""
 
     class DummyModel:
+        metadata = {"id": "fake-id"}
+
         def __call__(self, input_batch: Sequence[ArrayLike]) -> Sequence[od.ObjectDetectionTarget]:
             return [DummyObjectDetectionTarget() for _ in input_batch]
 
@@ -202,6 +203,7 @@ def dummy_metric_od() -> od.Metric:
 
     class DummyMetric:
         return_key = "fake_metric"
+        metadata = {"id": "fake-id"}
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:
             pass
@@ -539,14 +541,6 @@ def fake_od_dataset_reallabel_only() -> FakeODDataset:
         targets=DEFAULT_OD_DATASET_TARGETS[:1],
         datum_metadata=DEFAULT_OD_DATUM_METADATA[:1],
     )
-
-
-@pytest.fixture(scope="session")
-def default_eval_tool_no_cache() -> jatic_ri.util.evaluation.EvaluationTool:
-    """
-    Fixture for returning a default, cache-free evaluation tool for running unit tests on Test Stages.
-    """
-    return jatic_ri.util.evaluation.EvaluationTool()
 
 
 @pytest.fixture(scope="session")
