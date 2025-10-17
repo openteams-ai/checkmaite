@@ -164,3 +164,17 @@ To update the lockfile (e.g. after changing pyproject.yaml), run the following:
 ```bash
 make conda-lock
 ```
+
+## Running the GitLab CI locally
+
+We use [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local) to run the GitLab CI on our local machines. It is an open-source CLI that lets us run GitLab CI jobs locally using the same `.gitlab-ci.yml` that we use in GitLab. This is handy for debugging CI without pushing commits. Please see the `gitlab-ci-local` repository README for how to install `gitlab-ci-local`.
+
+`gitlab-ci-local` can execute jobs via a Docker container or directly on your machine (shell executor). We follow the Docker approach and so you will need to have Docker available locally before you can use the tool.
+
+To run GitLab CI locally, we have created a special file `.gitlab-ci-local-variables.yml`. You should generate a PAT on GitLab (contact the RI team if you do not know how to do this) and then update the `PRIVATE_TOKEN:` field in `.gitlab-ci-local-variables.yml` with this value.
+
+To run a single job, it's as simple as running `gitlab-ci-local run lint` (you can replace `lint` with any job name from `.gitlab-ci.yml` such as `test` or `pages-branch`). A Docker container should then start and you should be able to replicate the GitLab CI experience locally.
+
+### How it works
+
+The way that `gitlab-ci-local` works is that it parses your `.gitlab-ci.yml` alongside `.gitlab-ci-local-variables.yml`, builds the job graph, and then runs the job(s) you ask for. You can list the jobs it would run with `--list`. If a job specifies `image:` (this is what we recommend), it spins up that Docker image and runs your `before_script`/`script`/`after_script` inside it.
