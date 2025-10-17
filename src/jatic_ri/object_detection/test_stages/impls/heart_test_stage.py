@@ -14,7 +14,6 @@ from heart_library.estimators.object_detection.pytorch import (
     JaticPyTorchObjectDetector,
 )
 from maite.protocols import ArrayLike
-from maite.tasks import evaluate
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
@@ -24,6 +23,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     ThresholdPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util._types import Image
 from jatic_ri.util.utils import temp_image_file
 
@@ -159,7 +159,10 @@ class HeartTestStage(
                 "result": result,
                 "images": [
                     self._plot_image_with_boxes(
-                        image, preds, threshold=self.threshold, index2label=self.dataset.metadata["index2label"]
+                        image,
+                        preds,  # pyright: ignore [reportArgumentType]
+                        threshold=self.threshold,
+                        index2label=self.dataset.metadata["index2label"],
                     )
                     for image, preds in zip(
                         (image for image, *_ in self.dataset),
@@ -188,7 +191,10 @@ class HeartTestStage(
                         "result": result,
                         "images": [
                             self._plot_image_with_boxes(
-                                image, preds, threshold=self.threshold, index2label=self.dataset.metadata["index2label"]
+                                image,
+                                preds,  # pyright: ignore [reportArgumentType]
+                                threshold=self.threshold,
+                                index2label=self.dataset.metadata["index2label"],
                             )
                             for image, preds in zip(
                                 itertools.chain.from_iterable(b for b, *_ in augmented_data),

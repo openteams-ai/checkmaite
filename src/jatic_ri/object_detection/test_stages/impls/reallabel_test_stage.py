@@ -4,9 +4,7 @@ import tempfile
 import textwrap
 import warnings
 from pathlib import Path
-from typing import (
-    Any,
-)
+from typing import Any, cast
 
 import maite.protocols.object_detection as od
 import numpy as np
@@ -25,11 +23,11 @@ from reallabel import (
 from reallabel import RealLabelConfig as _NativeRealLabelConfig
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.cached_tasks import predict
 from jatic_ri.util._types import DataFrame, Image
 from jatic_ri.util.utils import temp_image_file
 
@@ -147,7 +145,6 @@ class RealLabelTestStage(
     MultiModelPlugin[od.Model],
     SingleDatasetPlugin[od.Dataset],
     TestStage[RealLabelOutputs],
-    EvalToolPlugin,
 ):
     """RealLabel test stage.
 
@@ -177,8 +174,6 @@ class RealLabelTestStage(
     dataset : od.Dataset
         The MAITE-wrapped dataset object on which the models should run inference
         and produce results.
-    eval_tool : EvaluationTool
-        The evaluation tool for predictions.
     """
 
     _RUN_TYPE = RealLabelRun
@@ -225,18 +220,21 @@ class RealLabelTestStage(
         maite_inference_result = {}
         # Run all the models
         for model_name in self.models:
-            predictions, _ = self.eval_tool.predict(
+            predictions, _ = predict(
                 model=self.models[model_name],
-                model_id=model_name,
                 dataset=self.dataset,
                 dataset_id=self.dataset_id,
+                return_augmented_data=True,
             )
             clean_predictions = [x[0] for x in predictions]
 
             # We need to construct a new dataset with the ground truth targets replaced with the predictions.
             # MAITE Dataset does not have a way to set the targets directly, so we use the wrapper instance.
             copied_dataset = _RealLabelDatasetWrapper(self.dataset)
-            copied_dataset.targets = clean_predictions
+
+            # there is some pydantic shenanigans going on here which messes with the type-checker, but
+            # we are confident that it's correct and so we override with a cast
+            copied_dataset.targets = cast(list[od.ObjectDetectionTarget], clean_predictions)
 
             # RealLabel will only use certain metadata passed in here (e.g. for the confidence calibration) which is not
             # supported through Reference Implementation currently. Additionally, metadata specific to the ground

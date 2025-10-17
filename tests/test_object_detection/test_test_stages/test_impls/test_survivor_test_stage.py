@@ -44,6 +44,8 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
     """
 
     class FakeSurvivorMetric:
+        metadata = {"id": "fake-id"}
+
         def __init__(self) -> None:
             # helper flags to prevent .compute, .reset or .update being
             # called multiple times by mistake.
@@ -157,9 +159,7 @@ def survivor_test_stage_args(
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(
-    survivor_test_stage_args: dict, request: pytest.FixtureRequest, default_eval_tool_no_cache
-) -> SurvivorTestStage:
+def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest) -> SurvivorTestStage:
     """Create a SurvivorTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
@@ -172,7 +172,6 @@ def create_test_stage(
     test_stage.load_metric(
         metric=survivor_test_stage_args["metric"], metric_id=survivor_test_stage_args["config"].metric_column
     )
-    test_stage.load_eval_tool(default_eval_tool_no_cache)
 
     return test_stage
 

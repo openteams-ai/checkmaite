@@ -261,7 +261,6 @@ class TestStage(Generic[TOutputs], ABC):
             "TwoDatasetPlugin": (["dataset_1", "dataset_1_id", "dataset_2", "dataset_2_id"], "load_datasets"),
             "MetricPlugin": (["metric", "metric_id"], "load_metric"),
             "ThresholdPlugin": (["threshold"], "load_threshold"),
-            "EvalToolPlugin": (["eval_tool"], "load_eval_tool"),
         }
 
         # Identify plugins in the inheritance hierarchy

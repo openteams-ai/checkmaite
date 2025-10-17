@@ -69,9 +69,7 @@ def reallabel_test_stage_args(
 
 
 @pytest.fixture(name="test_stage")
-def create_test_stage(
-    default_eval_tool_no_cache, reallabel_test_stage_args: dict, request: pytest.FixtureRequest
-) -> RealLabelTestStage:
+def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
     """Create a RealLabelTestStage object and load in all required args.
 
     Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
@@ -85,7 +83,6 @@ def create_test_stage(
         dataset=reallabel_test_stage_args["dataset"],
         dataset_id="test-dataset",
     )
-    test_stage.load_eval_tool(default_eval_tool_no_cache)
 
     return test_stage
 

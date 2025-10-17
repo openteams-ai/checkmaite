@@ -6,8 +6,6 @@ from typing import Generic, TypeVar
 
 from maite._internals.protocols import generic as gen
 
-from jatic_ri.util.evaluation import EvaluationTool
-
 TDataset = TypeVar("TDataset", bound=gen.Dataset)
 TMetric = TypeVar("TMetric", bound=gen.Metric)
 TModel = TypeVar("TModel", bound=gen.Model)
@@ -188,26 +186,3 @@ class ThresholdPlugin:
             The threshold value to set.
         """
         self.threshold = threshold
-
-
-# WORKFLOWS -------------------------------------------
-class EvalToolPlugin:
-    """TestStage Plugin for loading an evaluation tool with a cache.
-
-    Attributes
-    ----------
-    eval_tool : EvaluationTool
-        The evaluation tool.
-    """
-
-    eval_tool: EvaluationTool
-
-    def load_eval_tool(self, eval_tool: EvaluationTool) -> None:
-        """Load tool for MAITE evaluate workflow with a shareable cache.
-
-        Parameters
-        ----------
-        eval_tool : EvaluationTool
-            The evaluation tool to load.
-        """
-        self.eval_tool = eval_tool

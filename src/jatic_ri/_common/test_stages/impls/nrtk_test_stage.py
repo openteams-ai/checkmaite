@@ -4,7 +4,6 @@ import re
 from typing import Any
 
 import pandas as pd
-from maite.tasks import evaluate
 from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
 from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
@@ -19,6 +18,7 @@ from jatic_ri._common.test_stages.interfaces.plugins import (
     TModel,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util._types import DeSerializablePlugfigurable
 
 

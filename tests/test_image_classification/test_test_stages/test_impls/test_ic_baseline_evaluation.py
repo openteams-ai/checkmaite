@@ -7,9 +7,7 @@ from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import 
 )
 
 
-def test_baseline_evaluation_dummy_ic(
-    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default, default_eval_tool_no_cache
-) -> None:
+def test_baseline_evaluation_dummy_ic(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default) -> None:
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
@@ -17,13 +15,12 @@ def test_baseline_evaluation_dummy_ic(
     test.load_metric(metric=fake_ic_metric_default, metric_id=fake_ic_metric_default.metadata["id"])
     test.load_threshold(threshold=0.5)
     test.load_dataset(dataset=fake_ic_dataset_default, dataset_id=fake_ic_dataset_default.metadata["id"])
-    test.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test.run()
     test.collect_report_consumables()
 
 
 def test_baseline_evaluation_dummy_ic_with_cache(
-    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default, default_eval_tool_no_cache
+    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
 ) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
@@ -31,7 +28,6 @@ def test_baseline_evaluation_dummy_ic_with_cache(
     test1.load_metric(metric=fake_ic_metric_default, metric_id=fake_ic_metric_default.metadata["id"])
     test1.load_threshold(threshold=0.5)
     test1.load_dataset(dataset=fake_ic_dataset_default, dataset_id=fake_ic_dataset_default.metadata["id"])
-    test1.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test1.run(use_stage_cache=True)
     output1 = test1.collect_report_consumables()
 
@@ -40,7 +36,6 @@ def test_baseline_evaluation_dummy_ic_with_cache(
     test2.load_metric(metric=fake_ic_metric_default, metric_id=fake_ic_metric_default.metadata["id"])
     test2.load_threshold(threshold=0.5)
     test2.load_dataset(dataset=fake_ic_dataset_default, dataset_id=fake_ic_dataset_default.metadata["id"])
-    test2.load_eval_tool(eval_tool=default_eval_tool_no_cache)
     test2._run = MagicMock()  # mock out _run to ensure cache hit
     test2.run(use_stage_cache=True)
     output2 = test2.collect_report_consumables()

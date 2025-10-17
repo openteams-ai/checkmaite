@@ -28,7 +28,6 @@ from streamz import Stream
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.base_app import AppStyling, BaseApp
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
@@ -48,7 +47,6 @@ from jatic_ri.util.dashboard_utils import (
     rehydrate_test_stage_od,
     with_loading,
 )
-from jatic_ri.util.evaluation import EvaluationTool
 
 if TYPE_CHECKING:
     from panel.widgets import Widget
@@ -91,7 +89,6 @@ METRICS_LABEL_MAP_IC = {
     "F1 Score": "f1score_multiclass_torch_metric_factory",
 }
 
-EVAL_TOOL_CACHE_DIR = ".eval_tool"
 TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
 
 
@@ -130,7 +127,7 @@ class BaseTestbed(BaseApp):
     threshold_visible : param.Boolean
         Controls visibility of the threshold input widget.
     use_caches : param.Boolean
-        Flag to enable/disable caching for test stage runs and `EvaluationTool`.
+        Flag to enable/disable caching for test stage runs.
     results_df : param.DataFrame
         Pandas DataFrame to store and display analysis results.
     output_dir : param.Path
@@ -171,8 +168,6 @@ class BaseTestbed(BaseApp):
         Supported VisDrone models (specific to Object Detection).
     loaded_metric : Any
         The instantiated metric object.
-    eval_tool : EvaluationTool
-        The evaluation tool instance used by test stages.
 
     """
 
@@ -198,22 +193,21 @@ class BaseTestbed(BaseApp):
     # boolean for viewing threshold widget
     threshold_visible = param.Boolean(default=False)
 
-    # This parameter configures the dashboard to use caching.  Caching can occur both at the
-    # test stage output and in the underlying EvaluationTool.  The full flow looks like this:
+    # This parameter configures the dashboard to use caching.  Caching can occur both on the
+    # test stage output and on the underlying model inference.  The full flow looks like this:
     #   1) TestStage.run() will first check for a previously cached output for the given arguments.
     #   Each tool's test stage may implement this differently. If the stage cache hits, flow ends here.
     #   2) If no cache hit, the TestStage's _run implementation executes.
-    #   3) If the test stage implements the EvalToolPlugin, it will have loaded an EvaluationTool object
-    #      When 'use_caches' is True, that object will have a backend cache.
-    #   4) The EvaluationTool checks for a cache on two levels:
-    #           Predictions - i.e. model + dataset + batch size.  Both `predict()` and `evaluate()` will check
-    #           and use if available.  Since `evaluate()` runs `predict()`, the same test stage can run multiple
-    #           metrics against a given model and dataset (and batch size) without having to redo the inference.
-    #           Evaluations - i.e. model + dataset + metric + batch size.  Both `evaluate()` and `compute_metric()`
-    #           will check for a cache.
-    #   5) Only after a cache miss for `predict()` or `evaluate()` will the actual execution (model inference and/or
-    #      metric calculation) occur, with the results both cached at the EvaluationTool level and then passed back
-    #      to the TestStage._run(), which will in turn cache the output results for subsequent calls.
+    #   3) When 'use_caches' is True, there will be a global cache for model predictions and evaluations:
+    #       Predictions - i.e. model + dataset + batch size.  Both `predict()` and `evaluate_from_predictions()`
+    #       will check and use if available.  Since `evaluate_from_predictions()` runs `predict()`, the same test
+    #       stage can run multiple metrics against a given model and dataset (and batch size) without having to
+    #       redo the inference.
+    #       Evaluations - i.e. model + dataset + metric + batch size.  Both `evaluate_from_predictions()` and
+    #       `compute_metric()` will check for a cache.
+    #   5) Only after a cache miss for `predict()` or `evaluate_from_predictions()` will the actual execution
+    #      (model inference and/or metric calculation) occur, with the results both cached globally and then
+    #      passed back to the TestStage._run(), which will in turn cache the output results for subsequent calls.
     use_caches = param.Boolean(default=True)
 
     # Table for storing the results
@@ -920,7 +914,7 @@ class BaseTestbed(BaseApp):
 
         return True
 
-    def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover # noqa: C901
+    def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover
         """Load inputs into a given test stage.
 
         Populates the provided `test_stage` with necessary inputs (datasets,
@@ -966,9 +960,6 @@ class BaseTestbed(BaseApp):
         elif isinstance(test_stage, MultiModelPlugin):
             test_stage.load_models(self.loaded_models)
 
-        if isinstance(test_stage, EvalToolPlugin):
-            test_stage.load_eval_tool(self.eval_tool)
-
     def _construct_report_filename(self) -> str:
         """Construct a filename for the output report.
 
@@ -1001,15 +992,6 @@ class BaseTestbed(BaseApp):
         `_run_button_callback` implementation.
         """
         self.status_source.emit("Processing. Please wait...")
-
-        self.eval_tool: EvaluationTool
-        if not self.use_caches:
-            # By default EvaluationTool is just a container for the functions without cache
-            self.eval_tool = EvaluationTool()
-        elif self.task == "image_classification" or self.task == "object_detection":
-            self.eval_tool = EvaluationTool()
-        else:
-            raise RuntimeError(f"Task type {self.task} not supported.")
 
         slides = []
         for stage in self.test_stages.values():

@@ -16,12 +16,17 @@ from survivor.config import SurvivorConfig as _NativeSurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     MetricPlugin,
     MultiModelPlugin,
     SingleDatasetPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    ConfigBase,
+    OutputsBase,
+    RunBase,
+    TestStage,
+)
+from jatic_ri.cached_tasks import evaluate_from_predictions, predict
 from jatic_ri.util._types import DataFrame, Image
 from jatic_ri.util.utils import temp_image_file
 
@@ -71,7 +76,6 @@ class SurvivorTestStageBase(
     MultiModelPlugin,
     SingleDatasetPlugin,
     MetricPlugin,
-    EvalToolPlugin,
 ):
     _RUN_TYPE = SurvivorRun
 
@@ -117,22 +121,21 @@ class SurvivorTestStageBase(
             # Since Survivor's implementation is unique in that it runs metric calculations on each individual in
             # a dataset, we first call the `predict()` method using the model against the entire dataset.
             # Otherwise, we could not leverage a cached result from a prior test stage's prediction generation.
-            predictions, targets = self.eval_tool.predict(
+            predictions, targets = predict(
                 model=self.models[model],
-                model_id=model,
                 dataset=self.dataset,
                 dataset_id=self.dataset_id,
                 batch_size=self._batch_size,
+                return_augmented_data=True,
             )
             # With the predictions for each target now in memory, we run only `compute_metric()` against each item.
             # Calling `evaluate()` to calculate the metrics would require doing model predictions again with each
             # target as its own dataset.
             for i, datum_prediction in enumerate(predictions):
-                results: dict[str, Any] = self.eval_tool.compute_metric(
+                results: dict[str, Any] = evaluate_from_predictions(
                     metric=self.metric,
-                    filename=f"{model}_{self.dataset_id}-img{i}_{self.metric_id}_{self._batch_size}.json",
-                    prediction=[datum_prediction],
-                    data=[targets[i]],
+                    predictions=[datum_prediction],
+                    targets=[targets[i][1]],
                 )
                 model_metrics_per_datum.append(results[self.metric_id].numpy())
 

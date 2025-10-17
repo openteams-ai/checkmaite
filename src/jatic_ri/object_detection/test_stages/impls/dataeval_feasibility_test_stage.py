@@ -13,12 +13,12 @@ from gradient.templates_and_layouts.generic_layouts.section_by_item import Secti
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    EvalToolPlugin,
     SingleDatasetPlugin,
     SingleModelPlugin,
     ThresholdPlugin,
 )
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri.cached_tasks import predict
 from jatic_ri.util._types import Device
 
 
@@ -47,7 +47,6 @@ class DatasetObjectDetectionFeasibilityTestStage(
     TestStage[DatasetObjectDetectionFeasibilityOutputs],
     SingleDatasetPlugin[od.Dataset],
     SingleModelPlugin[od.Model],
-    EvalToolPlugin,
     ThresholdPlugin,
 ):
     """
@@ -82,9 +81,8 @@ class DatasetObjectDetectionFeasibilityTestStage(
         # it requires that target.scores be a 2D array, not a 1D array
         # NOTE: code will need to be updated to fail gracefully if 1D array is encountered
 
-        predictions, _ = self.eval_tool.predict(
+        predictions, _ = predict(
             model=self.model,
-            model_id=self.model_id,
             dataset=self.dataset,
             dataset_id=self.dataset_id,
             batch_size=32,

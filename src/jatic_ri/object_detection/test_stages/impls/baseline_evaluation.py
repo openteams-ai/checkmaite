@@ -15,7 +15,6 @@ class BaselineEvaluation(BaselineEvaluationBase[od.Model, od.Dataset, od.Metric]
         outputs: TData | None
         cache: Cache[TData] | None = None
         use_stage_cache: bool = False
-        eval_tool: EvaluationTool
         model: od.Model
         model_id: str
         dataset: od.Dataset

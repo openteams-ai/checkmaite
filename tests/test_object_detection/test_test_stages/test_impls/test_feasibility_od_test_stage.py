@@ -18,9 +18,7 @@ from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage
 class TestFeasibilityTestStage:
     """Tests the DatasetFeasibilityTest test stage implementation"""
 
-    def test_feasibility_teststage(
-        self, fake_od_model_default, fake_od_dataset_default, default_eval_tool_no_cache
-    ) -> None:
+    def test_feasibility_teststage(self, fake_od_model_default, fake_od_dataset_default) -> None:
         """Test FeasibilityTestStage implementation runs without error on dummy data"""
 
         # Only need to mock first `predict` return value
@@ -45,7 +43,6 @@ class TestFeasibilityTestStage:
         test_stage.load_model(model=fake_od_model_default, model_id="model_1")
         test_stage.load_threshold(threshold=10)
         test_stage.load_dataset(dataset=fake_od_dataset_default, dataset_id="dataset_1")
-        test_stage.load_eval_tool(default_eval_tool_no_cache)
         test_stage.run(use_stage_cache=False)
 
         assert isinstance(test_stage.outputs, DatasetObjectDetectionFeasibilityOutputs)
@@ -60,7 +57,6 @@ class TestFeasibilityTestStage:
         test_stage.load_threshold(threshold)
         test_stage.load_dataset(None, "DUMMY_ID")  # pyright: ignore[reportArgumentType]
         test_stage.load_model(None, "model")  # pyright: ignore[reportArgumentType]
-        test_stage.load_eval_tool(None)  # pyright: ignore[reportArgumentType]
         test_stage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=uap)  # pyright: ignore[reportAttributeAccessIssue]
 
         slides = test_stage.collect_report_consumables()
@@ -86,7 +82,6 @@ class TestFeasibilityTestStage:
         # we only need the IDs here
         teststage.load_dataset(None, "VOC")
         teststage.load_model(None, "model")
-        teststage.load_eval_tool(None)
         teststage.load_threshold(0.5)
 
         teststage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=0.75)
