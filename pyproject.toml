@@ -88,7 +88,7 @@ pytest-mock = ">=3.6.1"                            # arbitrary, need to test hea
 # This is not needed by us, but required to avoid a critical vulnerability warning
 # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
 virtualenv = ">=20.26.6"
-conda-lock = ">=3.0.0"                             # necessary, used to update conda-lock.yml
+conda-lock = ">=3.0.3"                             # necessary, used to update conda-lock.yml
 ruamel-yaml = ">=0.17.21"                          # necessary, for comment-preserving YAML manipulation
 
 [tool.poetry.group.docs.dependencies]

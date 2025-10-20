@@ -75,7 +75,7 @@ def main() -> bool:
                 PYPROJECT_TOML_PATH,
             ],
             mapping_url=DEFAULT_MAPPING_URL,
-            required_categories=PYPROJECT_CATEGORIES,
+            filtered_categories=PYPROJECT_CATEGORIES,
         )
     except (FileNotFoundError, OSError) as e:
         logger.exception(f"Error creating lock spec from {PYPROJECT_TOML_PATH}: {e}")
