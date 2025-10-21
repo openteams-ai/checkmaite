@@ -10,11 +10,7 @@ from gradient.templates_and_layouts.create_deck import create_deck
 from reallabel import ColumnNameConfig, RealLabelResults
 
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
-    RealLabelConfig,
-    RealLabelOutputs,
-    RealLabelTestStage,
-)
+from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelOutputs, RealLabelTestStage
 from tests.fake_od_classes import FakeODDataset, FakeODModel
 
 _DICT_CONFIG = "dict_config"

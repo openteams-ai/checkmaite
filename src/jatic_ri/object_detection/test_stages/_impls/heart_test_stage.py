@@ -30,7 +30,7 @@ from jatic_ri.util.utils import temp_image_file
 AttackName = Literal["PGD", "Patch"]
 AttackStrength = Literal["weak", "strong"]
 
-_DEFAULT_ATTACK_PARAMETERS: dict[tuple[AttackName, AttackStrength], dict[str, Any]] = {
+_DEFAULT_HEART_ATTACK_PARAMETERS: dict[tuple[AttackName, AttackStrength], dict[str, Any]] = {
     ("PGD", "weak"): {
         "max_iter": 10,  # Number of optimization steps (fewer = weaker attack)
         "eps": 1,  # Max pixel change allowance
@@ -71,7 +71,7 @@ _ATTACK_MAP: dict[AttackName, type[Any]] = {
 }
 
 
-class AttackConfig(pydantic.BaseModel):
+class HeartAttackConfig(pydantic.BaseModel):
     """Attack config for HEART test stage"""
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -79,14 +79,14 @@ class AttackConfig(pydantic.BaseModel):
     name: AttackName
     strength: AttackStrength
     parameters: dict[str, Any] = pydantic.Field(
-        default_factory=lambda values: _DEFAULT_ATTACK_PARAMETERS[(values["name"], values["strength"])].copy()
+        default_factory=lambda values: _DEFAULT_HEART_ATTACK_PARAMETERS[(values["name"], values["strength"])].copy()
     )
 
 
 class HeartConfig(ConfigBase):
     """Config for HEART test stage"""
 
-    attack_configs: list[AttackConfig]
+    attack_configs: list[HeartAttackConfig]
 
 
 class BaselineOutput(OutputsBase):
@@ -99,7 +99,7 @@ class BaselineOutput(OutputsBase):
 class AttackOutput(OutputsBase):
     """Attacked evaluation output of HEART test stage"""
 
-    attack_config: AttackConfig
+    attack_config: HeartAttackConfig
     result: dict[str, float]
     images: list[Image]
 
@@ -131,7 +131,7 @@ class HeartTestStage(
     2. Adversarial Patch Attack
     """
 
-    def __init__(self, *, attack_configs: list[AttackConfig], threshold: float = 0.3) -> None:
+    def __init__(self, *, attack_configs: list[HeartAttackConfig], threshold: float = 0.3) -> None:
         super().__init__()
         self._config = HeartConfig.model_validate({"attack_configs": attack_configs})
         self.load_threshold(threshold)
@@ -145,6 +145,7 @@ class HeartTestStage(
         """Runs Object Detection Adversarial Attacks and performs robustness
         evaluations for specific metrics.
         """
+        # Note: __init__ ensures heart_library is available before this runs
         heart_detector: Any = JaticPyTorchObjectDetector(self.model.model, clip_values=(0, 1))
 
         result, preds, _ = evaluate(
@@ -160,7 +161,7 @@ class HeartTestStage(
                 "images": [
                     self._plot_image_with_boxes(
                         image,
-                        preds,  # pyright: ignore [reportArgumentType]
+                        preds,
                         threshold=self.threshold,
                         index2label=self.dataset.metadata["index2label"],
                     )
@@ -180,7 +181,8 @@ class HeartTestStage(
                 model=heart_detector,
                 metric=self.metric,
                 dataset=self.dataset,
-                augmentation=JaticAttack(attack),  # type: ignore[reportArgumentType]
+                # Note: __init__ ensures heart_library is available before this runs
+                augmentation=JaticAttack(attack),
                 return_preds=True,
                 return_augmented_data=True,
             )
@@ -192,7 +194,7 @@ class HeartTestStage(
                         "images": [
                             self._plot_image_with_boxes(
                                 image,
-                                preds,  # pyright: ignore [reportArgumentType]
+                                preds,
                                 threshold=self.threshold,
                                 index2label=self.dataset.metadata["index2label"],
                             )
@@ -211,6 +213,7 @@ class HeartTestStage(
     def _plot_image_with_boxes(
         self,
         image: ArrayLike,
+        # Note: __init__ ensures heart_library is available before this runs
         preds: JaticPyTorchObjectDetectionOutput,
         *,
         threshold: float,
@@ -261,7 +264,12 @@ class HeartTestStage(
         return img
 
     def _extract_predictions(
-        self, predictions: JaticPyTorchObjectDetectionOutput, *, threshold: float, index2label: dict[int, str]
+        self,
+        # Note: __init__ ensures heart_library is available before this runs
+        predictions: JaticPyTorchObjectDetectionOutput,
+        *,
+        threshold: float,
+        index2label: dict[int, str],
     ) -> tuple[list, list, list]:
         """Utility function to extract predictions within a threshold"""
         predictions_class = [index2label[i] for i in list(predictions.labels)]

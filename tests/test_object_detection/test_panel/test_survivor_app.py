@@ -123,7 +123,7 @@ def test_run_export(
 
 
 def test_roundtrip() -> None:
-    from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
+    from jatic_ri.object_detection.test_stages import SurvivorTestStage
 
     app = SurvivorAppOD()
     app.panel()  # test constructing the UI even though we can't see it

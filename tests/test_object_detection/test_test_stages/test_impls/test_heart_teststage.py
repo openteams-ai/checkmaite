@@ -1,15 +1,16 @@
 import pytest
 
-from jatic_ri.object_detection.test_stages.impls.heart_test_stage import (
-    _DEFAULT_ATTACK_PARAMETERS,
-    AttackConfig,
-    HeartTestStage,
-)
+# Skip all tests in this file if heart_library isn't available
+pytest.importorskip("heart_library")
+
+# Module-level imports after importorskip to prevent collection errors
+from jatic_ri.object_detection.test_stages import HeartAttackConfig, HeartTestStage  # noqa: E402
+from jatic_ri.object_detection.test_stages._impls.heart_test_stage import _DEFAULT_HEART_ATTACK_PARAMETERS  # noqa: E402
 
 ATTACK_CONFIGS = [
-    AttackConfig(name="PGD", strength="weak", parameters={"max_iter": 1, "eps": 1, "eps_step": 0.2}),
-    AttackConfig(name="PGD", strength="strong", parameters={"max_iter": 2, "eps": 2, "eps_step": 0.2}),
-    AttackConfig(
+    HeartAttackConfig(name="PGD", strength="weak", parameters={"max_iter": 1, "eps": 1, "eps_step": 0.2}),
+    HeartAttackConfig(name="PGD", strength="strong", parameters={"max_iter": 2, "eps": 2, "eps_step": 0.2}),
+    HeartAttackConfig(
         name="Patch",
         strength="weak",
         parameters={
@@ -26,7 +27,7 @@ ATTACK_CONFIGS = [
             "optimizer": "Adam",
         },
     ),
-    AttackConfig(
+    HeartAttackConfig(
         name="Patch",
         strength="strong",
         parameters={
@@ -46,6 +47,8 @@ ATTACK_CONFIGS = [
 ]
 
 
+@pytest.mark.heart
+@pytest.mark.unsupported
 @pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config):
@@ -63,23 +66,27 @@ def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_met
     assert [o.result for o in cached_run.outputs.attacked] == [o.result for o in run.outputs.attacked]
 
 
+@pytest.mark.heart
+@pytest.mark.unsupported
 @pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_default_attack_parameters(
     mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config
 ):
     mocker.patch.dict(
-        _DEFAULT_ATTACK_PARAMETERS,
+        _DEFAULT_HEART_ATTACK_PARAMETERS,
         clear=True,
         values={(attack_config.name, attack_config.strength): attack_config.parameters},
     )
 
-    default_attack_config = AttackConfig(name=attack_config.name, strength=attack_config.strength)
+    default_attack_config = HeartAttackConfig(name=attack_config.name, strength=attack_config.strength)
 
     assert default_attack_config is not attack_config.parameters
     assert default_attack_config.parameters == attack_config.parameters
 
 
+@pytest.mark.heart
+@pytest.mark.unsupported
 @pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_report_consumables(

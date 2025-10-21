@@ -14,7 +14,7 @@ from survivor.enums import ScoreConversionType
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorOutputs
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage
+from jatic_ri.object_detection.test_stages import SurvivorTestStage
 from tests.fake_od_classes import FakeODDataset, FakeODModel
 
 _DICT_CONFIG = "dict_config"

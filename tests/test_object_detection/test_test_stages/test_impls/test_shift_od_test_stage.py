@@ -1,6 +1,4 @@
-from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage import (
-    DatasetShiftTestStage,
-)
+from jatic_ri.object_detection.test_stages import DatasetShiftTestStage
 
 
 def test_shift_od_deck_name():

@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage import (
+from jatic_ri.object_detection.test_stages import (
     DatasetObjectDetectionFeasibilityOutputs,
     DatasetObjectDetectionFeasibilityTestStage,
 )

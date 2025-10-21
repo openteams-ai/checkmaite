@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock
 
 from jatic_ri.object_detection.metrics import multiclass_map50_torch_metric_factory
-from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import (
+from jatic_ri.object_detection.test_stages import (
     BaselineEvaluation,
 )
 

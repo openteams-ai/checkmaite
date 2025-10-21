@@ -47,7 +47,6 @@ poetry = "==2.1.2"                                 # allow user to still use the
 packages = [{ include = "jatic_ri", from = "src" }]
 
 [tool.poetry.dependencies]
-heart-library = "0.7.0"
 reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.4"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
 survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.6"}
@@ -84,7 +83,7 @@ pyright = {extras = ["nodejs"], version = ">=1.1.400,!=1.1.401"}  # necessary, t
 pyspark = ">=3.5.3"                                # arbitrary
 pytest = ">=8.3.0"                                 # necessary lower pin for compatibility
 pytest-cov = ">=4.0.0"                             # arbitrary
-pytest-mock = ">=3.6.1"                            # arbitrary, need to test heart_app
+pytest-mock = ">=3.6.1"                            # arbitrary
 # This is not needed by us, but required to avoid a critical vulnerability warning
 # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
 virtualenv = ">=20.26.6"
@@ -96,6 +95,9 @@ mkdocs = ">=1.6.1"                                 # arbitrary
 mkdocs-jupyter = ">=0.25"                          # arbitrary
 mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
+
+[project.optional-dependencies]
+unsupported = ["heart-library==0.7.0"]
 
 [tool.bandit]
 exclude_dirs = [
@@ -165,10 +167,12 @@ convention = "numpy"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra --tb=short -m 'not real_data'"
+addopts = "-ra --tb=short -m 'not (real_data or unsupported)'"
 testpaths = ["tests"]
 markers = [
     "real_data",
+    "unsupported",
+    "heart"
 ]
 filterwarnings = [
     "error",

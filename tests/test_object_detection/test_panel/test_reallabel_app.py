@@ -1,10 +1,7 @@
 import pytest
 
 from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import (
-    RealLabelConfig,
-    RealLabelTestStage,
-)
+from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelTestStage
 
 
 @pytest.mark.parametrize(
