@@ -23,24 +23,36 @@ from jatic_ri.image_classification.test_stages.impls.dataeval_shift_test_stage i
 from jatic_ri.image_classification.test_stages.impls.nrtk_test_stage import NRTKTestStage as NRTKTestStageIC
 from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorTestStage as SurvivorTestStageIC
 from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import XAITKTestStage as XAITKTestStageIC
-from jatic_ri.object_detection.test_stages.impls.baseline_evaluation import BaselineEvaluation as BaselineEvaluationOD
-from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import (
+from jatic_ri.object_detection.test_stages import (
+    BaselineEvaluation as BaselineEvaluationOD,
+)
+from jatic_ri.object_detection.test_stages import (
     DatasetBiasTestStage as DatasetBiasTestStageOD,
 )
-from jatic_ri.object_detection.test_stages.impls.dataeval_cleaning_test_stage import (
+from jatic_ri.object_detection.test_stages import (
     DatasetCleaningTestStage as DatasetCleaningTestStageOD,
 )
-from jatic_ri.object_detection.test_stages.impls.dataeval_feasibility_test_stage import (
+from jatic_ri.object_detection.test_stages import (
     DatasetObjectDetectionFeasibilityTestStage as DatasetFeasibilityTestStageOD,
 )
-from jatic_ri.object_detection.test_stages.impls.dataeval_shift_test_stage import (
+from jatic_ri.object_detection.test_stages import (
     DatasetShiftTestStage as DatasetShiftTestStageOD,
 )
-from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage as NRTKTestStageOD
-from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import RealLabelConfig
-from jatic_ri.object_detection.test_stages.impls.reallabel_test_stage import RealLabelTestStage as RealLabelTestStageOD
-from jatic_ri.object_detection.test_stages.impls.survivor_test_stage import SurvivorTestStage as SurvivorTestStageOD
-from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKTestStage as XAITKTestStageOD
+from jatic_ri.object_detection.test_stages import (
+    NRTKTestStage as NRTKTestStageOD,
+)
+from jatic_ri.object_detection.test_stages import (
+    RealLabelConfig,
+)
+from jatic_ri.object_detection.test_stages import (
+    RealLabelTestStage as RealLabelTestStageOD,
+)
+from jatic_ri.object_detection.test_stages import (
+    SurvivorTestStage as SurvivorTestStageOD,
+)
+from jatic_ri.object_detection.test_stages import (
+    XAITKTestStage as XAITKTestStageOD,
+)
 
 
 def rehydrate_test_stage_od(  # noqa: C901

@@ -4,9 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jatic_ri.object_detection.test_stages.impls.dataeval_cleaning_test_stage import (
-    DatasetCleaningTestStage,
-)
+from jatic_ri.object_detection.test_stages import DatasetCleaningTestStage
 
 
 def ignore_degenerate_data_warnings(test_fn):

@@ -6,7 +6,7 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 # Local imports
-from jatic_ri.object_detection.test_stages.impls.nrtk_test_stage import NRTKTestStage
+from jatic_ri.object_detection.test_stages import NRTKTestStage
 
 ARGS = {
     "name": "NRTKTestStage Example",

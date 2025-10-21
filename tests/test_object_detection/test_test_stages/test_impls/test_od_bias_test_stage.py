@@ -16,7 +16,7 @@ from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
     DataevalBiasOutputs,
     DataevalBiasRun,
 )
-from jatic_ri.object_detection.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStage
+from jatic_ri.object_detection.test_stages import DatasetBiasTestStage
 from jatic_ri.util.utils import save_figure_to_tempfile
 
 

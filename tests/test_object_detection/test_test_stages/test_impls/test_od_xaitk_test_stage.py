@@ -4,7 +4,7 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 from torch import as_tensor, equal
 
-from jatic_ri.object_detection.test_stages.impls.xaitk_test_stage import XAITKTestStage
+from jatic_ri.object_detection.test_stages import XAITKTestStage
 
 ARGS = {
     "name": "XAITKTestStage Example",
