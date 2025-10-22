@@ -13,6 +13,14 @@ import param
 
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
+try:
+    import xaitk_jatic  # noqa: F401
+    import xaitk_saliency  # noqa: F401
+
+    HAS_XAITK = True
+except ImportError:
+    HAS_XAITK = False
+
 
 class MEConfigurationLandingPage(BaseApp):
     """Initial landing page for the ME configuration app"""
@@ -181,14 +189,19 @@ class MEConfigurationLandingPage(BaseApp):
                 "Generate perturbations for evaluating model robustness.",
                 requires_config=True,
             ),
-            pn.Spacer(height=12),
-            self._generate_checkbox_subsection(
-                xaitk_checkbox,
-                "XAITK",
-                "Generate explanations of model predictions.",
-                requires_config=True,
-            ),
         ]
+
+        # Add XAITK if available
+        if HAS_XAITK:
+            tools_viewable += [
+                pn.Spacer(height=12),
+                self._generate_checkbox_subsection(
+                    xaitk_checkbox,
+                    "XAITK",
+                    "Generate explanations of model predictions.",
+                    requires_config=True,
+                ),
+            ]
 
         # close out with bottom spacer
         tools_viewable.append(pn.Spacer(height=24))

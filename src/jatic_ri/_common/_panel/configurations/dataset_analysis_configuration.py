@@ -13,6 +13,20 @@ import param
 
 from jatic_ri._common._panel.configurations.base_app import DEFAULT_STYLING, AppStyling, BaseApp
 
+try:
+    import reallabel  # noqa: F401
+
+    HAS_REALLABEL = True
+except ImportError:
+    HAS_REALLABEL = False
+
+try:
+    import survivor  # noqa: F401
+
+    HAS_SURVIVOR = True
+except ImportError:
+    HAS_SURVIVOR = False
+
 
 class DAConfigurationLandingPage(BaseApp):
     """Initial landing page for the DA OD configuration app"""
@@ -221,28 +235,29 @@ class DAConfigurationLandingPage(BaseApp):
                 ),
             ]
 
-        # Survivor
-        survivor_cb = pn.widgets.Checkbox.from_param(
-            self.param.show_survivor_config,
-            name="",
-            stylesheets=[self.styles.css_checkbox],
-        )
+        # add survivor section
+        if HAS_SURVIVOR:
+            survivor_cb = pn.widgets.Checkbox.from_param(
+                self.param.show_survivor_config,
+                name="",
+                stylesheets=[self.styles.css_checkbox],
+            )
 
-        # add survivor checkbox
-        tools_viewable += [
-            pn.Spacer(height=12),
-            self._generate_checkbox_subsection(
-                survivor_cb,
-                "Survivor",
-                "Identify pieces of data (e.g. images with ground truth labels) "
-                "in an evaluation dataset that are most valuable for ranking models.",
-                requires_config=True,
-                section_height=76,
-            ),
-        ]
+            # add survivor checkbox
+            tools_viewable += [
+                pn.Spacer(height=12),
+                self._generate_checkbox_subsection(
+                    survivor_cb,
+                    "Survivor",
+                    "Identify pieces of data (e.g. images with ground truth labels) "
+                    "in an evaluation dataset that are most valuable for ranking models.",
+                    requires_config=True,
+                    section_height=76,
+                ),
+            ]
 
-        if self.task == "object_detection":
-            # Reallabel
+        # add reallabel section
+        if self.task == "object_detection" and HAS_REALLABEL:
             reallabel_checkbox = pn.widgets.Checkbox.from_param(
                 self.param.show_reallabel_config,
                 name="",
