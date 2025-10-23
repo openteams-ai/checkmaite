@@ -2,9 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import (
-    BaselineEvaluation,
-)
+from jatic_ri.image_classification.test_stages import BaselineEvaluation
 
 
 def test_baseline_evaluation_dummy_ic(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default) -> None:

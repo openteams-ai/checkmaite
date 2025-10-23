@@ -1,9 +1,24 @@
-"""Object detection test stages"""
+"""Object detection test stages
+
+This module provides a unified public API for all object detection test stages.
+
+All test stages, their configuration classes, and output classes can be imported directly
+from this module. Internal implementation details are in the _impls subpackage.
+
+Example:
+    >>> from jatic_ri.object_detection.test_stages import (
+    ...     BaselineEvaluation,
+    ...     NRTKTestStage,
+    ...     NRTKTestStageConfig,
+    ...     NRTKTestStageOutputs,
+    ... )
+"""
 
 import logging
 
 # Import Config and Outputs classes from common test stages
 from jatic_ri._common.test_stages.impls.baseline_evaluation_test_stage import (
+    BaselineEvaluationConfig,
     BaselineEvaluationOutputs,
 )
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
@@ -11,11 +26,10 @@ from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
     DataevalBiasOutputs,
 )
 from jatic_ri._common.test_stages.impls.dataeval_cleaning_test_stage import (
+    DataevalCleaningConfig,
     DataevalCleaningOutputs,
 )
-from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import (
-    DataevalShiftOutputs,
-)
+from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import DataevalShiftConfig, DataevalShiftOutputs
 from jatic_ri._common.test_stages.impls.nrtk_test_stage import (
     NRTKTestStageConfig,
     NRTKTestStageOutputs,
@@ -62,31 +76,44 @@ except ImportError:
     )
 
 __all__ = [
+    # BaselineEvaluation
     "BaselineEvaluation",
+    "BaselineEvaluationConfig",
     "BaselineEvaluationOutputs",
+    # DatasetBiasTestStage
+    "DatasetBiasTestStage",
     "DataevalBiasConfig",
     "DataevalBiasOutputs",
-    "DataevalCleaningOutputs",
-    "DataevalShiftOutputs",
-    "DatasetBiasTestStage",
+    # DatasetCleaningTestStage (no Config - created internally)
     "DatasetCleaningTestStage",
+    "DataevalCleaningConfig",
+    "DataevalCleaningOutputs",
+    # DatasetObjectDetectionFeasibilityTestStage
+    "DatasetObjectDetectionFeasibilityTestStage",
     "DatasetObjectDetectionFeasibilityConfig",
     "DatasetObjectDetectionFeasibilityOutputs",
-    "DatasetObjectDetectionFeasibilityTestStage",
+    # DatasetShiftTestStage (no Config - created internally)
     "DatasetShiftTestStage",
+    "DataevalShiftConfig",
+    "DataevalShiftOutputs",
+    # HeartTestStage
+    "HeartTestStage",
     "HeartAttackConfig",
     "HeartOutputs",
-    "HeartTestStage",
+    # NRTKTestStage
     "NRTKTestStage",
     "NRTKTestStageConfig",
     "NRTKTestStageOutputs",
+    # RealLabelTestStage
+    "RealLabelTestStage",
     "RealLabelConfig",
     "RealLabelOutputs",
-    "RealLabelTestStage",
+    # SurvivorTestStage
+    "SurvivorTestStage",
     "SurvivorConfig",
     "SurvivorOutputs",
-    "SurvivorTestStage",
+    # XAITKTestStage
+    "XAITKTestStage",
     "XAITKConfigOD",
     "XAITKOutputsOD",
-    "XAITKTestStage",
 ]

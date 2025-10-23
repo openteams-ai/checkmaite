@@ -6,7 +6,7 @@ from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKAppIC
-from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import XAITKConfigIC, XAITKTestStage
+from jatic_ri.image_classification.test_stages import XAITKConfigIC, XAITKTestStage
 
 
 def test_run_export_rise() -> None:

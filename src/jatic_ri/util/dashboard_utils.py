@@ -5,27 +5,31 @@ from typing import Any
 
 import panel as pn
 
-from jatic_ri.image_classification.test_stages.impls.baseline_evaluation import (
+from jatic_ri.image_classification.test_stages import (
     BaselineEvaluation as BaselineEvaluationIC,
 )
-from jatic_ri.image_classification.test_stages.impls.dataeval_bias_test_stage import (
+from jatic_ri.image_classification.test_stages import (
     DatasetBiasTestStage as DatasetBiasTestStageIC,
 )
-from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stage import (
+from jatic_ri.image_classification.test_stages import (
     DatasetCleaningTestStage as DatasetCleaningTestStageIC,
 )
-from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage import (
+from jatic_ri.image_classification.test_stages import (
     DatasetImageClassificationFeasibilityTestStage as DatasetFeasibilityTestStageIC,
 )
-from jatic_ri.image_classification.test_stages.impls.dataeval_shift_test_stage import (
+from jatic_ri.image_classification.test_stages import (
     DatasetShiftTestStage as DatasetShiftTestStageIC,
 )
-from jatic_ri.image_classification.test_stages.impls.nrtk_test_stage import NRTKTestStage as NRTKTestStageIC
-from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorTestStage as SurvivorTestStageIC
-from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import XAITKTestStage as XAITKTestStageIC
-from jatic_ri.object_detection.test_stages import (
-    BaselineEvaluation as BaselineEvaluationOD,
+from jatic_ri.image_classification.test_stages import (
+    NRTKTestStage as NRTKTestStageIC,
 )
+from jatic_ri.image_classification.test_stages import (
+    SurvivorTestStage as SurvivorTestStageIC,
+)
+from jatic_ri.image_classification.test_stages import (
+    XAITKTestStage as XAITKTestStageIC,
+)
+from jatic_ri.object_detection.test_stages import BaselineEvaluation as BaselineEvaluationOD
 from jatic_ri.object_detection.test_stages import (
     DatasetBiasTestStage as DatasetBiasTestStageOD,
 )

@@ -6,9 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.image_classification.test_stages.impls.dataeval_cleaning_test_stage import (
-    DatasetCleaningTestStage,
-)
+from jatic_ri.image_classification.test_stages import DatasetCleaningTestStage
 
 
 def ignore_degenerate_data_warnings(test_fn):

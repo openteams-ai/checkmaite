@@ -9,7 +9,7 @@ from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactor
 from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
 
 from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKAppIC
-from jatic_ri.image_classification.test_stages.impls.nrtk_test_stage import NRTKTestStage
+from jatic_ri.image_classification.test_stages import NRTKTestStage
 
 
 @pytest.mark.parametrize(
