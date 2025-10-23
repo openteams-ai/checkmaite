@@ -1,6 +1,4 @@
-from jatic_ri.image_classification.test_stages.impls.dataeval_shift_test_stage import (
-    DatasetShiftTestStage,
-)
+from jatic_ri.image_classification.test_stages import DatasetShiftTestStage
 
 
 def test_shift_ic_deck_name():

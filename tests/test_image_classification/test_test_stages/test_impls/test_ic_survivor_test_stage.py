@@ -9,9 +9,8 @@ from gradient.templates_and_layouts.create_deck import create_deck
 from maite.protocols import image_classification as ic
 from survivor.enums import ScoreConversionType
 
-from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorConfig
 from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.image_classification.test_stages.impls.survivor_test_stage import SurvivorTestStage
+from jatic_ri.image_classification.test_stages import SurvivorConfig, SurvivorTestStage
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
 
 _DICT_CONFIG = "dict_config"

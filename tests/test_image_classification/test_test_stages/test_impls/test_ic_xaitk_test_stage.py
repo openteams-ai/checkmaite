@@ -3,9 +3,7 @@
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.image_classification.test_stages.impls.xaitk_test_stage import (
-    XAITKTestStage,
-)
+from jatic_ri.image_classification.test_stages import XAITKTestStage
 
 RISE_ARGS = {
     "name": "XAITKTestStage RISE Example",

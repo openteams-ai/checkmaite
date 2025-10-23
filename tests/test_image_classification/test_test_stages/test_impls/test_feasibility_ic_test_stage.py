@@ -6,11 +6,13 @@ import pandas as pd
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.image_classification.test_stages.impls.dataeval_feasibility_test_stage import (
+from jatic_ri.image_classification.test_stages import (
     DatasetImageClassificationFeasibilityConfig,
     DatasetImageClassificationFeasibilityOutputs,
-    DatasetImageClassificationFeasibilityRun,
     DatasetImageClassificationFeasibilityTestStage,
+)
+from jatic_ri.image_classification.test_stages._impls.dataeval_feasibility_test_stage import (
+    DatasetImageClassificationFeasibilityRun,
 )
 
 

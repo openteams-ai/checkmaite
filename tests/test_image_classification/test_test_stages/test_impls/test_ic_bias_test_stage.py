@@ -9,13 +9,15 @@ from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
     DataevalBiasBalanceOutputs,
-    DataevalBiasConfig,
     DataevalBiasCoverageOutputs,
     DataevalBiasDiversityOutputs,
-    DataevalBiasOutputs,
     DataevalBiasRun,
 )
-from jatic_ri.image_classification.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStage
+from jatic_ri.image_classification.test_stages import (
+    DataevalBiasConfig,
+    DataevalBiasOutputs,
+    DatasetBiasTestStage,
+)
 from jatic_ri.util.utils import save_figure_to_tempfile
 
 
