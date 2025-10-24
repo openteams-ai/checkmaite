@@ -184,3 +184,9 @@ config.json
 
 # Tutorial notebook outputs
 /docs/tutorials/*_example_output
+/docs/how-tos/temp_yolo_dataset/
+
+# gitlab-local-ci
+.gitlab-ci-local/
+# locally ignore .gitlab-ci-local-variables.yml using: 
+# git update-index --assume-unchanged .gitlab-ci-local-variables.yml
