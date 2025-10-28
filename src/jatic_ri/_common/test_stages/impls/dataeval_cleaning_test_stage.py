@@ -60,7 +60,7 @@ class DataevalCleaningDuplicatesOutputs(OutputsBase):
 
 class DataevalCleaningDimensionStatsOutputs(OutputsBase):
     source_index: Sequence[SourceIndex]
-    object_count: np.ndarray
+    object_count: list[int]
     image_count: int
     offset_x: np.ndarray
     offset_y: np.ndarray
@@ -77,14 +77,14 @@ class DataevalCleaningDimensionStatsOutputs(OutputsBase):
 
 class DataevalCleaningVisualStatsOutputs(OutputsBase):
     source_index: Sequence[SourceIndex]
-    object_count: np.ndarray
+    object_count: list[int]
     image_count: int
     brightness: np.ndarray
     contrast: np.ndarray
     darkness: np.ndarray
-    missing: np.ndarray
+    # missing: np.ndarray  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
     sharpness: np.ndarray
-    zeros: np.ndarray
+    # zeros: np.ndarray  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
     percentiles: np.ndarray
 
 

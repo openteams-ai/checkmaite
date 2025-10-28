@@ -86,7 +86,7 @@ class DatasetImageClassificationFeasibilityTestStage(
         """Run the feasibility test"""
 
         model, transform = get_resnet18()
-        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device)
+        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, device=self.device)
         metadata = Metadata(self.dataset)
 
         b: BEROutput = ber(

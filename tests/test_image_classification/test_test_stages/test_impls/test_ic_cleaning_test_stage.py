@@ -30,7 +30,7 @@ def test_ic_cleaning(fake_ic_dataset_default) -> None:
     output = test.collect_report_consumables()
 
     assert output
-    assert len(output) == 8
+    assert len(output) == 7
 
 
 @ignore_degenerate_data_warnings

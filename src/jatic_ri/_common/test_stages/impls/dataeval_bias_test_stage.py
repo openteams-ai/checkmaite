@@ -192,7 +192,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         model, transform = get_resnet18()
         images = Images(self.dataset)
 
-        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, self.device).to_numpy()
+        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, device=self.device).to_numpy()
         embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
         # coverage tool expects sequence of vectors
         if len(embeddings.shape) == 1:
@@ -220,7 +220,9 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             bal_dict = None
             div_dict = None
 
-        if num_observations := min(max(3, int(np.sqrt(len(images)))), 20) >= len(embeddings):
+        num_observations = min(max(3, int(np.sqrt(len(images)))), 20)
+
+        if num_observations >= len(embeddings):
             raise ValueError(
                 f"Need at least (num_observations + 1) points to compute k-NN coverage, "
                 f"got N={len(embeddings)} points, requested num_observations={num_observations}. "
