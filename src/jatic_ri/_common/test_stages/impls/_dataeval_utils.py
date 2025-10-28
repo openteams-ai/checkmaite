@@ -37,8 +37,8 @@ VISUAL_LIST = [
     "contrast",
     "darkness",
     "sharpness",
-    "missing",
-    "zeros",
+    # "missing",  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
+    # "zeros",  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
 ]
 RATIO_LIST = [
     "width",

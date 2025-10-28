@@ -119,8 +119,8 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             detectors.
         """
         model, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, self.device)
-        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, self.device)
+        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, device=self.device)
+        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, device=self.device)
 
         if len(self.dataset_1) < 2 or len(self.dataset_2) < 2:
             raise ValueError(
@@ -151,8 +151,12 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
              An object containing the outputs from the OOD AE detector.
         """
         _, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
-        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, torch.nn.Identity(), self.device).to_numpy()
+        emb_1 = Embeddings(
+            self.dataset_1, self._batch_size, transform, torch.nn.Identity(), device=self.device
+        ).to_numpy()
+        emb_2 = Embeddings(
+            self.dataset_2, self._batch_size, transform, torch.nn.Identity(), device=self.device
+        ).to_numpy()
 
         # Additional detectors may be added in the future
         detectors = {"ood_ae": OOD_AE(AE(emb_1[0].shape))}
