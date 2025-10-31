@@ -22,8 +22,8 @@ def _reset_da_config_app(app: FullApp):
     app.pipeline._state.shift.value = False
     app.pipeline._state.cleaning.value = False
     app.pipeline._state.feasibility.value = False
-    app.pipeline._state.show_survivor_config = False
-    app.pipeline._state.show_reallabel_config = False
+    # app.pipeline._state.show_survivor_config = False
+    # app.pipeline._state.show_reallabel_config = False
     # clear output_test_stages
     app.pipeline._state.output_test_stages = {}
 
@@ -120,145 +120,149 @@ def test_route_da_bias_shift_cleaning(task):
     assert "task" in final_output.keys()
 
 
-def test_route_da_od_reallabel():
-    """Test route when only reallabel is selected.
-    Reallabel is OD only.
+# NOTE: The Unsupported Tools have been removed from the Panel UI due to the complexity of reconstructing the pipeline
+# graph for each combination of tools.  So this is commented out completely instead of @pytest.mark.unsupported
+#
+# def test_route_da_od_reallabel():
+#     """Test route when only reallabel is selected.
+#     Reallabel is OD only.
 
-    ROUTE:
-    LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> DatasetAnalysisDashboard
-    """
-    task = "object_detection"
-    workflow = "dataset_analysis"
-    local = True
-    # instantiate the pipeline
-    app = FullApp(task=task, local=local, workflow=workflow)
-    app.panel()
+#     ROUTE:
+#     LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> DatasetAnalysisDashboard
+#     """
+#     task = "object_detection"
+#     workflow = "dataset_analysis"
+#     local = True
+#     # instantiate the pipeline
+#     app = FullApp(task=task, local=local, workflow=workflow)
+#     app.panel()
 
-    # go to da od landing page
-    app.pipeline._state.od_button.clicks += 1
-    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+#     # go to da od landing page
+#     app.pipeline._state.od_button.clicks += 1
+#     assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
 
-    # reset the app (ensure this test is not affected by changing defaults)
-    _reset_da_config_app(app)
+#     # reset the app (ensure this test is not affected by changing defaults)
+#     _reset_da_config_app(app)
 
-    # toggle reallabel to true
-    app.pipeline._state.show_reallabel_config = True
+#     # toggle reallabel to true
+#     app.pipeline._state.show_reallabel_config = True
 
-    # with only reallabel true, the next stage should be reallabel
-    assert app.pipeline._next_stage == "Configure Reallabel"
+#     # with only reallabel true, the next stage should be reallabel
+#     assert app.pipeline._next_stage == "Configure Reallabel"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "RealLabelApp"
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the final page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "RealLabelApp"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
 
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+#     # ensure we actually went to the final page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
-    final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 2  # task and reallabel should be present
-    assert "reallabel_test_stage" in final_output.keys()
+#     final_output = app.pipeline._state.output_test_stages
+#     assert len(final_output) == 2  # task and reallabel should be present
+#     assert "reallabel_test_stage" in final_output.keys()
 
+# NOTE: The Unsupported Tools have been removed from the Panel UI due to the complexity of reconstructing the pipeline
+# graph for each combination of tools.  So this is commented out completely instead of @pytest.mark.unsupported
+#
+# def test_route_da_od_reallabel_survivor():
+#     """Test route when only reallabel and survivor are selected
+#     Reallabel is OD only.
 
-def test_route_da_od_reallabel_survivor():
-    """Test route when only reallabel and survivor are selected
-    Reallabel is OD only.
+#     ROUTE:
+#     LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
+#     """
+#     task = "object_detection"
+#     workflow = "dataset_analysis"
+#     local = True
+#     # instantiate the pipeline
+#     app = FullApp(task=task, local=local, workflow=workflow)
+#     app.panel()
 
-    ROUTE:
-    LandingPage -> DAConfigurationLandingPage -> Configure Reallabel -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
-    """
-    task = "object_detection"
-    workflow = "dataset_analysis"
-    local = True
-    # instantiate the pipeline
-    app = FullApp(task=task, local=local, workflow=workflow)
-    app.panel()
+#     # go to da od landing page
+#     app.pipeline._state.od_button.clicks += 1
+#     assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
 
-    # go to da od landing page
-    app.pipeline._state.od_button.clicks += 1
-    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+#     # reset the app (ensure this test is not affected by changing defaults)
+#     _reset_da_config_app(app)
 
-    # reset the app (ensure this test is not affected by changing defaults)
-    _reset_da_config_app(app)
+#     # toggle reallabel and reallabel to true
+#     app.pipeline._state.show_reallabel_config = True
+#     app.pipeline._state.show_survivor_config = True
 
-    # toggle reallabel and reallabel to true
-    app.pipeline._state.show_reallabel_config = True
-    app.pipeline._state.show_survivor_config = True
+#     # with reallabel true, the next stage should be reallabel
+#     assert app.pipeline._next_stage == "Configure Reallabel"
 
-    # with reallabel true, the next stage should be reallabel
-    assert app.pipeline._next_stage == "Configure Reallabel"
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the correct page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "RealLabelApp"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the correct page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "RealLabelApp"
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the correct page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "SurvivorAppOD"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the correct page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "SurvivorAppOD"
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the correct page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the correct page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
+#     final_output = app.pipeline._state.output_test_stages
+#     assert len(final_output) == 3  # task, survivor and reallabel should be present
+#     assert "reallabel_test_stage" in final_output.keys()
+#     assert "survivor_test_stage" in final_output.keys()
 
-    final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 3  # task, survivor and reallabel should be present
-    assert "reallabel_test_stage" in final_output.keys()
-    assert "survivor_test_stage" in final_output.keys()
+#     # convert the on-disk formatted configs into instantiated test stages
+#     app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
 
-    # convert the on-disk formatted configs into instantiated test stages
-    app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
+#     assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
 
-    assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
+# @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
+# def test_route_da_od_survivor(task):
+#     """Test route when only survivor is selected.
 
+#     ROUTE:
+#     LandingPage -> DAConfigurationLandingPage -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
+#     """
+#     workflow = "dataset_analysis"
+#     local = True
 
-@pytest.mark.parametrize("task", ["object_detection", "image_classification"])
-def test_route_da_od_survivor(task):
-    """Test route when only survivor is selected.
+#     # instantiate the pipeline
+#     app = FullApp(task=task, local=local, workflow=workflow)
+#     app.panel()
 
-    ROUTE:
-    LandingPage -> DAConfigurationLandingPage -> ConfigureSurvivorOD -> DatasetAnalysisDashboard
-    """
-    workflow = "dataset_analysis"
-    local = True
+#     # go to me od/ic landing page
+#     state = app.pipeline._state
+#     button = getattr(state, f"{app.suffix.lower()}_button")
+#     button.clicks += 1
+#     assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
 
-    # instantiate the pipeline
-    app = FullApp(task=task, local=local, workflow=workflow)
-    app.panel()
+#     # reset the app (ensure this test is not affected by changing defaults)
+#     _reset_da_config_app(app)
 
-    # go to me od/ic landing page
-    state = app.pipeline._state
-    button = getattr(state, f"{app.suffix.lower()}_button")
-    button.clicks += 1
-    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
+#     # toggle survivor to true
+#     app.pipeline._state.show_survivor_config = True
 
-    # reset the app (ensure this test is not affected by changing defaults)
-    _reset_da_config_app(app)
+#     # with only survivor true, the next stage should be survivor
+#     assert app.pipeline._next_stage == f"Configure Survivor{app.suffix}"
 
-    # toggle survivor to true
-    app.pipeline._state.show_survivor_config = True
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the correct page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == f"SurvivorApp{app.suffix}"
 
-    # with only survivor true, the next stage should be survivor
-    assert app.pipeline._next_stage == f"Configure Survivor{app.suffix}"
+#     # go to next stage
+#     app.pipeline.next_button.clicks += 1
+#     # ensure we actually went to the correct page by checking the class name
+#     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
 
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the correct page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == f"SurvivorApp{app.suffix}"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the correct page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
-
-    final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 2  # task and survivor should be present
-    assert "survivor_test_stage" in final_output.keys()
+#     final_output = app.pipeline._state.output_test_stages
+#     assert len(final_output) == 2  # task and survivor should be present
+#     assert "survivor_test_stage" in final_output.keys()
 
 
 def test_route_da_config_load_od(json_config_da_od):

@@ -1,7 +1,11 @@
 import pytest
 
-from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelTestStage
+# Skip all tests in this file if reallabel isn't available
+pytest.importorskip("reallabel")
+
+# Module-level imports after importorskip to prevent collection errors
+from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp  # noqa: E402
+from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelTestStage  # noqa: E402
 
 
 @pytest.mark.parametrize(

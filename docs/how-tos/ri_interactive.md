@@ -31,10 +31,10 @@ the web interface.
 
 The first step is to select which Workflow you would like to work with:
 
-- *Model Evaluation (ME)* to analyze model performance, robustness, and explainability using the JATIC tools MAITE, NRTK, and XAITK, respectively.
-- *Dataset Analysis (DA)* to understand and improve dataset quality by analyzing biases, label errors, and data distributions, using the JATIC tools Dataeval, RealLabel, and Survivor, respectively. 
+- *Model Evaluation (ME)* to analyze model performance, robustness, and explainability using the JATIC tools MAITE, NRTK, and XAITK respectively.
+- *Dataset Analysis (DA)* to understand and improve dataset quality by analyzing data biases, feasability, shift, and cleaning statistics using the JATIC tool Dataeval. 
 
-All of these tools are available for both Image Classification (IC) and Object Detection (OD) tasks, with the exception of Reallabel which is only available for Object Detection. 
+All of these tools are available for both Image Classification (IC) and Object Detection (OD) tasks.
 
 ![Preview of the RI Landing Page](../assets/ri_landing_page.png)
 

@@ -34,7 +34,19 @@ else:
         return [y.squeeze(axis) for y in np.split(x, x.shape[axis], axis=axis)]
 
 
-RNG = np.random.default_rng(seed=42)
+SEED = 42
+torch.manual_seed(SEED)
+RNG = np.random.default_rng(seed=SEED)
+
+
+@pytest.fixture(autouse=True)
+def _reset_random_state():
+    """
+    Reset random state before each test to ensure reproducibility.
+    """
+    global RNG
+    torch.manual_seed(SEED)
+    RNG = np.random.default_rng(seed=SEED)
 
 
 @contextlib.contextmanager
@@ -296,6 +308,7 @@ def metric_results() -> dict:
 def reallabel_config_od():
     """Default output configuration settings from the reallabel
     panel app"""
+    pytest.importorskip("reallabel")
     # import inside the fixture to improve test startup time
     from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp as RealLabelAppOD
 
@@ -309,6 +322,7 @@ def survivor_config_od():
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time
+    pytest.importorskip("survivor")
     from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
 
     survivor_app = SurvivorAppOD()
@@ -318,6 +332,7 @@ def survivor_config_od():
 
 @pytest.fixture(scope="session")
 def survivor_config_ic():
+    pytest.importorskip("survivor")
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time

@@ -47,9 +47,7 @@ poetry = "==2.1.2"                                 # allow user to still use the
 packages = [{ include = "jatic_ri", from = "src" }]
 
 [tool.poetry.dependencies]
-reallabel = {git = "https://gitlab.jatic.net/jatic/morse/reallabel.git", tag="0.6.4"}
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
-survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", tag="0.4.6"}
 dataeval = "==0.92.3"                 
 maite = "0.8.2"
 nrtk = "==0.25.0"
@@ -97,7 +95,11 @@ mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
 [project.optional-dependencies]
-unsupported = ["heart-library==0.7.0"]
+unsupported = [
+    "heart-library==0.7.0",
+    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4",
+    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6",
+]
 
 [tool.bandit]
 exclude_dirs = [
@@ -195,3 +197,12 @@ filterwarnings = [
     "ignore: Item .* is using the `ReadOnly` qualifier. Pydantic will not protect items from any mutation on dictionary instances."
 ]
 xfail_strict = true
+
+# Omit the skipped optional dependencies from coverage report
+[tool.coverage.run]
+source = ["jatic_ri"]
+omit = [
+    "*/heart_test_stage.py",
+    "*/reallabel_test_stage.py",
+    "*/survivor_test_stage.py",
+]

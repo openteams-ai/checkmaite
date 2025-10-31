@@ -42,9 +42,12 @@ nav:  # navigation links on sidebar
       - Linting: tutorials/dataeval_linting_tutorial.ipynb
       - Shift: tutorials/dataeval_shift_tutorial.ipynb
     - NRTK Tutorial: tutorials/nrtk_tutorial.ipynb
-    - RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
-    - Survivor Tutorial: tutorials/survivor_tutorial.ipynb
     - XAITK Tutorial: tutorials/xaitk_tutorial.ipynb
+
+    # These tools are not currently supported by JATIC. The notebooks have been archived under `docs/reference/examples` 
+
+    #- RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
+    #- Survivor Tutorial: tutorials/survivor_tutorial.ipynb
 
   - Reference:
     - Conventions: reference/conventions.md

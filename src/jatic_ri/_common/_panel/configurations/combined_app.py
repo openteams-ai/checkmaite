@@ -13,11 +13,13 @@ from jatic_ri._common._panel.configurations.model_evaluation_configuration impor
 from jatic_ri._common._panel.dashboards.dataset_analysis_dashboard import DatasetAnalysisDashboard
 from jatic_ri._common._panel.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
 from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKAppIC
-from jatic_ri.image_classification._panel.configurations.survivor_app import SurvivorAppIC
+
+# from jatic_ri.image_classification._panel.configurations.survivor_app import SurvivorAppIC
 from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKAppIC
 from jatic_ri.object_detection._panel.configurations.nrtk_app import NRTKAppOD
-from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
+
+# from jatic_ri.object_detection._panel.configurations.reallabel_app import RealLabelApp
+# from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
 from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKAppOD
 
 # Parameters passed between pipeline pages:
@@ -342,20 +344,20 @@ class FullApp(BaseApp):
             "ModelEvaluationTestbed", ModelEvaluationTestbed, ready_parameter="ready", auto_advance=True
         )
 
-        self.pipeline.add_stage(
-            "Configure Reallabel",
-            RealLabelApp,
-            next_parameter="next_parameter",
-            ready_parameter="ready",
-            auto_advance=True,
-        )
-        self.pipeline.add_stage("Configure SurvivorOD", SurvivorAppOD, ready_parameter="ready", auto_advance=True)
+        # self.pipeline.add_stage(
+        #     "Configure Reallabel",
+        #     RealLabelApp,
+        #     next_parameter="next_parameter",
+        #     ready_parameter="ready",
+        #     auto_advance=True,
+        # )
+        # self.pipeline.add_stage("Configure SurvivorOD", SurvivorAppOD, ready_parameter="ready", auto_advance=True)
         self.pipeline.add_stage(
             "Configure NRTKOD", NRTKAppOD, next_parameter="next_parameter", ready_parameter="ready", auto_advance=True
         )
         self.pipeline.add_stage("Configure XAITKOD", XAITKAppOD, ready_parameter="ready", auto_advance=True)
 
-        self.pipeline.add_stage("Configure SurvivorIC", SurvivorAppIC, ready_parameter="ready", auto_advance=True)
+        # self.pipeline.add_stage("Configure SurvivorIC", SurvivorAppIC, ready_parameter="ready", auto_advance=True)
         self.pipeline.add_stage(
             "Configure NRTKIC", NRTKAppIC, next_parameter="next_parameter", ready_parameter="ready", auto_advance=True
         )
@@ -371,9 +373,9 @@ class FullApp(BaseApp):
                 ),
                 # DA
                 "DAConfigurationLandingPage": (
-                    "Configure Reallabel",
-                    "Configure SurvivorOD",
-                    "Configure SurvivorIC",
+                    # "Configure Reallabel",
+                    # "Configure SurvivorOD",
+                    # "Configure SurvivorIC",
                     "DatasetAnalysisDashboard",
                 ),
                 # ME
@@ -385,14 +387,14 @@ class FullApp(BaseApp):
                     "ModelEvaluationTestbed",
                 ),
                 # DA IC - Survivor
-                "Configure SurvivorIC": "DatasetAnalysisDashboard",
+                # "Configure SurvivorIC": "DatasetAnalysisDashboard",
                 # DA OD - Reallabel
-                "Configure Reallabel": (
-                    "Configure SurvivorOD",
-                    "DatasetAnalysisDashboard",
-                ),
+                # "Configure Reallabel": (
+                #    "Configure SurvivorOD",
+                #    "DatasetAnalysisDashboard",
+                # ),
                 # DA OD - Survivor
-                "Configure SurvivorOD": "DatasetAnalysisDashboard",
+                # "Configure SurvivorOD": "DatasetAnalysisDashboard",
                 # ME OD - NRTK
                 "Configure NRTKOD": (
                     "Configure XAITKOD",

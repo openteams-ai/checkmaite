@@ -3,7 +3,11 @@ from typing import Any
 import panel as pn
 import pytest
 
-from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD
+# Skip all tests in this file if survivor isn't available
+pytest.importorskip("survivor")
+
+# Module-level imports after importorskip to prevent collection errors
+from jatic_ri.object_detection._panel.configurations.survivor_app import SurvivorAppOD  # noqa: E402
 
 
 @pytest.mark.parametrize(

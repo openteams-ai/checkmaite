@@ -243,8 +243,8 @@ class SurvivorTestStageBase(
             heatmap_plots.append(heatmap_plot)
 
         return SurvivorOutputs(
-            raw_output_df=output_data.raw_output_df,  # pyright: ignore[reportArgumentType]
-            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,  # pyright: ignore[reportArgumentType]
+            raw_output_df=output_data.raw_output_df,
+            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,
             label_count_plot=label_count_plot,  # pyright: ignore[reportArgumentType]
             heatmap_plots=heatmap_plots,
         )

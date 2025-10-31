@@ -34,10 +34,6 @@ from jatic_ri._common.test_stages.impls.nrtk_test_stage import (
     NRTKTestStageConfig,
     NRTKTestStageOutputs,
 )
-from jatic_ri._common.test_stages.impls.survivor_test_stage import (
-    SurvivorConfig,
-    SurvivorOutputs,
-)
 
 # Import all test stages from internal _impls module
 from jatic_ri.object_detection.test_stages._impls.baseline_evaluation import BaselineEvaluation
@@ -50,17 +46,37 @@ from jatic_ri.object_detection.test_stages._impls.dataeval_feasibility_test_stag
 )
 from jatic_ri.object_detection.test_stages._impls.dataeval_shift_test_stage import DatasetShiftTestStage
 from jatic_ri.object_detection.test_stages._impls.nrtk_test_stage import NRTKTestStage
-from jatic_ri.object_detection.test_stages._impls.reallabel_test_stage import (
-    RealLabelConfig,
-    RealLabelOutputs,
-    RealLabelTestStage,
-)
-from jatic_ri.object_detection.test_stages._impls.survivor_test_stage import SurvivorTestStage
 from jatic_ri.object_detection.test_stages._impls.xaitk_test_stage import (
     XAITKConfigOD,
     XAITKOutputsOD,
     XAITKTestStage,
 )
+
+# Check if optional reallabel dependencies are available at runtime
+try:
+    from jatic_ri.object_detection.test_stages._impls.reallabel_test_stage import (
+        RealLabelConfig,
+        RealLabelOutputs,
+        RealLabelTestStage,
+    )
+except ImportError:
+    logging.debug(
+        "reallabel or its dependencies are not installed. RealLabelTestStage will not be available. "
+        "To use RealLabelTestStage, please install reallabel and its dependencies."
+    )
+
+# Check if optional survivor dependencies are available at runtime
+try:
+    from jatic_ri._common.test_stages.impls.survivor_test_stage import (
+        SurvivorConfig,
+        SurvivorOutputs,
+    )
+    from jatic_ri.object_detection.test_stages._impls.survivor_test_stage import SurvivorTestStage
+except ImportError:
+    logging.debug(
+        "survivor or its dependencies are not installed. SurvivorTestStage will not be available. "
+        "To use SurvivorTestStage, please install survivor and its dependencies."
+    )
 
 # Check if optional heart_library dependencies are available at runtime
 try:

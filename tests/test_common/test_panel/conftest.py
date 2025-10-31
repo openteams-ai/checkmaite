@@ -4,12 +4,12 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def json_config_da_od(reallabel_config_od, survivor_config_od, bias_config_od, cleaning_config_od, shift_config_od):
+def json_config_da_od(bias_config_od, cleaning_config_od, shift_config_od):
     """Json configuration output from the dataset analysis object detection app"""
     return {
         "task": "object_detection",
-        "reallabel": reallabel_config_od,
-        "survivor": survivor_config_od,
+        # "reallabel": reallabel_config_od,
+        # "survivor": survivor_config_od,
         "bias": bias_config_od,
         "cleaning": cleaning_config_od,
         # 'shift': shift_config_od,  # uncomment after shift bug fix
@@ -17,11 +17,11 @@ def json_config_da_od(reallabel_config_od, survivor_config_od, bias_config_od, c
 
 
 @pytest.fixture(scope="session")
-def json_config_da_ic(survivor_config_ic, bias_config_ic, cleaning_config_ic, feasibility_config_ic, shift_config_ic):
+def json_config_da_ic(bias_config_ic, cleaning_config_ic, feasibility_config_ic, shift_config_ic):
     """Json configuration output from the dataset analysis image classification app"""
     return {
         "task": "image_classification",
-        "survivor": survivor_config_ic,
+        # "survivor": survivor_config_ic,
         "bias": bias_config_ic,
         "cleaning": cleaning_config_ic,
         # 'shift': shift_config_ic,  # uncomment after shift bug fix
@@ -35,7 +35,7 @@ def json_config_me_od(nrtk_config_od, xaitk_config_od, baseline_eval_config_od):
         "task": "object_detection",
         "nrtk1": nrtk_config_od,
         "nrtk2": copy.deepcopy(nrtk_config_od),
-        "xaitk": xaitk_config_od,
+        # "xaitk": xaitk_config_od,
         "baseline_eval": baseline_eval_config_od,
     }
 

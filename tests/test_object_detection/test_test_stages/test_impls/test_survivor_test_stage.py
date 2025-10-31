@@ -2,20 +2,25 @@
 
 from typing import Any
 
-import pandas as pd
-import PIL
 import pytest
-import torch
-from gradient import SubText, Text
-from gradient.templates_and_layouts.create_deck import create_deck
-from maite.protocols import object_detection as od
-from survivor.config import SurvivorConfig
-from survivor.enums import ScoreConversionType
 
-from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorOutputs
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.object_detection.test_stages import SurvivorTestStage
-from tests.fake_od_classes import FakeODDataset, FakeODModel
+# Skip all tests in this file if survivor isn't available
+pytest.importorskip("survivor")
+
+# Module-level imports after importorskip to prevent collection errors
+import pandas as pd  # noqa: E402
+import PIL  # noqa: E402
+import torch  # noqa: E402
+from gradient import SubText, Text  # noqa: E402
+from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
+from maite.protocols import object_detection as od  # noqa: E402
+from survivor.config import SurvivorConfig  # noqa: E402
+from survivor.enums import ScoreConversionType  # noqa: E402
+
+from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorOutputs  # noqa: E402
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError  # noqa: E402
+from jatic_ri.object_detection.test_stages import SurvivorTestStage  # noqa: E402
+from tests.fake_od_classes import FakeODDataset, FakeODModel  # noqa: E402
 
 _DICT_CONFIG = "dict_config"
 _SURVIVOR_CONFIG = "config"

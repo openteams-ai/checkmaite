@@ -298,7 +298,7 @@ class RealLabelTestStage(
             .orderBy(sf.col("count").desc())
             .drop("count")
             .first()
-            .asDict()  # pyright: ignore[reportOptionalMemberAccess]  # handled above
+            .asDict()
         )
 
         results_for_most_populous_image_df = default_reallabel_results.filter(
@@ -349,14 +349,14 @@ class RealLabelTestStage(
             )
 
             return RealLabelOutputs(
-                results=default_reallabel_results,  # pyright: ignore[reportArgumentType]
+                results=default_reallabel_results,
                 example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # pyright: ignore[reportArgumentType]
-                classification_disagreements_df=reallabel_results.classification_disagreements_df,  # pyright: ignore[reportArgumentType]
-                verbose_df=reallabel_results.verbose_df,  # pyright: ignore[reportArgumentType]
-                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,  # pyright: ignore[reportArgumentType]
-                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,  # pyright: ignore[reportArgumentType]
-                wanrs_df=reallabel_results.wanrs_df,  # pyright: ignore[reportArgumentType]
-                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,  # pyright: ignore[reportArgumentType]
+                classification_disagreements_df=reallabel_results.classification_disagreements_df,
+                verbose_df=reallabel_results.verbose_df,
+                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,
+                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,
+                wanrs_df=reallabel_results.wanrs_df,
+                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,
             )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
