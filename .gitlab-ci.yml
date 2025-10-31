@@ -4,7 +4,6 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  retry: 1  
   artifacts:
     expire_in: 1 week
 
@@ -70,7 +69,7 @@ stages:
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
     - pip install --user -U poetry==2.1.2
-    
+
     # openjdk-17-jre isn’t present on all base images, we require it for reallabel and survivor
     # Adoptium seems to be the preferred build for specific Java runtimes
     # we need to add the Adoptium repo before installing, and we also need the signing key to
@@ -85,7 +84,7 @@ stages:
     - export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
     - export PATH="$JAVA_HOME/bin:$PATH"
     - java -version
-    
+
     - poetry config repositories.gradient https://gitlab.jatic.net/jatic/morse/gradient.git
     - poetry config repositories.reallabel https://gitlab.jatic.net/jatic/morse/reallabel.git
     - poetry config repositories.survivor https://gitlab.jatic.net/jatic/morse/survivor.git
