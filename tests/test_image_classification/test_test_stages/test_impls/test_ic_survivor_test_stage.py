@@ -2,16 +2,21 @@
 
 from typing import Any
 
-import pandas as pd
 import pytest
-from gradient import SubText, Text
-from gradient.templates_and_layouts.create_deck import create_deck
-from maite.protocols import image_classification as ic
-from survivor.enums import ScoreConversionType
 
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.image_classification.test_stages import SurvivorConfig, SurvivorTestStage
-from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel
+# Skip all tests in this file if survivor isn't available
+pytest.importorskip("survivor")
+
+# Module-level imports after importorskip to prevent collection errors
+import pandas as pd  # noqa: E402
+from gradient import SubText, Text  # noqa: E402
+from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
+from maite.protocols import image_classification as ic  # noqa: E402
+from survivor.enums import ScoreConversionType  # noqa: E402
+
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError  # noqa: E402
+from jatic_ri.image_classification.test_stages import SurvivorConfig, SurvivorTestStage  # noqa: E402
+from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel  # noqa: E402
 
 _DICT_CONFIG = "dict_config"
 _SURVIVOR_CONFIG = "config"

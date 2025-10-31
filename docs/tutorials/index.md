@@ -38,6 +38,15 @@
 
     [:octicons-arrow-right-24: NRTK Tutorial](nrtk_tutorial.ipynb)
 
+-   :material-hammer-wrench:{ .lg .middle } __XAITK Tutorial__
+
+    ---
+
+    The Explainable AI Toolkit for saliency (XAITK - Saliency) is an open source framework for visual saliency algorithm interfaces and implementations.
+
+    [:octicons-arrow-right-24: XAITK Tutorial](xaitk_tutorial.ipynb) -->
+<!--  Unsupported Tools:
+
 -   :material-hammer-wrench:{ .lg .middle } __RealLabel Tutorial__
 
     ---
@@ -53,13 +62,5 @@
     Survivor identifies which images in a dataset are most valuable for comparing model performance and provides insight into model performance on dataset subsets.
 
     [:octicons-arrow-right-24: Survivor Tutorial](survivor_tutorial.ipynb)
-
--   :material-hammer-wrench:{ .lg .middle } __XAITK Tutorial__
-
-    ---
-
-    The Explainable AI Toolkit for saliency (XAITK - Saliency) is an open source framework for visual saliency algorithm interfaces and implementations.
-
-    [:octicons-arrow-right-24: XAITK Tutorial](xaitk_tutorial.ipynb)
 
 </div>

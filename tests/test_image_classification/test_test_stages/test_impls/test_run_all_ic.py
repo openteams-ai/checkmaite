@@ -42,7 +42,7 @@ def dataset_ic(fake_dataset):
         pytest.param(
             "nrtk_config_ic", marks=[pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning")]
         ),
-        "survivor_config_ic",
+        # "survivor_config_ic",
         "feasibility_config_ic",
         pytest.param(
             "bias_config_ic",

@@ -23,9 +23,10 @@ from jatic_ri.image_classification.test_stages import (
 from jatic_ri.image_classification.test_stages import (
     NRTKTestStage as NRTKTestStageIC,
 )
-from jatic_ri.image_classification.test_stages import (
-    SurvivorTestStage as SurvivorTestStageIC,
-)
+
+# from jatic_ri.image_classification.test_stages import (
+#     SurvivorTestStage as SurvivorTestStageIC,
+# )
 from jatic_ri.image_classification.test_stages import (
     XAITKTestStage as XAITKTestStageIC,
 )
@@ -45,27 +46,28 @@ from jatic_ri.object_detection.test_stages import (
 from jatic_ri.object_detection.test_stages import (
     NRTKTestStage as NRTKTestStageOD,
 )
-from jatic_ri.object_detection.test_stages import (
-    RealLabelConfig,
-)
-from jatic_ri.object_detection.test_stages import (
-    RealLabelTestStage as RealLabelTestStageOD,
-)
-from jatic_ri.object_detection.test_stages import (
-    SurvivorTestStage as SurvivorTestStageOD,
-)
+
+# from jatic_ri.object_detection.test_stages import (
+#     RealLabelConfig,
+# )
+# from jatic_ri.object_detection.test_stages import (
+#     RealLabelTestStage as RealLabelTestStageOD,
+# )
+# from jatic_ri.object_detection.test_stages import (
+#     SurvivorTestStage as SurvivorTestStageOD,
+# )
 from jatic_ri.object_detection.test_stages import (
     XAITKTestStage as XAITKTestStageOD,
 )
 
 
-def rehydrate_test_stage_od(  # noqa: C901
+def rehydrate_test_stage_od(
     config: dict[str, Any],
 ) -> (
     BaselineEvaluationOD
     | NRTKTestStageOD
-    | RealLabelTestStageOD
-    | SurvivorTestStageOD
+    # | RealLabelTestStageOD
+    # | SurvivorTestStageOD
     | XAITKTestStageOD
     | DatasetShiftTestStageOD
     | DatasetCleaningTestStageOD
@@ -73,15 +75,15 @@ def rehydrate_test_stage_od(  # noqa: C901
     | DatasetFeasibilityTestStageOD
 ):
     """Initialize test stage object based on config dictionary"""
-    if config["TYPE"] == "RealLabelTestStage":
-        reallabel_config = RealLabelConfig(**config["CONFIG"])
-        return RealLabelTestStageOD(config=reallabel_config)
+    # if config["TYPE"] == "RealLabelTestStage":
+    #     reallabel_config = RealLabelConfig(**config["CONFIG"])
+    #     return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
         return NRTKTestStageOD(config["CONFIG"])
     if config["TYPE"] == "XAITKTestStage":
         return XAITKTestStageOD(config["CONFIG"])
-    if config["TYPE"] == "SurvivorTestStage":
-        return SurvivorTestStageOD(config["CONFIG"])
+    # if config["TYPE"] == "SurvivorTestStage":
+    #     return SurvivorTestStageOD(config["CONFIG"])
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":
@@ -103,7 +105,7 @@ def rehydrate_test_stage_ic(
 ) -> (
     BaselineEvaluationIC
     | NRTKTestStageIC
-    | SurvivorTestStageIC
+    # | SurvivorTestStageIC
     | XAITKTestStageIC
     | DatasetShiftTestStageIC
     | DatasetCleaningTestStageIC
@@ -115,8 +117,8 @@ def rehydrate_test_stage_ic(
         return NRTKTestStageIC(config["CONFIG"])
     if config["TYPE"] == "XAITKTestStage":
         return XAITKTestStageIC(config["CONFIG"])
-    if config["TYPE"] == "SurvivorTestStage":
-        return SurvivorTestStageIC(config["CONFIG"])
+    # if config["TYPE"] == "SurvivorTestStage":
+    #     return SurvivorTestStageIC(config["CONFIG"])
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":

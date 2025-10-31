@@ -62,7 +62,7 @@ def dataset_od_mini():
 @pytest.mark.parametrize(
     "config_fixture_name",
     [
-        "reallabel_config_od",
+        # "reallabel_config_od",
         pytest.param(
             "nrtk_config_od",
             marks=[
@@ -70,19 +70,19 @@ def dataset_od_mini():
                 pytest.mark.filterwarnings("ignore:No artists with labels found:UserWarning"),
             ],
         ),
-        pytest.param(
-            "survivor_config_od",
-            marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")],
-        ),
+        # pytest.param(
+        #     "survivor_config_od",
+        #     marks=[pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")],
+        # ),
         "xaitk_config_od",
-        pytest.param(
-            "feasibility_config_od",
-            marks=[
-                pytest.mark.xfail(
-                    reason="Feasability computation is broken. See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/181",
-                )
-            ],
-        ),
+        # pytest.param(
+        #     "feasibility_config_od",
+        #     marks=[
+        #         pytest.mark.xfail(
+        #             reason="Feasability computation is broken. See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/181",
+        #         )
+        #     ],
+        # ),
         pytest.param(
             "bias_config_od",
             marks=[pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")],

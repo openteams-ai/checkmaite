@@ -109,11 +109,11 @@ test:
   script:
     - git lfs pull     # Pull large files using git-lfs
     - poetry install --with dev
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
-    - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
+  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
+  #  - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
+  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
+  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'

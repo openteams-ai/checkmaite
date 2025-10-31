@@ -184,6 +184,7 @@ config.json
 
 # Tutorial notebook outputs
 /docs/tutorials/*_example_output
+/docs/reference/examples/*_example_output
 /docs/how-tos/temp_yolo_dataset/
 
 # gitlab-local-ci

@@ -3,15 +3,20 @@
 import dataclasses
 from typing import Any
 
-import maite.protocols.object_detection as od
-import pandas as pd
 import pytest
-from gradient.templates_and_layouts.create_deck import create_deck
-from reallabel import ColumnNameConfig, RealLabelResults
 
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError
-from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelOutputs, RealLabelTestStage
-from tests.fake_od_classes import FakeODDataset, FakeODModel
+# Skip all tests in this file if reallabel isn't available
+pytest.importorskip("reallabel")
+
+# Module-level imports after importorskip to prevent collection errors
+import maite.protocols.object_detection as od  # noqa: E402
+import pandas as pd  # noqa: E402
+from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
+from reallabel import ColumnNameConfig, RealLabelResults  # noqa: E402
+
+from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError  # noqa: E402
+from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelOutputs, RealLabelTestStage  # noqa: E402
+from tests.fake_od_classes import FakeODDataset, FakeODModel  # noqa: E402
 
 _DICT_CONFIG = "dict_config"
 _REALLABEL_CONFIG = "config"

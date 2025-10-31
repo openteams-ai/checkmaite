@@ -8,8 +8,8 @@ from jatic_ri._common._panel.dashboards.base_dashboard import BaseTestbed
 
 @pytest.fixture(scope="session")
 def pipeline_config_od(
-    reallabel_config_od,
-    survivor_config_od,
+    # reallabel_config_od,
+    # survivor_config_od,
     nrtk_config_od,
     xaitk_config_od,
     feasibility_config_od,
@@ -20,8 +20,8 @@ def pipeline_config_od(
 ):
     return {
         "task": "object_detection",
-        "reallabel_config": reallabel_config_od,
-        "survivor_config": survivor_config_od,
+        # "reallabel_config": reallabel_config_od,
+        # "survivor_config": survivor_config_od,
         "nrtk_config": nrtk_config_od,
         "xaitk_config": xaitk_config_od,
         "feasibility_config": feasibility_config_od,
@@ -34,7 +34,7 @@ def pipeline_config_od(
 
 @pytest.fixture(scope="session")
 def pipeline_config_ic(
-    survivor_config_ic,
+    # survivor_config_ic,
     nrtk_config_ic,
     xaitk_config_ic,
     feasibility_config_ic,
@@ -45,7 +45,7 @@ def pipeline_config_ic(
 ):
     return {
         "task": "image_classification",
-        "survivor_config": survivor_config_ic,
+        # "survivor_config": survivor_config_ic,
         "nrtk_config": nrtk_config_ic,
         "xaitk_config": xaitk_config_ic,
         "feasibility_config": feasibility_config_ic,
@@ -76,8 +76,8 @@ def test_basedashboard_multi_model(pipeline_config, request):
     # test loading pipeline from config
     assert app.load_pipeline(configs=config)
     assert "Configuration file loaded" in app.status_source.current_value
-    # the default configs all include multi-model test stages
-    assert app.multi_model_visible
+    # There are no multi-model test stages in the default configs when Survivor is excluded
+    assert not app.multi_model_visible
 
     # test missing task key in config dict
     del config["task"]

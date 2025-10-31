@@ -156,7 +156,6 @@ def test_route_me_nrtk_only(task):
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
 def test_route_me_nrtk_xaitk(task):
     """Test route when both nrtk and xaitk are selected
-
     ROUTE:
     LandingPage -> MEConfigurationLandingPage -> ConfigureNRTK{suffix} -> ConfigureXAITK{suffix} -> ModelEvaluationTestbed
     """
@@ -165,55 +164,44 @@ def test_route_me_nrtk_xaitk(task):
     # instantiate the pipeline
     app = FullApp(task=task, local=local, workflow=workflow)
     app.panel()
-
     # go to me od/ic landing page
     state = app.pipeline._state
     button = getattr(state, f"{app.suffix.lower()}_button")
     button.clicks += 1
     assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
-
     # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
-
     # toggle nrtk to true
     app.pipeline._state.show_nrtk_config = True
     app.pipeline._state.show_xaitk_config = True
-
     # with only nrtk true, the next stage should be nrtk
     assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
-
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
     # add perturber factory
     app.pipeline._state.add_button.clicks += 1
-
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
-
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
-
     final_output = app.pipeline._state.output_test_stages
     assert len(final_output) == 3  # task, nrtk and xaitk should be present
     assert f"NRTKApp{app.suffix}_0" in final_output.keys()
     assert f"XAITKApp{app.suffix}_0" in final_output.keys()
-
     # convert the on-disk formatted configs into instantiated test stages
     app.pipeline._state.load_pipeline(app.pipeline._state.output_test_stages)
-
     assert len(app.pipeline._state.test_stages) == len(app.pipeline._state.output_test_stages) - 1
 
 
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
 def test_route_me_xaitk_only(task):
     """Test route when only xaitk is selected
-
     ROUTE:
     LandingPage -> MEConfigurationLandingPage -> ConfigureXAITK{suffix} -> ModelEvaluationTestbed
     """
@@ -222,29 +210,23 @@ def test_route_me_xaitk_only(task):
     # instantiate the pipeline
     app = FullApp(task=task, local=local, workflow=workflow)
     app.panel()
-
     # go to me od/ic landing page
     state = app.pipeline._state
     button = getattr(state, f"{app.suffix.lower()}_button")
     button.clicks += 1
     assert app.pipeline._state.__class__.__name__ == "MEConfigurationLandingPage"
-
     # reset the app (ensure this test is not affected by changing defaults)
     _reset_me_config_app(app)
-
     # toggle nrtk to true
     app.pipeline._state.show_xaitk_config = True
-
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
-
     # go to next stage
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
-
     final_output = app.pipeline._state.output_test_stages
     assert len(final_output) == 2  # task, xaitk should be present
     assert f"XAITKApp{app.suffix}_0" in final_output.keys()
