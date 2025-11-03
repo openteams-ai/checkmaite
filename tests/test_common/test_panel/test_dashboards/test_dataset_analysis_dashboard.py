@@ -24,9 +24,6 @@ TEST_DIR = Path(__file__).parents[3]  # tests directory
 @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
 def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir):
     """Test running of the DA dashboard for object detection."""
-    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/379
-    json_config_da_od = json_config_da_od.copy()
-    del json_config_da_od["reallabel"]
 
     app = DatasetAnalysisDashboard(
         task="object_detection",
