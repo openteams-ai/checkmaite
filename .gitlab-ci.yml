@@ -7,6 +7,17 @@ default:
   artifacts:
     expire_in: 1 week
 
+# Global variables
+variables:
+  # Defaults to false to avoid populating artifact_dir
+  # (see .gitlab-ci-local-variables.yml). Temporarily override in an
+  # MR for testing or via the Pipeline trigger if artifacts are needed:
+  # https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/pipelines/new
+  SAVE_POETRY_ARTIFACTS:
+    value: "false"
+    description: "Set to true to save Poetry artifacts after jobs; default is false."
+
+
 stages:
   - lint
   - pyright
@@ -106,7 +117,8 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - git lfs pull     # Pull large files using git-lfs
+    # Pull large files using git-lfs
+    - git lfs pull
     - poetry install --with dev
   #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
   #  - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
@@ -115,6 +127,7 @@ test:
   #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
+
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always
