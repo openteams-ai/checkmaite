@@ -14,7 +14,6 @@ from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
 from maite.protocols import image_classification as ic  # noqa: E402
 from survivor.enums import ScoreConversionType  # noqa: E402
 
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError  # noqa: E402
 from jatic_ri.image_classification.test_stages import SurvivorConfig, SurvivorTestStage  # noqa: E402
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel  # noqa: E402
 
@@ -69,14 +68,7 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
     string input to `request.param` (set through indirect parametrization of `test_stage`, defaults to `config`).
     """
     # Create and configure SurvivorTestStage
-    test_stage = SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
-    test_stage.load_models(models=survivor_test_stage_args["models"])
-    test_stage.load_dataset(dataset=survivor_test_stage_args["dataset"], dataset_id="test-dataset")
-    test_stage.load_metric(
-        metric=survivor_test_stage_args["metric"], metric_id=survivor_test_stage_args["config"].metric_column
-    )
-
-    return test_stage
+    return SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
 
 
 @pytest.mark.parametrize(
@@ -85,13 +77,19 @@ def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureReq
     ids=["Using SurvivorConfig", "Using dict config"],
     indirect=True,
 )
-def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, tmp_cache_path) -> None:
+def test_survivor_test_stage_run_caches(
+    mocker, test_stage: SurvivorTestStage, survivor_test_stage_args, tmp_cache_path
+) -> None:
     """Test SurvivorTestStage generates a cache object that can be read correctly."""
 
-    run = test_stage.run(use_stage_cache=True)
+    models = list(survivor_test_stage_args["models"].values())
+    datasets = [survivor_test_stage_args["dataset"]]
+    metrics = [survivor_test_stage_args["metric"]]
+
+    run = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = test_stage.run(use_stage_cache=True)
+    cached_run = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
     assert cached_run is not run
 
     reallabel_outputs = run.outputs
@@ -103,7 +101,9 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, t
     )
 
 
-def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, artifact_dir) -> None:
+def test_survivor_collect_report_consumables(
+    test_stage: SurvivorTestStage, survivor_test_stage_args, artifact_dir
+) -> None:
     """Test collect_report_consumables."""
     # Arrange
     expected_deck = "image_classification_survivor"
@@ -123,11 +123,15 @@ def test_survivor_collect_report_consumables(test_stage: SurvivorTestStage, arti
     )
     expected_title = "Survivor Dataset Breakdown"
 
+    models = list(survivor_test_stage_args["models"].values())
+    datasets = [survivor_test_stage_args["dataset"]]
+    metrics = [survivor_test_stage_args["metric"]]
+
     # Run test stage once to ensure cache is present
-    test_stage.run(use_stage_cache=True)
+    test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     # Run again to use cache
-    test_stage.run(use_stage_cache=True)
+    test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     # Act
     slide_content = test_stage.collect_report_consumables()
@@ -153,26 +157,3 @@ def test_survivor_test_stage_collect_report_consumables_error(
     # Act and Assert
     with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_report_consumables()
-
-
-def test_survivor_test_stage_run_errors(survivor_test_stage_args: dict):
-    """Test run() errors."""
-    # Arrange
-    test_stage_1 = SurvivorTestStage(survivor_test_stage_args["config"])
-    test_stage_2 = SurvivorTestStage(survivor_test_stage_args["config"])
-    test_stage_3 = SurvivorTestStage(survivor_test_stage_args["config"])
-
-    test_stage_2.load_models(survivor_test_stage_args["models"])
-
-    test_stage_3.load_models(survivor_test_stage_args["models"])
-    test_stage_3.load_dataset(survivor_test_stage_args["dataset"], "test-id")
-
-    # Act and Assert
-    with pytest.raises(RIValidationError, match=r"'models' not set! Please use `load_models\(\)` function"):
-        test_stage_1.run(use_stage_cache=False)
-
-    with pytest.raises(RIValidationError, match=r"'dataset' not set! Please use `load_dataset\(\)` function"):
-        test_stage_2.run(use_stage_cache=False)
-
-    with pytest.raises(RIValidationError, match=r"'metric' not set! Please use `load_metric\(\)` function"):
-        test_stage_3.run(use_stage_cache=False)

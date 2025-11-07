@@ -36,8 +36,16 @@ from jatic_ri._common.test_stages.impls._dataeval_utils import (
     prepare_ratio_histograms,
     split_into_chunks,
 )
-from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    ConfigBase,
+    Number,
+    OutputsBase,
+    RunBase,
+    TDataset,
+    TestStage,
+    TMetric,
+    TModel,
+)
 from jatic_ri.util.slide_deck import (
     create_item_by_narrow_text_slide,
     create_section_by_item_slide_extra_caption,
@@ -116,12 +124,8 @@ class DataevalCleaningRun(RunBase):
     outputs: DataevalCleaningOutputs
 
 
-class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDatasetPlugin[TDataset]):
+class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, TModel, TMetric]):
     """
-    Dataset Cleaning TestStage Base implementation.
-
-    Dataset Cleaning TestStage Base implementation.
-
     Performs dataset cleaning by identifying duplicates (exact and near)
     as well as statistical outliers using various pixel and image
     statistics on the dataset.
@@ -132,8 +136,109 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
     def _create_config(self) -> ConfigBase:
         return DataevalCleaningConfig()
 
-    def _run_basic_stats(
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ZERO
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
+
+    def _run(
         self,
+        models: list[TModel],  # noqa: ARG002
+        datasets: list[TDataset],
+        metrics: list[TMetric],  # noqa: ARG002
+    ) -> DataevalCleaningOutputs:
+        """Execute the full statistics and outlier detection pipeline for the dataset.
+
+        Returns
+        -------
+        DataevalCleaningOutputs
+            The outputs of the cleaning process.
+
+        Raises
+        ------
+        ValueError
+            If the task is not 'ic' or 'od'.
+        """
+
+        dataset = datasets[0]
+
+        hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats(dataset=dataset)
+
+        duplicates = Duplicates().from_stats(hashes)
+
+        img_outliers = self._compute_basic_outliers(dim_stats=img_dim_stats, viz_stats=img_viz_stats)
+
+        if self._task == "od":
+            incremented_dataset = dataset
+
+            box_dim_stats = dimensionstats(
+                dataset=incremented_dataset,
+                per_box=True,
+            )
+            box_viz_stats = visualstats(
+                dataset=incremented_dataset,
+                per_box=True,
+            )
+
+            dimensional_ratio_stats = boxratiostats(imgstats=img_dim_stats, boxstats=box_dim_stats)
+
+            target_outliers = self._compute_box_outliers(
+                box_dim_stats=box_dim_stats, box_viz_stats=box_viz_stats, ratiostats=dimensional_ratio_stats
+            )
+
+        elif self._task == "ic":
+            target_outliers = None
+            box_dim_stats = None
+            box_viz_stats = None
+            dimensional_ratio_stats = None
+
+        else:
+            raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {self._task}.")
+
+        return DataevalCleaningOutputs.model_validate(
+            {
+                "duplicates": duplicates.data(),
+                "img_outliers": img_outliers,
+                "img_dim_stats": img_dim_stats.data(),
+                "img_viz_stats": img_viz_stats.data(),
+                "label_stats": label_stats.data(),
+                "target_outliers": target_outliers,
+                "box_dim_stats": box_dim_stats.data() if box_dim_stats is not None else None,
+                "box_viz_stats": box_viz_stats.data() if box_viz_stats is not None else None,
+                "box_ratio_stats": dimensional_ratio_stats.data() if dimensional_ratio_stats is not None else None,
+            }
+        )
+
+    def _run_basic_stats(
+        self, dataset: TDataset
     ) -> tuple[
         HashStatsOutput,
         DimensionStatsOutput,
@@ -152,13 +257,13 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         ]
             A tuple containing hash, dimension, visual, and label statistics.
         """
-        hashes = hashstats(self.dataset)
+        hashes = hashstats(dataset)
 
-        img_dim_stats = dimensionstats(self.dataset)
-        img_viz_stats = visualstats(self.dataset)
+        img_dim_stats = dimensionstats(dataset)
+        img_viz_stats = visualstats(dataset)
 
         if self._task == "od" or self._task == "ic":
-            label_stats = labelstats(self.dataset)
+            label_stats = labelstats(dataset)
         else:
             raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {self._task}.")
 
@@ -331,67 +436,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
 
         return self._dictionary_merge(box_result, adjusted_ratio_result)
 
-    def _run(self) -> DataevalCleaningOutputs:
-        """Execute the full statistics and outlier detection pipeline for the dataset.
-
-        Returns
-        -------
-        DataevalCleaningOutputs
-            The outputs of the cleaning process.
-
-        Raises
-        ------
-        ValueError
-            If the task is not 'ic' or 'od'.
-        """
-        hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats()
-
-        duplicates = Duplicates().from_stats(hashes)
-
-        img_outliers = self._compute_basic_outliers(dim_stats=img_dim_stats, viz_stats=img_viz_stats)
-
-        if self._task == "od":
-            incremented_dataset = self.dataset
-
-            box_dim_stats = dimensionstats(
-                dataset=incremented_dataset,
-                per_box=True,
-            )
-            box_viz_stats = visualstats(
-                dataset=incremented_dataset,
-                per_box=True,
-            )
-
-            dimensional_ratio_stats = boxratiostats(imgstats=img_dim_stats, boxstats=box_dim_stats)
-
-            target_outliers = self._compute_box_outliers(
-                box_dim_stats=box_dim_stats, box_viz_stats=box_viz_stats, ratiostats=dimensional_ratio_stats
-            )
-
-        elif self._task == "ic":
-            target_outliers = None
-            box_dim_stats = None
-            box_viz_stats = None
-            dimensional_ratio_stats = None
-
-        else:
-            raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {self._task}.")
-
-        return DataevalCleaningOutputs.model_validate(
-            {
-                "duplicates": duplicates.data(),
-                "img_outliers": img_outliers,
-                "img_dim_stats": img_dim_stats.data(),
-                "img_viz_stats": img_viz_stats.data(),
-                "label_stats": label_stats.data(),
-                "target_outliers": target_outliers,
-                "box_dim_stats": box_dim_stats.data() if box_dim_stats is not None else None,
-                "box_viz_stats": box_viz_stats.data() if box_viz_stats is not None else None,
-                "box_ratio_stats": dimensional_ratio_stats.data() if dimensional_ratio_stats is not None else None,
-            }
-        )
-
-    def add_slide(
+    def _add_slide(
         self,
         deck: str,
         title: str,
@@ -513,6 +558,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         label_stats: DataevalCleaningLabelStatsOutputs,
         box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
         ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+        index2label: dict[int, str],
     ) -> list[dict[str, Any]]:
         """Generate a report for image and target statistics.
 
@@ -526,6 +572,8 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
             Bounding box dimension and visual statistics.
         ratio_stats : DataevalCleaningDimensionStatsOutputs | None
             Ratio statistics.
+        index2label : dict[str, Any]
+            Mapping from integer labels to corresponding string descriptions.
 
         Returns
         -------
@@ -555,7 +603,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         )
 
         # build gradient slide for label analysis
-        result_content, label_df = label_table(label_stats, index2label=self.dataset.metadata["index2label"])  # pyright: ignore[reportTypedDictNotRequiredAccess, reportArgumentType]
+        result_content, label_df = label_table(label_stats, index2label=index2label)  # pyright: ignore[reportArgumentType]
         title = "Label Analysis"
         content = []
         content.append(Text("Description: ", bold=True, fontsize=22))
@@ -642,7 +690,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
                 fontsize=21,
             )
             outlier_slides.append(
-                self.add_slide(
+                self._add_slide(
                     deck=self._deck,
                     title=title,
                     text=text,
@@ -709,7 +757,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
                 fontsize=21,
             )
             outlier_slides.append(
-                self.add_slide(
+                self._add_slide(
                     deck=self._deck,
                     title=title,
                     text=text,
@@ -722,7 +770,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
 
         return outlier_slides
 
-    def _generate_next_steps_report(self) -> dict[str, Any]:
+    def _generate_next_steps_report(self, dataset_id: str) -> dict[str, Any]:
         """Generate a report for next steps.
 
         Provides recommendations for investigating issues that may arise
@@ -738,7 +786,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
         filepath = dir_ / "blank_img.png"
         plot_blank_or_single_image(filepath)
 
-        title = f"Dataset: {self.dataset_id} | Category: Cleaning"
+        title = f"Dataset: {dataset_id} | Category: Cleaning"
         heading = "Next Steps\n"
         content = [
             Text(t, fontsize=14)
@@ -786,6 +834,9 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
             raise RuntimeError("TestStage must be run before accessing outputs")
         outputs = self._stored_run.outputs
 
+        index2label = self._stored_run.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        dataset_id = self._stored_run.dataset_metadata[0]["id"]
+
         duplicates = self._generate_duplicates_report(
             duplicates=outputs.duplicates, dataset_size=outputs.label_stats.image_count
         )
@@ -796,6 +847,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
             if outputs.box_dim_stats and outputs.box_viz_stats
             else None,
             ratio_stats=outputs.box_ratio_stats,
+            index2label=index2label,
         )
         image_list = self._generate_image_outliers_report(
             img_outliers=outputs.img_outliers,
@@ -817,7 +869,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
                 *image_list[0:],
                 *stat_list[1:],
                 *target_list[0:],
-                self._generate_next_steps_report(),
+                self._generate_next_steps_report(dataset_id=dataset_id),
             ]
 
         return [
@@ -826,5 +878,5 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs], SingleDat
             stat_list[0],
             *image_list[0:],
             *stat_list[1:],
-            self._generate_next_steps_report(),
+            self._generate_next_steps_report(dataset_id=dataset_id),
         ]

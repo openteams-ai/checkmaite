@@ -36,6 +36,8 @@ class XAITKOutputsIC(OutputsBase):
     # MCRISEStack["fill_colors"]
     # REF: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
     results: list[np.ndarray]
+    gray_imgs: list[np.ndarray]
+    gt_labels: list[str]
 
 
 class XAITKConfigIC(ConfigBase):
@@ -53,7 +55,7 @@ class XAITKRunIC(RunBase):
     outputs: XAITKOutputsIC
 
 
-class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model, ic.Dataset]):
+class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic.Metric]):
     """
     XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
 
@@ -68,25 +70,43 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
         super().__init__()
         self.config: XAITKConfigIC = XAITKConfigIC.model_validate(config)
 
-    def _run(self) -> XAITKOutputsIC:
+    def _create_config(self) -> XAITKConfigIC:
+        return self.config
+
+    def _run(
+        self,
+        models: list[ic.Model],
+        datasets: list[ic.Dataset],
+        metrics: list[ic.Metric],  # noqa: ARG002
+    ) -> XAITKOutputsIC:
         """Run the test stage, and store any outputs of the saliency
         generation in test stage"""
-        if "index2label" not in self.model.metadata:
+
+        model = models[0]
+        dataset = datasets[0]
+
+        if "index2label" not in model.metadata:
             raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
 
         classifier = JATICImageClassifier(
-            classifier=self.model,
-            ids=sorted(self.model.metadata["index2label"].keys()),
+            classifier=model,
+            ids=sorted(model.metadata["index2label"].keys()),
             img_batch_size=self.config.img_batch_size,
         )
         img_sal_maps = []
-        for ref_img, _, _ in self.dataset:
+        gray_imgs = []
+        gt_labels = []
+        for ref_img, targets, _ in dataset:
             transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
             if transposed_image.shape[2] == 1:
                 transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
             img_sal_maps.append(self.config.saliency_generator(transposed_image, classifier))
 
-        return XAITKOutputsIC.model_validate({"results": img_sal_maps})
+            gray_imgs.append(rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy())
+
+            gt_labels.append(model.metadata["index2label"][int(np.argmax(targets))])
+
+        return XAITKOutputsIC.model_validate({"results": img_sal_maps, "gray_imgs": gray_imgs, "gt_labels": gt_labels})
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report
@@ -100,24 +120,24 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
             raise RuntimeError("TestStage must be run before accessing outputs")
         outputs = self._stored_run.outputs
 
+        model_id = self._stored_run.model_metadata[0]["id"]
+        index2label = self._stored_run.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
         gradient_slides = []
 
-        # TODO: This needs to be fixed to work from cache (self.dataset won't be available)
-        # TODO: Also needs general refactoring once a determination is made on if/why the saliency maps are
+        # TODO: Needs general refactoring once a determination is made on if/why the saliency maps are
         # being generated for every class in the model for every image.
         # REF: https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/345
-        for i, sal_maps in enumerate(outputs.results):
-            ref_img, targets, _ = self.dataset[i]
+        i = -1
+        for sal_maps, gray_img, gt_label in zip(outputs.results, outputs.gray_imgs, outputs.gt_labels, strict=False):
+            i += 1
 
-            gray_img = rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy()
-
-            gt_label = self.model.metadata["index2label"][int(np.argmax(targets))]  # pyright: ignore[reportTypedDictNotRequiredAccess]
             conf_dict = self.config.model_dump()
 
             if "MCRISEStack" in conf_dict["saliency_generator"]["type"]:
                 fill_colors = conf_dict["saliency_generator"][conf_dict["saliency_generator"]["type"]]["fill_colors"]
                 for color_idx, color_value in enumerate(fill_colors):
-                    for sal_idx in self.model.metadata["index2label"]:  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                    for sal_idx in index2label:
                         fig = plt.figure()
                         plt.axis("off")
                         plt.imshow(gray_img, alpha=0.7, cmap="gray")
@@ -134,11 +154,11 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                             "layout_arguments": {
                                 "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                                 "text": (
-                                    f"Model: {self.model_id}\n"
+                                    f"Model: {model_id}\n"
                                     f"Image: {i}\n"
                                     f"Fill Color: {color_value}\n"
                                     f"GT: {gt_label}\n"
-                                    f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                                    f"Pred: {index2label[sal_idx]}"
                                 ),
                                 "image_path": Path(save_figure_to_tempfile(fig)),
                             },
@@ -164,10 +184,10 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigIC, XAITKOutputsIC, ic.Model,
                         "layout_arguments": {
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
                             "text": (
-                                f"Model: {self.model_id}\n"
+                                f"Model: {model_id}\n"
                                 f"Image: {i}\n"
                                 f"GT: {gt_label}\n"
-                                f"Pred: {self.model.metadata['index2label'][sal_idx]}"  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                                f"Pred: {index2label[sal_idx]}"
                             ),
                             "image_path": Path(save_figure_to_tempfile(fig)),
                         },

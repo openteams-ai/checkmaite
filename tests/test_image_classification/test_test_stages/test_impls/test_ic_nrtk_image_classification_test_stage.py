@@ -28,11 +28,10 @@ def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dumm
 
     test = NRTKTestStage(ARGS)
     # load the maite compliant model
-    test.load_model(model=dummy_model_od, model_id="model_1")
-    test.load_metric(metric=dummy_metric_od, metric_id=dummy_metric_od.return_key)
     test.load_threshold(threshold=10)
-    test.load_dataset(dataset=dummy_dataset_od, dataset_id="dataset_1")
-    test.run(use_stage_cache=use_stage_cache)
+    test.run(
+        use_stage_cache=use_stage_cache, models=[dummy_model_od], metrics=[dummy_metric_od], datasets=[dummy_dataset_od]
+    )
     output = test.collect_report_consumables()
 
     example_args = output[0]
@@ -43,6 +42,4 @@ def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dumm
     assert example_args["layout_arguments"]["title"] == test.name
     assert isinstance(example_args["layout_arguments"]["data"], pd.DataFrame)
     assert example_args["layout_arguments"]["x_data_col"] == test.config.perturber_factory.theta_key
-    assert example_args["layout_arguments"]["y_data_col"] == test.metric_id
     assert example_args["layout_arguments"]["perturbation_type"] == "Average Blur Perturber"
-    assert example_args["layout_arguments"]["model"] == test.model_id

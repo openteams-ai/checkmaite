@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -5,13 +6,9 @@ from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-    SingleModelPlugin,
     ThresholdPlugin,
-    TwoDatasetPlugin,
 )
+from jatic_ri._common.test_stages.interfaces.test_stage import Number
 from jatic_ri.object_detection.datasets import CocoDetectionDataset
 from jatic_ri.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri.object_detection.models import TorchvisionODModel
@@ -118,24 +115,38 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     else:
         dataset = dataset_od
 
-    if isinstance(test_stage, TwoDatasetPlugin):
-        test_stage.load_datasets(dataset, "dataset1", dataset, "dataset2")
-    elif isinstance(test_stage, SingleDatasetPlugin):
-        test_stage.load_dataset(dataset, "dataset1")
+    # use deepcopy to enforce distinct datasets
+    if test_stage.supports_datasets == Number.TWO:
+        datasets = [deepcopy(dataset), deepcopy(dataset)]
+    elif test_stage.supports_datasets == Number.ONE:
+        datasets = [dataset]
+    elif test_stage.supports_datasets == Number.ZERO:
+        datasets = []
+    else:
+        raise ValueError("Test should be rewritten if more than two datasets used.")
 
-    if isinstance(test_stage, MetricPlugin):
-        test_stage.load_metric(metric_od, metric_od.return_key)
+    if test_stage.supports_metrics == Number.ONE:
+        metrics = [metric_od]
+    elif test_stage.supports_metrics == Number.ZERO:
+        metrics = []
+    else:
+        raise ValueError("Test should be rewritten if multiple metrics used.")
 
     if isinstance(test_stage, ThresholdPlugin):
         test_stage.load_threshold(0.5)
 
-    if isinstance(test_stage, SingleModelPlugin):
-        test_stage.load_model(model_od, model_id="model_1")
-    elif isinstance(test_stage, MultiModelPlugin):
-        test_stage.load_models(models={"model_1": model_od})
+    # use deepcopy to enforce distinct models
+    if test_stage.supports_models == Number.MANY:
+        models = [deepcopy(model_od), deepcopy(model_od), deepcopy(model_od)]
+    elif test_stage.supports_models == Number.TWO:
+        models = [deepcopy(model_od), deepcopy(model_od)]
+    elif test_stage.supports_models == Number.ONE:
+        models = [model_od]
+    else:
+        models = []
 
     # run the stage, saving output to the class
-    test_stage.run(use_stage_cache=False)
+    test_stage.run(datasets=datasets, metrics=metrics, models=models, use_stage_cache=False)
     # collect the slides
     slides = test_stage.collect_report_consumables()
 

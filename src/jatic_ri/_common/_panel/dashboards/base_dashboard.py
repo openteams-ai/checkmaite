@@ -28,14 +28,9 @@ from streamz import Stream
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.base_app import AppStyling, BaseApp
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-    SingleModelPlugin,
     ThresholdPlugin,
-    TwoDatasetPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import Number
 from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_MODELS_IC
 from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
 from jatic_ri.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
@@ -914,52 +909,6 @@ class BaseTestbed(BaseApp):
 
         return True
 
-    def load_stage_inputs(self, test_stage: TestStage) -> None:  # pragma: no cover
-        """Load inputs into a given test stage.
-
-        Populates the provided `test_stage` with necessary inputs (datasets,
-        models, metrics, etc.) based on values set in the UI and the
-        test stage's plugin interfaces.
-
-        Parameters
-        ----------
-        test_stage : TestStage
-            The test stage instance to load inputs into.
-        """
-        self.status_source.emit(f"Loading inputs for {test_stage.__class__.__name__}")
-        if isinstance(test_stage, TwoDatasetPlugin):
-            test_stage.load_datasets(
-                self.loaded_datasets["dataset_1"],
-                self.loaded_datasets["dataset_1"].metadata["id"],
-                self.loaded_datasets["dataset_2"],
-                self.loaded_datasets["dataset_2"].metadata["id"],
-            )
-        elif isinstance(test_stage, SingleDatasetPlugin):
-            if self.dataset_2_visible:
-                self.status_source.emit(
-                    f"Dataset {self.dataset_2_selector.value} is unused for {test_stage.__class__.__name__}"
-                )
-            test_stage.load_dataset(self.loaded_datasets["dataset_1"], self.loaded_datasets["dataset_1"].metadata["id"])
-
-        if isinstance(test_stage, MetricPlugin):
-            test_stage.load_metric(self.loaded_metric, self.loaded_metric.return_key)
-
-        if isinstance(test_stage, ThresholdPlugin):
-            test_stage.load_threshold(float(self.threshold))
-
-        if isinstance(test_stage, SingleModelPlugin):
-            if len(self.loaded_models) == 0:
-                raise RuntimeError("No model loaded. Please select model.")
-            if len(self.loaded_models) != 1:
-                self.status_source.emit(
-                    f"Model(s) {list(self.loaded_models.keys())[1:]} unused for {test_stage.__class__.__name__}"
-                )
-            model_1 = self.loaded_models[list(self.loaded_models.keys())[0]]
-            test_stage.load_model(model_1, model_id=model_1.metadata["id"])
-
-        elif isinstance(test_stage, MultiModelPlugin):
-            test_stage.load_models(self.loaded_models)
-
     def _construct_report_filename(self) -> str:
         """Construct a filename for the output report.
 
@@ -972,7 +921,7 @@ class BaseTestbed(BaseApp):
         """
         return f"{'-'.join(self.test_stages.keys())}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"
 
-    def _run_all_tests(self) -> str:  # pragma: no cover
+    def _run_all_tests(self) -> str:  # pragma: no cover  # noqa: C901
         """Execute all configured test stages and generate a report.
 
         This method iterates through all test stages in `self.test_stages`,
@@ -995,9 +944,69 @@ class BaseTestbed(BaseApp):
 
         slides = []
         for stage in self.test_stages.values():
-            self.load_stage_inputs(stage)
+            self.status_source.emit(f"Loading inputs for {stage.__class__.__name__}")
+
+            # extract threshold from the UI
+            if isinstance(stage, ThresholdPlugin):
+                stage.load_threshold(float(self.threshold))
+
+            all_datasets = list(self.loaded_datasets.values())
+            all_models = list(self.loaded_models.values())
+            all_metrics = []
+
+            if hasattr(self, "loaded_metric") and self.loaded_metric:
+                self.loaded_metric.metadata["id"] = self.loaded_metric.return_key
+                all_metrics = [self.loaded_metric]
+
+            # For each test stages, we need to extract only the subset of input models, datasets, and metrics
+            # that the stage supports, based on its supports_* attributes.
+
+            # We assume that if multiple datasets, models, or metrics are loaded, we take the first N that the stage
+            # supports in order.  (Also the UI currently only supports one metric but all of the code is included below
+            # for symmetry.)
+
+            # Assemble datasets based on stage's supports_datasets
+            if stage.supports_datasets == Number.ZERO:
+                datasets = []
+            elif stage.supports_datasets == Number.ONE:
+                datasets = all_datasets[:1] if all_datasets else []
+            elif stage.supports_datasets == Number.TWO:
+                datasets = all_datasets[:2] if len(all_datasets) >= 2 else all_datasets
+            else:  # Number.MANY
+                datasets = all_datasets
+
+            # Assemble models based on stage's supports_models
+            if stage.supports_models == Number.ZERO:
+                models = []
+            elif stage.supports_models == Number.ONE:
+                models = all_models[:1] if all_models else []
+            elif stage.supports_models == Number.TWO:
+                models = all_models[:2] if len(all_models) >= 2 else all_models
+            else:  # Number.MANY
+                models = all_models
+
+            # Assemble metrics based on stage's supports_metrics
+            if stage.supports_metrics == Number.ZERO:
+                metrics = []
+            elif stage.supports_metrics == Number.ONE:
+                metrics = all_metrics[:1] if all_metrics else []
+            elif stage.supports_metrics == Number.TWO:
+                metrics = all_metrics[:2] if len(all_metrics) >= 2 else all_metrics
+            else:  # Number.MANY
+                metrics = all_metrics
+
+            # Build kwargs for stage.run, only including parameters the stage supports
+            run_kwargs = {"use_stage_cache": self.use_caches}
+
+            if stage.supports_datasets != Number.ZERO:
+                run_kwargs["datasets"] = datasets
+            if stage.supports_models != Number.ZERO:
+                run_kwargs["models"] = models
+            if stage.supports_metrics != Number.ZERO:
+                run_kwargs["metrics"] = metrics
+
             # run the stage, saving output to the class
-            stage.run(use_stage_cache=self.use_caches)
+            stage.run(**run_kwargs)
             # collect the slides
             stage_slides = stage.collect_report_consumables()
             slides += stage_slides

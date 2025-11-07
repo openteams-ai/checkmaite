@@ -25,8 +25,7 @@ def test_ic_cleaning(fake_ic_dataset_default) -> None:
     """Test Cleaning implementation"""
 
     test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
-    test.run(use_stage_cache=False)
+    test.run(use_stage_cache=False, datasets=[fake_ic_dataset_default])
     output = test.collect_report_consumables()
 
     assert output
@@ -37,14 +36,12 @@ def test_ic_cleaning(fake_ic_dataset_default) -> None:
 def test_ic_cleaning_with_cached_values(fake_ic_dataset_default) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()
-    test1.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
-    test1.run()
+    test1.run(datasets=[fake_ic_dataset_default])
     output1 = test1.collect_report_consumables()
 
     test2 = DatasetCleaningTestStage()
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
-    test2.run()
+    test2.run(datasets=[fake_ic_dataset_default])
     output2 = test2.collect_report_consumables()
 
     assert test2._run.call_count == 0
@@ -57,8 +54,7 @@ def test_ic_cleaning_with_cached_values(fake_ic_dataset_default) -> None:
 def test_ic_cleaning_create_deck(fake_ic_dataset_default, artifact_dir) -> None:
     """This is used to test the output of the feasibility gradient slides"""
     test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dummy_cleaning")
-    test.run()
+    test.run(datasets=[fake_ic_dataset_default])
 
     slides = test.collect_report_consumables()
     filename = create_deck(slides, path=Path(artifact_dir), deck_name="TestCleaningDeck")

@@ -13,8 +13,8 @@ from gradient.templates_and_layouts.generic_layouts.section_by_item import Secti
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
-from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, ThresholdPlugin
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.plugins import ThresholdPlugin
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, RunBase, TestStage
 from jatic_ri.util._types import Device
 
 
@@ -46,8 +46,7 @@ class DatasetImageClassificationFeasibilityRun(RunBase):
 
 
 class DatasetImageClassificationFeasibilityTestStage(
-    TestStage[DatasetImageClassificationFeasibilityOutputs],
-    SingleDatasetPlugin[ic.Dataset],
+    TestStage[DatasetImageClassificationFeasibilityOutputs, ic.Dataset, ic.Model, ic.Metric],
     ThresholdPlugin,
 ):
     """
@@ -82,12 +81,52 @@ class DatasetImageClassificationFeasibilityTestStage(
             precision=self.precision,
         )
 
-    def _run(self) -> DatasetImageClassificationFeasibilityOutputs:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ZERO
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
+
+    def _run(
+        self,
+        models: list[ic.Model],  # noqa: ARG002
+        datasets: list[ic.Dataset],
+        metrics: list[ic.Metric],  # noqa: ARG002
+    ) -> DatasetImageClassificationFeasibilityOutputs:
         """Run the feasibility test"""
 
+        dataset = datasets[0]
+
         model, transform = get_resnet18()
-        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, device=self.device)
-        metadata = Metadata(self.dataset)
+        embeddings = Embeddings(dataset, self._batch_size, transform, model, device=self.device)
+        metadata = Metadata(dataset)
 
         b: BEROutput = ber(
             embeddings=embeddings.to_numpy(),
@@ -107,6 +146,8 @@ class DatasetImageClassificationFeasibilityTestStage(
             raise RuntimeError("TestStage must be run before accessing outputs")
         results = self._stored_run.outputs
 
+        dataset_id = self._stored_run.dataset_metadata[0]["id"]
+
         is_feasible = results.ber > self.threshold
         feasibility_dict = {
             "Feasible": [str(is_feasible)],
@@ -116,7 +157,7 @@ class DatasetImageClassificationFeasibilityTestStage(
         }
         feasibility_df = pd.DataFrame.from_dict(feasibility_dict)
 
-        title = f"Dataset: {self._stored_run.dataset_ids[0]} | Category: Feasibility"
+        title = f"Dataset: {dataset_id} | Category: Feasibility"
         heading = "Metric: Bayes Error Rate"
         content = [
             Text(t)

@@ -13,11 +13,9 @@ from gradient.templates_and_layouts.generic_layouts.section_by_item import Secti
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    SingleDatasetPlugin,
-    SingleModelPlugin,
     ThresholdPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, OutputsBase, RunBase, TestStage
 from jatic_ri.cached_tasks import predict
 from jatic_ri.util._types import Device
 
@@ -44,9 +42,7 @@ class DatasetObjectDetectionFeasibilityRun(RunBase):
 
 
 class DatasetObjectDetectionFeasibilityTestStage(
-    TestStage[DatasetObjectDetectionFeasibilityOutputs],
-    SingleDatasetPlugin[od.Dataset],
-    SingleModelPlugin[od.Model],
+    TestStage[DatasetObjectDetectionFeasibilityOutputs, od.Dataset, od.Model, od.Metric],
     ThresholdPlugin,
 ):
     """
@@ -72,7 +68,45 @@ class DatasetObjectDetectionFeasibilityTestStage(
             device=self.device,
         )
 
-    def _run(self) -> DatasetObjectDetectionFeasibilityOutputs:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
+
+    def _run(
+        self,
+        models: list[od.Model],  # noqa: ARG002
+        datasets: list[od.Dataset],  # noqa: ARG002
+        metrics: list[od.Metric],  # noqa: ARG002
+    ) -> DatasetObjectDetectionFeasibilityOutputs:
         """Run the feasibility test"""
 
         raise ValueError("Feasibility test for Object Detection is not possible until MAITE>=0.8.0 is supported.")

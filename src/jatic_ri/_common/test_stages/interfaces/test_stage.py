@@ -10,6 +10,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypeVar
 
+import maite.protocols.generic as gen
+from maite.protocols import DatasetMetadata, MetricMetadata, ModelMetadata
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -18,14 +20,11 @@ from pydantic import (
 )
 
 from jatic_ri import cache_path
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-    SingleModelPlugin,
-    TwoDatasetPlugin,
-)
 from jatic_ri.util._cache import PydanticCache, binary_de_serializer
+
+TModel = TypeVar("TModel", bound=gen.Model)
+TDataset = TypeVar("TDataset", bound=gen.Dataset)
+TMetric = TypeVar("TMetric", bound=gen.Metric)
 
 
 class ConfigBase(BaseModel):
@@ -33,6 +32,7 @@ class ConfigBase(BaseModel):
 
 
 TConfig = TypeVar("TConfig", bound=ConfigBase)
+TOutputs = TypeVar("TOutputs", bound=BaseModel)
 
 
 class OutputsBase(BaseModel):
@@ -61,9 +61,6 @@ class OutputsBase(BaseModel):
         return cls._traverse(v, binary_de_serializer.deserialize)
 
 
-TOutputs = TypeVar("TOutputs", bound=BaseModel)
-
-
 class RunBase(BaseModel, Generic[TConfig, TOutputs]):
     """Abstract base class representing the results of an immutable execution run.
 
@@ -73,17 +70,17 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
 
     Parameters
     ----------
-    test_stage_id : str
+    test_stage_id
         Unique identifier of the test stage that produced this run.
-    config : TConfig
+    config
         The configuration object used for this run.
-    dataset_ids : list[str]
-        Sequence of unique identifiers for the datasets used.
-    model_ids : list[str]
-        Sequence of unique identifiers for the models used.
-    metric_id : str
-        Identifier for the primary metric evaluated or generated.
-    outputs : TOutputs
+    dataset_metadata
+        Sequence of metadata associated with MAITE dataset objects.
+    model_metadata
+        Sequence of metadata associated with MAITE model objects.
+    metric_metadata
+        Sequence of metadata associated with MAITE metric objects.
+    outputs
         The specific results produced by the run, with type defined
         by the generic parameter `TOutputs`.
 
@@ -93,18 +90,18 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
 
     test_stage_id: str
     config: TConfig
-    dataset_ids: list[str]
-    model_ids: list[str]
-    metric_id: str
+    dataset_metadata: list[DatasetMetadata]
+    model_metadata: list[ModelMetadata]
+    metric_metadata: list[MetricMetadata]
     outputs: TOutputs
 
     @staticmethod
     def compute_uid(
         test_stage_id: str,
         config: TConfig,
-        dataset_ids: list[str],
-        model_ids: list[str],
-        metric_id: str,
+        dataset_metadata: list[DatasetMetadata],
+        model_metadata: list[ModelMetadata],
+        metric_metadata: list[MetricMetadata],
     ) -> str:
         """Compute a unique identifier (SHA-256 hash) for a run configuration.
 
@@ -113,28 +110,31 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
 
         Parameters
         ----------
-        test_stage_id : str
+        test_stage_id
             Unique identifier of the test stage.
-        config : TConfig
+        config
             The configuration object.
-        dataset_ids : list[str]
-            A sequence of dataset unique identifiers.
-        model_ids : list[str]
-            A sequence of model unique identifiers.
-        metric_id : str
-            The unique identifier for the metric used.
+        dataset_metadata
+            Sequence of metadata associated with MAITE dataset objects.
+        model_metadata
+            Sequence of metadata associated with MAITE model objects.
+        metric_metadata
+            Sequence of metadata associated with MAITE metric objects.
 
         Returns
         -------
         str
             A string representing the hexadecimal SHA-256 hash of the inputs.
         """
+
+        # dataset/model/metric uniquely identified by ID,
+        # hence not required to build UID from other metadata
         uid_content = {
             "test_stage_id": test_stage_id,
             "config": config.model_dump(mode="json"),
-            "dataset_ids": dataset_ids,
-            "model_ids": model_ids,
-            "metric_id": metric_id,
+            "dataset_ids": [d["id"] for d in dataset_metadata],
+            "model_ids": [d["id"] for d in model_metadata],
+            "metric_id": [d["id"] for d in metric_metadata],
         }
 
         return hashlib.sha256(json.dumps(uid_content).encode("utf-8")).hexdigest()
@@ -150,40 +150,36 @@ class RunCache(PydanticCache[RunBase]):
 run_cache = RunCache()
 
 
-# TODO: this is only used validating the plugins and should be removed as soon as the plugins are gone
-class RIValidationError(Exception):
-    """Exception raised for validation errors.
-
-    Parameters
-    ----------
-    message : str, optional
-        Description of the error. Default is "Validation error occurred.".
-
-    Attributes
-    ----------
-    message : str
-        Description of the error.
-    """
-
-    def __init__(self, message: str = "Validation error occurred.") -> None:
-        self.message = message
-        super().__init__(self.message)
-
-
 class Number(enum.Enum):
     """Enumeration for cardinality of models, datasets, or metrics.
 
     Specifies the number of supported items (e.g., models, datasets, metrics)
-    for a tool or plugin.
+    for a test stage.
     """
 
-    ZERO = enum.auto()
-    ONE = enum.auto()
-    TWO = enum.auto()
-    MANY = enum.auto()
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    MANY = -1  # at least one
 
 
-class TestStage(Generic[TOutputs], ABC):
+def _check_cardinality(owner_id: str, label: str, required: Number, n: int) -> None:
+    "Helper function for checking cardinality of test stage inputs is correct."
+
+    # MANY just means at least 1
+    if required == Number.MANY:
+        if n < 1:
+            raise TypeError(f"{owner_id} requires at least 1 {label}, but got 0.")
+        return
+
+    expected = int(required.value)
+    if n != expected:
+        s_expected = "" if expected == 1 else "s"
+        s_got = "" if n == 1 else "s"
+        raise TypeError(f"{owner_id} requires exactly {expected} {label}{s_expected}, but got {n} {label}{s_got}.")
+
+
+class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
     """Base class for running a test and receiving report values.
 
     Attributes
@@ -210,107 +206,52 @@ class TestStage(Generic[TOutputs], ABC):
         self._stored_run: RunBase | None = None
 
     @property
+    @abstractmethod
     def supports_datasets(self) -> Number:
-        """Number of datasets this plugin supports.
+        """Number of datasets this test stage supports.
 
         Returns
         -------
         Number
-            An enumeration value (ZERO, ONE, TWO) indicating dataset support.
+            An enumeration value indicating dataset support.
         """
-        if isinstance(self, TwoDatasetPlugin):
-            return Number.TWO
-        if isinstance(self, SingleDatasetPlugin):
-            return Number.ONE
-        return Number.ZERO
 
     @property
+    @abstractmethod
     def supports_models(self) -> Number:
-        """Number of models this plugin supports.
+        """Number of models this test stage supports.
 
         Returns
         -------
         Number
-            An enumeration value (ZERO, ONE, MANY) indicating model support.
+            An enumeration value indicating model support.
         """
-        if isinstance(self, MultiModelPlugin):
-            return Number.MANY
-        if isinstance(self, SingleModelPlugin):
-            return Number.ONE
-        return Number.ZERO
 
     @property
-    def supports_metric(self) -> Number:
-        """Whether this plugin supports a metric.
+    @abstractmethod
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
 
         Returns
         -------
         Number
-            An enumeration value (ZERO, ONE) indicating metric support.
+            An enumeration value indicating metric support.
         """
-        if isinstance(self, MetricPlugin):
-            return Number.ONE
-        return Number.ZERO
-
-    # TODO: remove as soon as the plugins are removed
-    def validate_plugins(self) -> None:
-        plugin_requirements = {
-            "SingleModelPlugin": (["model", "model_id"], "load_model"),
-            "MultiModelPlugin": (["models"], "load_models"),
-            "SingleDatasetPlugin": (["dataset", "dataset_id"], "load_dataset"),
-            "TwoDatasetPlugin": (["dataset_1", "dataset_1_id", "dataset_2", "dataset_2_id"], "load_datasets"),
-            "MetricPlugin": (["metric", "metric_id"], "load_metric"),
-            "ThresholdPlugin": (["threshold"], "load_threshold"),
-        }
-
-        # Identify plugins in the inheritance hierarchy
-        plugin_list = plugin_requirements.keys()
-        inherited_classes = [cls for cls in self.__class__.mro() if cls.__name__ in plugin_list]
-
-        # Iterate through each valid plugin inheritted
-        for plugin in inherited_classes:
-            plugin_name = plugin.__name__
-            required_attrs, load_func = plugin_requirements[plugin_name]
-
-            # Check for missing attributes and raise appropriate error
-            missing_attr = next((attr for attr in required_attrs if not hasattr(self, attr)), None)
-            if missing_attr:
-                raise RIValidationError(
-                    f"'{missing_attr}' not set! Please use `{load_func}()` function to set the '{missing_attr}'.",
-                )
 
     @abstractmethod
     def _create_config(self) -> ConfigBase: ...
-
-    # TODO: this is temporary compatibility code. Remove when datasets etc. can be passed to run()
-    def _extract_run_inputs(self) -> tuple[list[str], list[str], str]:
-        self.validate_plugins()
-
-        dataset_ids: list[str]
-        if isinstance(self, SingleDatasetPlugin):
-            dataset_ids = [self.dataset_id]
-        elif isinstance(self, TwoDatasetPlugin):
-            dataset_ids = [self.dataset_1_id, self.dataset_2_id]
-        else:
-            dataset_ids = []
-
-        model_ids: list[str]
-        if isinstance(self, SingleModelPlugin):
-            model_ids = [self.model_id]
-        elif isinstance(self, MultiModelPlugin):
-            model_ids = list(self.models.keys())
-        else:
-            model_ids = []
-
-        metric_id = self.metric_id if isinstance(self, MetricPlugin) else ""
-
-        return dataset_ids, model_ids, metric_id
 
     @cached_property
     def id(self) -> str:
         return f"{type(self).__module__}.{type(self).__name__}"
 
-    def run(self, use_stage_cache: bool = True) -> RunBase:
+    def run(
+        self,
+        models: list[TModel] | None = None,
+        datasets: list[TDataset] | None = None,
+        metrics: list[TMetric] | None = None,
+        use_stage_cache: bool = True,
+    ) -> RunBase:
         """Run the test stage.
 
         Leverages cache if available and stores outputs of the evaluation
@@ -318,7 +259,14 @@ class TestStage(Generic[TOutputs], ABC):
 
         Parameters
         ----------
-        use_stage_cache : bool, optional
+        models
+            MAITE-compliant models.
+        datasets
+            MAITE-compliant datasets.
+        metrics
+            MAITE-compliant metrics.
+
+        use_stage_cache
             Whether to use cached results if available, by default True.
 
         Returns
@@ -327,10 +275,27 @@ class TestStage(Generic[TOutputs], ABC):
             The results of the test stage execution.
         """
         config = self._create_config()
-        dataset_ids, model_ids, metric_id = self._extract_run_inputs()
+
+        # replace None sentinel with iterable to reduce boilerplate checks in test stage implementations
+        datasets = datasets if datasets else []
+        models = models if models else []
+        metrics = metrics if metrics else []
+
+        # validation to make sure correct number of models/datasets/metrics passed to test stage
+        _check_cardinality(owner_id=self.id, label="dataset", required=self.supports_datasets, n=len(datasets))
+        _check_cardinality(owner_id=self.id, label="model", required=self.supports_models, n=len(models))
+        _check_cardinality(owner_id=self.id, label="metric", required=self.supports_metrics, n=len(metrics))
+
+        dataset_metadata = [d.metadata for d in datasets]
+        model_metadata = [m.metadata for m in models]
+        metric_metadata = [m.metadata for m in metrics]
 
         uid = self._RUN_TYPE.compute_uid(
-            test_stage_id=self.id, config=config, dataset_ids=dataset_ids, model_ids=model_ids, metric_id=metric_id
+            test_stage_id=self.id,
+            config=config,
+            dataset_metadata=dataset_metadata,
+            model_metadata=model_metadata,
+            metric_metadata=metric_metadata,
         )
 
         if use_stage_cache:
@@ -341,10 +306,14 @@ class TestStage(Generic[TOutputs], ABC):
         run = self._stored_run = self._RUN_TYPE(
             test_stage_id=self.id,
             config=config,
-            dataset_ids=dataset_ids,
-            model_ids=model_ids,
-            metric_id=metric_id,
-            outputs=self._run(),
+            dataset_metadata=dataset_metadata,
+            model_metadata=model_metadata,
+            metric_metadata=metric_metadata,
+            outputs=self._run(
+                models=models,
+                datasets=datasets,
+                metrics=metrics,
+            ),
         )
 
         if use_stage_cache:
@@ -352,19 +321,30 @@ class TestStage(Generic[TOutputs], ABC):
 
         return run
 
-    # TODO: update signature to accept config, models, datasets and metrics
     @abstractmethod
-    def _run(self) -> TOutputs:
-        """Execute the core logic of the test stage.
+    def _run(
+        self,
+        models: list[TModel],
+        datasets: list[TDataset],
+        metrics: list[TMetric],
+    ) -> TOutputs: ...
 
-        This method should be overridden by subclasses to implement the
-        specific test stage functionality.
+    """Execute the core logic of the test stage.
 
-        Returns
-        -------
-        TOutputs
-            The outputs generated by the test stage.
-        """
+    Parameters
+    ----------
+    models
+        MAITE-compliant models.
+    datasets
+        MAITE-compliant datasets.
+    metrics
+        MAITE-compliant metrics.
+
+    Returns
+    -------
+    TOutputs
+        The outputs generated by the test stage.
+    """
 
     @abstractmethod
     def collect_report_consumables(self) -> list[dict[str, Any]]:

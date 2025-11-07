@@ -1,28 +1,25 @@
 """Heart Test Stage that supports evaluation model robustness against PGD and Patch Attacks for Object Detection"""
 
 import itertools
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import cv2
+import maite.protocols.object_detection as od
 import numpy as np
 import pydantic
 from art.attacks.evasion import AdversarialPatchPyTorch, ProjectedGradientDescent
 from gradient import parse_lines
 from heart_library.attacks.attack import JaticAttack
 from heart_library.estimators.object_detection.pytorch import (
-    JaticPyTorchObjectDetectionOutput,
     JaticPyTorchObjectDetector,
 )
 from maite.protocols import ArrayLike
 from numpy.typing import NDArray
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    SingleDatasetPlugin,
-    SingleModelPlugin,
     ThresholdPlugin,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, OutputsBase, RunBase, TestStage
 from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util._types import Image
 from jatic_ri.util.utils import temp_image_file
@@ -119,10 +116,7 @@ class HeartRun(RunBase):
 
 
 class HeartTestStage(
-    TestStage[HeartOutputs],
-    SingleDatasetPlugin[Any],
-    SingleModelPlugin[Any],
-    MetricPlugin[Any],
+    TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric],
     ThresholdPlugin,
 ):
     """HEART Specific Implementation of a TestStage Class to Support
@@ -141,17 +135,58 @@ class HeartTestStage(
     def _create_config(self) -> HeartConfig:
         return self._config
 
-    def _run(self) -> HeartOutputs:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ONE
+
+    def _run(
+        self,
+        models: list[od.Model],
+        datasets: list[od.Dataset],
+        metrics: list[od.Metric],
+    ) -> HeartOutputs:
         """Runs Object Detection Adversarial Attacks and performs robustness
         evaluations for specific metrics.
         """
-        # Note: __init__ ensures heart_library is available before this runs
-        heart_detector: Any = JaticPyTorchObjectDetector(self.model.model, clip_values=(0, 1))
+        dataset = datasets[0]
+        metric = metrics[0]
+        model = models[0]
+
+        heart_detector: Any = JaticPyTorchObjectDetector(model.model, clip_values=(0, 1))  # pyright: ignore [reportAttributeAccessIssue]
 
         result, preds, _ = evaluate(
             model=heart_detector,
-            metric=self.metric,
-            dataset=self.dataset,
+            metric=metric,
+            dataset=dataset,
             return_preds=True,
             return_augmented_data=False,
         )
@@ -161,12 +196,14 @@ class HeartTestStage(
                 "images": [
                     self._plot_image_with_boxes(
                         image,
-                        preds,
+                        cast(
+                            od.ObjectDetectionTarget, preds
+                        ),  # TODO: we need to overload the evaluate function correctly
                         threshold=self.threshold,
-                        index2label=self.dataset.metadata["index2label"],
+                        index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                     )
                     for image, preds in zip(
-                        (image for image, *_ in self.dataset),
+                        (image for image, *_ in dataset),
                         itertools.chain.from_iterable(preds),
                         strict=True,
                     )
@@ -179,9 +216,8 @@ class HeartTestStage(
             attack = _ATTACK_MAP[c.name](heart_detector, **c.parameters)
             result, preds, augmented_data = evaluate(
                 model=heart_detector,
-                metric=self.metric,
-                dataset=self.dataset,
-                # Note: __init__ ensures heart_library is available before this runs
+                metric=metric,
+                dataset=dataset,
                 augmentation=JaticAttack(attack),
                 return_preds=True,
                 return_augmented_data=True,
@@ -194,9 +230,11 @@ class HeartTestStage(
                         "images": [
                             self._plot_image_with_boxes(
                                 image,
-                                preds,
+                                cast(
+                                    od.ObjectDetectionTarget, preds
+                                ),  # TODO: we need to overload the evaluate function correctly,
                                 threshold=self.threshold,
-                                index2label=self.dataset.metadata["index2label"],
+                                index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                             )
                             for image, preds in zip(
                                 itertools.chain.from_iterable(b for b, *_ in augmented_data),
@@ -213,8 +251,7 @@ class HeartTestStage(
     def _plot_image_with_boxes(
         self,
         image: ArrayLike,
-        # Note: __init__ ensures heart_library is available before this runs
-        preds: JaticPyTorchObjectDetectionOutput,
+        preds: od.ObjectDetectionTarget,
         *,
         threshold: float,
         index2label: dict[int, str],
@@ -265,20 +302,19 @@ class HeartTestStage(
 
     def _extract_predictions(
         self,
-        # Note: __init__ ensures heart_library is available before this runs
-        predictions: JaticPyTorchObjectDetectionOutput,
+        predictions: od.ObjectDetectionTarget,
         *,
         threshold: float,
         index2label: dict[int, str],
     ) -> tuple[list, list, list]:
         """Utility function to extract predictions within a threshold"""
-        predictions_class = [index2label[i] for i in list(predictions.labels)]
+        predictions_class = [index2label[i] for i in list(np.asarray(predictions.labels))]
         if len(predictions_class) < 1:
             return [], [], []
         # Get the predicted bounding boxes
-        predictions_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(predictions.boxes)]
+        predictions_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(np.asarray(predictions.boxes))]
         # Get the predicted prediction score
-        predictions_score = list(predictions.scores)
+        predictions_score = list(np.asarray(predictions.scores))
 
         # Get a list of index with score greater than the threshold
         predictions_t = np.argwhere(np.array(predictions_score) > threshold).ravel().tolist()

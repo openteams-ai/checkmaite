@@ -5,7 +5,7 @@ import maite.protocols.image_classification as ic
 from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import DatasetBiasTestStageBase
 
 
-class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset]):
+class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     """
     Measures four aspects of bias in a single dataset and programmatically generates a Gradient report
     with the measurements of bias, potential risks, and any actions required to reduce bias if found

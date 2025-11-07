@@ -9,15 +9,17 @@ import pydantic
 from matplotlib.figure import Figure
 
 from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    SingleDatasetPlugin,
-    SingleModelPlugin,
-    TDataset,
     ThresholdPlugin,
+)
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    ConfigBase,
+    Number,
+    RunBase,
+    TDataset,
+    TestStage,
     TMetric,
     TModel,
 )
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, RunBase, TestStage
 from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util.utils import create_metrics_bar_plot, save_figure_to_tempfile
 
@@ -41,42 +43,53 @@ class BaselineEvaluationRun(RunBase):
     outputs: BaselineEvaluationOutputs
 
 
-class BaselineEvaluationBase(
-    TestStage[BaselineEvaluationOutputs],
-    SingleModelPlugin[TModel],
-    SingleDatasetPlugin[TDataset],
-    MetricPlugin[TMetric],
-    ThresholdPlugin,
-):
-    """Baseline evaluation implementation of TestStage interface.
-
-    This test stage uses single model, dataset, and metric plugins,
-    along with threshold and evaluation tool plugins.
-
-    Parameters
-    ----------
-    model : gen.Model
-        The loaded model instance.
-    model_id : str
-        Identifier for the loaded model.
-    dataset : gen.Dataset
-        The loaded dataset instance.
-    dataset_id : str
-        Identifier for the loaded dataset.
-    metric : gen.Metric
-        The loaded metric instance.
-    metric_id : str
-        Identifier for the loaded metric.
-    threshold : float
-        The threshold value for evaluation.
-    """
+class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TModel, TMetric], ThresholdPlugin):
+    """Baseline evaluation implementation of TestStage interface."""
 
     _RUN_TYPE = BaselineEvaluationRun
 
     def _create_config(self) -> ConfigBase:
         return BaselineEvaluationConfig()
 
-    def _run(self) -> BaselineEvaluationOutputs:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ONE
+
+    def _run(
+        self,
+        models: list[TModel],
+        datasets: list[TDataset],
+        metrics: list[TMetric],
+    ) -> BaselineEvaluationOutputs:
         """Run the test stage and store evaluation outputs.
 
         Returns
@@ -90,29 +103,38 @@ class BaselineEvaluationBase(
             If the evaluation returns no results or if per-class metrics
             are malformed.
         """
+
+        model = models[0]
+        model_id = model.metadata["id"]
+        metric = metrics[0]
+        metric_id = metric.metadata["id"]
+        dataset = datasets[0]
+        dataset_id = dataset.metadata["id"]
+
         result, _, _ = evaluate(
-            model=self.model,
-            metric=self.metric,
-            dataset=self.dataset,
-            dataset_id=self.dataset_id,
+            model=model,
+            metric=metric,
+            dataset=dataset,
+            dataset_id=dataset_id,
             return_augmented_data=True,
         )
         if result is None:
             raise RuntimeError(
-                f'Evaluate method returned no results for model ID "{self.model_id}", \
-                dataset ID "{self.dataset_id}", and metric ID "{self.metric_id}"',
+                f'Evaluate method returned no results for model ID "{model_id}", \
+                dataset ID "{dataset_id}", and metric ID "{metric_id}"',
             )
 
         # MAITE dictates dict[str, Any] here so enforcing a conversion to float might not be possible
         result = {k: float(v) for k, v in result.items()}
 
-        overall_metric_name = str(getattr(self.metric, "return_key", self.metric.metadata["id"]))
+        overall_metric_name = str(getattr(metric, "return_key", metric_id))
 
+        # TODO: can we formalize this per_class logic as part of MAITE itself?
         if "per_class_flag" in result:
             del result["per_class_flag"]
             class_metrics = {
                 label: result.pop(str(index), None)
-                for index, label in self.model.metadata["index2label"].items()  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                for index, label in model.metadata["index2label"].items()  # pyright: ignore[reportTypedDictNotRequiredAccess]
             }
             if result.keys() != {overall_metric_name}:
                 raise RuntimeError(
@@ -155,8 +177,8 @@ class BaselineEvaluationBase(
             raise Exception("No clean result computed or loaded before call to `collect_report_consumables`")
 
         text = ""
-        text += f"*Model*: {run.model_ids[0]} \n\n"
-        text += f"*Dataset*: {run.dataset_ids[0]} \n\n"
+        text += f"*Model*: {run.model_metadata[0]['id']} \n\n"
+        text += f"*Dataset*: {run.dataset_metadata[0]['id']} \n\n"
         text += f"*{run.outputs.overall_metric_name}*: {run.outputs.overall_metric_value:.2f}"
 
         if run.outputs.class_metrics is not None:

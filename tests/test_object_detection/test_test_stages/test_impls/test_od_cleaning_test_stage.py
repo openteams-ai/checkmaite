@@ -23,8 +23,7 @@ def test_od_cleaning(fake_od_dataset_default) -> None:
     """Test Cleaning implementation"""
 
     test = DatasetCleaningTestStage()
-    test.load_dataset(dataset=fake_od_dataset_default, dataset_id="dummy_cleaning")
-    test.run(use_stage_cache=False)
+    test.run(use_stage_cache=False, datasets=[fake_od_dataset_default])
     output = test.collect_report_consumables()
 
     assert output
@@ -34,14 +33,12 @@ def test_od_cleaning(fake_od_dataset_default) -> None:
 def test_od_cleaning_with_cached_values(fake_od_dataset_default) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()
-    test1.load_dataset(dataset=fake_od_dataset_default, dataset_id="dummy_cleaning")
-    test1.run()
+    test1.run(datasets=[fake_od_dataset_default])
     output1 = test1.collect_report_consumables()
 
     test2 = DatasetCleaningTestStage()
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.load_dataset(dataset=fake_od_dataset_default, dataset_id="dummy_cleaning")
-    test2.run()
+    test2.run(datasets=[fake_od_dataset_default])
     output2 = test2.collect_report_consumables()
 
     assert test2._run.call_count == 0
@@ -74,7 +71,5 @@ def test_coco():
 
     stage = DatasetCleaningTestStage()
 
-    stage.load_dataset(dataset=coco_dataset, dataset_id="asd")
-
-    stage.run(use_stage_cache=False)
+    stage.run(use_stage_cache=False, datasets=[coco_dataset])
     pass  # no explosions

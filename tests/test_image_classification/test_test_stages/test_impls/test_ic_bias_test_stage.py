@@ -33,11 +33,11 @@ def fake_image() -> str:
 @pytest.fixture
 def run(dummy_dataset_ic, fake_image):
     return DataevalBiasRun(
+        dataset_metadata=[dummy_dataset_ic.metadata],
+        model_metadata=[],
+        metric_metadata=[],
         test_stage_id=DatasetBiasTestStage().id,
         config=DataevalBiasConfig(device="cpu"),
-        dataset_ids=[dummy_dataset_ic.metadata["id"]],
-        model_ids=[],
-        metric_id="",
         outputs=DataevalBiasOutputs(
             balance=DataevalBiasBalanceOutputs(
                 balance=np.array([0.99999822, 0.13363788, 0.04505382, 0.02994455]),
@@ -94,8 +94,7 @@ class TestICDatasetBiasRun:
             dummy_dataset_ic.data = [np.ones(shape=(3, i, i), dtype=np.float32) for i in range(1, 10)]
 
         test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dummy_dataset_ic, dataset_id="DummyDataset")
-        run = test_stage.run(use_stage_cache=False)
+        run = test_stage.run(use_stage_cache=False, datasets=[dummy_dataset_ic])
 
         if homogeneous_size:
             assert run.outputs.coverage.image is not None

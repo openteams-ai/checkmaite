@@ -12,12 +12,14 @@ def test_baseline_evaluation_dummy_od(fake_od_model_default, fake_od_dataset_def
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
-    test.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
-    test.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test.load_threshold(threshold=0.5)
-    test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
 
-    run = test.run(use_stage_cache=False)
+    run = test.run(
+        use_stage_cache=False,
+        models=[fake_od_model_default],
+        metrics=[fake_od_metric_default],
+        datasets=[fake_od_dataset_default],
+    )
 
     assert run.outputs.class_metrics is None
 
@@ -28,13 +30,12 @@ def test_baseline_evaluation_multiclass(fake_od_model_default, fake_od_dataset_d
     """Test BaselineEvaluation with multiclass metrics that include per_class_flag"""
 
     test = BaselineEvaluation()
-    test.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
     metric = multiclass_map50_torch_metric_factory()
-    test.load_metric(metric=metric, metric_id=metric.metadata["id"])
     test.load_threshold(threshold=0.5)
-    test.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
 
-    run = test.run(use_stage_cache=False)
+    run = test.run(
+        use_stage_cache=False, models=[fake_od_model_default], metrics=[metric], datasets=[fake_od_dataset_default]
+    )
 
     assert run.outputs.class_metrics is not None
 
@@ -50,21 +51,25 @@ def test_baseline_evaluation_dummy_od_with_cache(
 ) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
-    test1.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
-    test1.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test1.load_threshold(threshold=0.5)
-    test1.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
-    test1.run(use_stage_cache=True)
+    test1.run(
+        use_stage_cache=True,
+        models=[fake_od_model_default],
+        metrics=[fake_od_metric_default],
+        datasets=[fake_od_dataset_default],
+    )
     output1 = test1.collect_report_consumables()
 
     test2 = BaselineEvaluation()
-    test2.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
-    test2.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
     test2.load_threshold(threshold=0.5)
-    test2.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
 
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.run(use_stage_cache=True)
+    test2.run(
+        use_stage_cache=True,
+        datasets=[fake_od_dataset_default],
+        models=[fake_od_model_default],
+        metrics=[fake_od_metric_default],
+    )
     output2 = test2.collect_report_consumables()
 
     assert test2._run.call_count == 0

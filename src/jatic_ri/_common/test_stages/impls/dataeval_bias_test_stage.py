@@ -23,12 +23,15 @@ from pydantic import Field
 from jatic_ri import PACKAGE_DIR, cache_path
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18, plot_blank_or_single_image
-from jatic_ri._common.test_stages.interfaces.plugins import SingleDatasetPlugin, TDataset
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
+    Number,
     OutputsBase,
     RunBase,
+    TDataset,
     TestStage,
+    TMetric,
+    TModel,
 )
 from jatic_ri.util._types import Device, Image
 from jatic_ri.util.slide_deck import (
@@ -102,7 +105,7 @@ class DataevalBiasRun(RunBase):
     outputs: DataevalBiasOutputs
 
 
-class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlugin[TDataset]):
+class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, TMetric]):
     """Measures bias in a single dataset.
 
     Generates a Gradient report with bias measurements, potential risks, and
@@ -178,10 +181,46 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             percent=self.percent,
         )
 
-    def _run(self) -> DataevalBiasOutputs:
-        """Run bias analysis.
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
 
-        Performs bias analysis using coverage, and optionally balance, diversity,
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ZERO
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
+
+    def _run(
+        self,
+        models: list[TModel],  # noqa: ARG002
+        datasets: list[TDataset],
+        metrics: list[TMetric],  # noqa: ARG002
+    ) -> DataevalBiasOutputs:
+        """Performs bias analysis using coverage, and optionally balance, diversity,
         and parity if metadata is available.
 
         Returns
@@ -189,16 +228,18 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
         DataevalBiasOutputs
             The outputs of the bias analysis.
         """
-        model, transform = get_resnet18()
-        images = Images(self.dataset)
+        dataset = datasets[0]
 
-        embeddings = Embeddings(self.dataset, self._batch_size, transform, model, device=self.device).to_numpy()
+        model, transform = get_resnet18()
+        images = Images(dataset)
+
+        embeddings = Embeddings(dataset, self._batch_size, transform, model, device=self.device).to_numpy()
         embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
         # coverage tool expects sequence of vectors
         if len(embeddings.shape) == 1:
             embeddings = np.array([embeddings])
 
-        metadata = Metadata(self.dataset, exclude=self.metadata_to_exclude)
+        metadata = Metadata(dataset, exclude=self.metadata_to_exclude)
 
         # metadata is not empty and hence valid to run balance, diversity, parity
         if metadata.factor_names:
@@ -236,9 +277,9 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs], SingleDatasetPlug
             percent=self.percent,
         )
         cov_dict = cov_out.data()
-        cov_dict["total"] = len(self.dataset)
+        cov_dict["total"] = len(dataset)
 
-        if len({image.shape for image in images}) == 1:
+        if len({np.asarray(image).shape for image in images}) == 1:
             cov_dict["image"] = cov_out.plot(images)
 
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})

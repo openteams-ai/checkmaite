@@ -4,11 +4,13 @@ import functools
 import hashlib
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypeVar, cast
 
+import maite.protocols.image_classification as ic
+import maite.protocols.object_detection as od
 import maite.tasks
 import pydantic
-from maite._internals.protocols import generic
+from maite._internals.protocols import generic as gen
 from maite.protocols import ArrayLike
 from maite.protocols.image_classification import DatumMetadataType as ImageClassificationDatumMetadataType
 from maite.protocols.image_classification import InputType as ImageClassificationInputType
@@ -16,34 +18,38 @@ from maite.protocols.image_classification import TargetType as ImageClassificati
 from maite.protocols.object_detection import DatumMetadataType as ObjectDetectionDatumMetadataType
 from maite.protocols.object_detection import InputType as ObjectDetectionInputType
 
-from jatic_ri import cache_path
+from jatic_ri import (
+    cache_path,
+)
 from jatic_ri._common.test_stages.interfaces.test_stage import OutputsBase
 from jatic_ri.util._cache import PydanticCache
 
-__all__ = ["predict"]
+__all__ = ["predict", "evaluate_from_predictions", "evaluate"]
 
 
-TModel = TypeVar("TModel", bound=pydantic.BaseModel)
+PModel = TypeVar("PModel", bound=pydantic.BaseModel)
+
+# TODO: is there a better location to define these types?
+SomeInputType: TypeAlias = ic.InputType | od.InputType
+SomeTargetType: TypeAlias = ic.TargetType | od.TargetType
+SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType
+T_Input = TypeVar("T_Input", bound=SomeInputType)
+T_Target = TypeVar("T_Target", bound=SomeTargetType)
+T_Metadata = TypeVar("T_Metadata", bound=SomeMetadataType)
 
 
-class ObjectDetectionTarget(OutputsBase):
+# TODO: move this to a common base module
+# this is required so that Pydantic knows how to de/serialize the object detection TargetType
+class PydanticCompatObjectDetectionTarget(OutputsBase):
     boxes: ArrayLike
     labels: ArrayLike
     scores: ArrayLike
 
 
-ObjectDetectionTargetType = ObjectDetectionTarget
-ObjectDetectionTargetBatchType = Sequence[ObjectDetectionTargetType]
-ImageClassificationTargetBatchType = Sequence[ImageClassificationTargetType]
-SomeTargetBatchType = ImageClassificationTargetBatchType | ObjectDetectionTargetBatchType
-
-SomeInputBatchType: TypeAlias = Sequence[ImageClassificationInputType] | Sequence[ObjectDetectionInputType]
-SomeMetadataBatchType: TypeAlias = (
-    Sequence[ImageClassificationDatumMetadataType] | Sequence[ObjectDetectionDatumMetadataType]
-)
+PydanticCompatTargetBatchType = Sequence[PydanticCompatObjectDetectionTarget] | Sequence[ImageClassificationTargetType]
 
 
-def _make_task_cache(task: str, model_type: type[TModel]) -> PydanticCache[TModel]:
+def _make_task_cache(task: str, model_type: type[PModel]) -> PydanticCache[PModel]:
     class TaskCache(PydanticCache[model_type]):
         def path(self, key: str) -> Path:
             d = cache_path() / "cached-tasks" / task
@@ -68,8 +74,14 @@ class _PredictConfig(_ConfigBase):
 
 class _PredictCall(OutputsBase):
     config: _PredictConfig | None
-    predictions: list[SomeTargetBatchType]
-    augmented_data: list[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
+    predictions: list[PydanticCompatTargetBatchType]
+    augmented_data: list[
+        tuple[
+            Sequence[ObjectDetectionInputType] | Sequence[ImageClassificationInputType],
+            PydanticCompatTargetBatchType,
+            Sequence[ObjectDetectionDatumMetadataType] | Sequence[ImageClassificationDatumMetadataType],
+        ]
+    ]
 
 
 _predict_cache = _make_task_cache("predict", _PredictCall)
@@ -77,14 +89,26 @@ _predict_cache = _make_task_cache("predict", _PredictCall)
 
 def _predict(
     *,
-    model: generic.Model,
-    dataloader: generic.DataLoader | None,
-    dataset: generic.Dataset | None,
-    batch_size: int,
-    augmentation: generic.Augmentation | None,
-    return_augmented_data: bool,
-    dataset_id: str | None,
-) -> _PredictCall:
+    model: gen.Model[T_Input, T_Target],
+    dataloader: gen.DataLoader[T_Input, T_Target, T_Metadata] | None = None,
+    dataset: gen.Dataset[T_Input, T_Target, T_Metadata] | None = None,
+    batch_size: int = 1,
+    augmentation: gen.Augmentation[
+        T_Input,
+        T_Target,
+        T_Metadata,
+        T_Input,
+        T_Target,
+        T_Metadata,
+    ]
+    | None = None,
+    return_augmented_data: bool = False,
+    dataset_id: str | None = None,
+) -> tuple[
+    Sequence[Sequence[T_Target]],
+    Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
+    _PredictConfig | None,
+]:
     model_id = model.metadata["id"]
     model_index2label = getattr(model.metadata, "index2label", {})
     dataset_id = dataset.metadata["id"] if dataset is not None else dataset_id
@@ -120,7 +144,12 @@ def _predict(
     if key is not None:
         call = _predict_cache.get(key)
         if call is not None:
-            return call
+            # pydantic types don't play well with generics,
+            ps = cast(Sequence[Sequence[T_Target]], call.predictions)
+            ads = cast(
+                Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]], call.augmented_data
+            )
+            return ps, ads, call.config
 
     ps, ads = maite.tasks.predict(
         model=model,
@@ -138,24 +167,31 @@ def _predict(
     if key is not None:
         _predict_cache.set(key, call)
 
-    return call
+    return ps, ads, config
 
 
+# TODO: add overloads so that we can make signature more precise for users
 def predict(
     *,
-    model: generic.Model,
-    dataloader: generic.DataLoader | None = None,
-    dataset: generic.Dataset | None = None,
+    model: gen.Model[T_Input, T_Target],
+    dataloader: gen.DataLoader[T_Input, T_Target, T_Metadata] | None = None,
+    dataset: gen.Dataset[T_Input, T_Target, T_Metadata] | None = None,
     batch_size: int = 1,
-    augmentation: generic.Augmentation | None = None,
+    augmentation: gen.Augmentation[
+        T_Input,
+        T_Target,
+        T_Metadata,
+        T_Input,
+        T_Target,
+        T_Metadata,
+    ]
+    | None = None,
     return_augmented_data: bool = False,
     dataset_id: str | None = None,
-) -> tuple[
-    Sequence[SomeTargetBatchType], Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]]
-]:
+) -> tuple[Sequence[Sequence[T_Target]], Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]]]:
     "Generate predictions using a model and dataset."
 
-    call = _predict(
+    ps, ads, _ = _predict(
         model=model,
         dataloader=dataloader,
         dataset=dataset,
@@ -164,7 +200,7 @@ def predict(
         return_augmented_data=return_augmented_data,
         dataset_id=dataset_id,
     )
-    return call.predictions, call.augmented_data
+    return ps, ads
 
 
 class _EvaluateFromPredictionsConfig(_ConfigBase):
@@ -184,11 +220,11 @@ _evaluate_from_predictions_cache = _make_task_cache("evaluate-from-predictions",
 
 def _evaluate_from_predictions(
     *,
-    metric: generic.Metric,
-    predictions: Sequence[SomeTargetBatchType],
-    targets: Sequence[SomeTargetBatchType],
+    metric: gen.Metric[T_Target],
+    predictions: Sequence[Sequence[T_Target]],
+    targets: Sequence[Sequence[T_Target]],
     key: str | _PredictConfig | None,
-) -> _EvaluateFromPredictionsCall:
+) -> dict[str, Any]:
     metric_id = metric.metadata["id"]
 
     if isinstance(key, _PredictConfig):
@@ -205,7 +241,7 @@ def _evaluate_from_predictions(
     if key is not None:
         call = _evaluate_from_predictions_cache.get(key)
         if call is not None:
-            return call
+            return call.metric_results
 
     metric_results = maite.tasks.evaluate_from_predictions(
         metric=metric,
@@ -220,37 +256,46 @@ def _evaluate_from_predictions(
     if key is not None:
         _evaluate_from_predictions_cache.set(key, call)
 
-    return call
+    return metric_results
 
 
 def evaluate_from_predictions(
     *,
-    metric: generic.Metric,
-    predictions: Sequence[SomeTargetBatchType],
-    targets: Sequence[SomeTargetBatchType],
+    metric: gen.Metric[T_Target],
+    predictions: Sequence[Sequence[T_Target]],
+    targets: Sequence[Sequence[T_Target]],
     key: str | _PredictConfig | None = None,
 ) -> dict[str, Any]:
-    call = _evaluate_from_predictions(metric=metric, predictions=predictions, targets=targets, key=key)
-    return call.metric_results
+    "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
+    return _evaluate_from_predictions(metric=metric, predictions=predictions, targets=targets, key=key)
 
 
 def evaluate(
     *,
-    model: generic.Model,
-    metric: generic.Metric,
-    dataloader: generic.DataLoader | None = None,
-    dataset: generic.Dataset | None = None,
+    model: gen.Model[T_Input, T_Target],
+    metric: gen.Metric[T_Target],
+    dataloader: gen.DataLoader[T_Input, T_Target, T_Metadata] | None = None,
+    dataset: gen.Dataset[T_Input, T_Target, T_Metadata] | None = None,
     batch_size: int = 1,
-    augmentation: generic.Augmentation | None = None,
+    augmentation: gen.Augmentation[
+        T_Input,
+        T_Target,
+        T_Metadata,
+        T_Input,
+        T_Target,
+        T_Metadata,
+    ]
+    | None = None,
     return_augmented_data: bool = False,
     return_preds: bool = False,
     dataset_id: str | None = None,
 ) -> tuple[
     dict[str, Any],
-    list[SomeTargetBatchType],
-    Sequence[tuple[SomeInputBatchType, SomeTargetBatchType, SomeMetadataBatchType]],
+    Sequence[Sequence[T_Target]],
+    Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
 ]:
-    call = _predict(
+    "Evaluate a model's performance on data according to some metric with optional augmentation."
+    ps, ads, config = _predict(
         model=model,
         dataloader=dataloader,
         dataset=dataset,
@@ -261,12 +306,12 @@ def evaluate(
     )
     metric_results = evaluate_from_predictions(
         metric=metric,
-        predictions=call.predictions,
-        targets=[d[1] for d in call.augmented_data],
-        key=call.config.uid if call.config else None,
+        predictions=ps,
+        targets=[d[1] for d in ads],
+        key=config.uid if config else None,
     )
     return (
         metric_results,
-        call.predictions if return_preds else [],
-        call.augmented_data if return_augmented_data else [],
+        ps if return_preds else [],
+        ads if return_augmented_data else [],
     )

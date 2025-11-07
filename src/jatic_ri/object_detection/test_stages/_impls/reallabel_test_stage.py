@@ -22,11 +22,7 @@ from reallabel import (
 )
 from reallabel import RealLabelConfig as _NativeRealLabelConfig
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-)
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, OutputsBase, RunBase, TestStage
 from jatic_ri.cached_tasks import predict
 from jatic_ri.util._types import DataFrame, Image
 from jatic_ri.util.utils import temp_image_file
@@ -142,9 +138,7 @@ class _RealLabelDatasetWrapper(od.Dataset):
 
 
 class RealLabelTestStage(
-    MultiModelPlugin[od.Model],
-    SingleDatasetPlugin[od.Dataset],
-    TestStage[RealLabelOutputs],
+    TestStage[RealLabelOutputs, od.Dataset, od.Model, od.Metric],
 ):
     """RealLabel test stage.
 
@@ -168,12 +162,6 @@ class RealLabelTestStage(
     ----------
     _config : RealLabelConfig
         The RealLabel Config object that should be used when running Reallabel.
-    models : dict[str, od.Model]
-        The dictionary of model names to their MAITE-wrapped model objects whose
-        inference should be used when running RealLabel.
-    dataset : od.Dataset
-        The MAITE-wrapped dataset object on which the models should run inference
-        and produce results.
     """
 
     _RUN_TYPE = RealLabelRun
@@ -208,45 +196,45 @@ class RealLabelTestStage(
     def _create_config(self) -> RealLabelConfig:
         return self._config
 
-    def _compute_maite_inference_result(self) -> dict[str, od.Dataset]:  # pragma: no cover
-        """Generate inference results from MAITE models.
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
 
         Returns
         -------
-        dict[str, od.Dataset]
-            A dictionary mapping model names to datasets containing their predictions
-            as targets.
+        Number
+            An enumeration value indicating dataset support.
         """
-        maite_inference_result = {}
-        # Run all the models
-        for model_name in self.models:
-            predictions, _ = predict(
-                model=self.models[model_name],
-                dataset=self.dataset,
-                dataset_id=self.dataset_id,
-                return_augmented_data=True,
-            )
-            clean_predictions = [x[0] for x in predictions]
+        return Number.ONE
 
-            # We need to construct a new dataset with the ground truth targets replaced with the predictions.
-            # MAITE Dataset does not have a way to set the targets directly, so we use the wrapper instance.
-            copied_dataset = _RealLabelDatasetWrapper(self.dataset)
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
 
-            # there is some pydantic shenanigans going on here which messes with the type-checker, but
-            # we are confident that it's correct and so we override with a cast
-            copied_dataset.targets = cast(list[od.ObjectDetectionTarget], clean_predictions)
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.MANY
 
-            # RealLabel will only use certain metadata passed in here (e.g. for the confidence calibration) which is not
-            # supported through Reference Implementation currently. Additionally, metadata specific to the ground
-            # truth data (e.g. ground truth bounding boxes) can cause errors in RealLabel so we remove all
-            # non-mandatory datum_metadata keys.
-            copied_dataset.datum_metadata = [{"id": dm["id"]} for dm in copied_dataset.datum_metadata]
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of models this test stage supports.
 
-            maite_inference_result[model_name] = copied_dataset
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
 
-        return maite_inference_result
-
-    def _run(self) -> RealLabelOutputs:
+    def _run(
+        self,
+        models: list[od.Model],
+        datasets: list[od.Dataset],
+        metrics: list[od.Metric],  # noqa: ARG002
+    ) -> RealLabelOutputs:
         """Run RealLabel test stage.
 
         Returns
@@ -263,17 +251,18 @@ class RealLabelTestStage(
         RuntimeError
             If the image array type is not understood.
         """
-        self.validate_plugins()
+
+        dataset = datasets[0]
 
         # compute the inference results from the models
-        maite_inference_result = self._compute_maite_inference_result()
+        maite_inference_result = self._compute_maite_inference_result(models=models, dataset=dataset)
 
         # Create MAITERealLabel wrapper
         reallabel = MAITERealLabel(
             maite_inference_results=maite_inference_result,
             config=self._config,
             link_unique_identifier_columns_and_metadata=True,
-            ground_truth_dataset=self.dataset,
+            ground_truth_dataset=dataset,
         )
 
         # Run RealLabel
@@ -307,7 +296,7 @@ class RealLabelTestStage(
 
         # Iterate through the dataset until we find the index with the matching UUID. Get the Image tensor from it.
         most_populous_image_array = None
-        for image_tensor, _, image_metadata in self.dataset:
+        for image_tensor, _, image_metadata in dataset:
             if all(str(image_metadata[key]) == str(value) for key, value in example_image_unique_id.items()):
                 most_populous_image_array = image_tensor
                 break
@@ -349,15 +338,60 @@ class RealLabelTestStage(
             )
 
             return RealLabelOutputs(
-                results=default_reallabel_results,
-                example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # pyright: ignore[reportArgumentType]
-                classification_disagreements_df=reallabel_results.classification_disagreements_df,
-                verbose_df=reallabel_results.verbose_df,
-                sequence_priority_score_df=reallabel_results.sequence_priority_score_df,
-                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df,
-                wanrs_df=reallabel_results.wanrs_df,
-                aggregated_confidence_df=reallabel_results.aggregated_confidence_df,
+                results=default_reallabel_results.toPandas(),
+                example_image=RealLabelImageOutput(image=output_location, id=example_image_unique_id),  # pyright: ignore [reportArgumentType]
+                classification_disagreements_df=reallabel_results.classification_disagreements_df.toPandas()
+                if reallabel_results.classification_disagreements_df
+                else None,
+                verbose_df=reallabel_results.verbose_df.toPandas() if reallabel_results.verbose_df else None,
+                sequence_priority_score_df=reallabel_results.sequence_priority_score_df.toPandas()
+                if reallabel_results.sequence_priority_score_df
+                else None,
+                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df.toPandas()
+                if reallabel_results.sequence_priority_score_balanced_df
+                else None,
+                wanrs_df=reallabel_results.wanrs_df.toPandas() if reallabel_results.wanrs_df else None,
+                aggregated_confidence_df=reallabel_results.aggregated_confidence_df.toPandas()
+                if reallabel_results.aggregated_confidence_df
+                else None,
             )
+
+    def _compute_maite_inference_result(self, models: list[od.Model], dataset: od.Dataset) -> dict[str, od.Dataset]:
+        """Generate inference results from MAITE models.
+
+        Returns
+        -------
+        A dictionary mapping model names to datasets containing their predictions
+        as targets.
+        """
+        maite_inference_result = {}
+        # Run all the models
+        for model in models:
+            predictions, _ = predict(
+                model=model,
+                dataset=dataset,
+                dataset_id=dataset.metadata["id"],
+                return_augmented_data=True,
+            )
+            clean_predictions = [x[0] for x in predictions]
+
+            # We need to construct a new dataset with the ground truth targets replaced with the predictions.
+            # MAITE Dataset does not have a way to set the targets directly, so we use the wrapper instance.
+            copied_dataset = _RealLabelDatasetWrapper(dataset)
+
+            # there is some pydantic shenanigans going on here which messes with the type-checker, but
+            # we are confident that it's correct and so we override with a cast
+            copied_dataset.targets = cast(list[od.TargetType], clean_predictions)
+
+            # RealLabel will only use certain metadata passed in here (e.g. for the confidence calibration) which is not
+            # supported through Reference Implementation currently. Additionally, metadata specific to the ground
+            # truth data (e.g. ground truth bounding boxes) can cause errors in RealLabel so we remove all
+            # non-mandatory datum_metadata keys.
+            copied_dataset.datum_metadata = [{"id": dm["id"]} for dm in copied_dataset.datum_metadata]
+
+            maite_inference_result[model.metadata["id"]] = copied_dataset
+
+        return maite_inference_result
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect all report consumables.

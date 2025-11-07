@@ -8,20 +8,14 @@ from pathlib import Path
 from typing import Any
 
 import maite.protocols.object_detection as od
-
-# 3rd Party Imports
 import matplotlib.pyplot as plt
 import numpy as np
 from maite.protocols import DatasetMetadata
 from matplotlib.patches import Rectangle
 from PIL import Image
 from pydantic import model_validator
-
-# SMQTK imports
 from torch import Tensor, as_tensor
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
-
-# XAITK imports
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
 from jatic_ri._common.test_stages.impls.xaitk_test_stage import XAITKTestStageBase
@@ -72,7 +66,7 @@ class XAITKRunOD(RunBase):
     outputs: XAITKOutputsOD
 
 
-class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model, od.Dataset]):
+class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od.Metric]):
     """
     XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
 
@@ -87,16 +81,28 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
         super().__init__()
         self.config: XAITKConfigOD = XAITKConfigOD.model_validate(config)
 
-    def _run(self) -> XAITKOutputsOD:
+    def _create_config(self) -> XAITKConfigOD:
+        return self.config
+
+    def _run(
+        self,
+        models: list[od.Model],
+        datasets: list[od.Dataset],
+        metrics: list[od.Metric],  # noqa: ARG002
+    ) -> XAITKOutputsOD:
         """Run the test stage, and store any outputs of the saliency generation in test stage"""
-        prediction_dataset = self.XAITKDetectionBaselineDataset(self.dataset, self.model)
-        if "index2label" not in self.model.metadata:
+
+        model = models[0]
+        dataset = datasets[0]
+
+        prediction_dataset = self.XAITKDetectionBaselineDataset(dataset, model)
+        if "index2label" not in model.metadata:
             raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
         all_dataset_sal_maps, _ = sal_on_dets(
             dataset=prediction_dataset,
             sal_generator=self.config.saliency_generator,
-            detector=self.model,
-            ids=sorted(self.model.metadata["index2label"].keys()),
+            detector=model,
+            ids=sorted(model.metadata["index2label"].keys()),
             img_batch_size=self.config.img_batch_size,
         )
 
@@ -128,6 +134,9 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
         if self._stored_run is None:
             raise RuntimeError("TestStage must be run before accessing outputs")
         outputs = self._stored_run.outputs
+
+        model_id = self._stored_run.model_metadata[0]["id"]
+        index2label = self._stored_run.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
 
         gradient_slides = []
         for idx, datum in enumerate(outputs.results):
@@ -173,9 +182,9 @@ class XAITKTestStage(XAITKTestStageBase[XAITKConfigOD, XAITKOutputsOD, od.Model,
                         "title": (f"XAITK Saliency Map -- " f"Image ID: {datum.img_id}, " f"Detection: {sal_idx}"),
                         "left_item": Path(save_figure_to_tempfile(fig)),
                         "right_item": (
-                            f"**Model:** {self.model_id}\n"
+                            f"**Model:** {model_id}\n"
                             f"**Image ID**: {datum.img_id}\n"
-                            f"**Prediction:** {self.model.metadata['index2label'][int(datum.labels[sal_idx])]}\n"  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                            f"**Prediction:** {index2label[int(datum.labels[sal_idx])]}\n"
                             f"**Confidence:** {scores[sal_idx]:.2f}\n\n\n"
                             f"Note: The Confidence is the metric score that the given detection had in the original "
                             f"(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."
