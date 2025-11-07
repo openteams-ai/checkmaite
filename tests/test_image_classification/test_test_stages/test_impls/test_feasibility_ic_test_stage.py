@@ -28,9 +28,8 @@ class TestFeasibilityTestStage:
         """Tests run against dummy dataset"""
 
         test_stage = DatasetImageClassificationFeasibilityTestStage()
-        test_stage.load_dataset(fake_ic_dataset_default, "ICDataset")
 
-        results = test_stage._run()
+        results = test_stage._run(datasets=[fake_ic_dataset_default], models=[], metrics=[])
 
         assert isinstance(results, DatasetImageClassificationFeasibilityOutputs)
         assert results.ber == 0.7
@@ -41,11 +40,11 @@ class TestFeasibilityTestStage:
 
         test_stage = DatasetImageClassificationFeasibilityTestStage()
         test_stage._stored_run = DatasetImageClassificationFeasibilityRun(
+            dataset_metadata=[{"id": "ICDataset"}],
+            metric_metadata=[],
+            model_metadata=[],
             test_stage_id="",
             config=DatasetImageClassificationFeasibilityConfig(),
-            dataset_ids=["ICDataset"],
-            model_ids=[],
-            metric_id="",
             outputs=ber_outputs,
         )
         test_stage.load_threshold(0.5)
@@ -71,16 +70,15 @@ class TestFeasibilityTestStage:
     def test_cache(self, dummy_dataset_ic) -> None:
         test_stage = DatasetImageClassificationFeasibilityTestStage()
         test_stage.load_threshold(0.5)
-        test_stage.load_dataset(dummy_dataset_ic, "Dataset1")
 
-        run = test_stage.run(use_stage_cache=True)
+        run = test_stage.run(use_stage_cache=True, datasets=[dummy_dataset_ic])
         base_outputs = run.outputs
 
         test_stage_cached = DatasetImageClassificationFeasibilityTestStage()
         test_stage_cached.load_threshold(0.5)
-        test_stage_cached.load_dataset(dummy_dataset_ic, "Dataset1")
+
         test_stage_cached._run = MagicMock()
-        cached_run = test_stage_cached.run()
+        cached_run = test_stage_cached.run(datasets=[dummy_dataset_ic])
         cached_outputs = cached_run.outputs
 
         assert base_outputs == cached_outputs

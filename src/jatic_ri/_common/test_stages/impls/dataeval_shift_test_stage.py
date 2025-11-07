@@ -12,23 +12,27 @@ import numpy as np
 import pandas as pd
 import pydantic
 import torch
-
-# _run imports
 from dataeval.data import Embeddings
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_AE
 from dataeval.outputs import DriftMMDOutput
 from dataeval.utils.torch.models import AE
-
-# report_consumable imports
 from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
-from jatic_ri._common.test_stages.interfaces.plugins import TDataset, TwoDatasetPlugin
-from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, OutputsBase, RunBase, TestStage
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    ConfigBase,
+    Number,
+    OutputsBase,
+    RunBase,
+    TDataset,
+    TestStage,
+    TMetric,
+    TModel,
+)
 from jatic_ri.util._types import Device
 
 
@@ -75,7 +79,7 @@ class DataevalShiftRun(RunBase):
     outputs: DataevalShiftOutputs
 
 
-class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugin[TDataset]):
+class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel, TMetric]):
     """Detects dataset shift between two datasets using various methods.
 
     Performs three drift detection and two out-of-distribution tests
@@ -107,7 +111,64 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
     def _create_config(self) -> ConfigBase:
         return DataevalShiftConfig(device=self.device)
 
-    def _run_drift(self) -> DataevalShiftDriftOutputs:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.TWO
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.ZERO
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ZERO
+
+    def _run(
+        self,
+        models: list[TModel],  # noqa: ARG002
+        datasets: list[TDataset],
+        metrics: list[TMetric],  # noqa: ARG002
+    ) -> DataevalShiftOutputs:
+        """Run methods for drift and OOD detectors.
+
+        Returns
+        -------
+        DataevalShiftOutputs
+            An object containing the combined outputs from drift and OOD
+            detection.
+        """
+        dataset_1 = datasets[0]
+        dataset_2 = datasets[1]
+
+        return DataevalShiftOutputs.model_validate(
+            {
+                "drift": self._run_drift(dataset_1=dataset_1, dataset_2=dataset_2),
+                "ood": self._run_ood(dataset_1=dataset_1, dataset_2=dataset_2),
+            }
+        )
+
+    def _run_drift(self, dataset_1: TDataset, dataset_2: TDataset) -> DataevalShiftDriftOutputs:
         """Run MMD, CVM, and KS drift detection methods.
 
         Compares embeddings of`dataset_2` against`dataset_1`.
@@ -119,13 +180,13 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             detectors.
         """
         model, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(self.dataset_1, self._batch_size, transform, model, device=self.device)
-        emb_2 = Embeddings(self.dataset_2, self._batch_size, transform, model, device=self.device)
+        emb_1 = Embeddings(dataset_1, self._batch_size, transform, model, device=self.device)
+        emb_2 = Embeddings(dataset_2, self._batch_size, transform, model, device=self.device)
 
-        if len(self.dataset_1) < 2 or len(self.dataset_2) < 2:
+        if len(dataset_1) < 2 or len(dataset_2) < 2:
             raise ValueError(
                 "Dataset drift detection is computed using unbiased statistics which require "
-                f"at least 2 datapoints, {min(len(self.dataset_1), len(self.dataset_2))} "
+                f"at least 2 datapoints, {min(len(dataset_1), len(dataset_2))} "
                 "datapoints were provided. Please provide more images as datapoints."
             )
 
@@ -139,7 +200,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             {name: detector(data=emb_1).predict(emb_2).data() for name, detector in detectors.items()}
         )
 
-    def _run_ood(self) -> DataevalShiftOODOutputs:
+    def _run_ood(self, dataset_1: TDataset, dataset_2: TDataset) -> DataevalShiftOODOutputs:
         """Run Autoencoder (AE) based Out-of-Distribution (OOD) detection.
 
          Trains an AE on`dataset_1` and then detects OOD samples in
@@ -151,14 +212,9 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
              An object containing the outputs from the OOD AE detector.
         """
         _, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(
-            self.dataset_1, self._batch_size, transform, torch.nn.Identity(), device=self.device
-        ).to_numpy()
-        emb_2 = Embeddings(
-            self.dataset_2, self._batch_size, transform, torch.nn.Identity(), device=self.device
-        ).to_numpy()
+        emb_1 = Embeddings(dataset_1, self._batch_size, transform, torch.nn.Identity(), device=self.device).to_numpy()
+        emb_2 = Embeddings(dataset_2, self._batch_size, transform, torch.nn.Identity(), device=self.device).to_numpy()
 
-        # Additional detectors may be added in the future
         detectors = {"ood_ae": OOD_AE(AE(emb_1[0].shape))}
 
         for detector in detectors.values():
@@ -167,17 +223,6 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         return DataevalShiftOODOutputs.model_validate(
             {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
         )
-
-    def _run(self) -> DataevalShiftOutputs:
-        """Run methods for drift and OOD detectors.
-
-        Returns
-        -------
-        DataevalShiftOutputs
-            An object containing the combined outputs from drift and OOD
-            detection.
-        """
-        return DataevalShiftOutputs.model_validate({"drift": self._run_drift(), "ood": self._run_ood()})
 
     def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
         """Generate Gradient compliant kwargs for drift detection results.
@@ -213,7 +258,6 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
             },
         )
 
-        # Gradient slide kwargs
         title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
         heading = "Metric: Drift"
         text = [
@@ -229,7 +273,6 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
         ]
         content = [Text(t, fontsize=16) for t in text]
 
-        # Set up Gradient slide
         return {
             "deck": self._deck,
             "layout_name": "SectionByItem",
@@ -337,12 +380,12 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs], TwoDatasetPlugi
 
         report_consumables = []
 
-        # Adds drift slide
-        drift_slide = self._collect_drift(outputs.drift, dataset_ids=self._stored_run.dataset_ids)
+        dataset_ids = [d["id"] for d in self._stored_run.dataset_metadata]
+
+        drift_slide = self._collect_drift(outputs.drift, dataset_ids=dataset_ids)
         report_consumables.append(drift_slide)
 
-        # Adds ood slide
-        ood_slide = self._collect_ood(outputs.ood, dataset_ids=self._stored_run.dataset_ids)
+        ood_slide = self._collect_ood(outputs.ood, dataset_ids=dataset_ids)
         report_consumables.append(ood_slide)
 
         return report_consumables

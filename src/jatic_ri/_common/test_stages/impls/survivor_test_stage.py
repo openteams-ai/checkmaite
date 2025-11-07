@@ -15,16 +15,15 @@ from survivor.analysis import HistogramBarPlot
 from survivor.config import SurvivorConfig as _NativeSurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    MetricPlugin,
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
+    Number,
     OutputsBase,
     RunBase,
+    TDataset,
     TestStage,
+    TMetric,
+    TModel,
 )
 from jatic_ri.cached_tasks import evaluate_from_predictions, predict
 from jatic_ri.util._types import DataFrame, Image
@@ -72,10 +71,7 @@ class SurvivorRun(RunBase):
 
 
 class SurvivorTestStageBase(
-    TestStage[SurvivorOutputs],
-    MultiModelPlugin,
-    SingleDatasetPlugin,
-    MetricPlugin,
+    TestStage[SurvivorOutputs, TDataset, TModel, TMetric],
 ):
     _RUN_TYPE = SurvivorRun
 
@@ -103,7 +99,87 @@ class SurvivorTestStageBase(
     def _create_config(self) -> SurvivorConfig:
         return self._config
 
-    def __run_metrics(self) -> dict[str, pr.ArrayLike]:
+    @property
+    def supports_datasets(self) -> Number:
+        """Number of datasets this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating dataset support.
+        """
+        return Number.ONE
+
+    @property
+    def supports_models(self) -> Number:
+        """Number of models this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating model support.
+        """
+        return Number.MANY
+
+    @property
+    def supports_metrics(self) -> Number:
+        """Number of metrics this test stage supports.
+
+        Returns
+        -------
+        Number
+            An enumeration value indicating metric support.
+        """
+        return Number.ONE
+
+    def _run(
+        self,
+        models: list[TModel],
+        datasets: list[TDataset],
+        metrics: list[TMetric],
+    ) -> SurvivorOutputs:
+        """Run Survivor analysis.
+
+        This method executes the MAITESurvivor analysis, generating
+        raw output, metrics with survivor labels, a label count plot,
+        and heatmap plots based on the configuration.
+
+        Returns
+        -------
+        SurvivorOutputs
+            An object containing the results of the Survivor analysis.
+        """
+
+        dataset = datasets[0]
+        metric = metrics[0]
+
+        survivor_metrics = self._run_survivor_metrics(models=models, dataset=dataset, metric=metric)
+
+        survivor = MAITESurvivor(
+            maite_dataset=dataset,
+            config=self._config,
+            metrics=survivor_metrics,
+            spark_session=SparkSession.builder.getOrCreate(),  # pyright: ignore[reportAttributeAccessIssue]
+        )
+
+        output_data = survivor.run()
+
+        label_count_plot = self._label_count_plot(output_data.raw_output_df)
+        heatmap_plots = []
+        for metadata_column in self._config.heatmap_plot_columns:  # pyright: ignore[reportOptionalIterable]
+            heatmap_plot = self._heatmap_plot(output_data.metrics_with_survivor_label_df, metadata_column)
+            heatmap_plots.append(heatmap_plot)
+
+        return SurvivorOutputs(
+            raw_output_df=output_data.raw_output_df.toPandas(),
+            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df.toPandas(),
+            label_count_plot=label_count_plot,  # pyright: ignore[reportArgumentType]
+            heatmap_plots=heatmap_plots,
+        )
+
+    def _run_survivor_metrics(
+        self, models: list[TModel], dataset: TDataset, metric: TMetric
+    ) -> dict[str, pr.ArrayLike]:
         """Create metrics by model for use in MAITESurvivor.
 
         This method calculates metrics for each model on a per-datum basis.
@@ -116,15 +192,14 @@ class SurvivorTestStageBase(
             of metric results for each datum.
         """
         all_model_metrics_per_datum: dict[str, pr.ArrayLike] = {}
-        for model in self.models:
+        for model in models:
             model_metrics_per_datum = []
             # Since Survivor's implementation is unique in that it runs metric calculations on each individual in
             # a dataset, we first call the `predict()` method using the model against the entire dataset.
             # Otherwise, we could not leverage a cached result from a prior test stage's prediction generation.
             predictions, targets = predict(
-                model=self.models[model],
-                dataset=self.dataset,
-                dataset_id=self.dataset_id,
+                model=model,
+                dataset=dataset,
                 batch_size=self._batch_size,
                 return_augmented_data=True,
             )
@@ -133,18 +208,18 @@ class SurvivorTestStageBase(
             # target as its own dataset.
             for i, datum_prediction in enumerate(predictions):
                 results: dict[str, Any] = evaluate_from_predictions(
-                    metric=self.metric,
+                    metric=metric,
                     predictions=[datum_prediction],
                     targets=[targets[i][1]],
                 )
-                model_metrics_per_datum.append(results[self.metric_id].numpy())
+                model_metrics_per_datum.append(results[metric.metadata["id"]].numpy())
 
                 # Reset the metric for the next evaluate() call so results don't bleed together.
-                self.metric.reset()
+                metric.reset()
 
             # Take the aggregated datum results from this model and turn it into a 1-d colum numpy array for
             # later consumption.
-            all_model_metrics_per_datum[model] = np.hstack(model_metrics_per_datum)
+            all_model_metrics_per_datum[model.metadata["id"]] = np.hstack(model_metrics_per_datum)
 
         return all_model_metrics_per_datum
 
@@ -207,47 +282,6 @@ class SurvivorTestStageBase(
                 named_figure, path = heatmap_plot.plot(metrics_with_survivor_label_df)[0]
 
         return named_figure.figure
-
-    def _run(self) -> SurvivorOutputs:
-        """Run Survivor analysis.
-
-        This method executes the MAITESurvivor analysis, generating
-        raw output, metrics with survivor labels, a label count plot,
-        and heatmap plots based on the configuration.
-
-        Returns
-        -------
-        SurvivorOutputs
-            An object containing the results of the Survivor analysis.
-        """
-        self.validate_plugins()
-
-        # run metrics
-        metrics = self.__run_metrics()
-
-        # create maite wrapper and run Survivor
-        survivor = MAITESurvivor(
-            maite_dataset=self.dataset,
-            config=self._config,
-            metrics=metrics,
-            spark_session=SparkSession.builder.getOrCreate(),  # pyright: ignore[reportAttributeAccessIssue]
-        )
-
-        output_data = survivor.run()
-        df = output_data.raw_output_df  # noqa: PD901
-
-        label_count_plot = self._label_count_plot(df)
-        heatmap_plots = []
-        for metadata_column in self._config.heatmap_plot_columns:  # pyright: ignore[reportOptionalIterable]
-            heatmap_plot = self._heatmap_plot(output_data.metrics_with_survivor_label_df, metadata_column)
-            heatmap_plots.append(heatmap_plot)
-
-        return SurvivorOutputs(
-            raw_output_df=output_data.raw_output_df,
-            metrics_with_survivor_label_df=output_data.metrics_with_survivor_label_df,
-            label_count_plot=label_count_plot,  # pyright: ignore[reportArgumentType]
-            heatmap_plots=heatmap_plots,
-        )
 
     def collect_report_consumables(self) -> list[dict[str, Any]]:
         """Collect report consumables for the SurvivorTestStage.

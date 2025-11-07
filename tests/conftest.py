@@ -228,7 +228,7 @@ def dummy_metric_od() -> od.Metric:
     """Creates and returns a dummy maite-compliant metric"""
 
     class DummyMetric:
-        return_key = "fake_metric"
+        return_key = "fake-id"
         metadata = {"id": "fake-id"}
 
         def update(self, preds: Sequence[Any], targets: Sequence[Any]) -> None:

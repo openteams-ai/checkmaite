@@ -14,7 +14,6 @@ import pandas as pd  # noqa: E402
 from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
 from reallabel import ColumnNameConfig, RealLabelResults  # noqa: E402
 
-from jatic_ri._common.test_stages.interfaces.test_stage import RIValidationError  # noqa: E402
 from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelOutputs, RealLabelTestStage  # noqa: E402
 from tests.fake_od_classes import FakeODDataset, FakeODModel  # noqa: E402
 
@@ -77,15 +76,7 @@ def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRe
     string input to `request.param` (set through indirect parametrization of `test_stage`).
     """
 
-    # Create and yield test_stage
-    test_stage = RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
-    test_stage.load_models(models=reallabel_test_stage_args["models"])
-    test_stage.load_dataset(
-        dataset=reallabel_test_stage_args["dataset"],
-        dataset_id="test-dataset",
-    )
-
-    return test_stage
+    return RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
 
 
 @pytest.mark.parametrize(
@@ -94,12 +85,18 @@ def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRe
     ids=["Using RealLabelConfig", "Using dict config"],
     indirect=True,
 )
-def test_reallabel_test_stage_run_caches(mocker, test_stage: RealLabelTestStage, tmp_cache_path) -> None:
+def test_reallabel_test_stage_run_caches(
+    mocker, test_stage: RealLabelTestStage, reallabel_test_stage_args: dict, tmp_cache_path
+) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
-    run = test_stage.run(use_stage_cache=True)
+
+    models = list(reallabel_test_stage_args["models"].values())
+    datasets = [reallabel_test_stage_args["dataset"]]
+
+    run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
 
     mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = test_stage.run(use_stage_cache=True)
+    cached_run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
     assert cached_run is not run
 
     outputs = run.outputs
@@ -125,6 +122,7 @@ def test_reallabel_test_stage_run_caches(mocker, test_stage: RealLabelTestStage,
 
 def test_reallabel_test_stage_collect_report_consumables(
     test_stage: RealLabelTestStage,
+    reallabel_test_stage_args: dict,
     artifact_dir,
 ) -> None:
     """Test collect_report_consumables with cached data enabled."""
@@ -133,11 +131,14 @@ def test_reallabel_test_stage_collect_report_consumables(
     expected_layout_name = "TwoItem"
     expected_title = "RealLabel Label Breakdown"
 
+    models = list(reallabel_test_stage_args["models"].values())
+    datasets = [reallabel_test_stage_args["dataset"]]
+
     # Run test stage once to ensure cache is present
-    test_stage.run(use_stage_cache=True)
+    test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
 
     # Run again to use cache
-    test_stage.run(use_stage_cache=True)
+    test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
 
     # Act
     slides = test_stage.collect_report_consumables()
@@ -168,21 +169,6 @@ def test_reallabel_test_stage_collect_report_consumables_error(
     # Act and Assert
     with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
         test_stage.collect_report_consumables()
-
-
-def test_reallabel_test_stage_run_errors(reallabel_test_stage_args: dict):
-    """Test run() errors."""
-    # Arrange
-    test_stage_1 = RealLabelTestStage(reallabel_test_stage_args["config"])
-    test_stage_2 = RealLabelTestStage(reallabel_test_stage_args["config"])
-    test_stage_2.load_models(reallabel_test_stage_args["models"])
-
-    # Act and Assert
-    with pytest.raises(RIValidationError, match=r"'models' not set! Please use `load_models\(\)` function"):
-        test_stage_1.run(use_stage_cache=False)
-
-    with pytest.raises(RIValidationError, match=r"'dataset' not set! Please use `load_dataset\(\)` function"):
-        test_stage_2.run(use_stage_cache=False)
 
 
 def test_for_reallabel_output_changes():

@@ -194,7 +194,7 @@ filterwarnings = [
     "ignore:pkg_resources is deprecated as an API:UserWarning",
     "ignore:The 'shapely.geos' module is deprecated.*:DeprecationWarning",  # TODO: investigate
     "ignore:There is no current event loop:DeprecationWarning", # TODO: placeholder during MAITE 8 upgrade.  If upgrade does not fix, resolve explicitly or open new GLab issue
-    "ignore: Item .* is using the `ReadOnly` qualifier. Pydantic will not protect items from any mutation on dictionary instances."
+    "ignore: .* using the `ReadOnly` qualifier. Pydantic will not protect items from any mutation on dictionary instances."
 ]
 xfail_strict = true
 

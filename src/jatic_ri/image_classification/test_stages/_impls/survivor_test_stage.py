@@ -1,9 +1,11 @@
 """Survivor Image Classification Test Stage Implementation"""
 
+import maite.protocols.image_classification as ic
+
 from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorTestStageBase
 
 
-class SurvivorTestStage(SurvivorTestStageBase):
+class SurvivorTestStage(SurvivorTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     """Survivor Test Stage Object.
 
     Survivor uses an ensemble of models and metrics based on model inference results, to provide insight into
@@ -15,22 +17,6 @@ class SurvivorTestStage(SurvivorTestStageBase):
 
     This test stage also uses MAITE-wrapped models, datasets, and metrics, and MAITE itself, to produce the model
     metric results needed if they are not present in the cache before running Survivor itself.
-
-    Attributes
-    ----------
-    outputs : tuple
-        A tuple-like object of Survivor results with the layout:
-        [0]: The SurvivorResults.raw_output_df dataframe.
-        [1]: Histogram of the number of images per Survivor category: Easy, Hard, and On the Bubble.
-    metric : maite.Metric
-        The MAITE-wrapped metric object that should be fed the model inference results
-        for metric calculation.
-    dataset : maite.Dataset
-        The MAITE-wrapped dataset object on which the models should run inference and
-        produce results.
-    models : dict[str, maite.Model]
-        The dictionary of model names to their MAITE-wrapped model objects
-        whose inference should be used when running Survivor.
     """
 
     _deck: str = "image_classification_survivor"

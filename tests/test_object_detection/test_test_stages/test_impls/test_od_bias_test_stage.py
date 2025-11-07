@@ -32,11 +32,11 @@ def fake_image() -> str:
 @pytest.fixture
 def run(dummy_dataset_od, fake_image):
     return DataevalBiasRun(
+        dataset_metadata=[dummy_dataset_od.metadata],
+        model_metadata=[],
+        metric_metadata=[],
         test_stage_id=DatasetBiasTestStage().id,
         config=DataevalBiasConfig(device="cpu"),
-        dataset_ids=[dummy_dataset_od.metadata["id"]],
-        model_ids=[],
-        metric_id="",
         outputs=DataevalBiasOutputs(
             balance=DataevalBiasBalanceOutputs(
                 balance=np.array([0.99999822, 0.13363788, 0.04505382, 0.02994455]),
@@ -91,8 +91,7 @@ class TestODDatasetBiasRun:
             raise ValueError(dataset_type)
 
         test_stage = DatasetBiasTestStage()
-        test_stage.load_dataset(dataset=dataset, dataset_id="DummyDataset")
-        run = test_stage.run(use_stage_cache=False)
+        run = test_stage.run(use_stage_cache=False, datasets=[dataset])
 
         if dataset_type != "non_homogenous_size":
             assert run.outputs.coverage.image is not None
@@ -121,9 +120,7 @@ class TestODDatasetBiasRun:
 
         stage = DatasetBiasTestStage()
 
-        stage.load_dataset(dataset=coco_dataset, dataset_id="asd")
-
-        stage.run(use_stage_cache=False)
+        stage.run(use_stage_cache=False, datasets=[coco_dataset])
         pass  # no explosions
 
     def test_no_metadata(self):
@@ -160,9 +157,7 @@ class TestODDatasetBiasRun:
 
         stage = DatasetBiasTestStage(metadata_to_exclude=metadata_to_exclude)
 
-        stage.load_dataset(dataset=coco_dataset, dataset_id="no_metadata")
-
-        stage.run(use_stage_cache=False)
+        stage.run(use_stage_cache=False, datasets=[coco_dataset])
         pass  # no explosions
 
 

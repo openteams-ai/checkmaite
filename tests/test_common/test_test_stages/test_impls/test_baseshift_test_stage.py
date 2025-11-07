@@ -56,8 +56,7 @@ class TestDatasetShift:
         op_dataset.images *= 0.5
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(dataset_1=dev_dataset, dataset_2=op_dataset, dataset_1_id="dev", dataset_2_id="op")
-        test_stage.run(use_stage_cache=False)
+        test_stage.run(use_stage_cache=False, datasets=[dev_dataset, op_dataset])
 
         assert test_stage._stored_run is not None
 
@@ -80,7 +79,6 @@ class TestDatasetShift:
         # Set cache required attributes for original test stage
         test_stage = DatasetShiftTestStageBase()
         test_stage._task = "dummy_task"
-        test_stage.load_datasets(dummy_dataset_ic, "Dataset1", dummy_dataset_od, "Dataset2")
 
         # # Modify running results for simpler value checking
         test_stage._run = MagicMock()
@@ -118,17 +116,16 @@ class TestDatasetShift:
         )
 
         # Save run results into cache
-        run = test_stage.run(use_stage_cache=True)
+        run = test_stage.run(use_stage_cache=True, datasets=[dummy_dataset_ic, dummy_dataset_od])
         base_outputs = run.outputs
 
         # Create new test stage that will only use cached results
         test_stage_cached = DatasetShiftTestStageBase()
         # Set all cache information to be the same as original test stage
         test_stage_cached._task = "dummy_task"
-        test_stage_cached.load_datasets(dummy_dataset_ic, "Dataset1", dummy_dataset_od, "Dataset2")
         # Mock out to ensure the cache overrides the use of _run
         test_stage_cached._run = MagicMock()
-        cached_run = test_stage_cached.run()
+        cached_run = test_stage_cached.run(datasets=[dummy_dataset_ic, dummy_dataset_od])
         cached_outputs = cached_run.outputs
 
         torch.testing.assert_close(base_outputs.model_dump(), cached_outputs.model_dump())
@@ -167,9 +164,8 @@ class TestDrift:
     def test_run_drift(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
         """Tests that the `_run_drift` function produces necessary results for all 3 methods"""
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(dummy_dataset_od, "Dataset1", dummy_dataset_od, "Dataset2")
         test_stage.dim = 32
-        results = test_stage._run_drift()
+        results = test_stage._run_drift(dataset_1=dummy_dataset_od, dataset_2=dummy_dataset_od)
 
         results = results.model_dump()
 
@@ -265,9 +261,8 @@ class TestOOD:
         dataset_2.images = torch.zeros_like(dummy_dataset_od.images)
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.load_datasets(dummy_dataset_od, "Dataset1", dataset_2, "Dataset2")
         test_stage.dim = 32
-        results = test_stage._run_ood()
+        results = test_stage._run_ood(dataset_1=dummy_dataset_od, dataset_2=dataset_2)
 
         results = results.model_dump()
         assert list(results) == ["ood_ae"]
@@ -351,11 +346,11 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
     }
 
     teststage._stored_run = DataevalShiftRun(
+        dataset_metadata=[{"id": "VOC1"}, {"id": "VOC2"}],
+        model_metadata=[],
+        metric_metadata=[],
         test_stage_id="",
         config=DataevalShiftConfig(),
-        dataset_ids=["VOC1", "VOC2"],
-        model_ids=[],
-        metric_id="",
         outputs=DataevalShiftOutputs(
             drift=DataevalShiftDriftOutputs(
                 mmd=DriftMMDOutput(**dummy_drift["mmd"]),
