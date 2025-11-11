@@ -43,10 +43,8 @@ def test_xaitk_test_stage_rise(fake_ic_dataset_default, fake_ic_model_default, a
 
     test = XAITKTestStage(RISE_ARGS)
     # load the maite compliant model
-    test.load_model(model=fake_ic_model_default, model_id="model_1")
-    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dataset_1")
-    test.run(use_stage_cache=False)
-    output = test.collect_report_consumables()
+    run = test.run(use_stage_cache=False, models=[fake_ic_model_default], datasets=[fake_ic_dataset_default])
+    output = run.collect_report_consumables(threshold=0.5)
 
     assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0]
 
@@ -69,10 +67,8 @@ def test_xaitk_test_stage_mc_rise(fake_ic_dataset_default, fake_ic_model_default
 
     test = XAITKTestStage(MC_RISE_ARGS)
     # load the maite compliant model
-    test.load_model(model=fake_ic_model_default, model_id="model_1")
-    test.load_dataset(dataset=fake_ic_dataset_default, dataset_id="dataset_1")
-    test.run(use_stage_cache=False)
-    output = test.collect_report_consumables()
+    run = test.run(use_stage_cache=False, models=[fake_ic_model_default], datasets=[fake_ic_dataset_default])
+    output = run.collect_report_consumables(threshold=0.5)
 
     assert (
         len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0] * 2

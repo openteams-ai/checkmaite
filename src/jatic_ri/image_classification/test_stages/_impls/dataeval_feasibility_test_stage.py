@@ -13,7 +13,6 @@ from gradient.templates_and_layouts.generic_layouts.section_by_item import Secti
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
-from jatic_ri._common.test_stages.interfaces.plugins import ThresholdPlugin
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, RunBase, TestStage
 from jatic_ri.util._types import Device
 
@@ -44,10 +43,56 @@ class DatasetImageClassificationFeasibilityRun(RunBase):
     config: DatasetImageClassificationFeasibilityConfig
     outputs: DatasetImageClassificationFeasibilityOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+        """Create slides for Gradient report"""
+
+        results = self.outputs
+
+        dataset_id = self.dataset_metadata[0]["id"]
+
+        is_feasible = results.ber > threshold
+        feasibility_dict = {
+            "Feasible": [str(is_feasible)],
+            "Bayes Error Rate": [np.round(results.ber, self.config.precision)],
+            "Lower Bayes Error Rate": [np.round(results.ber_lower, self.config.precision)],
+            "Performance Goal": [threshold],
+        }
+        feasibility_df = pd.DataFrame.from_dict(feasibility_dict)
+
+        title = f"Dataset: {dataset_id} | Category: Feasibility"
+        heading = "Metric: Bayes Error Rate"
+        content = [
+            Text(t)
+            for t in (
+                [SubText("Result:", bold=True)],
+                f"Performance goal of {threshold} {'is' if is_feasible else 'is NOT'} feasible.",
+                [SubText("Tests for:", bold=True)],
+                " * Achievability of performance goal",
+                [SubText("Risk(s):", bold=True)],
+                " * Performance goal cannot be achieved by any model (problem too hard)",
+                " * Models that report performance above the goal are overfit and \
+                will not generalize to real-world problems",
+                [SubText("Action:", bold=True)],
+                f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
+            )
+        ]
+
+        return [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "SectionByItem",
+                "layout_arguments": {
+                    SectionByItem.ArgKeys.TITLE.value: title,
+                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
+                },
+            },
+        ]
+
 
 class DatasetImageClassificationFeasibilityTestStage(
-    TestStage[DatasetImageClassificationFeasibilityOutputs, ic.Dataset, ic.Model, ic.Metric],
-    ThresholdPlugin,
+    TestStage[DatasetImageClassificationFeasibilityOutputs, ic.Dataset, ic.Model, ic.Metric]
 ):
     """
     Measures whether the available data (both quantity and quality) can be used to
@@ -55,7 +100,6 @@ class DatasetImageClassificationFeasibilityTestStage(
     and programatically generates a Gradient report with the results.
     """
 
-    _deck: str = "image_classification_dataset_evaluation"
     _task: str = "ic"
 
     _RUN_TYPE = DatasetImageClassificationFeasibilityRun
@@ -139,51 +183,3 @@ class DatasetImageClassificationFeasibilityTestStage(
         return DatasetImageClassificationFeasibilityOutputs.model_validate(
             {"ber": b_data["ber"], "ber_lower": b_data["ber_lower"]}
         )
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Create slides for Gradient report"""
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        results = self._stored_run.outputs
-
-        dataset_id = self._stored_run.dataset_metadata[0]["id"]
-
-        is_feasible = results.ber > self.threshold
-        feasibility_dict = {
-            "Feasible": [str(is_feasible)],
-            "Bayes Error Rate": [np.round(results.ber, self.precision)],
-            "Lower Bayes Error Rate": [np.round(results.ber_lower, self.precision)],
-            "Performance Goal": [self.threshold],
-        }
-        feasibility_df = pd.DataFrame.from_dict(feasibility_dict)
-
-        title = f"Dataset: {dataset_id} | Category: Feasibility"
-        heading = "Metric: Bayes Error Rate"
-        content = [
-            Text(t)
-            for t in (
-                [SubText("Result:", bold=True)],
-                f"Performance goal of {self.threshold} {'is' if is_feasible else 'is NOT'} feasible.",
-                [SubText("Tests for:", bold=True)],
-                " * Achievability of performance goal",
-                [SubText("Risk(s):", bold=True)],
-                " * Performance goal cannot be achieved by any model (problem too hard)",
-                " * Models that report performance above the goal are overfit and \
-                will not generalize to real-world problems",
-                [SubText("Action:", bold=True)],
-                f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
-            )
-        ]
-
-        return [
-            {
-                "deck": "image_classification_dataset_evaluation",
-                "layout_name": "SectionByItem",
-                "layout_arguments": {
-                    SectionByItem.ArgKeys.TITLE.value: title,
-                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
-                },
-            },
-        ]

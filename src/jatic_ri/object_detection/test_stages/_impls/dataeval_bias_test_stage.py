@@ -16,7 +16,6 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset, od.Model, od.Met
     between metadata factors and class labels, while coverage is calculated using only the images
     """
 
-    _deck: str = "object_detection_bias_evaluation"
     _task: str = "od"
     # Coco dataset loader includes these by default as metadata, excluded here as not useful to analysis
     _metadata_to_exclude: list[str] = ["id", "file_name"]

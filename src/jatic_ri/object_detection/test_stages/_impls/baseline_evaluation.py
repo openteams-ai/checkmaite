@@ -15,5 +15,4 @@ class BaselineEvaluation(BaselineEvaluationBase[od.Dataset, od.Model, od.Metric]
         threshold: float
     """
 
-    _deck: str = "object_detection_model_evaluation"
     _task: str = "od"

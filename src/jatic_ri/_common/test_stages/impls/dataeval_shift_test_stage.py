@@ -78,6 +78,38 @@ class DataevalShiftRun(RunBase):
     config: DataevalShiftConfig
     outputs: DataevalShiftOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Convert results from drift and OOD detection into a Gradient-consumable list of slides.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+        """
+
+        outputs = self.outputs
+
+        deck = self.test_stage_id
+
+        report_consumables = []
+
+        dataset_ids = [d["id"] for d in self.dataset_metadata]
+
+        drift_slide = collect_drift(deck, outputs.drift, dataset_ids=dataset_ids)
+        report_consumables.append(drift_slide)
+
+        ood_slide = collect_ood(deck, outputs.ood, dataset_ids=dataset_ids)
+        report_consumables.append(ood_slide)
+
+        return report_consumables
+
 
 class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel, TMetric]):
     """Detects dataset shift between two datasets using various methods.
@@ -95,9 +127,6 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
         The dimensionality of the embeddings. Defaults to 128.
     _RUN_TYPE : type[DataevalShiftRun]
         The type of the run object associated with this test stage.
-    _deck : str
-        Deck name used for Gradient's Title slide. Should be overwritten in
-        subclasses.
     """
 
     _RUN_TYPE = DataevalShiftRun
@@ -224,168 +253,140 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
             {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
         )
 
-    def _collect_drift(self, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
-        """Generate Gradient compliant kwargs for drift detection results.
 
-        Uses outputs from MMD, KS, and CVM methods.
+def collect_drift(deck: str, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
+    """Generate Gradient compliant kwargs for drift detection results.
 
-        Parameters
-        ----------
-        drift_outputs : DataevalShiftDriftOutputs
-            Outputs from the drift detection methods (MMD, KS, CVM).
-        dataset_ids : list[str]
-            A list containing the IDs of the two datasets being compared.
+    Uses outputs from MMD, KS, and CVM methods.
 
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary representing a`SectionByItem` slide, containing
-            drift analysis text and a corresponding DataFrame.
-        """
-        drift_fields = {
-            field_name: {"drifted": field_value.drifted, "distance": field_value.distance, "p_val": field_value.p_val}
-            for field_name, field_value in drift_outputs
-        }
+    Parameters
+    ----------
+    drift_outputs : DataevalShiftDriftOutputs
+        Outputs from the drift detection methods (MMD, KS, CVM).
+    dataset_ids : list[str]
+        A list containing the IDs of the two datasets being compared.
 
-        any_drift = any(d["drifted"] for d in drift_fields.values())
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary representing a`SectionByItem` slide, containing
+        drift analysis text and a corresponding DataFrame.
+    """
+    drift_fields = {
+        field_name: {"drifted": field_value.drifted, "distance": field_value.distance, "p_val": field_value.p_val}
+        for field_name, field_value in drift_outputs
+    }
 
-        drift_df = pd.DataFrame(
-            {
-                "Method": [drift_output[0] for drift_output in drift_outputs],
-                "Has drifted?": ["Yes" if d["drifted"] else "No" for d in drift_fields.values()],
-                "Test statistic": [d["distance"] for d in drift_fields.values()],
-                "P-value": [d["p_val"] for d in drift_fields.values()],
-            },
-        )
+    any_drift = any(d["drifted"] for d in drift_fields.values())
 
-        title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
-        heading = "Metric: Drift"
-        text = [
-            [SubText("Result:", bold=True)],
-            f"• {dataset_ids[1]} has{' ' if any_drift else ' not '}drifted from {dataset_ids[0]}",
-            [SubText("Tests for:", bold=True)],
-            "• Covariate shift",
-            [SubText("Risks:", bold=True)],
-            "• Degradation of model performance",
-            "• Real-world performance no longer meets performance requirements",
-            [SubText("Action:", bold=True)],
-            f"• {'Retrain model (augmentation, transfer learning)' if any_drift else 'No action required'}",
-        ]
-        content = [Text(t, fontsize=16) for t in text]
+    drift_df = pd.DataFrame(
+        {
+            "Method": [drift_output[0] for drift_output in drift_outputs],
+            "Has drifted?": ["Yes" if d["drifted"] else "No" for d in drift_fields.values()],
+            "Test statistic": [d["distance"] for d in drift_fields.values()],
+            "P-value": [d["p_val"] for d in drift_fields.values()],
+        },
+    )
 
-        return {
-            "deck": self._deck,
-            "layout_name": "SectionByItem",
-            "layout_arguments": {
-                SectionByItem.ArgKeys.TITLE.value: title,
-                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: drift_df,
-            },
-        }
+    title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
+    heading = "Metric: Drift"
+    text = [
+        [SubText("Result:", bold=True)],
+        f"• {dataset_ids[1]} has{' ' if any_drift else ' not '}drifted from {dataset_ids[0]}",
+        [SubText("Tests for:", bold=True)],
+        "• Covariate shift",
+        [SubText("Risks:", bold=True)],
+        "• Degradation of model performance",
+        "• Real-world performance no longer meets performance requirements",
+        [SubText("Action:", bold=True)],
+        f"• {'Retrain model (augmentation, transfer learning)' if any_drift else 'No action required'}",
+    ]
+    content = [Text(t, fontsize=16) for t in text]
 
-    def _collect_ood(self, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
-        """Parse OOD results into a report-consumable slide.
+    return {
+        "deck": deck,
+        "layout_name": "SectionByItem",
+        "layout_arguments": {
+            SectionByItem.ArgKeys.TITLE.value: title,
+            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: drift_df,
+        },
+    }
 
-        Creates a table showing the number of OOD samples and the threshold
-        used for their calculation.
-        Note: Image path access and index retrieval from the dataset are not
-        currently implemented.
 
-        Parameters
-        ----------
-        ood_outputs : DataevalShiftOODOutputs
-            Outputs from the OOD detection methods, containing`is_ood`,
-           `instance_scores`, and`feature_scores`.
-        dataset_ids : list[str]
-            A list containing the IDs of the two datasets.
+def collect_ood(deck: str, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
+    """Parse OOD results into a report-consumable slide.
 
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary representing a`SectionByItem` slide, containing
-            OOD analysis text and a corresponding DataFrame.
-        """
-        ood_fields = {
-            field_name: {"is_ood": field_value.is_ood, "instance_score": field_value.instance_score}
-            for field_name, field_value in ood_outputs
-            if hasattr(field_value, "is_ood") and hasattr(field_value, "instance_score")
-        }
+    Creates a table showing the number of OOD samples and the threshold
+    used for their calculation.
+    Note: Image path access and index retrieval from the dataset are not
+    currently implemented.
 
-        percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in ood_fields.values()])
-        counts = np.array([np.sum(x["is_ood"], dtype=int) for x in ood_fields.values()])
+    Parameters
+    ----------
+    ood_outputs : DataevalShiftOODOutputs
+        Outputs from the OOD detection methods, containing`is_ood`,
+        `instance_scores`, and`feature_scores`.
+    dataset_ids : list[str]
+        A list containing the IDs of the two datasets.
 
-        # NOTE: Not the true threshold. Currently not available in OODOutput so smallest score found in outliers used
-        # Gets minimum of outlier-only scores or takes max of all scores if no outliers
-        thresholds = [
-            np.min(x["instance_score"][x["is_ood"]]) if sum(x["is_ood"]) else np.max(x["instance_score"])
-            for x in ood_fields.values()
-        ]
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary representing a`SectionByItem` slide, containing
+        OOD analysis text and a corresponding DataFrame.
+    """
+    ood_fields = {
+        field_name: {"is_ood": field_value.is_ood, "instance_score": field_value.instance_score}
+        for field_name, field_value in ood_outputs
+        if hasattr(field_value, "is_ood") and hasattr(field_value, "instance_score")
+    }
 
-        ood_df = pd.DataFrame(
-            {
-                "Method": [ood_output[0] for ood_output in ood_outputs],
-                "OOD Count": counts,
-                "OOD Percent": percents,
-                "Threshold": thresholds,
-            },
-        )
+    percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in ood_fields.values()])
+    counts = np.array([np.sum(x["is_ood"], dtype=int) for x in ood_fields.values()])
 
-        title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
-        heading = "Metric: Out-of-distribution (OOD)"
-        text = [
-            [SubText("Result:", bold=True)],
-            f"• {max(percents)}% OOD images were found in {dataset_ids[1]}",
-            [SubText("Tests for:", bold=True)],
-            f"• {dataset_ids[1]} data that is OOD from {dataset_ids[0]}",
-            [SubText("Risks:", bold=True)],
-            "• Degradation of model performance",
-            "• Real-world performance no longer meets requirements",
-            [SubText("Action:", bold=True)],
-            f"• {'Retrain model (augmentation, transfer learning)' if sum(percents) else 'No action required'}",
-            f"{'• Examine OOD samples to learn source of covariate shift' if sum(percents) else ''}",
-        ]
+    # NOTE: Not the true threshold. Currently not available in OODOutput so smallest score found in outliers used
+    # Gets minimum of outlier-only scores or takes max of all scores if no outliers
+    thresholds = [
+        np.min(x["instance_score"][x["is_ood"]]) if sum(x["is_ood"]) else np.max(x["instance_score"])
+        for x in ood_fields.values()
+    ]
 
-        content = [Text(t, fontsize=16) for t in text]
+    ood_df = pd.DataFrame(
+        {
+            "Method": [ood_output[0] for ood_output in ood_outputs],
+            "OOD Count": counts,
+            "OOD Percent": percents,
+            "Threshold": thresholds,
+        },
+    )
 
-        return {
-            "deck": self._deck,
-            "layout_name": "SectionByItem",
-            "layout_arguments": {
-                SectionByItem.ArgKeys.TITLE.value: title,
-                SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
-                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
-            },
-        }
+    title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
+    heading = "Metric: Out-of-distribution (OOD)"
+    text = [
+        [SubText("Result:", bold=True)],
+        f"• {max(percents)}% OOD images were found in {dataset_ids[1]}",
+        [SubText("Tests for:", bold=True)],
+        f"• {dataset_ids[1]} data that is OOD from {dataset_ids[0]}",
+        [SubText("Risks:", bold=True)],
+        "• Degradation of model performance",
+        "• Real-world performance no longer meets requirements",
+        [SubText("Action:", bold=True)],
+        f"• {'Retrain model (augmentation, transfer learning)' if sum(percents) else 'No action required'}",
+        f"{'• Examine OOD samples to learn source of covariate shift' if sum(percents) else ''}",
+    ]
 
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Convert results from drift and OOD detection into a Gradient-consumable list of slides.
+    content = [Text(t, fontsize=16) for t in text]
 
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of dictionaries, where each dictionary represents a slide
-            for the Gradient report.
-
-        Raises
-        ------
-        RuntimeError
-            If the TestStage has not been run before calling this method.
-        """
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        report_consumables = []
-
-        dataset_ids = [d["id"] for d in self._stored_run.dataset_metadata]
-
-        drift_slide = self._collect_drift(outputs.drift, dataset_ids=dataset_ids)
-        report_consumables.append(drift_slide)
-
-        ood_slide = self._collect_ood(outputs.ood, dataset_ids=dataset_ids)
-        report_consumables.append(ood_slide)
-
-        return report_consumables
+    return {
+        "deck": deck,
+        "layout_name": "SectionByItem",
+        "layout_arguments": {
+            SectionByItem.ArgKeys.TITLE.value: title,
+            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
+        },
+    }

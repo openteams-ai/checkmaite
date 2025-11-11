@@ -135,13 +135,13 @@ def test_reallabel_test_stage_collect_report_consumables(
     datasets = [reallabel_test_stage_args["dataset"]]
 
     # Run test stage once to ensure cache is present
-    test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
 
     # Run again to use cache
-    test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    _ = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
 
     # Act
-    slides = test_stage.collect_report_consumables()
+    slides = run.collect_report_consumables(threshold=0.5)
     output_consumables = slides[0]
     combined_lc_text = "".join(
         [subtext.content for subtext in output_consumables["layout_arguments"]["left_item"].content]
@@ -158,17 +158,6 @@ def test_reallabel_test_stage_collect_report_consumables(
 
     filename = create_deck(slides, artifact_dir, "reallabel")
     assert filename.exists()
-
-
-def test_reallabel_test_stage_collect_report_consumables_error(
-    test_stage: RealLabelTestStage,
-) -> None:
-    """Test collect_report_consumables error when run not called."""
-    # No Arrange
-
-    # Act and Assert
-    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
-        test_stage.collect_report_consumables()
 
 
 def test_for_reallabel_output_changes():

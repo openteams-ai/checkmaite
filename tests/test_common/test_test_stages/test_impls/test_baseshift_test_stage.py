@@ -19,13 +19,15 @@ from jatic_ri._common.test_stages.impls.dataeval_shift_test_stage import (
     DataevalShiftUnivariateOutput,
     DatasetShiftTestStageBase,
     DriftMMDOutput,
+    collect_drift,
+    collect_ood,
 )
 
 
 @pytest.fixture(scope="module")
 def dummy_shift_test_stage():
     class DummyShiftTestStage(DatasetShiftTestStageBase):
-        _deck: str = "dummy_deck"
+        pass
 
     return DummyShiftTestStage
 
@@ -56,11 +58,9 @@ class TestDatasetShift:
         op_dataset.images *= 0.5
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.run(use_stage_cache=False, datasets=[dev_dataset, op_dataset])
+        output = test_stage.run(use_stage_cache=False, datasets=[dev_dataset, op_dataset])
 
-        assert test_stage._stored_run is not None
-
-        report = test_stage.collect_report_consumables()
+        report = output.collect_report_consumables(threshold=0.0)
 
         assert report
         assert len(report) == 2  # Drift and OOD slide
@@ -133,21 +133,6 @@ class TestDatasetShift:
         # Confirm internal _run is skipped if cache is loaded correctly
         test_stage_cached._run.assert_not_called()
 
-    def test_deck_name(self, dummy_shift_test_stage):
-        """Tests that the _deck property of the BaseShiftTestStage is correctly overwritten"""
-
-        test_stage = dummy_shift_test_stage()
-        assert test_stage._deck == "dummy_deck"
-
-    def test_empty_deck_name(self):
-        """Tests that not setting _deck in a subclass raises AttributeError when called"""
-
-        class NoDeckShiftTestStage(DatasetShiftTestStageBase):
-            deck: str = "WrongProperty"
-
-        with pytest.raises(AttributeError):
-            NoDeckShiftTestStage()._deck  # noqa: B018
-
 
 class TestDrift:
     """
@@ -194,9 +179,8 @@ class TestDrift:
         and creates Gradient consumable kwargs with computed results
         """
 
-        test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-
-        results = test_stage._collect_drift(
+        results = collect_drift(
+            deck="fake-deck",
             drift_outputs=DataevalShiftDriftOutputs(
                 mmd=DriftMMDOutput(drifted=False, distance=-1, p_val=-1.0, threshold=0.0, distance_threshold=0.0),
                 cvm=DataevalShiftUnivariateOutput(
@@ -279,10 +263,9 @@ class TestOOD:
         and creates Gradient consumable kwargs with computed results
         """
 
-        test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-
         # Outer gradient kwargs checked by BaseShiftTestStage
-        results = test_stage._collect_ood(
+        results = collect_ood(
+            deck="fake-deck",
             ood_outputs=DataevalShiftOODOutputs(
                 ood_ae=DataevalShiftOODAEOutput(
                     is_ood=np.array([True, True, False]),
@@ -314,7 +297,6 @@ class TestOOD:
 
 def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> None:
     """This is used to test the output of the shift gradient slides"""
-    teststage: DatasetShiftTestStageBase = dummy_shift_test_stage()
 
     dummy_drift = {
         k: {
@@ -345,7 +327,7 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
         }
     }
 
-    teststage._stored_run = DataevalShiftRun(
+    run = DataevalShiftRun(
         dataset_metadata=[{"id": "VOC1"}, {"id": "VOC2"}],
         model_metadata=[],
         metric_metadata=[],
@@ -361,6 +343,6 @@ def test_shift_gradient_pptx(dummy_shift_test_stage, tmp_path, artifact_dir) -> 
         ),
     )
 
-    slides: list[dict[str, Any]] = teststage.collect_report_consumables()
+    slides: list[dict[str, Any]] = run.collect_report_consumables(threshold=0.5)
     filename = create_deck(slides, path=artifact_dir, deck_name="shift")
     assert filename.exists()

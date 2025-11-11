@@ -9,8 +9,12 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri.object_detection.test_stages import (
+    DatasetObjectDetectionFeasibilityConfig,
     DatasetObjectDetectionFeasibilityOutputs,
     DatasetObjectDetectionFeasibilityTestStage,
+)
+from jatic_ri.object_detection.test_stages._impls.dataeval_feasibility_test_stage import (
+    DatasetObjectDetectionFeasibilityRun,
 )
 
 
@@ -40,26 +44,27 @@ class TestFeasibilityTestStage:
             target_batches.append(batch)
 
         test_stage = DatasetObjectDetectionFeasibilityTestStage()
-        test_stage.load_model(model=fake_od_model_default, model_id="model_1")
-        test_stage.load_threshold(threshold=10)
-        test_stage.load_dataset(dataset=fake_od_dataset_default, dataset_id="dataset_1")
-        test_stage.run(use_stage_cache=False)
+        run = test_stage.run(use_stage_cache=False, datasets=[fake_od_dataset_default], models=[fake_od_model_default])
 
-        assert isinstance(test_stage.outputs, DatasetObjectDetectionFeasibilityOutputs)
-        assert test_stage.outputs.uap == 0.75
+        assert isinstance(run.outputs, DatasetObjectDetectionFeasibilityOutputs)
+        assert run.outputs.uap == 0.75
 
     @pytest.mark.parametrize("uap", [0.0, 0.5, 1.0])
     def test_collect_report_consumables(self, uap) -> None:
         """Test dataframe and gradient slide creation"""
 
         threshold = 0.5
-        test_stage = DatasetObjectDetectionFeasibilityTestStage()
-        test_stage.load_threshold(threshold)
-        test_stage.load_dataset(None, "DUMMY_ID")  # pyright: ignore[reportArgumentType]
-        test_stage.load_model(None, "model")  # pyright: ignore[reportArgumentType]
-        test_stage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=uap)  # pyright: ignore[reportAttributeAccessIssue]
+        config = DatasetObjectDetectionFeasibilityConfig()
+        run = DatasetObjectDetectionFeasibilityRun(
+            test_stage_id="fake-id",
+            config=config,
+            dataset_metadata=[],
+            model_metadata=[],
+            metric_metadata=[],
+            outputs=DatasetObjectDetectionFeasibilityOutputs(uap=0.75),
+        )
 
-        slides = test_stage.collect_report_consumables()
+        slides = run.collect_report_consumables(threshold=threshold, deck="object_detection_dataset_evaluation")
         assert len(slides) == 1  # Only UAP
 
         slide = slides[0]
@@ -77,15 +82,17 @@ class TestFeasibilityTestStage:
 
     def test_feasibility_gradient_pptx(self, artifact_dir) -> None:
         """This is used to test the output of the feasibility gradient slides"""
-        teststage: DatasetObjectDetectionFeasibilityTestStage = DatasetObjectDetectionFeasibilityTestStage()
 
-        # we only need the IDs here
-        teststage.load_dataset(None, "VOC")
-        teststage.load_model(None, "model")
-        teststage.load_threshold(0.5)
+        config = DatasetObjectDetectionFeasibilityConfig()
+        run = DatasetObjectDetectionFeasibilityRun(
+            test_stage_id="fake-id",
+            config=config,
+            dataset_metadata=[],
+            model_metadata=[],
+            metric_metadata=[],
+            outputs=DatasetObjectDetectionFeasibilityOutputs(uap=0.75),
+        )
 
-        teststage.outputs = DatasetObjectDetectionFeasibilityOutputs(uap=0.75)
-
-        slides: list[dict[str, Any]] = teststage.collect_report_consumables()
+        slides: list[dict[str, Any]] = run.collect_report_consumables(threshold=0.5)
         filename = create_deck(slides, path=artifact_dir, deck_name="feasibility")
         assert filename.exists()

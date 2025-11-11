@@ -19,5 +19,4 @@ class SurvivorTestStage(SurvivorTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     metric results needed if they are not present in the cache before running Survivor itself.
     """
 
-    _deck: str = "image_classification_survivor"
     _task: str = "ic"

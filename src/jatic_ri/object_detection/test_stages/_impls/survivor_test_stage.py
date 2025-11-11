@@ -19,5 +19,4 @@ class SurvivorTestStage(SurvivorTestStageBase[od.Dataset, od.Model, od.Metric]):
     metric results needed if they are not present in the cache before running Survivor itself.
     """
 
-    _deck: str = "object_detection_survivor"
     _task: str = "od"

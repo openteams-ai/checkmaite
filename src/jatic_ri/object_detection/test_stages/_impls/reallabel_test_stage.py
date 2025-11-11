@@ -97,6 +97,168 @@ class RealLabelRun(RunBase):
     config: RealLabelConfig
     outputs: RealLabelOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Collect all report consumables.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the report.
+        """
+
+        reallabel_results = self.outputs
+        default_results_df = reallabel_results.results
+
+        # Find RealLabel statistics
+        num_false_positives = (default_results_df["reallabel_type"] == "Likely Wrong").sum()
+        num_false_negatives = (default_results_df["reallabel_type"] == "Likely Missed").sum()
+        num_true_positives = (default_results_df["reallabel_type"] == "Likely Correct").sum()
+
+        sentence_formatting: dict[str, Any] = {
+            "fontsize": 18,
+            "bold": True,
+        }
+
+        bullet_formatting: dict[str, Any] = {
+            "fontsize": 16,
+        }
+
+        spaces_formatting: dict[str, Any] = {
+            "fontsize": 12,
+        }
+
+        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:
+            return (
+                SubText("• ", fontsize=22),
+                SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
+            )
+
+        slides = [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "TwoItem",
+                "layout_arguments": {
+                    "title": "RealLabel Label Breakdown",
+                    "left_item": Text(
+                        content=[
+                            # Paragraph 1
+                            SubText(
+                                "RealLabel aids re-labeling efforts by "
+                                "using model ensembling to determine if a label is a:\n",
+                                **sentence_formatting,
+                            ),
+                            *bullet_point("True Positive: (Probably Correct Label)\n"),
+                            *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
+                            *bullet_point("False Negative: (Potentially Missing Label)\n"),
+                            # Spacing
+                            SubText("\n" * 1, **spaces_formatting),
+                            # Paragraph 2
+                            SubText(
+                                "In this dataset, RealLabel has found:\n",
+                                **sentence_formatting,
+                            ),
+                            # colors defined in https://gitlab.jatic.net/jatic/morse/reallabel/-/blob/0.5.0/src/reallabel/visualizer.py#L525-527
+                            *bullet_point(
+                                "True Positive: ",
+                                color=RGBColor(173, 214, 95),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_true_positives}\n",
+                                **bullet_formatting,
+                                bold=True,
+                            ),
+                            *bullet_point(
+                                "False Positive: ",
+                                color=RGBColor(72, 127, 199),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_false_positives}\n",
+                                **bullet_formatting,
+                                bold=True,
+                            ),
+                            *bullet_point(
+                                "False Negative: ",
+                                color=RGBColor(221, 0, 0),
+                                bold=True,
+                            ),
+                            SubText(
+                                f"{num_false_negatives}\n",
+                                **bullet_formatting,
+                                bold=True,
+                            ),
+                            SubText("\n" * 1, **spaces_formatting),
+                            SubText(
+                                "An example image "
+                                f"({','.join({f'{k}: {v}' for k, v in reallabel_results.example_image.id.items()})})"
+                                " is shown to the right",
+                                fontsize=14,
+                            ),
+                        ]
+                    ),
+                    "right_item": temp_image_file(reallabel_results.example_image.image),
+                },
+            },
+        ]
+
+        if reallabel_results.wanrs_df is not None:
+            wanrs_description_prelink_text = textwrap.dedent(
+                "This table shows up to the top 10 images recommended for relabeling, ranked by "
+                "RealLabel's WANRS (Weighted Average Normalized Relative Scores) metric.\nWANRS "
+                "highlights images where the model is most likely to have labeling mistakes, based "
+                "on the confidence and RealLabel assignment (i.e. false positives and false negatives) "
+                "of each object detection. Images at the top of the list have a lower WANRS and are "
+                "expected to have the most problematic or uncertain labels. "
+                "See more info in the ".lstrip()
+            )
+            slides.append(
+                {
+                    "deck": self.test_stage_id,
+                    "layout_name": "SectionByItem",
+                    "layout_arguments": {
+                        "title": "Reallabel - Top Candidate Images for Relabeling Efforts",
+                        "line_section_heading": "WANRS Ranking",
+                        "line_section_half": True,
+                        "line_section_body": [
+                            Text(
+                                content=[
+                                    wanrs_description_prelink_text,
+                                    SubText(
+                                        content="RealLabel documentation",
+                                        hyperlink="https://jatic.pages.jatic.net/morse/reallabel/user_guide/explanation/how_reallabel_works.html#optional-output-dataframe-wanrs-output",
+                                    ),
+                                    ".",
+                                    "\n\n",
+                                ],
+                                fontsize=16,
+                            ),
+                            Text(
+                                "Note: The accuracy of this ranking depends on the quality of the model’s "
+                                "predictions. If the model is not well-calibrated or misses certain types of "
+                                "errors, some problematic images may not be prioritized.",
+                                fontsize=14,
+                            ),
+                        ],
+                        "item_section_body": reallabel_results.wanrs_df.loc[:, ["id", "WANRS"]]
+                        .head(10)
+                        .reset_index()
+                        .assign(index=lambda df: df["index"] + 1)
+                        .assign(WANRS=lambda df: df.WANRS.apply(lambda x: f"{x:.3f}"))  # format with 3 decimal places
+                        .rename(columns={"index": "Priority", "id": "Image ID", "WANRS": "WANRS Score"}),
+                    },
+                }
+            )
+
+        return slides
+
 
 class _RealLabelDatasetWrapper(od.Dataset):
     """A wrapper for the MAITE Dataset for use with RealLabel.
@@ -166,7 +328,6 @@ class RealLabelTestStage(
 
     _RUN_TYPE = RealLabelRun
 
-    _deck: str = "object_detection_reallabel"
     _task: str = "od"
 
     def __init__(
@@ -392,165 +553,3 @@ class RealLabelTestStage(
             maite_inference_result[model.metadata["id"]] = copied_dataset
 
         return maite_inference_result
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect all report consumables.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of dictionaries, where each dictionary represents a slide
-            for the report.
-
-        Raises
-        ------
-        RuntimeError
-            If the TestStage has not been run before accessing outputs.
-        """
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        reallabel_results = self._stored_run.outputs
-        default_results_df = reallabel_results.results
-
-        # Find RealLabel statistics
-        num_false_positives = (default_results_df["reallabel_type"] == "Likely Wrong").sum()
-        num_false_negatives = (default_results_df["reallabel_type"] == "Likely Missed").sum()
-        num_true_positives = (default_results_df["reallabel_type"] == "Likely Correct").sum()
-
-        sentence_formatting: dict[str, Any] = {
-            "fontsize": 18,
-            "bold": True,
-        }
-
-        bullet_formatting: dict[str, Any] = {
-            "fontsize": 16,
-        }
-
-        spaces_formatting: dict[str, Any] = {
-            "fontsize": 12,
-        }
-
-        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:
-            return (
-                SubText("• ", fontsize=22),
-                SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
-            )
-
-        slides = [
-            {
-                "deck": self._deck,
-                "layout_name": "TwoItem",
-                "layout_arguments": {
-                    "title": "RealLabel Label Breakdown",
-                    "left_item": Text(
-                        content=[
-                            # Paragraph 1
-                            SubText(
-                                "RealLabel aids re-labeling efforts by "
-                                "using model ensembling to determine if a label is a:\n",
-                                **sentence_formatting,
-                            ),
-                            *bullet_point("True Positive: (Probably Correct Label)\n"),
-                            *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
-                            *bullet_point("False Negative: (Potentially Missing Label)\n"),
-                            # Spacing
-                            SubText("\n" * 1, **spaces_formatting),
-                            # Paragraph 2
-                            SubText(
-                                "In this dataset, RealLabel has found:\n",
-                                **sentence_formatting,
-                            ),
-                            # colors defined in https://gitlab.jatic.net/jatic/morse/reallabel/-/blob/0.5.0/src/reallabel/visualizer.py#L525-527
-                            *bullet_point(
-                                "True Positive: ",
-                                color=RGBColor(173, 214, 95),
-                                bold=True,
-                            ),
-                            SubText(
-                                f"{num_true_positives}\n",
-                                **bullet_formatting,
-                                bold=True,
-                            ),
-                            *bullet_point(
-                                "False Positive: ",
-                                color=RGBColor(72, 127, 199),
-                                bold=True,
-                            ),
-                            SubText(
-                                f"{num_false_positives}\n",
-                                **bullet_formatting,
-                                bold=True,
-                            ),
-                            *bullet_point(
-                                "False Negative: ",
-                                color=RGBColor(221, 0, 0),
-                                bold=True,
-                            ),
-                            SubText(
-                                f"{num_false_negatives}\n",
-                                **bullet_formatting,
-                                bold=True,
-                            ),
-                            SubText("\n" * 1, **spaces_formatting),
-                            SubText(
-                                "An example image "
-                                f"({','.join({f'{k}: {v}' for k, v in reallabel_results.example_image.id.items()})})"
-                                " is shown to the right",
-                                fontsize=14,
-                            ),
-                        ]
-                    ),
-                    "right_item": temp_image_file(reallabel_results.example_image.image),
-                },
-            },
-        ]
-
-        if reallabel_results.wanrs_df is not None:
-            wanrs_description_prelink_text = textwrap.dedent(
-                "This table shows up to the top 10 images recommended for relabeling, ranked by "
-                "RealLabel's WANRS (Weighted Average Normalized Relative Scores) metric.\nWANRS "
-                "highlights images where the model is most likely to have labeling mistakes, based "
-                "on the confidence and RealLabel assignment (i.e. false positives and false negatives) "
-                "of each object detection. Images at the top of the list have a lower WANRS and are "
-                "expected to have the most problematic or uncertain labels. "
-                "See more info in the ".lstrip()
-            )
-            slides.append(
-                {
-                    "deck": self._deck,
-                    "layout_name": "SectionByItem",
-                    "layout_arguments": {
-                        "title": "Reallabel - Top Candidate Images for Relabeling Efforts",
-                        "line_section_heading": "WANRS Ranking",
-                        "line_section_half": True,
-                        "line_section_body": [
-                            Text(
-                                content=[
-                                    wanrs_description_prelink_text,
-                                    SubText(
-                                        content="RealLabel documentation",
-                                        hyperlink="https://jatic.pages.jatic.net/morse/reallabel/user_guide/explanation/how_reallabel_works.html#optional-output-dataframe-wanrs-output",
-                                    ),
-                                    ".",
-                                    "\n\n",
-                                ],
-                                fontsize=16,
-                            ),
-                            Text(
-                                "Note: The accuracy of this ranking depends on the quality of the model’s "
-                                "predictions. If the model is not well-calibrated or misses certain types of "
-                                "errors, some problematic images may not be prioritized.",
-                                fontsize=14,
-                            ),
-                        ],
-                        "item_section_body": reallabel_results.wanrs_df.loc[:, ["id", "WANRS"]]
-                        .head(10)
-                        .reset_index()
-                        .assign(index=lambda df: df["index"] + 1)
-                        .assign(WANRS=lambda df: df.WANRS.apply(lambda x: f"{x:.3f}"))  # format with 3 decimal places
-                        .rename(columns={"index": "Priority", "id": "Image ID", "WANRS": "WANRS Score"}),
-                    },
-                }
-            )
-
-        return slides

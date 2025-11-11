@@ -37,24 +37,21 @@ class TestFeasibilityTestStage:
 
     def test_collect_report_consumable(self, ber_outputs, tmp_path):
         """"""
-
-        test_stage = DatasetImageClassificationFeasibilityTestStage()
-        test_stage._stored_run = DatasetImageClassificationFeasibilityRun(
+        output = DatasetImageClassificationFeasibilityRun(
             dataset_metadata=[{"id": "ICDataset"}],
             metric_metadata=[],
             model_metadata=[],
-            test_stage_id="",
+            test_stage_id="test-stage-id",
             config=DatasetImageClassificationFeasibilityConfig(),
             outputs=ber_outputs,
         )
-        test_stage.load_threshold(0.5)
 
-        slides = test_stage.collect_report_consumables()
+        slides = output.collect_report_consumables(threshold=0.5)
 
         assert len(slides) == 1
         slide = slides[0]
 
-        assert slide["deck"] == "image_classification_dataset_evaluation"
+        assert slide["deck"] == "test-stage-id"
         assert slide["layout_name"] == "SectionByItem"
 
         layout_args = slide["layout_arguments"]
@@ -69,13 +66,11 @@ class TestFeasibilityTestStage:
 
     def test_cache(self, dummy_dataset_ic) -> None:
         test_stage = DatasetImageClassificationFeasibilityTestStage()
-        test_stage.load_threshold(0.5)
 
         run = test_stage.run(use_stage_cache=True, datasets=[dummy_dataset_ic])
         base_outputs = run.outputs
 
         test_stage_cached = DatasetImageClassificationFeasibilityTestStage()
-        test_stage_cached.load_threshold(0.5)
 
         test_stage_cached._run = MagicMock()
         cached_run = test_stage_cached.run(datasets=[dummy_dataset_ic])

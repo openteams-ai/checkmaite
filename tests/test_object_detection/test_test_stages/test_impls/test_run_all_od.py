@@ -5,9 +5,6 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 from jatic_ri import PACKAGE_DIR
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import Number
 from jatic_ri.object_detection.datasets import CocoDetectionDataset
 from jatic_ri.object_detection.metrics import map50_torch_metric_factory
@@ -132,10 +129,6 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
     else:
         raise ValueError("Test should be rewritten if multiple metrics used.")
 
-    if isinstance(test_stage, ThresholdPlugin):
-        test_stage.load_threshold(0.5)
-
-    # use deepcopy to enforce distinct models
     if test_stage.supports_models == Number.MANY:
         models = [deepcopy(model_od), deepcopy(model_od), deepcopy(model_od)]
     elif test_stage.supports_models == Number.TWO:
@@ -146,9 +139,9 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
         models = []
 
     # run the stage, saving output to the class
-    test_stage.run(datasets=datasets, metrics=metrics, models=models, use_stage_cache=False)
+    run = test_stage.run(datasets=datasets, metrics=metrics, models=models, use_stage_cache=False)
     # collect the slides
-    slides = test_stage.collect_report_consumables()
+    slides = run.collect_report_consumables(threshold=0.5)
 
     # generate report
     create_deck(

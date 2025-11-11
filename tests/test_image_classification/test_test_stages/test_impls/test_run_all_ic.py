@@ -3,9 +3,6 @@ from copy import deepcopy
 import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import Number
 from jatic_ri.image_classification.datasets import YoloClassificationDataset
 from jatic_ri.image_classification.metrics import accuracy_multiclass_torch_metric_factory
@@ -90,10 +87,6 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
     else:
         raise ValueError("Test should be rewritten if multiple metrics used.")
 
-    if isinstance(test_stage, ThresholdPlugin):
-        test_stage.load_threshold(0.5)
-
-    # use deepcopy to enforce distinct datasets
     if test_stage.supports_models == Number.MANY:
         models = [deepcopy(model_ic), deepcopy(model_ic), deepcopy(model_ic)]
     elif test_stage.supports_models == Number.TWO:
@@ -104,9 +97,9 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
         models = []
 
     # run the stage, saving output to the class
-    test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=False)
+    run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=False)
     # collect the slides
-    slides = test_stage.collect_report_consumables()
+    slides = run.collect_report_consumables(threshold=0.5)
     # generate report
     create_deck(
         slides,

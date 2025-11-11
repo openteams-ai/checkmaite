@@ -65,6 +65,88 @@ class XAITKRunOD(RunBase):
     config: XAITKConfigOD
     outputs: XAITKOutputsOD
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Access the in-depth data needed by Gradient to produce a report
+        generated in the run method or in the load_cached_results method.
+        Each slide will have a short text description of the model used,
+        the image id, the prediction, the ground truth, and the saliency
+        map for target class.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+        """
+
+        outputs = self.outputs
+
+        model_id = self.model_metadata[0]["id"]
+        index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+        gradient_slides = []
+        for idx, datum in enumerate(outputs.results):
+            scores = datum.scores
+            if len(datum.sal_maps) == 0:
+                logging.warning(f"No detections found for image id {idx}")
+                continue
+            for sal_idx, bbox in enumerate(datum.boxes):
+                sal_map = datum.sal_maps[sal_idx]
+                # PIL throws error unless cast as uint8 - TypeError: Cannot handle this data type: (1, 1, 3), <i8
+                ref_img_np = np.asarray(datum.img).astype(np.uint8)
+                if ref_img_np.shape[0] == 1:
+                    gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
+                else:
+                    gray_img = np.asarray(Image.fromarray(ref_img_np.transpose(1, 2, 0)).convert("L"))
+
+                fig = plt.figure()
+                plt.axis("off")
+                plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                plt.xticks(())
+                plt.yticks(())
+
+                plt.gca().add_patch(
+                    Rectangle(
+                        (bbox[0], bbox[1]),
+                        bbox[2] - bbox[0],
+                        bbox[3] - bbox[1],
+                        linewidth=1,
+                        edgecolor="r",
+                        facecolor="none",
+                    ),
+                )
+                plt.imshow(sal_map, cmap="seismic", alpha=0.3)
+                cbar = plt.colorbar(location="bottom")
+                cbar.set_label("Pixel relevance to detection")
+                fig.tight_layout()
+                plt.close(fig)
+
+                content = {
+                    "deck": self.test_stage_id,
+                    "layout_name": "TwoItem",
+                    "layout_arguments": {
+                        "title": (f"XAITK Saliency Map -- " f"Image ID: {datum.img_id}, " f"Detection: {sal_idx}"),
+                        "left_item": Path(save_figure_to_tempfile(fig)),
+                        "right_item": (
+                            f"**Model:** {model_id}\n"
+                            f"**Image ID**: {datum.img_id}\n"
+                            f"**Prediction:** {index2label[int(datum.labels[sal_idx])]}\n"
+                            f"**Confidence:** {scores[sal_idx]:.2f}\n\n\n"
+                            f"Note: The Confidence is the metric score that the given detection had in the original "
+                            f"(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."
+                        ),
+                    },
+                }
+                gradient_slides.append(content)
+
+        return gradient_slides
+
 
 class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od.Metric]):
     """
@@ -123,77 +205,6 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od
                 ]
             },
         )
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Access the in-depth data needed by Gradient to produce a report
-        generated in the run method or in the load_cached_results method.
-        Each slide will have a short text description of the model used,
-        the image id, the prediction, the ground truth, and the saliency
-        map for target class."""
-
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        model_id = self._stored_run.model_metadata[0]["id"]
-        index2label = self._stored_run.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
-
-        gradient_slides = []
-        for idx, datum in enumerate(outputs.results):
-            scores = datum.scores
-            if len(datum.sal_maps) == 0:
-                logging.warning(f"No detections found for image id {idx}")
-                continue
-            for sal_idx, bbox in enumerate(datum.boxes):
-                sal_map = datum.sal_maps[sal_idx]
-                # PIL throws error unless cast as uint8 - TypeError: Cannot handle this data type: (1, 1, 3), <i8
-                ref_img_np = np.asarray(datum.img).astype(np.uint8)
-                if ref_img_np.shape[0] == 1:
-                    gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
-                else:
-                    gray_img = np.asarray(Image.fromarray(ref_img_np.transpose(1, 2, 0)).convert("L"))
-
-                fig = plt.figure()
-                plt.axis("off")
-                plt.imshow(gray_img, alpha=0.7, cmap="gray")
-                plt.xticks(())
-                plt.yticks(())
-
-                plt.gca().add_patch(
-                    Rectangle(
-                        (bbox[0], bbox[1]),
-                        bbox[2] - bbox[0],
-                        bbox[3] - bbox[1],
-                        linewidth=1,
-                        edgecolor="r",
-                        facecolor="none",
-                    ),
-                )
-                plt.imshow(sal_map, cmap="seismic", alpha=0.3)
-                cbar = plt.colorbar(location="bottom")
-                cbar.set_label("Pixel relevance to detection")
-                fig.tight_layout()
-                plt.close(fig)
-
-                content = {
-                    "deck": "object_detection_dataset_evaluation",
-                    "layout_name": "TwoItem",
-                    "layout_arguments": {
-                        "title": (f"XAITK Saliency Map -- " f"Image ID: {datum.img_id}, " f"Detection: {sal_idx}"),
-                        "left_item": Path(save_figure_to_tempfile(fig)),
-                        "right_item": (
-                            f"**Model:** {model_id}\n"
-                            f"**Image ID**: {datum.img_id}\n"
-                            f"**Prediction:** {index2label[int(datum.labels[sal_idx])]}\n"
-                            f"**Confidence:** {scores[sal_idx]:.2f}\n\n\n"
-                            f"Note: The Confidence is the metric score that the given detection had in the original "
-                            f"(un-occluded) image.  Pixel relevance is normalized on scale from 0 to 1."
-                        ),
-                    },
-                }
-                gradient_slides.append(content)
-
-        return gradient_slides
 
     class XAITKDetectionBaselineDataset(od.Dataset):
         """

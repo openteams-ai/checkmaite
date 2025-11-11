@@ -15,6 +15,9 @@ from jatic_ri._common.test_stages.impls.dataeval_bias_test_stage import (
     DataevalBiasDiversityOutputs,
     DataevalBiasOutputs,
     DataevalBiasRun,
+    report_balance_metadata_factors,
+    report_coverage,
+    report_diversity,
 )
 from jatic_ri.object_detection.test_stages import DatasetBiasTestStage
 from jatic_ri.util.utils import save_figure_to_tempfile
@@ -96,7 +99,7 @@ class TestODDatasetBiasRun:
         if dataset_type != "non_homogenous_size":
             assert run.outputs.coverage.image is not None
 
-        output = test_stage.collect_report_consumables()
+        output = run.collect_report_consumables(threshold=0.5)
         assert len(output) == 5
 
     @pytest.mark.filterwarnings(
@@ -167,9 +170,7 @@ class TestODBiasCollectReportConsumables:
     def test_report_balance(self, run, artifact_dir):
         """Test balance specific rollup values and action"""
 
-        test_stage = DatasetBiasTestStage()
-
-        slide = test_stage._report_balance_metadata_factors(run.outputs.balance)
+        slide = report_balance_metadata_factors(outputs=run.outputs.balance, deck="fake-deck")
         layout_args = slide["layout_arguments"]
 
         # Check if image was saved
@@ -182,9 +183,7 @@ class TestODBiasCollectReportConsumables:
     def test_report_coverage(self, run, artifact_dir):
         """Test the coverage specific gradient output"""
 
-        test_stage = DatasetBiasTestStage()
-
-        slide = test_stage._report_coverage(run.outputs.coverage)
+        slide = report_coverage(coverage=run.outputs.coverage, deck="fake-deck")
 
         filename = create_deck([slide], path=artifact_dir, deck_name="test_report_coverage")
         assert filename.exists()
@@ -192,9 +191,7 @@ class TestODBiasCollectReportConsumables:
     def test_report_diversity(self, run, artifact_dir):
         """Test diversity specific rollup values and action"""
 
-        test_stage = DatasetBiasTestStage()
-
-        slide = test_stage._report_diversity(run.outputs.diversity)
+        slide = report_diversity(outputs=run.outputs.diversity, deck="fake-deck")
         layout_args = slide["layout_arguments"]
 
         # Check if image was saved
@@ -207,10 +204,7 @@ class TestODBiasCollectReportConsumables:
     def test_bias_gradient_pptx(self, run, artifact_dir) -> None:
         """Test all gradient slide kwargs collected together"""
 
-        test_stage: DatasetBiasTestStage = DatasetBiasTestStage()
-        test_stage._stored_run = run
-
-        slides: list[dict[str, Any]] = test_stage.collect_report_consumables()
+        slides: list[dict[str, Any]] = run.collect_report_consumables(threshold=0.5)
 
         filename = create_deck(slides, path=Path(artifact_dir), deck_name="test_bias_gradient_pptx")
         assert filename.exists()

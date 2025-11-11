@@ -123,6 +123,77 @@ class DataevalCleaningRun(RunBase):
     config: DataevalCleaningConfig
     outputs: DataevalCleaningOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Collect reports for duplicates and outliers for image and target data.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the full report.
+        """
+
+        deck = self.test_stage_id
+
+        table_of_contents = generate_table_of_contents(deck)
+
+        outputs = self.outputs
+
+        index2label = self.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        dataset_id = self.dataset_metadata[0]["id"]
+
+        duplicates = generate_duplicates_report(
+            deck=deck, duplicates=outputs.duplicates, dataset_size=outputs.label_stats.image_count
+        )
+        stat_list = generate_stats_report(
+            deck=deck,
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            label_stats=outputs.label_stats,
+            box_stats=(outputs.box_dim_stats, outputs.box_viz_stats)
+            if outputs.box_dim_stats and outputs.box_viz_stats
+            else None,
+            ratio_stats=outputs.box_ratio_stats,
+            index2label=index2label,
+        )
+        image_list = generate_image_outliers_report(
+            deck=deck,
+            img_outliers=outputs.img_outliers,
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            dataset_size=outputs.label_stats.image_count,
+        )
+
+        if outputs.box_dim_stats and outputs.box_viz_stats:
+            target_list = generate_target_outliers_report(
+                deck=deck,
+                target_outliers=outputs.target_outliers,
+                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                total_targets=outputs.label_stats.label_count,
+            )
+
+            return [
+                table_of_contents,
+                duplicates,
+                stat_list[0],
+                *image_list[0:],
+                *stat_list[1:],
+                *target_list[0:],
+                generate_next_steps_report(deck=deck, dataset_id=dataset_id),
+            ]
+
+        return [
+            table_of_contents,
+            duplicates,
+            stat_list[0],
+            *image_list[0:],
+            *stat_list[1:],
+            generate_next_steps_report(deck=deck, dataset_id=dataset_id),
+        ]
+
 
 class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, TModel, TMetric]):
     """
@@ -436,447 +507,390 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
 
         return self._dictionary_merge(box_result, adjusted_ratio_result)
 
-    def _add_slide(
-        self,
-        deck: str,
-        title: str,
-        text: Text,
-        metrics_subset: list[str],
-        all_metrics: dict[str, list],
-        total: int,
-        is_images: bool = True,
-    ) -> dict[str, Any]:
-        """Add a slide with a table of metrics to the report.
 
-        Parameters
-        ----------
-        deck : str
-            The deck to add the slide to.
-        title : str
-            The title of the slide.
-        text : Text
-            The text content of the slide.
-        metrics_subset : list[str]
-            A subset of metrics to display.
-        all_metrics : dict[str, list]
-            All available metrics.
-        total : int
-            The total number of items.
-        is_images : bool, optional
-            Whether the metrics are for images, by default True.
+def add_slide(
+    deck: str,
+    title: str,
+    text: Text,
+    metrics_subset: list[str],
+    all_metrics: dict[str, list],
+    total: int,
+    is_images: bool = True,
+) -> dict[str, Any]:
+    """Add a slide with a table of metrics to the report.
 
-        Returns
-        -------
-        dict[str, Any]
-            The slide definition.
-        """
-        metric_df = create_metric_dataframe_data(
-            is_images=is_images, metrics_subset=metrics_subset, all_metrics=all_metrics, total=total
+    Parameters
+    ----------
+    deck : str
+        The deck to add the slide to.
+    title : str
+        The title of the slide.
+    text : Text
+        The text content of the slide.
+    metrics_subset : list[str]
+        A subset of metrics to display.
+    all_metrics : dict[str, list]
+        All available metrics.
+    total : int
+        The total number of items.
+    is_images : bool, optional
+        Whether the metrics are for images, by default True.
+
+    Returns
+    -------
+    dict[str, Any]
+        The slide definition.
+    """
+    metric_df = create_metric_dataframe_data(
+        is_images=is_images, metrics_subset=metrics_subset, all_metrics=all_metrics, total=total
+    )
+    return create_table_text_slide(deck=deck, title=title, text=text, data=metric_df)
+
+
+def generate_table_of_contents(deck: str) -> dict[str, Any]:
+    """Generate a table of contents for the report.
+
+    Returns
+    -------
+    dict[str, Any]
+        The slide definition for the table of contents.
+    """
+    right_item = [
+        "\n",
+        "* Image Duplicate Analysis",
+        "* Image Property Histograms",
+        Text("Used for adjusting the outlier analysis thresholds.", indent=1),
+        "* Image Outlier Analysis",
+        "* Label Analysis",
+        "* Target Property Histograms",
+        Text("Used for adjusting the outlier analysis thresholds.", indent=1),
+        "* Target Outlier Analysis",
+        "* Next Steps",
+    ]
+
+    left_item = GradientImage(
+        src=Path(PACKAGE_DIR.joinpath("_sample_imgs/toc.png")), width=100, height=100, top=0.5, left=0.5
+    )
+    return create_two_item_text_slide(deck=deck, title="Table of Contents", left_item=left_item, right_item=right_item)
+
+
+def generate_duplicates_report(
+    deck: str, duplicates: DataevalCleaningDuplicatesOutputs, dataset_size: int
+) -> dict[str, Any]:
+    """Generate a report for image duplicates.
+
+    Parameters
+    ----------
+    deck
+        Name of the slide deck
+    duplicates
+        The duplicate analysis outputs.
+    dataset_size
+        The total size of the dataset.
+
+    Returns
+    -------
+    dict[str, Any]
+        The slide definition for the duplicates report.
+    """
+    exact = duplicates.exact
+    near = duplicates.near
+
+    total_ed = sum(len(d) for d in exact)
+    total_nd = sum(len(d) for d in near)
+
+    title = "Image Duplicate Analysis"
+
+    duplicates_df = pd.DataFrame(
+        {
+            "": ["Percentage of Images", "Number of Images"],
+            "Exact Duplicates": [
+                f"{total_ed / dataset_size:.2%}",
+                f"{total_ed}",
+            ],
+            "Near Duplicates": [
+                f"{total_nd / dataset_size:.2%}",
+                f"{total_nd}",
+            ],
+        }
+    )
+
+    content = Text(
+        [
+            SubText("Description: ", bold=True),
+            SubText("Identify images which are identical or almost identical.\n"),
+        ],
+        fontsize=22,
+    )
+
+    return create_table_text_slide(deck=deck, title=title, text=content, data=duplicates_df)
+
+
+def generate_stats_report(
+    deck: str,
+    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    label_stats: DataevalCleaningLabelStatsOutputs,
+    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
+    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+    index2label: dict[int, str],
+) -> list[dict[str, Any]]:
+    """Generate a report for image and target statistics.
+
+    Parameters
+    ----------
+    deck
+        Name of the slide deck
+    img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+        Image dimension and visual statistics.
+    label_stats : DataevalCleaningLabelStatsOutputs
+        Label statistics.
+    box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None
+        Bounding box dimension and visual statistics.
+    ratio_stats : DataevalCleaningDimensionStatsOutputs | None
+        Ratio statistics.
+    index2label : dict[str, Any]
+        Mapping from integer labels to corresponding string descriptions.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        A list of slide definitions for the statistics report.
+    """
+    stat_slides = []
+
+    content = [
+        Text("Description: ", bold=True, fontsize=22),
+        Text(
+            "Visual overview of potential outliers in image properties. Vertical lines are the outlier thresholds"
+            "(computed internally). Values outside of the vertical lines will be flagged as outliers.",
+            fontsize=22,
+        ),
+    ]
+
+    # build gradient slide for image outlier histograms
+    img_hist_list = prepare_histograms(img_stats)
+    dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
+    dir_.mkdir(parents=True, exist_ok=True)
+    title = "Image Property Histograms"
+    filepath = dir_ / "img_stats_histogram_plots.png"
+    plot_stat_metrics(is_image=True, plot_list=img_hist_list, filepath=filepath)
+    stat_slides.append(create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath))
+
+    # build gradient slide for label analysis
+    result_content, label_df = label_table(label_stats, index2label=index2label)  # pyright: ignore[reportArgumentType]
+    title = "Label Analysis"
+    content = []
+    content.append(Text("Description: ", bold=True, fontsize=22))
+    content.append(Text("Numerical analysis of label properties.\n\n", fontsize=22))
+    for t in result_content:
+        content.append(Text(t, fontsize=16))
+    stat_slides.append(
+        create_section_by_item_slide_extra_caption(
+            deck=deck, title=title, heading=Text(" "), content=content, body_value=label_df
         )
-        return create_table_text_slide(deck=deck, title=title, text=text, data=metric_df)
+    )
 
-    def _generate_table_of_contents(self) -> dict[str, Any]:
-        """Generate a table of contents for the report.
+    content = [
+        Text("Description: ", bold=True, fontsize=22),
+        Text(
+            "Visual overview of potential outliers in target properties. Vertical lines are the outlier thresholds"
+            " (computed internally). Values outside of the vertical lines will be flagged as outliers.",
+            fontsize=22,
+        ),
+    ]
 
-        Returns
-        -------
-        dict[str, Any]
-            The slide definition for the table of contents.
-        """
-        right_item = [
-            "\n",
-            "* Image Duplicate Analysis",
-            "* Image Property Histograms",
-            Text("Used for adjusting the outlier analysis thresholds.", indent=1),
-            "* Image Outlier Analysis",
-            "* Label Analysis",
-            "* Target Property Histograms",
-            Text("Used for adjusting the outlier analysis thresholds.", indent=1),
-            "* Target Outlier Analysis",
-            "* Next Steps",
-        ]
-
-        left_item = GradientImage(
-            src=Path(PACKAGE_DIR.joinpath("_sample_imgs/toc.png")), width=100, height=100, top=0.5, left=0.5
-        )
-        return create_two_item_text_slide(
-            deck=self._deck, title="Table of Contents", left_item=left_item, right_item=right_item
+    if box_stats and ratio_stats:
+        box_hist_list = prepare_histograms(box_stats)
+        box_hist_list = prepare_ratio_histograms(ratio_stats, box_hist_list)
+        dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
+        dir_.mkdir(parents=True, exist_ok=True)
+        filepath = dir_ / "box_stats_histogram_plots.png"
+        plot_stat_metrics(is_image=False, plot_list=box_hist_list, filepath=filepath)
+        title = "Target Property Histograms"
+        stat_slides.append(
+            create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath)
         )
 
-    def _generate_duplicates_report(
-        self, duplicates: DataevalCleaningDuplicatesOutputs, dataset_size: int
-    ) -> dict[str, Any]:
-        """Generate a report for image duplicates.
+    return stat_slides
 
-        Parameters
-        ----------
-        duplicates : DataevalCleaningDuplicatesOutputs
-            The duplicate analysis outputs.
-        dataset_size : int
-            The total size of the dataset.
 
-        Returns
-        -------
-        dict[str, Any]
-            The slide definition for the duplicates report.
-        """
-        exact = duplicates.exact
-        near = duplicates.near
+def generate_image_outliers_report(
+    deck: str,
+    img_outliers: dict[int, dict[str, float]],
+    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    dataset_size: int,
+) -> list[dict[str, Any]]:
+    """Generate a report for image outliers.
 
-        total_ed = sum(len(d) for d in exact)
-        total_nd = sum(len(d) for d in near)
+    Parameters
+    ----------
+    deck
+        Name of the slide deck
+    img_outliers
+        Image outlier data.
+    img_stats
+        Image dimension and visual statistics.
+    dataset_size
+        The total size of the dataset.
 
-        title = "Image Duplicate Analysis"
+    Returns
+    -------
+    list[dict[str, Any]]
+        A list of slide definitions for the image outliers report.
+    """
+    outlier_slides = []
+    # chosen based on expert analysis on what is/isn't most relevant to users
+    metrics = DIMENSION_LIST + VISUAL_LIST
 
-        duplicates_df = pd.DataFrame(
-            {
-                "": ["Percentage of Images", "Number of Images"],
-                "Exact Duplicates": [
-                    f"{total_ed / dataset_size:.2%}",
-                    f"{total_ed}",
-                ],
-                "Near Duplicates": [
-                    f"{total_nd / dataset_size:.2%}",
-                    f"{total_nd}",
-                ],
-            }
-        )
+    dim_box_output, viz_box_output = img_stats
+    image_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
 
-        content = Text(
+    # construct collection of all bounding boxes with issues
+    issues = collect_issues(
+        outliers=img_outliers, source_indices=image_source_indices, valid_metrics=metrics, use_box_indices=False
+    )
+
+    # now construct slides for outlier data
+    all_metrics = {k: issues.get(k, []) for k in metrics if k not in ["channels", "distance_center", "distance_edge"]}
+    # looks better if we limit to 4 entries per slide...
+    metric_chunks = split_into_chunks(all_metrics, chunk_sizes=[4])
+    captions = ["Dimensional", "Visual", "Pixel"]
+    for idx, chunk in enumerate(metric_chunks):
+        title = f"Image {captions[idx]} Outliers"
+        text = Text(
             [
                 SubText("Description: ", bold=True),
-                SubText("Identify images which are identical or almost identical.\n"),
+                f" Numerical analysis of {captions[idx].lower()} outliers in images.",
             ],
-            fontsize=22,
+            fontsize=21,
         )
-
-        return create_table_text_slide(deck=self._deck, title=title, text=content, data=duplicates_df)
-
-    def _generate_stats_report(
-        self,
-        img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
-        label_stats: DataevalCleaningLabelStatsOutputs,
-        box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
-        ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
-        index2label: dict[int, str],
-    ) -> list[dict[str, Any]]:
-        """Generate a report for image and target statistics.
-
-        Parameters
-        ----------
-        img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
-            Image dimension and visual statistics.
-        label_stats : DataevalCleaningLabelStatsOutputs
-            Label statistics.
-        box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None
-            Bounding box dimension and visual statistics.
-        ratio_stats : DataevalCleaningDimensionStatsOutputs | None
-            Ratio statistics.
-        index2label : dict[str, Any]
-            Mapping from integer labels to corresponding string descriptions.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of slide definitions for the statistics report.
-        """
-        stat_slides = []
-
-        content = [
-            Text("Description: ", bold=True, fontsize=22),
-            Text(
-                "Visual overview of potential outliers in image properties. Vertical lines are the outlier thresholds"
-                "(computed internally). Values outside of the vertical lines will be flagged as outliers.",
-                fontsize=22,
-            ),
-        ]
-
-        # build gradient slide for image outlier histograms
-        img_hist_list = prepare_histograms(img_stats)
-        dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
-        dir_.mkdir(parents=True, exist_ok=True)
-        title = "Image Property Histograms"
-        filepath = dir_ / "img_stats_histogram_plots.png"
-        plot_stat_metrics(is_image=True, plot_list=img_hist_list, filepath=filepath)
-        stat_slides.append(
-            create_item_by_narrow_text_slide(deck=self._deck, title=title, content=content, body_value=filepath)
-        )
-
-        # build gradient slide for label analysis
-        result_content, label_df = label_table(label_stats, index2label=index2label)  # pyright: ignore[reportArgumentType]
-        title = "Label Analysis"
-        content = []
-        content.append(Text("Description: ", bold=True, fontsize=22))
-        content.append(Text("Numerical analysis of label properties.\n\n", fontsize=22))
-        for t in result_content:
-            content.append(Text(t, fontsize=16))
-        stat_slides.append(
-            create_section_by_item_slide_extra_caption(
-                deck=self._deck, title=title, heading=Text(" "), content=content, body_value=label_df
+        outlier_slides.append(
+            add_slide(
+                deck=deck,
+                title=title,
+                text=text,
+                metrics_subset=chunk,
+                all_metrics=all_metrics,
+                total=dataset_size,
+                is_images=True,
             )
         )
 
-        content = [
-            Text("Description: ", bold=True, fontsize=22),
-            Text(
-                "Visual overview of potential outliers in target properties. Vertical lines are the outlier thresholds"
-                " (computed internally). Values outside of the vertical lines will be flagged as outliers.",
-                fontsize=22,
-            ),
-        ]
+    return outlier_slides
 
-        if box_stats and ratio_stats:
-            box_hist_list = prepare_histograms(box_stats)
-            box_hist_list = prepare_ratio_histograms(ratio_stats, box_hist_list)
-            dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
-            dir_.mkdir(parents=True, exist_ok=True)
-            filepath = dir_ / "box_stats_histogram_plots.png"
-            plot_stat_metrics(is_image=False, plot_list=box_hist_list, filepath=filepath)
-            title = "Target Property Histograms"
-            stat_slides.append(
-                create_item_by_narrow_text_slide(deck=self._deck, title=title, content=content, body_value=filepath)
+
+def generate_target_outliers_report(
+    deck: str,
+    target_outliers: dict[int, dict[str, float]] | None,
+    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    total_targets: int,
+) -> list[dict[str, Any]]:
+    """Generate a report for target outliers.
+
+    Parameters
+    ----------
+    deck
+        Name of the slide deck
+    target_outliers
+        Target outlier data.
+    box_stats
+        Bounding box dimension and visual statistics.
+    total_targets
+        The total number of targets.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        A list of slide definitions for the target outliers report,
+        or an empty list if no target outliers.
+    """
+    if target_outliers is None:
+        return []
+
+    outlier_slides = []
+    metrics = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
+
+    dim_box_output, viz_box_output = box_stats
+    box_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
+    total_targets = total_targets
+
+    # construct collection of all bounding boxes with issues
+    issues = collect_issues(
+        outliers=target_outliers, source_indices=box_source_indices, valid_metrics=metrics, use_box_indices=True
+    )
+
+    # now construct slides for outlier data
+    all_metrics = {k: issues.get(k, []) for k in metrics if k not in ["ratio_offset_x", "channels"]}
+    all_metrics["ratio_offset_y"].extend(issues.get("ratio_offset_x", []))
+    # looks better if we chunk according to the number of metrics in each category
+    metric_chunks = split_into_chunks(all_metrics, chunk_sizes=[4, 4, 2, 5])
+    captions = ["Dimensional", "Visual", "Pixel", "Ratio"]
+    for idx, chunk in enumerate(metric_chunks):
+        title = f"Target {captions[idx]} Outliers"
+        text = Text(
+            [
+                SubText("Description: ", bold=True),
+                f" Numerical analysis of {captions[idx].lower()} outliers in targets.",
+            ],
+            fontsize=21,
+        )
+        outlier_slides.append(
+            add_slide(
+                deck=deck,
+                title=title,
+                text=text,
+                metrics_subset=chunk,
+                all_metrics=all_metrics,
+                total=total_targets,
+                is_images=False,
             )
-
-        return stat_slides
-
-    def _generate_image_outliers_report(
-        self,
-        img_outliers: dict[int, dict[str, float]],
-        img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
-        dataset_size: int,
-    ) -> list[dict[str, Any]]:
-        """Generate a report for image outliers.
-
-        Parameters
-        ----------
-        img_outliers : dict[int, dict[str, float]]
-            Image outlier data.
-        img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
-            Image dimension and visual statistics.
-        dataset_size : int
-            The total size of the dataset.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of slide definitions for the image outliers report.
-        """
-        outlier_slides = []
-        # chosen based on expert analysis on what is/isn't most relevant to users
-        metrics = DIMENSION_LIST + VISUAL_LIST
-
-        dim_box_output, viz_box_output = img_stats
-        image_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
-
-        # construct collection of all bounding boxes with issues
-        issues = collect_issues(
-            outliers=img_outliers, source_indices=image_source_indices, valid_metrics=metrics, use_box_indices=False
         )
 
-        # now construct slides for outlier data
-        all_metrics = {
-            k: issues.get(k, []) for k in metrics if k not in ["channels", "distance_center", "distance_edge"]
-        }
-        # looks better if we limit to 4 entries per slide...
-        metric_chunks = split_into_chunks(all_metrics, chunk_sizes=[4])
-        captions = ["Dimensional", "Visual", "Pixel"]
-        for idx, chunk in enumerate(metric_chunks):
-            title = f"Image {captions[idx]} Outliers"
-            text = Text(
-                [
-                    SubText("Description: ", bold=True),
-                    f" Numerical analysis of {captions[idx].lower()} outliers in images.",
-                ],
-                fontsize=21,
-            )
-            outlier_slides.append(
-                self._add_slide(
-                    deck=self._deck,
-                    title=title,
-                    text=text,
-                    metrics_subset=chunk,
-                    all_metrics=all_metrics,
-                    total=dataset_size,
-                    is_images=True,
-                )
-            )
+    return outlier_slides
 
-        return outlier_slides
 
-    def _generate_target_outliers_report(
-        self,
-        target_outliers: dict[int, dict[str, float]] | None,
-        box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
-        total_targets: int,
-    ) -> list[dict[str, Any]]:
-        """Generate a report for target outliers.
+def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:
+    """Generate a report for next steps.
 
-        Parameters
-        ----------
-        target_outliers : dict[int, dict[str, float]] | None
-            Target outlier data.
-        box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
-            Bounding box dimension and visual statistics.
-        total_targets : int
-            The total number of targets.
+    Provides recommendations for investigating issues that may arise
+    during analysis.
 
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of slide definitions for the target outliers report,
-            or an empty list if no target outliers.
-        """
-        if target_outliers is None:
-            return []
+    Returns
+    -------
+    dict[str, Any]
+        The slide definition for the next steps report.
+    """
+    dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
+    dir_.mkdir(parents=True, exist_ok=True)
+    filepath = dir_ / "blank_img.png"
+    plot_blank_or_single_image(filepath)
 
-        outlier_slides = []
-        metrics = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
-
-        dim_box_output, viz_box_output = box_stats
-        box_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
-        total_targets = total_targets
-
-        # construct collection of all bounding boxes with issues
-        issues = collect_issues(
-            outliers=target_outliers, source_indices=box_source_indices, valid_metrics=metrics, use_box_indices=True
+    title = f"Dataset: {dataset_id} | Category: Cleaning"
+    heading = "Next Steps\n"
+    content = [
+        Text(t, fontsize=14)
+        for t in (
+            "Below are the recommended next steps to investigating issues that may arise during analysis.",
+            [SubText("In general:", bold=True)],
+            "- Remove the images/targets flagged in the Basic Check reports for images and targets",
+            "- Manually review the images/targets flagged in the Outlier reports",
+            [SubText("For images:", bold=True)],
+            "- Check if images come up in multiple outlier categories. If so, remove.",
+            "- Make sure images are representative of their respective environment/class. If not, remove.",
+            [SubText("For targets:", bold=True)],
+            "- Run bias analysis with bounding box stats and ensure there are no correlations between a statistic and a class",  # noqa: E501
+            "- Make sure targets are representative of their respective class. If not, remove.",
         )
+    ]
 
-        # now construct slides for outlier data
-        all_metrics = {k: issues.get(k, []) for k in metrics if k not in ["ratio_offset_x", "channels"]}
-        all_metrics["ratio_offset_y"].extend(issues.get("ratio_offset_x", []))
-        # looks better if we chunk according to the number of metrics in each category
-        metric_chunks = split_into_chunks(all_metrics, chunk_sizes=[4, 4, 2, 5])
-        captions = ["Dimensional", "Visual", "Pixel", "Ratio"]
-        for idx, chunk in enumerate(metric_chunks):
-            title = f"Target {captions[idx]} Outliers"
-            text = Text(
-                [
-                    SubText("Description: ", bold=True),
-                    f" Numerical analysis of {captions[idx].lower()} outliers in targets.",
-                ],
-                fontsize=21,
-            )
-            outlier_slides.append(
-                self._add_slide(
-                    deck=self._deck,
-                    title=title,
-                    text=text,
-                    metrics_subset=chunk,
-                    all_metrics=all_metrics,
-                    total=total_targets,
-                    is_images=False,
-                )
-            )
-
-        return outlier_slides
-
-    def _generate_next_steps_report(self, dataset_id: str) -> dict[str, Any]:
-        """Generate a report for next steps.
-
-        Provides recommendations for investigating issues that may arise
-        during analysis.
-
-        Returns
-        -------
-        dict[str, Any]
-            The slide definition for the next steps report.
-        """
-        dir_ = Path(cache_path() / "cleaning-test-stage-artifacts")
-        dir_.mkdir(parents=True, exist_ok=True)
-        filepath = dir_ / "blank_img.png"
-        plot_blank_or_single_image(filepath)
-
-        title = f"Dataset: {dataset_id} | Category: Cleaning"
-        heading = "Next Steps\n"
-        content = [
-            Text(t, fontsize=14)
-            for t in (
-                "Below are the recommended next steps to investigating issues that may arise during analysis.",
-                [SubText("In general:", bold=True)],
-                "- Remove the images/targets flagged in the Basic Check reports for images and targets",
-                "- Manually review the images/targets flagged in the Outlier reports",
-                [SubText("For images:", bold=True)],
-                "- Check if images come up in multiple outlier categories. If so, remove.",
-                "- Make sure images are representative of their respective environment/class. If not, remove.",
-                [SubText("For targets:", bold=True)],
-                "- Run bias analysis with bounding box stats and ensure there are no correlations between a statistic and a class",  # noqa: E501
-                "- Make sure targets are representative of their respective class. If not, remove.",
-            )
-        ]
-
-        return {
-            "deck": self._deck,
-            "layout_name": "SectionByItem",
-            "layout_arguments": {
-                SectionByItem.ArgKeys.TITLE.value: title,
-                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
-                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
-            },
-        }
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect reports for duplicates and outliers for image and target data.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of slide definitions for the full report.
-
-        Raises
-        ------
-        RuntimeError
-            If the test stage has not been run before accessing outputs.
-        """
-        table_of_contents = self._generate_table_of_contents()
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        index2label = self._stored_run.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
-        dataset_id = self._stored_run.dataset_metadata[0]["id"]
-
-        duplicates = self._generate_duplicates_report(
-            duplicates=outputs.duplicates, dataset_size=outputs.label_stats.image_count
-        )
-        stat_list = self._generate_stats_report(
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
-            label_stats=outputs.label_stats,
-            box_stats=(outputs.box_dim_stats, outputs.box_viz_stats)
-            if outputs.box_dim_stats and outputs.box_viz_stats
-            else None,
-            ratio_stats=outputs.box_ratio_stats,
-            index2label=index2label,
-        )
-        image_list = self._generate_image_outliers_report(
-            img_outliers=outputs.img_outliers,
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
-            dataset_size=outputs.label_stats.image_count,
-        )
-
-        if outputs.box_dim_stats and outputs.box_viz_stats:
-            target_list = self._generate_target_outliers_report(
-                target_outliers=outputs.target_outliers,
-                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
-                total_targets=outputs.label_stats.label_count,
-            )
-
-            return [
-                table_of_contents,
-                duplicates,
-                stat_list[0],
-                *image_list[0:],
-                *stat_list[1:],
-                *target_list[0:],
-                self._generate_next_steps_report(dataset_id=dataset_id),
-            ]
-
-        return [
-            table_of_contents,
-            duplicates,
-            stat_list[0],
-            *image_list[0:],
-            *stat_list[1:],
-            self._generate_next_steps_report(dataset_id=dataset_id),
-        ]
+    return {
+        "deck": deck,
+        "layout_name": "SectionByItem",
+        "layout_arguments": {
+            SectionByItem.ArgKeys.TITLE.value: title,
+            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
+        },
+    }

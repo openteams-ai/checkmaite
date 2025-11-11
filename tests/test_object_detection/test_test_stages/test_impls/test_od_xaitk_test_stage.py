@@ -29,8 +29,8 @@ def test_xaitk_test_stage(use_stage_cache, fake_od_model_default, fake_od_datase
 
     test = XAITKTestStage(ARGS)
     # load the maite compliant model
-    test.run(use_stage_cache=use_stage_cache, models=[fake_od_model_default], datasets=[fake_od_dataset_default])
-    output = test.collect_report_consumables()
+    run = test.run(use_stage_cache=use_stage_cache, models=[fake_od_model_default], datasets=[fake_od_dataset_default])
+    output = run.collect_report_consumables(threshold=0.5)
 
     assert len(output) == len(fake_od_dataset_default) * len(fake_od_dataset_default[0][1].scores)
 

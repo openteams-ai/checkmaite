@@ -16,5 +16,4 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset, ic.Model, ic.Met
     between metadata factors and class labels, while coverage is calculated using only the images
     """
 
-    _deck: str = "image_classification_bias_evaluation"
     _task: str = "ic"
