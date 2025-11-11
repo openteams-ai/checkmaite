@@ -8,5 +8,4 @@ from jatic_ri._common.test_stages.impls.dataeval_cleaning_test_stage import Data
 class DatasetCleaningTestStage(DatasetCleaningTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     "Image classification cleaning test stage"
 
-    _deck: str = "image_classification_cleaning_evaluation"
     _task: str = "ic"

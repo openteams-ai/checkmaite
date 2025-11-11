@@ -8,9 +8,6 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
 from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
     Number,
@@ -77,11 +74,73 @@ class NRTKTestStageRun(RunBase):
     config: NRTKTestStageConfig
     outputs: NRTKTestStageOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+        """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
+        load_cached_results method
 
-class NRTKTestStageBase(
-    TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetric],
-    ThresholdPlugin,
-):
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of slide definitions for the full report.
+        """
+
+        outputs = self.outputs
+
+        dataset_id = self.dataset_metadata[0]["id"]
+        metric_id = self.metric_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+
+        lowest_perturb_score = [perturber_output[metric_id] for perturber_output in outputs.perturbations]
+
+        final_dict = {
+            "dataset": dataset_id,
+            "model": model_id,
+            self.config.perturber_factory.theta_key: self.config.perturber_factory.thetas,
+            metric_id: lowest_perturb_score,
+        }
+        df_perturbation = pd.DataFrame.from_dict(final_dict)
+        df_perturbation["line_id"] = "item_response_curve"
+
+        # convert pert classname into semantic label
+        # (e.g. nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber into Brightness Perturber)
+        perturbation_classname = self.config.perturber_factory.get_config()["perturber"].split(".")[-1]
+        perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
+
+        perturber = self.config.perturber_factory.get_config()["perturber"].rpartition(".")[-1].replace("Perturber", "")
+        theta_key = self.config.perturber_factory.theta_key
+
+        return [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "NRTKEvaluation",  # specialized template in gradient codebase
+                "layout_arguments": {
+                    "title": self.test_stage_id,
+                    "data": df_perturbation,
+                    "line_col": "line_id",
+                    "x_data_col": self.config.perturber_factory.theta_key,
+                    "y_data_col": metric_id,
+                    "perturbation_type": perturbation_label,
+                    "lower_bound": 3.4,
+                    "upper_bound": 5.3,
+                    "model": model_id,
+                    "plot_kwargs": {
+                        "y_threshold_value": threshold,
+                        "title": "NRTK Robustness Curve",
+                        "x_label": f"{perturber} {PERTURBER_LABELS.get(theta_key, theta_key)}",
+                        "y_label": METRIC_LABELS.get(metric_id, metric_id),
+                    },
+                },
+            },
+        ]
+
+
+class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetric]):
     """
     NRTK Test Stage to perform augmentation on images in a dataset based
     on a given factory configuration.`
@@ -175,63 +234,3 @@ class NRTKTestStageBase(
             perturbations.append(perturbed_metrics)
 
         return NRTKTestStageOutputs(perturbations=perturbations)
-
-    @property
-    def name(self) -> str:
-        """Returns classname as a string"""
-        return self.__class__.__name__
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
-        load_cached_results method"""
-
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        dataset_id = self._stored_run.dataset_metadata[0]["id"]
-        metric_id = self._stored_run.metric_metadata[0]["id"]
-        model_id = self._stored_run.model_metadata[0]["id"]
-
-        lowest_perturb_score = [perturber_output[metric_id] for perturber_output in outputs.perturbations]
-
-        final_dict = {
-            "dataset": dataset_id,
-            "model": model_id,
-            self.config.perturber_factory.theta_key: self.config.perturber_factory.thetas,
-            metric_id: lowest_perturb_score,
-        }
-        df_perturbation = pd.DataFrame.from_dict(final_dict)
-        df_perturbation["line_id"] = "item_response_curve"
-
-        # convert pert classname into semantic label
-        # (e.g. nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber into Brightness Perturber)
-        perturbation_classname = self.config.perturber_factory.get_config()["perturber"].split(".")[-1]
-        perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
-
-        perturber = self.config.perturber_factory.get_config()["perturber"].rpartition(".")[-1].replace("Perturber", "")
-        theta_key = self.config.perturber_factory.theta_key
-
-        return [
-            {
-                "deck": self._deck,
-                "layout_name": "NRTKEvaluation",  # specialized template in gradient codebase
-                "layout_arguments": {
-                    "title": self.name,
-                    "data": df_perturbation,
-                    "line_col": "line_id",
-                    "x_data_col": self.config.perturber_factory.theta_key,
-                    "y_data_col": metric_id,
-                    "perturbation_type": perturbation_label,
-                    "lower_bound": 3.4,
-                    "upper_bound": 5.3,
-                    "model": model_id,
-                    "plot_kwargs": {
-                        "y_threshold_value": self.threshold,
-                        "title": "NRTK Robustness Curve",
-                        "x_label": f"{perturber} {PERTURBER_LABELS.get(theta_key, theta_key)}",
-                        "y_label": METRIC_LABELS.get(metric_id, metric_id),
-                    },
-                },
-            },
-        ]

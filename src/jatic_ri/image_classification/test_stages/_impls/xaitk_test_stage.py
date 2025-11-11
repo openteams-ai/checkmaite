@@ -54,74 +54,31 @@ class XAITKRunIC(RunBase):
     config: XAITKConfigIC
     outputs: XAITKOutputsIC
 
-
-class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic.Metric]):
-    """
-    XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
-
-    Attributes:
-        config (XAITKConfigIC):The config used to run XAITK saliency test stage for IC.
-    """
-
-    _task: str = "ic"
-    _RUN_TYPE = XAITKRunIC
-
-    def __init__(self, config: dict[str, Any]) -> None:
-        super().__init__()
-        self.config: XAITKConfigIC = XAITKConfigIC.model_validate(config)
-
-    def _create_config(self) -> XAITKConfigIC:
-        return self.config
-
-    def _run(
-        self,
-        models: list[ic.Model],
-        datasets: list[ic.Dataset],
-        metrics: list[ic.Metric],  # noqa: ARG002
-    ) -> XAITKOutputsIC:
-        """Run the test stage, and store any outputs of the saliency
-        generation in test stage"""
-
-        model = models[0]
-        dataset = datasets[0]
-
-        if "index2label" not in model.metadata:
-            raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
-
-        classifier = JATICImageClassifier(
-            classifier=model,
-            ids=sorted(model.metadata["index2label"].keys()),
-            img_batch_size=self.config.img_batch_size,
-        )
-        img_sal_maps = []
-        gray_imgs = []
-        gt_labels = []
-        for ref_img, targets, _ in dataset:
-            transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
-            if transposed_image.shape[2] == 1:
-                transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
-            img_sal_maps.append(self.config.saliency_generator(transposed_image, classifier))
-
-            gray_imgs.append(rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy())
-
-            gt_labels.append(model.metadata["index2label"][int(np.argmax(targets))])
-
-        return XAITKOutputsIC.model_validate({"results": img_sal_maps, "gray_imgs": gray_imgs, "gt_labels": gt_labels})
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
         """Access the in-depth data needed by Gradient to produce a report
         generated in the run method or in the load_cached_results method.
         Each slide will have a short text description of the model used,
         the prediction, the ground truth, and the saliency map for the
         detection. The saliency map image will have the detection bounding
-        box shown in red."""
+        box shown in red.
 
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
 
-        model_id = self._stored_run.model_metadata[0]["id"]
-        index2label = self._stored_run.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+        """
+
+        outputs = self.outputs
+
+        model_id = self.model_metadata[0]["id"]
+        index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
 
         gradient_slides = []
 
@@ -149,7 +106,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic
                         plt.close(fig)
 
                         content = {
-                            "deck": "image_classification_model_evaluation",
+                            "deck": self.test_stage_id,
                             "layout_name": "OneImageText",
                             "layout_arguments": {
                                 "title": f"**XAITK Saliency Map**: {sal_idx} \n",
@@ -179,7 +136,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic
                     plt.close(fig)
 
                     content = {
-                        "deck": "image_classification_model_evaluation",
+                        "deck": self.test_stage_id,
                         "layout_name": "OneImageText",
                         "layout_arguments": {
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
@@ -196,3 +153,58 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic
                     gradient_slides.append(content)
 
         return gradient_slides
+
+
+class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic.Metric]):
+    """
+    XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
+
+    Attributes:
+        config (XAITKConfigIC):The config used to run XAITK saliency test stage for IC.
+    """
+
+    _task: str = "ic"
+    _RUN_TYPE = XAITKRunIC
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        super().__init__()
+        self.config: XAITKConfigIC = XAITKConfigIC.model_validate(config)
+
+    def _create_config(self) -> XAITKConfigIC:
+        return self.config
+
+    def _run(
+        self,
+        models: list[ic.Model],
+        datasets: list[ic.Dataset],
+        metrics: list[ic.Metric],
+    ) -> XAITKOutputsIC:
+        """Run the test stage, and store any outputs of the saliency
+        generation in test stage"""
+
+        model = models[0]
+        dataset = datasets[0]
+        _ = metrics
+
+        if "index2label" not in model.metadata:
+            raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
+
+        classifier = JATICImageClassifier(
+            classifier=model,
+            ids=sorted(model.metadata["index2label"].keys()),
+            img_batch_size=self.config.img_batch_size,
+        )
+        img_sal_maps = []
+        gray_imgs = []
+        gt_labels = []
+        for ref_img, targets, _ in dataset:
+            transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
+            if transposed_image.shape[2] == 1:
+                transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
+            img_sal_maps.append(self.config.saliency_generator(transposed_image, classifier))
+
+            gray_imgs.append(rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy())
+
+            gt_labels.append(model.metadata["index2label"][int(np.argmax(targets))])
+
+        return XAITKOutputsIC.model_validate({"results": img_sal_maps, "gray_imgs": gray_imgs, "gt_labels": gt_labels})

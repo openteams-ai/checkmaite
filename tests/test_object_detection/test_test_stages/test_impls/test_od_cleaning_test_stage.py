@@ -23,8 +23,8 @@ def test_od_cleaning(fake_od_dataset_default) -> None:
     """Test Cleaning implementation"""
 
     test = DatasetCleaningTestStage()
-    test.run(use_stage_cache=False, datasets=[fake_od_dataset_default])
-    output = test.collect_report_consumables()
+    run = test.run(use_stage_cache=False, datasets=[fake_od_dataset_default])
+    output = run.collect_report_consumables(threshold=0.5)
 
     assert output
 
@@ -33,13 +33,13 @@ def test_od_cleaning(fake_od_dataset_default) -> None:
 def test_od_cleaning_with_cached_values(fake_od_dataset_default) -> None:
     """Verify cached"""
     test1 = DatasetCleaningTestStage()
-    test1.run(datasets=[fake_od_dataset_default])
-    output1 = test1.collect_report_consumables()
+    run1 = test1.run(datasets=[fake_od_dataset_default])
+    output1 = run1.collect_report_consumables(threshold=0.5)
 
     test2 = DatasetCleaningTestStage()
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.run(datasets=[fake_od_dataset_default])
-    output2 = test2.collect_report_consumables()
+    run2 = test2.run(datasets=[fake_od_dataset_default])
+    output2 = run2.collect_report_consumables(threshold=0.5)
 
     assert test2._run.call_count == 0
     assert len(output1) == len(output2)

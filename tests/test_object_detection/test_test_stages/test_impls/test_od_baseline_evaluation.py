@@ -12,7 +12,6 @@ def test_baseline_evaluation_dummy_od(fake_od_model_default, fake_od_dataset_def
     """Test BaselineEvaluation implementation using dummy setup"""
 
     test = BaselineEvaluation()
-    test.load_threshold(threshold=0.5)
 
     run = test.run(
         use_stage_cache=False,
@@ -23,7 +22,7 @@ def test_baseline_evaluation_dummy_od(fake_od_model_default, fake_od_dataset_def
 
     assert run.outputs.class_metrics is None
 
-    test.collect_report_consumables()
+    run.collect_report_consumables(threshold=0.5)
 
 
 def test_baseline_evaluation_multiclass(fake_od_model_default, fake_od_dataset_default) -> None:
@@ -31,7 +30,6 @@ def test_baseline_evaluation_multiclass(fake_od_model_default, fake_od_dataset_d
 
     test = BaselineEvaluation()
     metric = multiclass_map50_torch_metric_factory()
-    test.load_threshold(threshold=0.5)
 
     run = test.run(
         use_stage_cache=False, models=[fake_od_model_default], metrics=[metric], datasets=[fake_od_dataset_default]
@@ -39,7 +37,7 @@ def test_baseline_evaluation_multiclass(fake_od_model_default, fake_od_dataset_d
 
     assert run.outputs.class_metrics is not None
 
-    results = test.collect_report_consumables()
+    results = run.collect_report_consumables(threshold=0.5)
 
     # Assert classes not found in dummy dataset are added to output slide text
     for text in ("ignored regions", "apple", "eggplant"):
@@ -51,26 +49,24 @@ def test_baseline_evaluation_dummy_od_with_cache(
 ) -> None:
     """Test BaselineEvaluation implementation using cache"""
     test1 = BaselineEvaluation()
-    test1.load_threshold(threshold=0.5)
-    test1.run(
+    run1 = test1.run(
         use_stage_cache=True,
         models=[fake_od_model_default],
         metrics=[fake_od_metric_default],
         datasets=[fake_od_dataset_default],
     )
-    output1 = test1.collect_report_consumables()
+    output1 = run1.collect_report_consumables(threshold=0.5)
 
     test2 = BaselineEvaluation()
-    test2.load_threshold(threshold=0.5)
 
     test2._run = MagicMock()  # mock out _run to ensure cache hit
-    test2.run(
+    run2 = test2.run(
         use_stage_cache=True,
         datasets=[fake_od_dataset_default],
         models=[fake_od_model_default],
         metrics=[fake_od_metric_default],
     )
-    output2 = test2.collect_report_consumables()
+    output2 = run2.collect_report_consumables(threshold=0.5)
 
     assert test2._run.call_count == 0
     assert len(output1) == len(output2)

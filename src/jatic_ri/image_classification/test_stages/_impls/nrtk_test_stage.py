@@ -14,5 +14,4 @@ class NRTKTestStage(NRTKTestStageBase[ic.Dataset, ic.Model, ic.Metric]):
     on each perturbed variant, and generates a report summarizing changes in model performance.
     """
 
-    _deck: str = "image_classification_dataset_evaluation"
     _task: str = "image_classification"

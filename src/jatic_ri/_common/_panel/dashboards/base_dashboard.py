@@ -27,9 +27,6 @@ from streamz import Stream
 
 from jatic_ri import PACKAGE_DIR
 from jatic_ri._common._panel.configurations.base_app import AppStyling, BaseApp
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import Number
 from jatic_ri.image_classification.models import SUPPORTED_MODELS as SUPPORTED_MODELS_IC
 from jatic_ri.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
@@ -902,8 +899,8 @@ class BaseTestbed(BaseApp):
                 elif config["TYPE"] == "DatasetShiftTestStage":
                     self.dataset_2_visible = True
 
-                if isinstance(stage, ThresholdPlugin):
-                    self.threshold_visible = True
+                # TODO: determine a better way to display threshold for relevant stages only
+                self.threshold_visible = True
 
         self.status_source.emit("Configuration file loaded")
 
@@ -945,10 +942,6 @@ class BaseTestbed(BaseApp):
         slides = []
         for stage in self.test_stages.values():
             self.status_source.emit(f"Loading inputs for {stage.__class__.__name__}")
-
-            # extract threshold from the UI
-            if isinstance(stage, ThresholdPlugin):
-                stage.load_threshold(float(self.threshold))
 
             all_datasets = list(self.loaded_datasets.values())
             all_models = list(self.loaded_models.values())
@@ -1006,9 +999,9 @@ class BaseTestbed(BaseApp):
                 run_kwargs["metrics"] = metrics
 
             # run the stage, saving output to the class
-            stage.run(**run_kwargs)
+            run = stage.run(**run_kwargs)
             # collect the slides
-            stage_slides = stage.collect_report_consumables()
+            stage_slides = run.collect_report_consumables(threshold=float(self.threshold))
             slides += stage_slides
 
         report_path = Path(self.output_dir)

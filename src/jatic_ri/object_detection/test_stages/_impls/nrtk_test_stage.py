@@ -14,5 +14,4 @@ class NRTKTestStage(NRTKTestStageBase[od.Dataset, od.Model, od.Metric]):
     on each perturbed variant, and generates a report summarizing changes in model performance.
     """
 
-    _deck: str = "object_detection_dataset_evaluation"
     _task: str = "object_detection"

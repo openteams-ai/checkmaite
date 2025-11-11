@@ -16,9 +16,6 @@ from heart_library.estimators.object_detection.pytorch import (
 from maite.protocols import ArrayLike
 from numpy.typing import NDArray
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, OutputsBase, RunBase, TestStage
 from jatic_ri.cached_tasks import evaluate
 from jatic_ri.util._types import Image
@@ -84,6 +81,7 @@ class HeartConfig(ConfigBase):
     """Config for HEART test stage"""
 
     attack_configs: list[HeartAttackConfig]
+    threshold: float
 
 
 class BaselineOutput(OutputsBase):
@@ -114,23 +112,80 @@ class HeartRun(RunBase):
     config: HeartConfig
     outputs: HeartOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Creates all needed information to create meaningful heart gradient component
 
-class HeartTestStage(
-    TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric],
-    ThresholdPlugin,
-):
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+        """
+
+        outputs = self.outputs
+
+        def format_result(result: dict[str, float]) -> str:
+            return ", ".join(f"{metric}={value:.3f}" for metric, value in result.items())
+
+        slides: list[dict[str, Any]] = []
+        for i, output in enumerate(outputs.attacked, 1):
+            for baseline_image, attack_image in zip(outputs.baseline.images, output.images, strict=True):
+                left_section_content = temp_image_file(baseline_image)
+                mid_section_content = temp_image_file(attack_image)
+                right_section_content = parse_lines(
+                    [
+                        f"**Original metric**: *{format_result(outputs.baseline.result)}*",
+                        f"**Perturbed metric**: *{format_result(output.result)}*",
+                        f"**Strength**: *{output.attack_config.strength}*",
+                        "**Parameters**:",
+                        *[
+                            f"*{param.replace('_', ' ')}*: {value}"
+                            for param, value in output.attack_config.parameters.items()
+                        ],
+                    ],
+                    fontsize=12,
+                )
+
+                slides.append(
+                    {
+                        "deck": self.test_stage_id,
+                        "layout_name": "ThreeSection",
+                        "layout_arguments": {
+                            "title": (
+                                f"Adversarial Robustness Testing: {output.attack_config.name} - "
+                                f"Image {i}/{len(outputs.baseline.images)}"
+                            ),
+                            "left_section_heading": "Original",
+                            "left_section_content": left_section_content,
+                            "mid_section_heading": "Perturbed",
+                            "mid_section_content": mid_section_content,
+                            "right_section_heading": "Metadata",
+                            "right_section_content": right_section_content,
+                        },
+                    },
+                )
+
+        return slides
+
+
+class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
     """HEART Specific Implementation of a TestStage Class to Support
     Object Detection Adversarial Attacks, including:
     1. Projected Gradient Descent
     2. Adversarial Patch Attack
     """
 
-    def __init__(self, *, attack_configs: list[HeartAttackConfig], threshold: float = 0.3) -> None:
-        super().__init__()
-        self._config = HeartConfig.model_validate({"attack_configs": attack_configs})
-        self.load_threshold(threshold)
-
     _RUN_TYPE = HeartRun
+
+    def __init__(self, *, attack_configs: list[HeartAttackConfig], threshold: float) -> None:
+        super().__init__()
+        self._config = HeartConfig.model_validate({"attack_configs": attack_configs, "threshold": threshold})
 
     def _create_config(self) -> HeartConfig:
         return self._config
@@ -199,7 +254,7 @@ class HeartTestStage(
                         cast(
                             od.ObjectDetectionTarget, preds
                         ),  # TODO: we need to overload the evaluate function correctly
-                        threshold=self.threshold,
+                        threshold=self._config.threshold,
                         index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                     )
                     for image, preds in zip(
@@ -233,7 +288,7 @@ class HeartTestStage(
                                 cast(
                                     od.ObjectDetectionTarget, preds
                                 ),  # TODO: we need to overload the evaluate function correctly,
-                                threshold=self.threshold,
+                                threshold=self._config.threshold,
                                 index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                             )
                             for image, preds in zip(
@@ -325,53 +380,3 @@ class HeartTestStage(
         predictions_class = [predictions_class[i] for i in predictions_t]
         predictions_scores = [predictions_score[i] for i in predictions_t]
         return predictions_class, predictions_boxes, predictions_scores
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Creates all needed information to create meaningful heart gradient component"""
-
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        def format_result(result: dict[str, float]) -> str:
-            return ", ".join(f"{metric}={value:.3f}" for metric, value in result.items())
-
-        slides: list[dict[str, Any]] = []
-        for i, output in enumerate(outputs.attacked, 1):
-            for baseline_image, attack_image in zip(outputs.baseline.images, output.images, strict=True):
-                left_section_content = temp_image_file(baseline_image)
-                mid_section_content = temp_image_file(attack_image)
-                right_section_content = parse_lines(
-                    [
-                        f"**Original metric**: *{format_result(outputs.baseline.result)}*",
-                        f"**Perturbed metric**: *{format_result(output.result)}*",
-                        f"**Strength**: *{output.attack_config.strength}*",
-                        "**Parameters**:",
-                        *[
-                            f"*{param.replace('_', ' ')}*: {value}"
-                            for param, value in output.attack_config.parameters.items()
-                        ],
-                    ],
-                    fontsize=12,
-                )
-
-                slides.append(
-                    {
-                        "deck": "object_detection_model_evaluation",
-                        "layout_name": "ThreeSection",
-                        "layout_arguments": {
-                            "title": (
-                                f"Adversarial Robustness Testing: {output.attack_config.name} - "
-                                f"Image {i}/{len(outputs.baseline.images)}"
-                            ),
-                            "left_section_heading": "Original",
-                            "left_section_content": left_section_content,
-                            "mid_section_heading": "Perturbed",
-                            "mid_section_content": mid_section_content,
-                            "right_section_heading": "Metadata",
-                            "right_section_content": right_section_content,
-                        },
-                    },
-                )
-
-        return slides

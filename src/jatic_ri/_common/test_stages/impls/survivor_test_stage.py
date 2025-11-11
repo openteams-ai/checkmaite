@@ -69,13 +69,84 @@ class SurvivorRun(RunBase):
     config: SurvivorConfig
     outputs: SurvivorOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+        """Collect report consumables for the SurvivorTestStage.
+
+        This method formats the Survivor analysis results into a list of
+        dictionaries suitable for generating a Gradient report.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide
+            for the Gradient report.
+        """
+
+        outputs = self.outputs
+
+        survivor_results = outputs.raw_output_df
+
+        label_counts = survivor_results.suid_label.value_counts()
+        total = label_counts.sum()
+
+        hard_proportion = label_counts.get("Hard", 0) / total
+        easy_proportion = label_counts.get("Easy", 0) / total
+        otb_proportion = label_counts.get("On the Bubble", 0) / total
+
+        # Simply return the title of the section and the data to be plotted
+        definition_text = Text(
+            [
+                SubText("Types of Data\n", bold=True),
+                f"• Easy: Models score the same and perform well.\n"
+                f"• Hard: Models score the same and perform poorly.\n"
+                f"• On the Bubble: Models score differently.\n\n"
+                f"• Ideally, a dataset would be primarily On the Bubble, "
+                "so all data is helping distinguish between model performance.\n\n"
+                f"• This dataset had {easy_proportion * 100:.1f}% Easy, {hard_proportion * 100:.1f}% Hard, and "
+                f"{otb_proportion * 100:.1f}% On the Bubble data.",
+            ],
+            fontsize=22,
+        )
+
+        heatmap_slides = [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "ItemByNarrowText",
+                "title": "Survivor Metadata Heatmap",
+                "layout_arguments": {
+                    "title": "Survivor Metadata Heatmap",
+                    "item": temp_image_file(plot),
+                    "text": "",
+                },
+            }
+            for plot in outputs.heatmap_plots
+        ]
+
+        return [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "TwoItem",
+                "layout_arguments": {
+                    "title": "Survivor Dataset Breakdown",
+                    "left_item": definition_text,
+                    "right_item": temp_image_file(outputs.label_count_plot),
+                },
+            },
+            *heatmap_slides,
+        ]
+
 
 class SurvivorTestStageBase(
     TestStage[SurvivorOutputs, TDataset, TModel, TMetric],
 ):
     _RUN_TYPE = SurvivorRun
 
-    _deck: str
     _task: str
 
     def __init__(
@@ -282,75 +353,3 @@ class SurvivorTestStageBase(
                 named_figure, path = heatmap_plot.plot(metrics_with_survivor_label_df)[0]
 
         return named_figure.figure
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Collect report consumables for the SurvivorTestStage.
-
-        This method formats the Survivor analysis results into a list of
-        dictionaries suitable for generating a Gradient report.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of dictionaries, where each dictionary represents a slide
-            for the Gradient report.
-
-        Raises
-        ------
-        RuntimeError
-            If the TestStage has not been run before calling this method.
-        """
-        if self._stored_run is None:
-            raise RuntimeError("TestStage must be run before accessing outputs")
-        outputs = self._stored_run.outputs
-
-        survivor_results = outputs.raw_output_df
-
-        label_counts = survivor_results.suid_label.value_counts()
-        total = label_counts.sum()
-
-        hard_proportion = label_counts.get("Hard", 0) / total
-        easy_proportion = label_counts.get("Easy", 0) / total
-        otb_proportion = label_counts.get("On the Bubble", 0) / total
-
-        # Simply return the title of the section and the data to be plotted
-        definition_text = Text(
-            [
-                SubText("Types of Data\n", bold=True),
-                f"• Easy: Models score the same and perform well.\n"
-                f"• Hard: Models score the same and perform poorly.\n"
-                f"• On the Bubble: Models score differently.\n\n"
-                f"• Ideally, a dataset would be primarily On the Bubble, "
-                "so all data is helping distinguish between model performance.\n\n"
-                f"• This dataset had {easy_proportion * 100:.1f}% Easy, {hard_proportion * 100:.1f}% Hard, and "
-                f"{otb_proportion * 100:.1f}% On the Bubble data.",
-            ],
-            fontsize=22,
-        )
-
-        heatmap_slides = [
-            {
-                "deck": self._deck,
-                "layout_name": "ItemByNarrowText",
-                "title": "Survivor Metadata Heatmap",
-                "layout_arguments": {
-                    "title": "Survivor Metadata Heatmap",
-                    "item": temp_image_file(plot),
-                    "text": "",
-                },
-            }
-            for plot in outputs.heatmap_plots
-        ]
-
-        return [
-            {
-                "deck": self._deck,
-                "layout_name": "TwoItem",
-                "layout_arguments": {
-                    "title": "Survivor Dataset Breakdown",
-                    "left_item": definition_text,
-                    "right_item": temp_image_file(outputs.label_count_plot),
-                },
-            },
-            *heatmap_slides,
-        ]

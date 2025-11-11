@@ -256,13 +256,13 @@ def test_survivor_collect_report_consumables(
         m.metadata = {"id": "fake_survivor_metric"}
 
     # Run test stage once to ensure cache is present
-    test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
+    run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
 
     # Run again to use cache
-    test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
+    _ = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
 
     # Act
-    slide_content = test_stage.collect_report_consumables()
+    slide_content = run.collect_report_consumables(threshold=0.5)
     output_consumables = slide_content[0]
 
     # Assert
@@ -274,14 +274,3 @@ def test_survivor_collect_report_consumables(
 
     filename = create_deck(slide_content, artifact_dir, "survivor")
     assert filename.exists()
-
-
-def test_survivor_test_stage_collect_report_consumables_error(
-    test_stage: SurvivorTestStage,
-) -> None:
-    """Test collect_report_consumables error when run not called."""
-    # No Arrange
-
-    # Act and Assert
-    with pytest.raises(RuntimeError, match="TestStage must be run before accessing outputs"):
-        test_stage.collect_report_consumables()

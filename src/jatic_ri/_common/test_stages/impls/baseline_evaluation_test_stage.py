@@ -8,9 +8,6 @@ import numpy as np
 import pydantic
 from matplotlib.figure import Figure
 
-from jatic_ri._common.test_stages.interfaces.plugins import (
-    ThresholdPlugin,
-)
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
     Number,
@@ -42,8 +39,74 @@ class BaselineEvaluationRun(RunBase):
     config: BaselineEvaluationConfig
     outputs: BaselineEvaluationOutputs
 
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+        """Access data for Gradient report generation.
 
-class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TModel, TMetric], ThresholdPlugin):
+        Retrieves in-depth data produced during the `run` method or loaded
+        from cache, formatted for Gradient slide creation.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries, where each dictionary represents a slide.
+            Each dictionary must contain the following keys:
+
+            - "deck" (str): Target deck (e.g.,
+              "image_classification_model_evaluation").
+            - "layout_name" (str): Name of the layout from the Gradient demo
+              repo. See JATIC Increment 5 Gradient Demo Repo for details.
+            - "layout_arguments" (dict): Arguments specific to the chosen layout.
+        """
+
+        text = ""
+        text += f"*Model*: {self.model_metadata[0]['id']} \n\n"
+        text += f"*Dataset*: {self.dataset_metadata[0]['id']} \n\n"
+        text += f"*{self.outputs.overall_metric_name}*: {self.outputs.overall_metric_value:.2f}"
+
+        if self.outputs.class_metrics is not None:
+            class_metrics: dict[str, float] = {}
+            missing_classes: list[str] = []
+            for k, v in self.outputs.class_metrics.items():
+                if v is not None:
+                    class_metrics[k] = v
+                else:
+                    missing_classes.append(k)
+
+            fig = create_per_class_bar_plot(
+                overall_metric_name=self.outputs.overall_metric_name,
+                overall_metric_value=self.outputs.overall_metric_value,
+                class_metrics=class_metrics,
+                threshold=threshold,
+            )
+            text += "\n\n\nClasses present in the model index but not the test dataset:\n"
+            for missing_class in missing_classes:
+                text += f"\\* {missing_class}\n"
+
+        else:
+            fig = create_metrics_bar_plot(
+                self.outputs.result, metric_key=self.outputs.overall_metric_name, threshold=threshold, width=0.4
+            )
+
+        return [
+            {
+                "deck": self.test_stage_id,
+                "layout_name": "ItemByNarrowText",
+                "layout_arguments": {
+                    "title": "Basic Evaluation with MAITE",
+                    "text": text,
+                    "item": Path(save_figure_to_tempfile(fig)),
+                },
+            },
+        ]
+
+
+class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TModel, TMetric]):
     """Baseline evaluation implementation of TestStage interface."""
 
     _RUN_TYPE = BaselineEvaluationRun
@@ -147,75 +210,6 @@ class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TMod
         return BaselineEvaluationOutputs(
             overall_metric_name=overall_metric_name, result=result, class_metrics=class_metrics
         )
-
-    def collect_report_consumables(self) -> list[dict[str, Any]]:
-        """Access data for Gradient report generation.
-
-        Retrieves in-depth data produced during the `run` method or loaded
-        from cache, formatted for Gradient slide creation.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            A list of dictionaries, where each dictionary represents a slide.
-            Each dictionary must contain the following keys:
-
-            - "deck" (str): Target deck (e.g.,
-              "image_classification_model_evaluation").
-            - "layout_name" (str): Name of the layout from the Gradient demo
-              repo. See JATIC Increment 5 Gradient Demo Repo for details.
-            - "layout_arguments" (dict): Arguments specific to the chosen layout.
-
-        Raises
-        ------
-        Exception
-            If `_stored_run` is None, meaning the test stage has not been run
-            or results haven't been loaded.
-        """
-        run = self._stored_run
-        if run is None:
-            raise Exception("No clean result computed or loaded before call to `collect_report_consumables`")
-
-        text = ""
-        text += f"*Model*: {run.model_metadata[0]['id']} \n\n"
-        text += f"*Dataset*: {run.dataset_metadata[0]['id']} \n\n"
-        text += f"*{run.outputs.overall_metric_name}*: {run.outputs.overall_metric_value:.2f}"
-
-        if run.outputs.class_metrics is not None:
-            class_metrics: dict[str, float] = {}
-            missing_classes: list[str] = []
-            for k, v in run.outputs.class_metrics.items():
-                if v is not None:
-                    class_metrics[k] = v
-                else:
-                    missing_classes.append(k)
-
-            fig = create_per_class_bar_plot(
-                overall_metric_name=run.outputs.overall_metric_name,
-                overall_metric_value=run.outputs.overall_metric_value,
-                class_metrics=class_metrics,
-                threshold=self.threshold,
-            )
-            text += "\n\n\nClasses present in the model index but not the test dataset:\n"
-            for missing_class in missing_classes:
-                text += f"\\* {missing_class}\n"
-
-        else:
-            fig = create_metrics_bar_plot(
-                run.outputs.result, metric_key=run.outputs.overall_metric_name, threshold=self.threshold, width=0.4
-            )
-
-        return [
-            {
-                "deck": self._deck,
-                "layout_name": "ItemByNarrowText",
-                "layout_arguments": {
-                    "title": "Basic Evaluation with MAITE",
-                    "text": text,
-                    "item": Path(save_figure_to_tempfile(fig)),
-                },
-            },
-        ]
 
 
 def create_per_class_bar_plot(

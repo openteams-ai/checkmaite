@@ -52,12 +52,13 @@ ATTACK_CONFIGS = [
 @pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config):
-    stage = HeartTestStage(attack_configs=[attack_config])
-    stage.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
-    stage.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
-    stage.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
-
-    run = stage.run(use_stage_cache=True)
+    stage = HeartTestStage(attack_configs=[attack_config], threshold=0.5)
+    run = stage.run(
+        use_stage_cache=True,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        metrics=[fake_od_metric_default],
+    )
 
     mocker.patch.object(stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
     cached_run = stage.run(use_stage_cache=True)
@@ -92,14 +93,13 @@ def test_default_attack_parameters(
 def test_report_consumables(
     fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config
 ) -> None:
-    stage = HeartTestStage(attack_configs=[attack_config])
-    stage.load_model(model=fake_od_model_default, model_id=fake_od_model_default.metadata["id"])
-    stage.load_dataset(dataset=fake_od_dataset_default, dataset_id=fake_od_dataset_default.metadata["id"])
-    stage.load_metric(metric=fake_od_metric_default, metric_id=fake_od_metric_default.metadata["id"])
+    stage = HeartTestStage(attack_configs=[attack_config], threshold=0.5)
 
-    stage.run()
+    run = stage.run(
+        models=[fake_od_model_default], datasets=[fake_od_dataset_default], metrics=[fake_od_metric_default]
+    )
 
-    slides = stage.collect_report_consumables()
+    slides = run.collect_report_consumables(threshold=0.5, deck="fake-deck")
     for slide in slides:
         assert slide["deck"] == "object_detection_model_evaluation"
         assert slide["layout_name"] == "ThreeSection"
