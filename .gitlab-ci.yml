@@ -30,7 +30,7 @@ stages:
 
 .git_config: &git_config
 # For internal git dependencies
-- git config --global url."https://gitlab-ci-token:${PRIVATE_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
+- git config --global url."https://gitlab-ci-token:${GITLAB_CI_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
 # Need git LFS for pulling MORSE test stage test data
 - apt-get update && apt-get install -y git-lfs
 
@@ -101,10 +101,10 @@ stages:
     - poetry config repositories.reallabel https://gitlab.jatic.net/jatic/morse/reallabel.git
     - poetry config repositories.survivor https://gitlab.jatic.net/jatic/morse/survivor.git
     - poetry config repositories.heart https://gitlab.jatic.net/jatic/ibm/hardened-extension-adversarial-robustness-toolbox.git
-    - poetry config http-basic.gradient x-token-auth ${PRIVATE_TOKEN}
-    - poetry config http-basic.reallabel x-token-auth ${PRIVATE_TOKEN}
-    - poetry config http-basic.survivor x-token-auth ${PRIVATE_TOKEN}
-    - poetry config http-basic.heart x-token-auth ${PRIVATE_TOKEN}
+    - poetry config http-basic.gradient x-token-auth ${GITLAB_CI_TOKEN}
+    - poetry config http-basic.reallabel x-token-auth ${GITLAB_CI_TOKEN}
+    - poetry config http-basic.survivor x-token-auth ${GITLAB_CI_TOKEN}
+    - poetry config http-basic.heart x-token-auth ${GITLAB_CI_TOKEN}
     - python --version
     - pip --version
     - poetry --version
@@ -284,7 +284,7 @@ export-merged-sbom:
     - apk add --update jq curl
   script:
     - >
-      curl --header "Authorization: Bearer $PRIVATE_TOKEN"
+      curl --header "Authorization: Bearer $GITLAB_CI_TOKEN"
       --output export.sh --url "https://gitlab.jatic.net/api/v4/snippets/7/raw"
     - /bin/sh export.sh
   artifacts:
