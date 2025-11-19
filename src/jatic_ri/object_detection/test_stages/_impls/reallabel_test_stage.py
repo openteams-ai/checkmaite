@@ -9,12 +9,12 @@ from typing import Any, cast
 import maite.protocols.object_detection as od
 import numpy as np
 import PIL.Image
-import pydantic
 import pyspark.sql.functions as sf
 import torch
 from gradient import SubText, Text
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata
 from pptx.dml.color import RGBColor
+from pydantic import model_validator
 from reallabel import (
     MAITERealLabel,
     RealLabelColumns,
@@ -80,7 +80,16 @@ class RealLabelOutputs(OutputsBase):
 class RealLabelConfig(_NativeRealLabelConfig, ConfigBase):
     """Config class for RealLabelTestStage."""
 
-    pass
+    @model_validator(mode="after")
+    def _ensure_aggregated_confidence(self) -> "RealLabelConfig":
+        # Need AC for visualization. Add it to the config if it's not provided.
+        # This is a RealLabel oversight that we need to fix.
+        ac = RealLabelColumns.AGGREGATED_CONFIDENCE.value
+
+        if ac not in self.additional_columns_clean_results:
+            self.additional_columns_clean_results.append(ac)
+
+        return self
 
 
 class RealLabelRun(RunBase):
@@ -300,7 +309,7 @@ class _RealLabelDatasetWrapper(od.Dataset):
 
 
 class RealLabelTestStage(
-    TestStage[RealLabelOutputs, od.Dataset, od.Model, od.Metric],
+    TestStage[RealLabelOutputs, od.Dataset, od.Model, od.Metric, RealLabelConfig],
 ):
     """RealLabel test stage.
 
@@ -312,50 +321,13 @@ class RealLabelTestStage(
     This test stage also uses MAITE-wrapped models and datasets, and MAITE itself,
     to produce the model inference results needed if they are not present in the
     cache before running RealLabel itself.
-
-    Parameters
-    ----------
-    config : _NativeRealLabelConfig | dict[str, Any]
-        The RealLabel Config object that should be used when running
-        Reallabel, or a dict representing a RealLabel config in a
-        JSON readable format.
-
-    Attributes
-    ----------
-    _config : RealLabelConfig
-        The RealLabel Config object that should be used when running Reallabel.
     """
 
     _RUN_TYPE = RealLabelRun
 
-    _task: str = "od"
-
-    def __init__(
-        self,
-        config: _NativeRealLabelConfig | dict[str, Any],
-    ) -> None:
-        """Initialize the RealLabel test stage.
-
-        Parameters
-        ----------
-        config : _NativeRealLabelConfig | dict[str, Any]
-            The RealLabel Config object that should be used when running
-            Reallabel, or a dict representing a RealLabel config in a
-            JSON readable format.
-        """
-        super().__init__()
-
-        if isinstance(config, pydantic.BaseModel):
-            config = config.model_dump()
-        self._config = RealLabelConfig.model_validate(config)
-
-        # Need AC for visualization. Add it to the config if it's not provided. This is a RealLabel oversight
-        # that we need to fix.
-        if RealLabelColumns.AGGREGATED_CONFIDENCE.value not in self._config.additional_columns_clean_results:
-            self._config.additional_columns_clean_results.append(RealLabelColumns.AGGREGATED_CONFIDENCE.value)
-
-    def _create_config(self) -> RealLabelConfig:
-        return self._config
+    @classmethod
+    def _create_config(cls) -> RealLabelConfig:
+        return RealLabelConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -395,6 +367,7 @@ class RealLabelTestStage(
         models: list[od.Model],
         datasets: list[od.Dataset],
         metrics: list[od.Metric],  # noqa: ARG002
+        config: RealLabelConfig,
     ) -> RealLabelOutputs:
         """Run RealLabel test stage.
 
@@ -421,7 +394,7 @@ class RealLabelTestStage(
         # Create MAITERealLabel wrapper
         reallabel = MAITERealLabel(
             maite_inference_results=maite_inference_result,
-            config=self._config,
+            config=config,
             link_unique_identifier_columns_and_metadata=True,
             ground_truth_dataset=dataset,
         )
@@ -443,7 +416,7 @@ class RealLabelTestStage(
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
         example_image_unique_id = (
-            default_reallabel_results.groupBy(self._config.column_names.unique_identifier_columns)
+            default_reallabel_results.groupBy(config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
             .drop("count")
@@ -494,7 +467,7 @@ class RealLabelTestStage(
                 image_location=image_location,
                 reallabel_results_df=results_for_most_populous_image_df,
                 output_location=output_location,
-                reallabel_config=self._config,
+                reallabel_config=config,
                 image_name_map=most_populous_image_name_to_uuid_value_map,
             )
 

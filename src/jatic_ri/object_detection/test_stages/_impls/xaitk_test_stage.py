@@ -13,7 +13,8 @@ import numpy as np
 from maite.protocols import DatasetMetadata
 from matplotlib.patches import Rectangle
 from PIL import Image
-from pydantic import model_validator
+from pydantic import Field, model_validator
+from smqtk_core.configuration import from_config_dict
 from torch import Tensor, as_tensor
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
@@ -51,12 +52,31 @@ class XAITKOutputsOD(OutputsBase):
     results: list[XAITKOutputDatumOD]
 
 
+def _default_saliency_factory() -> GenerateObjectDetectorBlackboxSaliency:
+    return from_config_dict(
+        {
+            "type": "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.DRISEStack",
+            "xaitk_saliency.impls.gen_object_detector_blackbox_sal.drise.DRISEStack": {
+                "n": 20,
+                "s": 7,
+                "p1": 0.7,
+                "seed": 42,
+                "threads": 8,
+                "fill": [95, 96, 93],
+            },
+        },
+        GenerateObjectDetectorBlackboxSaliency.get_impls(),
+    )
+
+
 class XAITKConfigOD(ConfigBase):
     """Config class for XAITKTestStage for OD"""
 
-    name: str
-    saliency_generator: DeSerializablePlugfigurable[GenerateObjectDetectorBlackboxSaliency]
-    img_batch_size: int
+    name: str = "saliency_xaitk_app"
+    saliency_generator: DeSerializablePlugfigurable[GenerateObjectDetectorBlackboxSaliency] = Field(
+        default_factory=_default_saliency_factory
+    )
+    img_batch_size: int = 1
 
 
 class XAITKRunOD(RunBase):
@@ -148,7 +168,7 @@ class XAITKRunOD(RunBase):
         return gradient_slides
 
 
-class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od.Metric]):
+class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od.Metric, XAITKConfigOD]):
     """
     XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
 
@@ -156,21 +176,18 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od
         config (XAITKConfigOD):The config used to run XAITK saliency test stage for OD.
     """
 
-    _task: str = "od"
     _RUN_TYPE = XAITKRunOD
 
-    def __init__(self, config: dict[str, Any]) -> None:
-        super().__init__()
-        self.config: XAITKConfigOD = XAITKConfigOD.model_validate(config)
-
-    def _create_config(self) -> XAITKConfigOD:
-        return self.config
+    @classmethod
+    def _create_config(cls) -> XAITKConfigOD:
+        return XAITKConfigOD()
 
     def _run(
         self,
         models: list[od.Model],
         datasets: list[od.Dataset],
         metrics: list[od.Metric],  # noqa: ARG002
+        config: XAITKConfigOD,
     ) -> XAITKOutputsOD:
         """Run the test stage, and store any outputs of the saliency generation in test stage"""
 
@@ -182,10 +199,10 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsOD, od.Dataset, od.Model, od
             raise (KeyError("'index2label' not found in model metadata but is required by XAITKTestStage"))
         all_dataset_sal_maps, _ = sal_on_dets(
             dataset=prediction_dataset,
-            sal_generator=self.config.saliency_generator,
+            sal_generator=config.saliency_generator,
             detector=model,
             ids=sorted(model.metadata["index2label"].keys()),
-            img_batch_size=self.config.img_batch_size,
+            img_batch_size=config.img_batch_size,
         )
 
         return XAITKOutputsOD.model_validate(

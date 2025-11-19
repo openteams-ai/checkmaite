@@ -6,7 +6,6 @@ from smqtk_core.configuration import from_config_dict
 from xaitk_saliency import GenerateObjectDetectorBlackboxSaliency
 
 from jatic_ri.object_detection._panel.configurations.xaitk_app import XAITKAppOD
-from jatic_ri.object_detection.test_stages import XAITKConfigOD, XAITKTestStage
 
 
 def test_run_export() -> None:
@@ -48,8 +47,6 @@ def test_run_export() -> None:
 
     # Check output to XAITKTestStage
     json.dumps(xaitk_app.output_test_stages)
-    xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
-    assert isinstance(xaitk_test_stage.config, XAITKConfigOD)
 
 
 def test_saliency_generation() -> None:

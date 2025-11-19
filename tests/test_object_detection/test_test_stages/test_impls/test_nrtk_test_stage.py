@@ -6,7 +6,7 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 
 # Local imports
-from jatic_ri.object_detection.test_stages import NRTKTestStage
+from jatic_ri.object_detection.test_stages import NRTKTestStage, NRTKTestStageConfig
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -23,14 +23,25 @@ ARGS = {
 }
 
 
+@pytest.fixture
+def test_config():
+    return NRTKTestStageConfig(name=ARGS["name"], perturber_factory=ARGS["perturber_factory"])
+
+
 @pytest.mark.parametrize("use_stage_cache", [True, False])
-def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od, artifact_dir) -> None:
+def test_nrtk_test_stage(
+    use_stage_cache, dummy_model_od, dummy_dataset_od, dummy_metric_od, artifact_dir, test_config
+) -> None:
     """Test NRTKTestStage implementation"""
 
-    test = NRTKTestStage(ARGS)
+    test = NRTKTestStage()
     # load the maite compliant model
     run = test.run(
-        use_stage_cache=use_stage_cache, models=[dummy_model_od], metrics=[dummy_metric_od], datasets=[dummy_dataset_od]
+        use_stage_cache=use_stage_cache,
+        models=[dummy_model_od],
+        metrics=[dummy_metric_od],
+        datasets=[dummy_dataset_od],
+        config=test_config,
     )
     output = run.collect_report_consumables(threshold=0.5)
 
@@ -41,7 +52,7 @@ def test_nrtk_test_stage(use_stage_cache, dummy_model_od, dummy_dataset_od, dumm
     assert example_args["layout_name"] == "NRTKEvaluation"
     assert example_args["layout_arguments"]["title"] == test.id
     assert isinstance(example_args["layout_arguments"]["data"], pd.DataFrame)
-    assert example_args["layout_arguments"]["x_data_col"] == test.config.perturber_factory.theta_key
+    assert example_args["layout_arguments"]["x_data_col"] == test_config.perturber_factory.theta_key
     assert example_args["layout_arguments"]["perturbation_type"] == "Average Blur Perturber"
 
     filename = create_deck(output, artifact_dir, "nrtk")

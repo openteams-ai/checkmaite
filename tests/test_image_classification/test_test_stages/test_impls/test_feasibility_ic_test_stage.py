@@ -29,11 +29,11 @@ class TestFeasibilityTestStage:
 
         test_stage = DatasetImageClassificationFeasibilityTestStage()
 
-        results = test_stage._run(datasets=[fake_ic_dataset_default], models=[], metrics=[])
+        results = test_stage.run(datasets=[fake_ic_dataset_default], models=[], metrics=[])
 
-        assert isinstance(results, DatasetImageClassificationFeasibilityOutputs)
-        assert results.ber == 0.7
-        assert results.ber_lower == 0.49013621203813906
+        assert isinstance(results.outputs, DatasetImageClassificationFeasibilityOutputs)
+        assert results.outputs.ber == 0.7
+        assert results.outputs.ber_lower == 0.49013621203813906
 
     def test_collect_report_consumable(self, ber_outputs, tmp_path):
         """"""

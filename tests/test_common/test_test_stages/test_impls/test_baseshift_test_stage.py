@@ -32,6 +32,11 @@ def dummy_shift_test_stage():
     return DummyShiftTestStage
 
 
+@pytest.fixture
+def test_config():
+    return DataevalShiftConfig(dim=32)
+
+
 class TestDatasetShift:
     """
     Tests shared `TestStage` functionality between the Drift and OOD methods
@@ -78,7 +83,6 @@ class TestDatasetShift:
 
         # Set cache required attributes for original test stage
         test_stage = DatasetShiftTestStageBase()
-        test_stage._task = "dummy_task"
 
         # # Modify running results for simpler value checking
         test_stage._run = MagicMock()
@@ -121,8 +125,6 @@ class TestDatasetShift:
 
         # Create new test stage that will only use cached results
         test_stage_cached = DatasetShiftTestStageBase()
-        # Set all cache information to be the same as original test stage
-        test_stage_cached._task = "dummy_task"
         # Mock out to ensure the cache overrides the use of _run
         test_stage_cached._run = MagicMock()
         cached_run = test_stage_cached.run(datasets=[dummy_dataset_ic, dummy_dataset_od])
@@ -146,11 +148,10 @@ class TestDrift:
         Tests consumable has correct output format
     """
 
-    def test_run_drift(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
+    def test_run_drift(self, dummy_shift_test_stage, dummy_dataset_od, test_config) -> None:
         """Tests that the `_run_drift` function produces necessary results for all 3 methods"""
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.dim = 32
-        results = test_stage._run_drift(dataset_1=dummy_dataset_od, dataset_2=dummy_dataset_od)
+        results = test_stage._run_drift(dataset_1=dummy_dataset_od, dataset_2=dummy_dataset_od, config=test_config)
 
         results = results.model_dump()
 
@@ -238,15 +239,14 @@ class TestOOD:
         Tests consumable has correct output format
     """
 
-    def test_run_ood(self, dummy_shift_test_stage, dummy_dataset_od) -> None:
+    def test_run_ood(self, dummy_shift_test_stage, dummy_dataset_od, test_config) -> None:
         """Tests that the `_run_ood` function produces necessary results for both methods"""
 
         dataset_2 = copy.deepcopy(dummy_dataset_od)
         dataset_2.images = torch.zeros_like(dummy_dataset_od.images)
 
         test_stage: DatasetShiftTestStageBase = dummy_shift_test_stage()
-        test_stage.dim = 32
-        results = test_stage._run_ood(dataset_1=dummy_dataset_od, dataset_2=dataset_2)
+        results = test_stage._run_ood(dataset_1=dummy_dataset_od, dataset_2=dataset_2, config=test_config)
 
         results = results.model_dump()
         assert list(results) == ["ood_ae"]

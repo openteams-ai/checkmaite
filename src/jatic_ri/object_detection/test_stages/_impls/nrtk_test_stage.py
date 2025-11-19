@@ -13,5 +13,3 @@ class NRTKTestStage(NRTKTestStageBase[od.Dataset, od.Model, od.Metric]):
     Iterates over NRTK perturbations that mimic real-world conditions, applies them to the dataset, runs the metric
     on each perturbed variant, and generates a report summarizing changes in model performance.
     """
-
-    _task: str = "object_detection"

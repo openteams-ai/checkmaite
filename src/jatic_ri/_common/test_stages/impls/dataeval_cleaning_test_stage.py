@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -55,10 +55,7 @@ from jatic_ri.util.slide_deck import (
 
 
 class DataevalCleaningConfig(ConfigBase):
-    """Configuration options for the DataevalCleaningTestStage.
-
-    Can be specified here.
-    """
+    """Configuration options for the DataevalCleaningTestStage."""
 
 
 class DataevalCleaningDuplicatesOutputs(OutputsBase):
@@ -195,7 +192,9 @@ class DataevalCleaningRun(RunBase):
         ]
 
 
-class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, TModel, TMetric]):
+class DatasetCleaningTestStageBase(
+    TestStage[DataevalCleaningOutputs, TDataset, TModel, TMetric, DataevalCleaningConfig]
+):
     """
     Performs dataset cleaning by identifying duplicates (exact and near)
     as well as statistical outliers using various pixel and image
@@ -204,7 +203,8 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
 
     _RUN_TYPE = DataevalCleaningRun
 
-    def _create_config(self) -> ConfigBase:
+    @classmethod
+    def _create_config(cls) -> DataevalCleaningConfig:
         return DataevalCleaningConfig()
 
     @property
@@ -245,6 +245,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
         models: list[TModel],  # noqa: ARG002
         datasets: list[TDataset],
         metrics: list[TMetric],  # noqa: ARG002
+        config: DataevalCleaningConfig,  # noqa: ARG002
     ) -> DataevalCleaningOutputs:
         """Execute the full statistics and outlier detection pipeline for the dataset.
 
@@ -261,13 +262,22 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
 
         dataset = datasets[0]
 
-        hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats(dataset=dataset)
+        # TODO: make task a kwarg?
+        task: Literal["ic", "od"]
+        if "image_classification" in self.id.lower():
+            task = "ic"
+        elif "object_detection" in self.id.lower():
+            task = "od"
+        else:
+            raise ValueError(f"Test Stage task unknown, test stage: {self.id}.")
+
+        hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats(dataset=dataset, task=task)
 
         duplicates = Duplicates().from_stats(hashes)
 
         img_outliers = self._compute_basic_outliers(dim_stats=img_dim_stats, viz_stats=img_viz_stats)
 
-        if self._task == "od":
+        if task == "od":
             incremented_dataset = dataset
 
             box_dim_stats = dimensionstats(
@@ -285,14 +295,11 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
                 box_dim_stats=box_dim_stats, box_viz_stats=box_viz_stats, ratiostats=dimensional_ratio_stats
             )
 
-        elif self._task == "ic":
+        elif task == "ic":
             target_outliers = None
             box_dim_stats = None
             box_viz_stats = None
             dimensional_ratio_stats = None
-
-        else:
-            raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {self._task}.")
 
         return DataevalCleaningOutputs.model_validate(
             {
@@ -309,7 +316,7 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
         )
 
     def _run_basic_stats(
-        self, dataset: TDataset
+        self, dataset: TDataset, task: Literal["ic", "od"]
     ) -> tuple[
         HashStatsOutput,
         DimensionStatsOutput,
@@ -333,10 +340,10 @@ class DatasetCleaningTestStageBase(TestStage[DataevalCleaningOutputs, TDataset, 
         img_dim_stats = dimensionstats(dataset)
         img_viz_stats = visualstats(dataset)
 
-        if self._task == "od" or self._task == "ic":
+        if task == "od" or task == "ic":
             label_stats = labelstats(dataset)
         else:
-            raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {self._task}.")
+            raise ValueError(f"Test Stage task must be one of 'ic' or 'od', current value of task: {task}.")
 
         return hashes, img_dim_stats, img_viz_stats, label_stats
 

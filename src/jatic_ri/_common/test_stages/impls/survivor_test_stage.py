@@ -9,6 +9,7 @@ import pyspark.sql
 from gradient import SubText, Text
 from maite import protocols as pr
 from matplotlib.figure import Figure
+from pydantic import Field
 from pyspark.sql import SparkSession
 from survivor import HeatmapPlot
 from survivor.analysis import HistogramBarPlot
@@ -36,6 +37,8 @@ class SurvivorConfig(_NativeSurvivorConfig, ConfigBase):
         description="Metadata columns for which to create resulting heatmaps for each label",
         default=[],
     )
+
+    batch_size: int = Field(default=1, description="Batch size used for model inference.")
 
     @pydantic.field_validator("heatmap_plot_columns")
     @classmethod
@@ -143,32 +146,13 @@ class SurvivorRun(RunBase):
 
 
 class SurvivorTestStageBase(
-    TestStage[SurvivorOutputs, TDataset, TModel, TMetric],
+    TestStage[SurvivorOutputs, TDataset, TModel, TMetric, SurvivorConfig],
 ):
     _RUN_TYPE = SurvivorRun
 
-    _task: str
-
-    def __init__(
-        self,
-        config: _NativeSurvivorConfig | dict[str, Any],
-    ) -> None:
-        """Create instance of SurvivorTestStage.
-
-        Parameters
-        ----------
-        config : _NativeSurvivorConfig | dict[str, Any]
-            Configuration for the survivor run. Can be a SurvivorConfig object
-            or a dictionary.
-        """
-        super().__init__()
-
-        if isinstance(config, pydantic.BaseModel):
-            config = config.model_dump()
-        self._config = SurvivorConfig.model_validate(config)
-
-    def _create_config(self) -> SurvivorConfig:
-        return self._config
+    @classmethod
+    def _create_config(cls) -> SurvivorConfig:
+        return SurvivorConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -204,10 +188,7 @@ class SurvivorTestStageBase(
         return Number.ONE
 
     def _run(
-        self,
-        models: list[TModel],
-        datasets: list[TDataset],
-        metrics: list[TMetric],
+        self, models: list[TModel], datasets: list[TDataset], metrics: list[TMetric], config: SurvivorConfig
     ) -> SurvivorOutputs:
         """Run Survivor analysis.
 
@@ -224,11 +205,11 @@ class SurvivorTestStageBase(
         dataset = datasets[0]
         metric = metrics[0]
 
-        survivor_metrics = self._run_survivor_metrics(models=models, dataset=dataset, metric=metric)
+        survivor_metrics = self._run_survivor_metrics(models=models, dataset=dataset, metric=metric, config=config)
 
         survivor = MAITESurvivor(
             maite_dataset=dataset,
-            config=self._config,
+            config=config,
             metrics=survivor_metrics,
             spark_session=SparkSession.builder.getOrCreate(),  # pyright: ignore[reportAttributeAccessIssue]
         )
@@ -237,7 +218,7 @@ class SurvivorTestStageBase(
 
         label_count_plot = self._label_count_plot(output_data.raw_output_df)
         heatmap_plots = []
-        for metadata_column in self._config.heatmap_plot_columns:  # pyright: ignore[reportOptionalIterable]
+        for metadata_column in config.heatmap_plot_columns:  # pyright: ignore[reportOptionalIterable]
             heatmap_plot = self._heatmap_plot(output_data.metrics_with_survivor_label_df, metadata_column)
             heatmap_plots.append(heatmap_plot)
 
@@ -249,7 +230,7 @@ class SurvivorTestStageBase(
         )
 
     def _run_survivor_metrics(
-        self, models: list[TModel], dataset: TDataset, metric: TMetric
+        self, models: list[TModel], dataset: TDataset, metric: TMetric, config: SurvivorConfig
     ) -> dict[str, pr.ArrayLike]:
         """Create metrics by model for use in MAITESurvivor.
 
@@ -271,7 +252,7 @@ class SurvivorTestStageBase(
             predictions, targets = predict(
                 model=model,
                 dataset=dataset,
-                batch_size=self._batch_size,
+                batch_size=config.batch_size,
                 return_augmented_data=True,
             )
             # With the predictions for each target now in memory, we run only `compute_metric()` against each item.

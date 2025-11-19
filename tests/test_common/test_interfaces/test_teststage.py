@@ -34,10 +34,11 @@ class ParamTestStage(TestStage):
         self._supports_datasets = supports_datasets
         self._supports_metrics = supports_metrics
 
-    def _create_config(self):
+    @classmethod
+    def _create_config(cls):
         return MockConfig()
 
-    def _run(self, models, datasets, metrics):
+    def _run(self, models, datasets, metrics, config):
         # The base class is expected to validate counts against supports_*.
         # We just return a success here if validation passes.
         return MockOutputs(result=True)

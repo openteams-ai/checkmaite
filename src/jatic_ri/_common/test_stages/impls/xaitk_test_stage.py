@@ -2,10 +2,18 @@
 
 from smqtk_core.configuration import from_config_dict as from_config_dict
 
-from jatic_ri._common.test_stages.interfaces.test_stage import Number, TDataset, TestStage, TMetric, TModel, TOutputs
+from jatic_ri._common.test_stages.interfaces.test_stage import (
+    Number,
+    TConfig,
+    TDataset,
+    TestStage,
+    TMetric,
+    TModel,
+    TOutputs,
+)
 
 
-class XAITKTestStageBase(TestStage[TOutputs, TDataset, TModel, TMetric]):
+class XAITKTestStageBase(TestStage[TOutputs, TDataset, TModel, TMetric, TConfig]):
     """XAITK Test Stage that takes in the necessary arguements to demo saliency map generation."""
 
     @property

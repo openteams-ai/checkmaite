@@ -14,16 +14,13 @@ import PIL  # noqa: E402
 import torch  # noqa: E402
 from gradient import SubText, Text  # noqa: E402
 from gradient.templates_and_layouts.create_deck import create_deck  # noqa: E402
+from maite.protocols import MetricMetadata  # noqa: E402
 from maite.protocols import object_detection as od  # noqa: E402
-from survivor.config import SurvivorConfig  # noqa: E402
 from survivor.enums import ScoreConversionType  # noqa: E402
 
 from jatic_ri._common.test_stages.impls.survivor_test_stage import SurvivorOutputs  # noqa: E402
-from jatic_ri.object_detection.test_stages import SurvivorTestStage  # noqa: E402
+from jatic_ri.object_detection.test_stages import SurvivorConfig, SurvivorTestStage  # noqa: E402
 from tests.fake_od_classes import FakeODDataset, FakeODModel  # noqa: E402
-
-_DICT_CONFIG = "dict_config"
-_SURVIVOR_CONFIG = "config"
 
 
 def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric:
@@ -49,7 +46,7 @@ def survivor_metric_factory(dataset_length: int, total_models: int) -> od.Metric
     """
 
     class FakeSurvivorMetric:
-        metadata = {"id": "fake-id"}
+        metadata = MetricMetadata(id="fake-id")
 
         def __init__(self) -> None:
             # helper flags to prevent .compute, .reset or .update being
@@ -146,43 +143,19 @@ def survivor_test_stage_args(
         conversion_args={"decimals_to_round": 2},
     )
 
-    dict_config = {
-        "metric_column": "fake_survivor_metric",
-        "otb_threshold": 0.9,
-        "easy_hard_threshold": 0.5,
-        "conversion_type": ScoreConversionType.ROUNDED,
-        "conversion_args": {"decimals_to_round": 2},
-    }
-
     return {
-        _SURVIVOR_CONFIG: config,
+        "config": config,
         "dataset": survivor_test_stage_dataset,
         "metric": fake_survivor_metric,
         "models": survivor_test_stage_models,
-        _DICT_CONFIG: dict_config,
     }
 
 
-@pytest.fixture(name="test_stage")
-def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest) -> SurvivorTestStage:
-    """Create a SurvivorTestStage object and load in all required args.
-
-    Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
-    string input to `request.param` (set through indirect parametrization of `test_stage`).
-    """
-    # Create and configure SurvivorTestStage
-    return SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
-
-
-@pytest.mark.parametrize(
-    "test_stage",
-    [_SURVIVOR_CONFIG, _DICT_CONFIG],
-    ids=["Using SurvivorConfig", "Using dict config"],
-    indirect=True,
-)
-def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, survivor_test_stage_args: dict) -> None:
+def test_survivor_test_stage_run_caches(mocker, survivor_test_stage_args: dict) -> None:
     """Test RealLabelTestStage generates a cache object that can be read correctly."""
 
+    test_stage = SurvivorTestStage()
+    config = survivor_test_stage_args["config"]
     # CRUCIAL: we need to have unique model ids, which with the current design means unique model objects
     models = [deepcopy(m) for m in survivor_test_stage_args["models"].values()]
     for idx, m in enumerate(models):
@@ -195,10 +168,9 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, s
     for m in metrics:
         m.metadata = {"id": "fake_survivor_metric"}
 
-    run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
-
+    run = test_stage.run(config=config, models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
     mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
+    cached_run = test_stage.run(config=config, models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
     assert cached_run is not run
 
     def assert_item_equal(obj1: Any, obj2: Any, field_name: str) -> None:
@@ -221,13 +193,15 @@ def test_survivor_test_stage_run_caches(mocker, test_stage: SurvivorTestStage, s
 
 
 def test_survivor_collect_report_consumables(
-    test_stage: SurvivorTestStage,
     survivor_test_stage_args: dict,
     artifact_dir,
 ) -> None:
     """Test collect_report_consumables."""
+
+    test_stage = SurvivorTestStage()
+
     # Arrange
-    expected_deck = "object_detection_survivor"
+    expected_deck = "jatic_ri.object_detection.test_stages._impls.survivor_test_stage.SurvivorTestStage"
     expected_layout_name = "TwoItem"
     expected_content_left = Text(
         content=[
@@ -244,6 +218,7 @@ def test_survivor_collect_report_consumables(
     )
     expected_title = "Survivor Dataset Breakdown"
 
+    config = survivor_test_stage_args["config"]
     # CRUCIAL: we need to have unique model ids, which with the current design means unique model objects
     models = [deepcopy(m) for m in survivor_test_stage_args["models"].values()]
     for idx, m in enumerate(models):
@@ -256,11 +231,10 @@ def test_survivor_collect_report_consumables(
         m.metadata = {"id": "fake_survivor_metric"}
 
     # Run test stage once to ensure cache is present
-    run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
+    run = test_stage.run(config=config, models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
 
     # Run again to use cache
-    _ = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
-
+    _ = test_stage.run(config=config, models=models, datasets=datasets, metrics=metrics, use_stage_cache=True)
     # Act
     slide_content = run.collect_report_consumables(threshold=0.5)
     output_consumables = slide_content[0]

@@ -15,7 +15,3 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[od.Dataset, od.Model, od.Met
     Balance, diversity, and parity calculate different aspects of correlation
     between metadata factors and class labels, while coverage is calculated using only the images
     """
-
-    _task: str = "od"
-    # Coco dataset loader includes these by default as metadata, excluded here as not useful to analysis
-    _metadata_to_exclude: list[str] = ["id", "file_name"]

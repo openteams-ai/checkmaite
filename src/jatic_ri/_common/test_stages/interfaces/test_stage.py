@@ -83,7 +83,6 @@ class RunBase(BaseModel, Generic[TConfig, TOutputs]):
     outputs
         The specific results produced by the run, with type defined
         by the generic parameter `TOutputs`.
-
     """
 
     model_config = ConfigDict(frozen=True)
@@ -225,24 +224,19 @@ def _check_cardinality(owner_id: str, label: str, required: Number, n: int) -> N
         raise TypeError(f"{owner_id} requires exactly {expected} {label}{s_expected}, but got {n} {label}{s_got}.")
 
 
-class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
+class TestStage(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
     """Base class for running a test and receiving report values.
 
     Attributes
     ----------
     _RUN_TYPE : type[RunBase]
         The type of the run object associated with this test stage.
-    _task : str
-        Identifier for the task type.
-    _batch_size : int
-        Batch size for processing data. Default is 1.
-        (Note: Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages")
     """
 
     _RUN_TYPE: ClassVar[type[RunBase]]
 
-    _task: str
-    _batch_size: int = 1  # Not fully implemented yet - Ref Issue 270 "Expose batch size in test stages"
+    @classmethod
+    def _create_config(cls) -> TConfig: ...
 
     @property
     @abstractmethod
@@ -277,9 +271,6 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
             An enumeration value indicating metric support.
         """
 
-    @abstractmethod
-    def _create_config(self) -> ConfigBase: ...
-
     @cached_property
     def id(self) -> str:
         return f"{type(self).__module__}.{type(self).__name__}"
@@ -289,6 +280,7 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
         models: list[TModel] | None = None,
         datasets: list[TDataset] | None = None,
         metrics: list[TMetric] | None = None,
+        config: TConfig | None = None,
         use_stage_cache: bool = True,
     ) -> RunBase:
         """Run the test stage.
@@ -304,6 +296,8 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
             MAITE-compliant datasets.
         metrics
             MAITE-compliant metrics.
+        config
+            The configuration object used for this run.
 
         use_stage_cache
             Whether to use cached results if available, by default True.
@@ -313,12 +307,13 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
         RunBase
             The results of the test stage execution.
         """
-        config = self._create_config()
-
         # replace None sentinel with iterable to reduce boilerplate checks in test stage implementations
         datasets = datasets if datasets else []
         models = models if models else []
         metrics = metrics if metrics else []
+        config = config if config else self._create_config()
+
+        # TODO: insert pydantic config validation check here
 
         # validation to make sure correct number of models/datasets/metrics passed to test stage
         _check_cardinality(owner_id=self.id, label="dataset", required=self.supports_datasets, n=len(datasets))
@@ -348,11 +343,7 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
             dataset_metadata=dataset_metadata,
             model_metadata=model_metadata,
             metric_metadata=metric_metadata,
-            outputs=self._run(
-                models=models,
-                datasets=datasets,
-                metrics=metrics,
-            ),
+            outputs=self._run(models=models, datasets=datasets, metrics=metrics, config=config),
         )
 
         if use_stage_cache:
@@ -362,10 +353,7 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
 
     @abstractmethod
     def _run(
-        self,
-        models: list[TModel],
-        datasets: list[TDataset],
-        metrics: list[TMetric],
+        self, models: list[TModel], datasets: list[TDataset], metrics: list[TMetric], config: TConfig
     ) -> TOutputs: ...
 
     """Execute the core logic of the test stage.
@@ -378,6 +366,8 @@ class TestStage(Generic[TOutputs, TDataset, TModel, TMetric], ABC):
         MAITE-compliant datasets.
     metrics
         MAITE-compliant metrics.
+    config
+        The configuration object used for this run.
 
     Returns
     -------

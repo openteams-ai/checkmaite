@@ -4,7 +4,7 @@ import pytest
 from gradient.templates_and_layouts.create_deck import create_deck
 from torch import as_tensor, equal
 
-from jatic_ri.object_detection.test_stages import XAITKTestStage
+from jatic_ri.object_detection.test_stages import XAITKConfigOD, XAITKTestStage
 
 ARGS = {
     "name": "XAITKTestStage Example",
@@ -22,14 +22,26 @@ ARGS = {
 }
 
 
+@pytest.fixture
+def test_config():
+    return XAITKConfigOD(name=ARGS["name"], saliency_generator=ARGS["saliency_generator"])
+
+
 @pytest.mark.parametrize("use_stage_cache", [True, False])
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
-def test_xaitk_test_stage(use_stage_cache, fake_od_model_default, fake_od_dataset_default, artifact_dir) -> None:
+def test_xaitk_test_stage(
+    use_stage_cache, fake_od_model_default, fake_od_dataset_default, artifact_dir, test_config
+) -> None:
     """Test XAITKTestStage implementation with caching"""
 
-    test = XAITKTestStage(ARGS)
+    test = XAITKTestStage()
     # load the maite compliant model
-    run = test.run(use_stage_cache=use_stage_cache, models=[fake_od_model_default], datasets=[fake_od_dataset_default])
+    run = test.run(
+        use_stage_cache=use_stage_cache,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        config=test_config,
+    )
     output = run.collect_report_consumables(threshold=0.5)
 
     assert len(output) == len(fake_od_dataset_default) * len(fake_od_dataset_default[0][1].scores)
@@ -59,7 +71,7 @@ def test_xaitk_test_stage(use_stage_cache, fake_od_model_default, fake_od_datase
 def test_xaitk_temp_dataset(fake_od_dataset_default, fake_od_model_default) -> None:
     """Test XAITKDetectionBaselineDataset item retrieval"""
     # Initialize a test stage and extract the temporary dataset.  Limit 2 detections.
-    temp_dataset = XAITKTestStage(ARGS).XAITKDetectionBaselineDataset(
+    temp_dataset = XAITKTestStage().XAITKDetectionBaselineDataset(
         fake_od_dataset_default, fake_od_model_default, dets_limit=2
     )
     # Validate the length of the dataset

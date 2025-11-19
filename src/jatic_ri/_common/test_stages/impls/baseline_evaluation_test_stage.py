@@ -106,12 +106,13 @@ class BaselineEvaluationRun(RunBase):
         ]
 
 
-class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TModel, TMetric]):
+class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TModel, TMetric, BaselineEvaluationConfig]):
     """Baseline evaluation implementation of TestStage interface."""
 
     _RUN_TYPE = BaselineEvaluationRun
 
-    def _create_config(self) -> ConfigBase:
+    @classmethod
+    def _create_config(cls) -> BaselineEvaluationConfig:
         return BaselineEvaluationConfig()
 
     @property
@@ -152,6 +153,7 @@ class BaselineEvaluationBase(TestStage[BaselineEvaluationOutputs, TDataset, TMod
         models: list[TModel],
         datasets: list[TDataset],
         metrics: list[TMetric],
+        config: BaselineEvaluationConfig,  # noqa: ARG002
     ) -> BaselineEvaluationOutputs:
         """Run the test stage and store evaluation outputs.
 

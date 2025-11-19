@@ -158,9 +158,11 @@ class TestODDatasetBiasRun:
             "id",
         ]
 
-        stage = DatasetBiasTestStage(metadata_to_exclude=metadata_to_exclude)
+        config = DataevalBiasConfig(metadata_to_exclude=metadata_to_exclude)
 
-        stage.run(use_stage_cache=False, datasets=[coco_dataset])
+        stage = DatasetBiasTestStage()
+
+        stage.run(use_stage_cache=False, datasets=[coco_dataset], config=config)
         pass  # no explosions
 
 

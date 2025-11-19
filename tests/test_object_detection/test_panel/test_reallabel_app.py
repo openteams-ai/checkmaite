@@ -52,8 +52,8 @@ def test_run_export(
     # Act
     app._run_export()
     output = app.output_test_stages["reallabel_test_stage"]
-    reallabel_config = RealLabelConfig(**output)
-    RealLabelTestStage(config=reallabel_config)
+    reallabel_config = RealLabelConfig(**output)  # noqa: F841
+    RealLabelTestStage()
 
     # Assert
     assert output == exp_output
