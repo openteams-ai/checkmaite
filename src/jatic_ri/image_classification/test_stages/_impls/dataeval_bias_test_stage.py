@@ -15,5 +15,3 @@ class DatasetBiasTestStage(DatasetBiasTestStageBase[ic.Dataset, ic.Model, ic.Met
     Balance, diversity, and parity calculate different aspects of correlation
     between metadata factors and class labels, while coverage is calculated using only the images
     """
-
-    _task: str = "ic"

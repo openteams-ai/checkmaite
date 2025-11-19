@@ -11,6 +11,8 @@ import maite.protocols.image_classification as ic
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from pydantic import Field
+from smqtk_core.configuration import from_config_dict
 
 # SMQTK imports
 from torchvision.transforms.v2.functional import rgb_to_grayscale
@@ -40,12 +42,31 @@ class XAITKOutputsIC(OutputsBase):
     gt_labels: list[str]
 
 
+def _default_saliency_factory() -> GenerateImageClassifierBlackboxSaliency:
+    return from_config_dict(
+        {
+            "type": "xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise.RISEStack",
+            "xaitk_saliency.impls.gen_image_classifier_blackbox_sal.rise.RISEStack": {
+                "n": 50,
+                "s": 7,
+                "p1": 0.7,
+                "seed": 42,
+                "threads": 8,
+                "debiased": True,
+            },
+        },
+        GenerateImageClassifierBlackboxSaliency.get_impls(),
+    )
+
+
 class XAITKConfigIC(ConfigBase):
     """Config class for XAITKTestStage"""
 
-    name: str
-    saliency_generator: DeSerializablePlugfigurable[GenerateImageClassifierBlackboxSaliency]
-    img_batch_size: int
+    name: str = "saliency_xaitk_app"
+    saliency_generator: DeSerializablePlugfigurable[GenerateImageClassifierBlackboxSaliency] = Field(
+        default_factory=_default_saliency_factory
+    )
+    img_batch_size: int = 1
 
 
 class XAITKRunIC(RunBase):
@@ -155,29 +176,17 @@ class XAITKRunIC(RunBase):
         return gradient_slides
 
 
-class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic.Metric]):
-    """
-    XAITKTestStage will generate saliency maps for every detections in all images from the dataset.
+class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic.Metric, XAITKConfigIC]):
+    """XAITKTestStage will generate saliency maps for every detections in all images from the dataset."""
 
-    Attributes:
-        config (XAITKConfigIC):The config used to run XAITK saliency test stage for IC.
-    """
-
-    _task: str = "ic"
     _RUN_TYPE = XAITKRunIC
 
-    def __init__(self, config: dict[str, Any]) -> None:
-        super().__init__()
-        self.config: XAITKConfigIC = XAITKConfigIC.model_validate(config)
-
-    def _create_config(self) -> XAITKConfigIC:
-        return self.config
+    @classmethod
+    def _create_config(cls) -> XAITKConfigIC:
+        return XAITKConfigIC()
 
     def _run(
-        self,
-        models: list[ic.Model],
-        datasets: list[ic.Dataset],
-        metrics: list[ic.Metric],
+        self, models: list[ic.Model], datasets: list[ic.Dataset], metrics: list[ic.Metric], config: XAITKConfigIC
     ) -> XAITKOutputsIC:
         """Run the test stage, and store any outputs of the saliency
         generation in test stage"""
@@ -192,7 +201,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic
         classifier = JATICImageClassifier(
             classifier=model,
             ids=sorted(model.metadata["index2label"].keys()),
-            img_batch_size=self.config.img_batch_size,
+            img_batch_size=config.img_batch_size,
         )
         img_sal_maps = []
         gray_imgs = []
@@ -201,7 +210,7 @@ class XAITKTestStage(XAITKTestStageBase[XAITKOutputsIC, ic.Dataset, ic.Model, ic
             transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
             if transposed_image.shape[2] == 1:
                 transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
-            img_sal_maps.append(self.config.saliency_generator(transposed_image, classifier))
+            img_sal_maps.append(config.saliency_generator(transposed_image, classifier))
 
             gray_imgs.append(rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy())
 

@@ -9,7 +9,6 @@ from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactor
 from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
 
 from jatic_ri.image_classification._panel.configurations.nrtk_app import NRTKAppIC
-from jatic_ri.image_classification.test_stages import NRTKTestStage
 
 
 @pytest.mark.parametrize(
@@ -96,10 +95,6 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     assert test_stage["TYPE"] == "NRTKTestStage"
     assert test_stage["CONFIG"]["name"] == "natural_robustness_TestFactory"
     assert test_stage["CONFIG"]["perturber_factory"] == factory_json
-
-    # test output to NRTKTestStage
-    nrtk_test_stage = NRTKTestStage(test_stage["CONFIG"])
-    assert nrtk_test_stage.config.name == test_stage["CONFIG"]["name"]
 
     # test test_perturber_button_callback
     nrtk_app.test_perturber_button_callback(None)

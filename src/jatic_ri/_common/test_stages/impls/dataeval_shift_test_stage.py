@@ -20,8 +20,8 @@ from dataeval.utils.torch.models import AE
 from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
+from pydantic import Field
 
-from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
@@ -39,7 +39,9 @@ from jatic_ri.util._types import Device
 class DataevalShiftConfig(ConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
-    device: Device = pydantic.Field(default_factory=lambda: set_device(None))
+    device: Device = torch.device("cpu")  # shift test stage currently only has cpu support
+    dim: int = 128
+    batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
 
 
 class DataevalShiftUnivariateOutput(OutputsBase):
@@ -111,7 +113,7 @@ class DataevalShiftRun(RunBase):
         return report_consumables
 
 
-class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel, TMetric]):
+class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel, TMetric, DataevalShiftConfig]):
     """Detects dataset shift between two datasets using various methods.
 
     Performs three drift detection and two out-of-distribution tests
@@ -121,24 +123,15 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
 
     Attributes
     ----------
-    device : Device
-        The device to run preprocessing models on. Defaults to "cpu".
-    _dim : int
-        The dimensionality of the embeddings. Defaults to 128.
     _RUN_TYPE : type[DataevalShiftRun]
         The type of the run object associated with this test stage.
     """
 
     _RUN_TYPE = DataevalShiftRun
 
-    device: Device = set_device("cpu")
-    _dim: int = 128
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def _create_config(self) -> ConfigBase:
-        return DataevalShiftConfig(device=self.device)
+    @classmethod
+    def _create_config(cls) -> DataevalShiftConfig:
+        return DataevalShiftConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -178,6 +171,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
         models: list[TModel],  # noqa: ARG002
         datasets: list[TDataset],
         metrics: list[TMetric],  # noqa: ARG002
+        config: DataevalShiftConfig,
     ) -> DataevalShiftOutputs:
         """Run methods for drift and OOD detectors.
 
@@ -189,15 +183,16 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
         """
         dataset_1 = datasets[0]
         dataset_2 = datasets[1]
-
         return DataevalShiftOutputs.model_validate(
             {
-                "drift": self._run_drift(dataset_1=dataset_1, dataset_2=dataset_2),
-                "ood": self._run_ood(dataset_1=dataset_1, dataset_2=dataset_2),
+                "drift": self._run_drift(dataset_1=dataset_1, dataset_2=dataset_2, config=config),
+                "ood": self._run_ood(dataset_1=dataset_1, dataset_2=dataset_2, config=config),
             }
         )
 
-    def _run_drift(self, dataset_1: TDataset, dataset_2: TDataset) -> DataevalShiftDriftOutputs:
+    def _run_drift(
+        self, dataset_1: TDataset, dataset_2: TDataset, config: DataevalShiftConfig
+    ) -> DataevalShiftDriftOutputs:
         """Run MMD, CVM, and KS drift detection methods.
 
         Compares embeddings of`dataset_2` against`dataset_1`.
@@ -208,9 +203,9 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
             An object containing the outputs from MMD, CVM, and KS drift
             detectors.
         """
-        model, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(dataset_1, self._batch_size, transform, model, device=self.device)
-        emb_2 = Embeddings(dataset_2, self._batch_size, transform, model, device=self.device)
+        model, transform = get_resnet18(config.dim)
+        emb_1 = Embeddings(dataset_1, config.batch_size, transform, model, device=config.device)
+        emb_2 = Embeddings(dataset_2, config.batch_size, transform, model, device=config.device)
 
         if len(dataset_1) < 2 or len(dataset_2) < 2:
             raise ValueError(
@@ -220,7 +215,7 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
             )
 
         detectors = {
-            "mmd": partial(DriftMMD, device=self.device),
+            "mmd": partial(DriftMMD, device=config.device),
             "cvm": DriftCVM,
             "ks": DriftKS,
         }
@@ -229,7 +224,9 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
             {name: detector(data=emb_1).predict(emb_2).data() for name, detector in detectors.items()}
         )
 
-    def _run_ood(self, dataset_1: TDataset, dataset_2: TDataset) -> DataevalShiftOODOutputs:
+    def _run_ood(
+        self, dataset_1: TDataset, dataset_2: TDataset, config: DataevalShiftConfig
+    ) -> DataevalShiftOODOutputs:
         """Run Autoencoder (AE) based Out-of-Distribution (OOD) detection.
 
          Trains an AE on`dataset_1` and then detects OOD samples in
@@ -240,9 +237,13 @@ class DatasetShiftTestStageBase(TestStage[DataevalShiftOutputs, TDataset, TModel
          DataevalShiftOODOutputs
              An object containing the outputs from the OOD AE detector.
         """
-        _, transform = get_resnet18(self._dim)
-        emb_1 = Embeddings(dataset_1, self._batch_size, transform, torch.nn.Identity(), device=self.device).to_numpy()
-        emb_2 = Embeddings(dataset_2, self._batch_size, transform, torch.nn.Identity(), device=self.device).to_numpy()
+        _, transform = get_resnet18(config.dim)
+        emb_1 = Embeddings(
+            dataset_1, config.batch_size, transform, torch.nn.Identity(), device=config.device
+        ).to_numpy()
+        emb_2 = Embeddings(
+            dataset_2, config.batch_size, transform, torch.nn.Identity(), device=config.device
+        ).to_numpy()
 
         detectors = {"ood_ae": OOD_AE(AE(emb_1[0].shape))}
 

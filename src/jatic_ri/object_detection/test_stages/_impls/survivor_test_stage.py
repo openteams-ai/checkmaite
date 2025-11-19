@@ -18,5 +18,3 @@ class SurvivorTestStage(SurvivorTestStageBase[od.Dataset, od.Model, od.Metric]):
     This test stage also uses MAITE-wrapped models, datasets, and metrics, and MAITE itself, to produce the model
     metric results needed if they are not present in the cache before running Survivor itself.
     """
-
-    _task: str = "od"

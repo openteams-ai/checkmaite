@@ -15,6 +15,7 @@ from heart_library.estimators.object_detection.pytorch import (
 )
 from maite.protocols import ArrayLike
 from numpy.typing import NDArray
+from pydantic import Field
 
 from jatic_ri._common.test_stages.interfaces.test_stage import ConfigBase, Number, OutputsBase, RunBase, TestStage
 from jatic_ri.cached_tasks import evaluate
@@ -70,8 +71,8 @@ class HeartAttackConfig(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(frozen=True)
 
-    name: AttackName
-    strength: AttackStrength
+    name: AttackName = "Patch"
+    strength: AttackStrength = "weak"
     parameters: dict[str, Any] = pydantic.Field(
         default_factory=lambda values: _DEFAULT_HEART_ATTACK_PARAMETERS[(values["name"], values["strength"])].copy()
     )
@@ -80,8 +81,8 @@ class HeartAttackConfig(pydantic.BaseModel):
 class HeartConfig(ConfigBase):
     """Config for HEART test stage"""
 
-    attack_configs: list[HeartAttackConfig]
-    threshold: float
+    attack_configs: list[HeartAttackConfig] = Field(default_factory=lambda: [HeartAttackConfig()])
+    threshold: float = 0.5
 
 
 class BaselineOutput(OutputsBase):
@@ -174,7 +175,7 @@ class HeartRun(RunBase):
         return slides
 
 
-class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
+class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric, HeartConfig]):
     """HEART Specific Implementation of a TestStage Class to Support
     Object Detection Adversarial Attacks, including:
     1. Projected Gradient Descent
@@ -183,12 +184,9 @@ class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
 
     _RUN_TYPE = HeartRun
 
-    def __init__(self, *, attack_configs: list[HeartAttackConfig], threshold: float) -> None:
-        super().__init__()
-        self._config = HeartConfig.model_validate({"attack_configs": attack_configs, "threshold": threshold})
-
-    def _create_config(self) -> HeartConfig:
-        return self._config
+    @classmethod
+    def _create_config(cls) -> HeartConfig:
+        return HeartConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -224,10 +222,7 @@ class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
         return Number.ONE
 
     def _run(
-        self,
-        models: list[od.Model],
-        datasets: list[od.Dataset],
-        metrics: list[od.Metric],
+        self, models: list[od.Model], datasets: list[od.Dataset], metrics: list[od.Metric], config: HeartConfig
     ) -> HeartOutputs:
         """Runs Object Detection Adversarial Attacks and performs robustness
         evaluations for specific metrics.
@@ -254,7 +249,7 @@ class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
                         cast(
                             od.ObjectDetectionTarget, preds
                         ),  # TODO: we need to overload the evaluate function correctly
-                        threshold=self._config.threshold,
+                        threshold=config.threshold,
                         index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                     )
                     for image, preds in zip(
@@ -267,7 +262,7 @@ class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
         )
 
         attacked: list[AttackOutput] = []
-        for c in self._config.attack_configs:
+        for c in config.attack_configs:
             attack = _ATTACK_MAP[c.name](heart_detector, **c.parameters)
             result, preds, augmented_data = evaluate(
                 model=heart_detector,
@@ -288,7 +283,7 @@ class HeartTestStage(TestStage[HeartOutputs, od.Dataset, od.Model, od.Metric]):
                                 cast(
                                     od.ObjectDetectionTarget, preds
                                 ),  # TODO: we need to overload the evaluate function correctly,
-                                threshold=self._config.threshold,
+                                threshold=config.threshold,
                                 index2label=dataset.metadata["index2label"],  # pyright: ignore [reportTypedDictNotRequiredAccess]
                             )
                             for image, preds in zip(

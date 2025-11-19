@@ -998,6 +998,8 @@ class BaseTestbed(BaseApp):
             if stage.supports_metrics != Number.ZERO:
                 run_kwargs["metrics"] = metrics
 
+            # TODO: figure out how to pass user configuration to run
+
             # run the stage, saving output to the class
             run = stage.run(**run_kwargs)
             # collect the slides

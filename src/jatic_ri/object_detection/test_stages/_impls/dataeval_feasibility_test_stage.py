@@ -100,7 +100,13 @@ class DatasetObjectDetectionFeasibilityRun(RunBase):
 
 
 class DatasetObjectDetectionFeasibilityTestStage(
-    TestStage[DatasetObjectDetectionFeasibilityOutputs, od.Dataset, od.Model, od.Metric]
+    TestStage[
+        DatasetObjectDetectionFeasibilityOutputs,
+        od.Dataset,
+        od.Model,
+        od.Metric,
+        DatasetObjectDetectionFeasibilityConfig,
+    ]
 ):
     """
     Measures whether the available data (both quantity and quality) can be used to
@@ -108,21 +114,11 @@ class DatasetObjectDetectionFeasibilityTestStage(
     and programatically generates a Gradient report with the results.
     """
 
-    _task: str = "od"
-
     _RUN_TYPE = DatasetObjectDetectionFeasibilityRun
 
-    def __init__(
-        self,
-        device: str = "cpu",
-    ) -> None:
-        super().__init__()
-        self.device = set_device(device)
-
-    def _create_config(self) -> ConfigBase:
-        return DatasetObjectDetectionFeasibilityConfig(
-            device=self.device,
-        )
+    @classmethod
+    def _create_config(cls) -> DatasetObjectDetectionFeasibilityConfig:
+        return DatasetObjectDetectionFeasibilityConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -162,6 +158,7 @@ class DatasetObjectDetectionFeasibilityTestStage(
         models: list[od.Model],  # noqa: ARG002
         datasets: list[od.Dataset],  # noqa: ARG002
         metrics: list[od.Metric],  # noqa: ARG002
+        config: DatasetObjectDetectionFeasibilityConfig,  # noqa: ARG002
     ) -> DatasetObjectDetectionFeasibilityOutputs:
         """Run the feasibility test"""
 

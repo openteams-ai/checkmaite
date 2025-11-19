@@ -79,9 +79,9 @@ def rehydrate_test_stage_od(
     #     reallabel_config = RealLabelConfig(**config["CONFIG"])
     #     return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
-        return NRTKTestStageOD(config["CONFIG"])
+        return NRTKTestStageOD()
     if config["TYPE"] == "XAITKTestStage":
-        return XAITKTestStageOD(config["CONFIG"])
+        return XAITKTestStageOD()
     # if config["TYPE"] == "SurvivorTestStage":
     #     return SurvivorTestStageOD(config["CONFIG"])
     if config["TYPE"] == "HeartTestStage":
@@ -114,9 +114,9 @@ def rehydrate_test_stage_ic(
 ):
     """Initialize test stage object based on config dictionary"""
     if config["TYPE"] == "NRTKTestStage":
-        return NRTKTestStageIC(config["CONFIG"])
+        return NRTKTestStageIC()
     if config["TYPE"] == "XAITKTestStage":
-        return XAITKTestStageIC(config["CONFIG"])
+        return XAITKTestStageIC()
     # if config["TYPE"] == "SurvivorTestStage":
     #     return SurvivorTestStageIC(config["CONFIG"])
     if config["TYPE"] == "HeartTestStage":

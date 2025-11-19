@@ -1,12 +1,14 @@
 """NRTKTestStage implementation"""
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
 from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
+from pydantic import Field
+from smqtk_core.configuration import from_config_dict
 
 from jatic_ri._common.test_stages.interfaces.test_stage import (
     ConfigBase,
@@ -61,9 +63,25 @@ METRIC_LABELS = {
 }
 
 
+def _default_perturber_factory() -> PerturbImageFactory:
+    return from_config_dict(
+        {
+            "type": "nrtk.impls.perturb_image_factory.generic.one_step.OneStepPerturbImageFactory",
+            "nrtk.impls.perturb_image_factory.generic.one_step.OneStepPerturbImageFactory": {
+                "perturber": "nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber",
+                "theta_key": "factor",
+                "theta_value": 10.0,
+            },
+        },
+        PerturbImageFactory.get_impls(),
+    )
+
+
 class NRTKTestStageConfig(ConfigBase):
-    name: str
-    perturber_factory: DeSerializablePlugfigurable[PerturbImageFactory]
+    name: str = "natural_robustness_test_factory"
+    perturber_factory: DeSerializablePlugfigurable[PerturbImageFactory] = Field(
+        default_factory=_default_perturber_factory
+    )
 
 
 class NRTKTestStageOutputs(OutputsBase):
@@ -140,25 +158,17 @@ class NRTKTestStageRun(RunBase):
         ]
 
 
-class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetric]):
+class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetric, NRTKTestStageConfig]):
     """
     NRTK Test Stage to perform augmentation on images in a dataset based
     on a given factory configuration.`
-
-    Attributes:
-        config: The configuration dictionary that will be used to create
-                                PerturbImageFactory object.
-
     """
 
     _RUN_TYPE = NRTKTestStageRun
 
-    def __init__(self, args: dict[str, Any]) -> None:
-        super().__init__()
-        self.config = NRTKTestStageConfig.model_validate(args)
-
-    def _create_config(self) -> NRTKTestStageConfig:
-        return self.config
+    @classmethod
+    def _create_config(cls) -> NRTKTestStageConfig:
+        return NRTKTestStageConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -194,19 +204,25 @@ class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetri
         return Number.ONE
 
     def _run(
-        self,
-        models: list[TModel],
-        datasets: list[TDataset],
-        metrics: list[TMetric],
+        self, models: list[TModel], datasets: list[TDataset], metrics: list[TMetric], config: NRTKTestStageConfig
     ) -> NRTKTestStageOutputs:
         """Run the test stage, and store any outputs of the evaluation in test stage"""
         model = models[0]
         dataset = datasets[0]
         metric = metrics[0]
 
+        # TODO: make task a kwarg?
+        task: Literal["ic", "od"]
+        if "image_classification" in self.id.lower():
+            task = "ic"
+        elif "object_detection" in self.id.lower():
+            task = "od"
+        else:
+            raise ValueError(f"Test Stage task unknown, test stage: {self.id}.")
+
         perturbations = []
-        for perturber in self.config.perturber_factory:
-            if self._task == "object_detection":
+        for perturber in config.perturber_factory:
+            if task == "od":
                 augmentation = JATICDetectionAugmentation(augment=perturber, augment_id="JATICDetection")
                 perturbed_metrics, _, _ = evaluate(
                     model=model,
@@ -217,7 +233,7 @@ class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetri
                     return_augmented_data=False,
                     return_preds=False,
                 )
-            elif self._task == "image_classification":
+            elif task == "ic":
                 augmentation = JATICClassificationAugmentation(augment=perturber, augment_id="JATICClassification")
                 perturbed_metrics, _, _ = evaluate(
                     model=model,
@@ -228,8 +244,6 @@ class NRTKTestStageBase(TestStage[NRTKTestStageOutputs, TDataset, TModel, TMetri
                     return_augmented_data=False,
                     return_preds=False,
                 )
-            else:
-                raise ValueError(f"Invalid value for _task provided, _task:{self._task}")
 
             perturbations.append(perturbed_metrics)
 

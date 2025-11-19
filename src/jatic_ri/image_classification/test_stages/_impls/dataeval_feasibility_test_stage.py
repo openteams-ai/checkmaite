@@ -10,6 +10,7 @@ from dataeval.data import Embeddings, Metadata
 from dataeval.metrics.estimators import BEROutput, ber
 from gradient.slide_deck.shapes import SubText, Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
+from pydantic import Field
 
 from jatic_ri._common.models import set_device
 from jatic_ri._common.test_stages.impls._dataeval_utils import get_resnet18
@@ -21,6 +22,8 @@ class DatasetImageClassificationFeasibilityConfig(ConfigBase):
     """Configuration for the Image Classification Dataset Feasibility Test Stage"""
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
+    batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
 
     device: Device = pydantic.Field(default_factory=lambda: set_device("cpu"))
     ber_method: Literal["KNN", "MST"] = pydantic.Field(
@@ -92,7 +95,13 @@ class DatasetImageClassificationFeasibilityRun(RunBase):
 
 
 class DatasetImageClassificationFeasibilityTestStage(
-    TestStage[DatasetImageClassificationFeasibilityOutputs, ic.Dataset, ic.Model, ic.Metric]
+    TestStage[
+        DatasetImageClassificationFeasibilityOutputs,
+        ic.Dataset,
+        ic.Model,
+        ic.Metric,
+        DatasetImageClassificationFeasibilityConfig,
+    ]
 ):
     """
     Measures whether the available data (both quantity and quality) can be used to
@@ -100,30 +109,11 @@ class DatasetImageClassificationFeasibilityTestStage(
     and programatically generates a Gradient report with the results.
     """
 
-    _task: str = "ic"
-
     _RUN_TYPE = DatasetImageClassificationFeasibilityRun
 
-    def __init__(
-        self,
-        device: str = "cpu",
-        ber_method: Literal["KNN", "MST"] = "KNN",
-        knn_n_neighbors: int = 1,
-        precision: int = 3,
-    ) -> None:
-        super().__init__()
-        self.device = set_device(device)
-        self.ber_method: Literal["KNN", "MST"] = ber_method
-        self.knn_n_neighbors = knn_n_neighbors
-        self.precision = precision
-
-    def _create_config(self) -> ConfigBase:
-        return DatasetImageClassificationFeasibilityConfig(
-            device=self.device,
-            ber_method=self.ber_method,
-            knn_n_neighbors=self.knn_n_neighbors,
-            precision=self.precision,
-        )
+    @classmethod
+    def _create_config(cls) -> DatasetImageClassificationFeasibilityConfig:
+        return DatasetImageClassificationFeasibilityConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -163,20 +153,21 @@ class DatasetImageClassificationFeasibilityTestStage(
         models: list[ic.Model],  # noqa: ARG002
         datasets: list[ic.Dataset],
         metrics: list[ic.Metric],  # noqa: ARG002
+        config: DatasetImageClassificationFeasibilityConfig,
     ) -> DatasetImageClassificationFeasibilityOutputs:
         """Run the feasibility test"""
 
         dataset = datasets[0]
 
         model, transform = get_resnet18()
-        embeddings = Embeddings(dataset, self._batch_size, transform, model, device=self.device)
+        embeddings = Embeddings(dataset, config.batch_size, transform, model, device=config.device)
         metadata = Metadata(dataset)
 
         b: BEROutput = ber(
             embeddings=embeddings.to_numpy(),
             labels=metadata.class_labels,
-            method=self.ber_method,
-            k=self.knn_n_neighbors,
+            method=config.ber_method,
+            k=config.knn_n_neighbors,
         )
 
         b_data = b.data()

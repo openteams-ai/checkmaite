@@ -17,9 +17,6 @@ from reallabel import ColumnNameConfig, RealLabelResults  # noqa: E402
 from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelOutputs, RealLabelTestStage  # noqa: E402
 from tests.fake_od_classes import FakeODDataset, FakeODModel  # noqa: E402
 
-_DICT_CONFIG = "dict_config"
-_REALLABEL_CONFIG = "config"
-
 
 @pytest.fixture(scope="session")
 def reallabel_test_stage_args(
@@ -47,56 +44,25 @@ def reallabel_test_stage_args(
         threshold_max_aggregated_confidence_fp=0.01,
     )
 
-    dict_config = {
-        "deduplication_algorithm": "wbf",
-        "column_names": ColumnNameConfig(
-            unique_identifier_columns=["id"],
-            calibrated_confidence_column="score",
-        ),
-        "run_confidence_calibration": False,
-        "keep_true_positives": True,
-        "deduplication_iou_threshold": 0.5,
-        "minimum_confidence_threshold": 0.1,
-        "threshold_max_aggregated_confidence_fp": 0.01,
-    }
-
     return {
-        _REALLABEL_CONFIG: config,
+        "config": config,
         "dataset": reallabel_test_stage_dataset,
         "models": reallabel_test_stage_models,
-        _DICT_CONFIG: dict_config,
     }
 
 
-@pytest.fixture(name="test_stage")
-def create_test_stage(reallabel_test_stage_args: dict, request: pytest.FixtureRequest) -> RealLabelTestStage:
-    """Create a RealLabelTestStage object and load in all required args.
-
-    Can load in both the `dict_config` and `config` configurations in `reallabel_test_stage_args` depending on the
-    string input to `request.param` (set through indirect parametrization of `test_stage`).
-    """
-
-    return RealLabelTestStage(config=reallabel_test_stage_args[getattr(request, "param", _REALLABEL_CONFIG)])
-
-
-@pytest.mark.parametrize(
-    "test_stage",
-    [_REALLABEL_CONFIG, _DICT_CONFIG],
-    ids=["Using RealLabelConfig", "Using dict config"],
-    indirect=True,
-)
-def test_reallabel_test_stage_run_caches(
-    mocker, test_stage: RealLabelTestStage, reallabel_test_stage_args: dict, tmp_cache_path
-) -> None:
+def test_reallabel_test_stage_run_caches(mocker, reallabel_test_stage_args: dict, tmp_cache_path) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
 
+    test_stage = RealLabelTestStage()
+    config = reallabel_test_stage_args["config"]
     models = list(reallabel_test_stage_args["models"].values())
     datasets = [reallabel_test_stage_args["dataset"]]
 
-    run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    run = test_stage.run(config=config, use_stage_cache=True, models=models, datasets=datasets)
 
     mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    cached_run = test_stage.run(config=config, use_stage_cache=True, models=models, datasets=datasets)
     assert cached_run is not run
 
     outputs = run.outputs
@@ -121,24 +87,27 @@ def test_reallabel_test_stage_run_caches(
 
 
 def test_reallabel_test_stage_collect_report_consumables(
-    test_stage: RealLabelTestStage,
     reallabel_test_stage_args: dict,
     artifact_dir,
 ) -> None:
     """Test collect_report_consumables with cached data enabled."""
+
+    test_stage = RealLabelTestStage()
+
     # Arrange
-    expected_deck = "object_detection_reallabel"
+    expected_deck = "jatic_ri.object_detection.test_stages._impls.reallabel_test_stage.RealLabelTestStage"
     expected_layout_name = "TwoItem"
     expected_title = "RealLabel Label Breakdown"
 
+    config = reallabel_test_stage_args["config"]
     models = list(reallabel_test_stage_args["models"].values())
     datasets = [reallabel_test_stage_args["dataset"]]
 
     # Run test stage once to ensure cache is present
-    run = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    run = test_stage.run(config=config, use_stage_cache=True, models=models, datasets=datasets)
 
     # Run again to use cache
-    _ = test_stage.run(use_stage_cache=True, models=models, datasets=datasets)
+    _ = test_stage.run(config=config, use_stage_cache=True, models=models, datasets=datasets)
 
     # Act
     slides = run.collect_report_consumables(threshold=0.5)

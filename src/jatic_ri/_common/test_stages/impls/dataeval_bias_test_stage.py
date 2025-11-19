@@ -11,7 +11,6 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import pydantic
-import torch
 from dataeval.data import Embeddings, Images, Metadata
 from dataeval.metrics.bias import balance, coverage, diversity
 from gradient import SubText
@@ -45,9 +44,11 @@ from jatic_ri.util.utils import temp_image_file
 class DataevalBiasConfig(ConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
+    batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
     device: Device = Field(default_factory=lambda: set_device(None))
+
     metadata_to_exclude: list[str] = Field(
-        default_factory=lambda: [], description="Dataset metadata to exclude from bias analysis"
+        default_factory=lambda: ["id", "file_name"], description="Dataset metadata to exclude from bias analysis"
     )
     num_neighbors: int = Field(
         default=5, description="Number of neighbors to consider when computing mutual information between factors"
@@ -144,7 +145,7 @@ class DataevalBiasRun(RunBase):
         return report_list
 
 
-class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, TMetric]):
+class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, TMetric, DataevalBiasConfig]):
     """Measures bias in a single dataset.
 
     Generates a Gradient report with bias measurements, potential risks, and
@@ -153,72 +154,17 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, 
     correlations between metadata factors and class labels. Coverage is
     calculated using only the images.
 
-    Parameters
-    ----------
-    metadata_to_exclude : list[str], optional
-        Dataset metadata to exclude from bias analysis. Defaults to None.
-    num_neighbors : int, optional
-        Number of neighbors for mutual information in balance calculation.
-        Defaults to 5.
-    diversity_method : Literal["simpson", "shannon"], optional
-        Methodology for defining diversity. Defaults to "simpson".
-    radius_type : Literal["adaptive", "naive"], optional
-        Function to determine radius for coverage. Defaults to "adaptive".
-    percent : float, optional
-        Percent of observations considered uncovered (adaptive radius only).
-        Defaults to 0.01.
-
     Attributes
     ----------
     _RUN_TYPE : type[DataevalBiasRun]
         The type of the run object associated with this test stage.
-    device : torch.device
-        The device to use for computations.
-    metadata_to_exclude : list[str]
-        Dataset metadata to exclude from bias analysis.
-    num_neighbors : int
-        Number of neighbors for mutual information in balance calculation.
-    diversity_method : Literal["simpson", "shannon"]
-        Methodology for defining diversity.
-    radius_type : Literal["adaptive", "naive"]
-        Function to determine radius for coverage.
-    percent : float
-        Percent of observations considered uncovered (adaptive radius only).
     """
 
     _RUN_TYPE = DataevalBiasRun
 
-    device: torch.device = set_device(None)
-
-    def __init__(
-        self,
-        metadata_to_exclude: list[str] | None = None,
-        num_neighbors: int = 5,
-        diversity_method: Literal["simpson", "shannon"] = "simpson",
-        radius_type: Literal["adaptive", "naive"] = "adaptive",
-        percent: float = 0.01,
-    ) -> None:
-        super().__init__()
-
-        if metadata_to_exclude:
-            self.metadata_to_exclude = metadata_to_exclude
-        else:
-            self.metadata_to_exclude = []
-
-        self.num_neighbors = num_neighbors
-        self.diversity_method: Literal["simpson", "shannon"] = diversity_method
-        self.radius_type: Literal["adaptive", "naive"] = radius_type
-        self.percent: float = percent
-
-    def _create_config(self) -> ConfigBase:
-        return DataevalBiasConfig(
-            device=self.device,
-            metadata_to_exclude=self.metadata_to_exclude,
-            num_neighbors=self.num_neighbors,
-            diversity_method=self.diversity_method,
-            radius_type=self.radius_type,
-            percent=self.percent,
-        )
+    @classmethod
+    def _create_config(cls) -> DataevalBiasConfig:
+        return DataevalBiasConfig()
 
     @property
     def supports_datasets(self) -> Number:
@@ -258,6 +204,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, 
         models: list[TModel],  # noqa: ARG002
         datasets: list[TDataset],
         metrics: list[TMetric],  # noqa: ARG002
+        config: DataevalBiasConfig,
     ) -> DataevalBiasOutputs:
         """Performs bias analysis using coverage, and optionally balance, diversity,
         and parity if metadata is available.
@@ -272,17 +219,17 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, 
         model, transform = get_resnet18()
         images = Images(dataset)
 
-        embeddings = Embeddings(dataset, self._batch_size, transform, model, device=self.device).to_numpy()
+        embeddings = Embeddings(dataset, config.batch_size, transform, model, device=config.device).to_numpy()
         embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
         # coverage tool expects sequence of vectors
         if len(embeddings.shape) == 1:
             embeddings = np.array([embeddings])
 
-        metadata = Metadata(dataset, exclude=self.metadata_to_exclude)
+        metadata = Metadata(dataset, exclude=config.metadata_to_exclude)
 
         # metadata is not empty and hence valid to run balance, diversity, parity
         if metadata.factor_names:
-            bal_out = balance(metadata, num_neighbors=self.num_neighbors)
+            bal_out = balance(metadata, num_neighbors=config.num_neighbors)
             bal_dict = bal_out.data()
             bal_dict["image_metadata"] = bal_out.plot(plot_classwise=False)
             if len(np.unique(metadata.class_labels)) != len(metadata.class_names):
@@ -292,7 +239,7 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, 
             else:
                 bal_dict["image_classwise"] = bal_out.plot(plot_classwise=True)
 
-            div_out = diversity(metadata, method=self.diversity_method)
+            div_out = diversity(metadata, method=config.diversity_method)
             div_dict = div_out.data()
             div_dict["image"] = div_out.plot()
 
@@ -312,8 +259,8 @@ class DatasetBiasTestStageBase(TestStage[DataevalBiasOutputs, TDataset, TModel, 
         cov_out = coverage(
             embeddings,
             num_observations=num_observations,
-            radius_type=self.radius_type,
-            percent=self.percent,
+            radius_type=config.radius_type,
+            percent=config.percent,
         )
         cov_dict = cov_out.data()
         cov_dict["total"] = len(dataset)

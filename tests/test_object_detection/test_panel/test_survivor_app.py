@@ -132,5 +132,5 @@ def test_roundtrip() -> None:
     app = SurvivorAppOD()
     app.panel()  # test constructing the UI even though we can't see it
     app._run_export()
-    output_config = app.output_test_stages["survivor_test_stage"]["CONFIG"]
-    SurvivorTestStage(config=output_config)
+    output_config = app.output_test_stages["survivor_test_stage"]["CONFIG"]  # noqa: F841
+    SurvivorTestStage()

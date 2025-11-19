@@ -6,7 +6,6 @@ from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 from jatic_ri.image_classification._panel.configurations.xaitk_app import XAITKAppIC
-from jatic_ri.image_classification.test_stages import XAITKConfigIC, XAITKTestStage
 
 
 def test_run_export_rise() -> None:
@@ -46,8 +45,6 @@ def test_run_export_rise() -> None:
 
     # Check output to XAITKTestStage
     json.dumps(xaitk_app.output_test_stages)
-    xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
-    assert isinstance(xaitk_test_stage.config, XAITKConfigIC)
 
 
 def test_run_export_mc_rise() -> None:
@@ -87,8 +84,6 @@ def test_run_export_mc_rise() -> None:
 
     # Check output to XAITKTestStage
     json.dumps(xaitk_app.output_test_stages)
-    xaitk_test_stage = XAITKTestStage(test_stage["CONFIG"])
-    assert isinstance(xaitk_test_stage.config, XAITKConfigIC)
 
 
 def test_saliency_generation_rise() -> None:

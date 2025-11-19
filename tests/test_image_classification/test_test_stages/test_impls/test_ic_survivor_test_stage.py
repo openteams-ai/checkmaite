@@ -17,9 +17,6 @@ from survivor.enums import ScoreConversionType  # noqa: E402
 from jatic_ri.image_classification.test_stages import SurvivorConfig, SurvivorTestStage  # noqa: E402
 from tests.fake_ic_classes import FakeICDataset, FakeICMetric, FakeICModel  # noqa: E402
 
-_DICT_CONFIG = "dict_config"
-_SURVIVOR_CONFIG = "config"
-
 
 @pytest.fixture(scope="session")
 def survivor_test_stage_args(
@@ -42,71 +39,42 @@ def survivor_test_stage_args(
         heatmap_plot_columns=None,
     )
 
-    dict_config = {
-        "metric_column": "fake_metric",
-        "otb_threshold": 0.9,
-        "easy_hard_threshold": 0.5,
-        "conversion_type": ScoreConversionType.ROUNDED.value,
-        "conversion_args": {"decimals_to_round": 2},
-        "heatmap_plot_columns": None,
-    }
-
     return {
-        _SURVIVOR_CONFIG: config,
+        "config": config,
         "dataset": detection_dataset,
         "metric": map_metric,
         "models": model_dict,
-        _DICT_CONFIG: dict_config,
     }
 
 
-@pytest.fixture(name="test_stage")
-def create_test_stage(survivor_test_stage_args: dict, request: pytest.FixtureRequest):
-    """Create a SurvivorTestStage object and load in all required args.
-
-    Can load in both the `dict_config` and `config` configurations in `survivor_test_stage_args` depending on the
-    string input to `request.param` (set through indirect parametrization of `test_stage`, defaults to `config`).
-    """
-    # Create and configure SurvivorTestStage
-    return SurvivorTestStage(config=survivor_test_stage_args[getattr(request, "param", _SURVIVOR_CONFIG)])
-
-
-@pytest.mark.parametrize(
-    "test_stage",
-    [_SURVIVOR_CONFIG, _DICT_CONFIG],
-    ids=["Using SurvivorConfig", "Using dict config"],
-    indirect=True,
-)
-def test_survivor_test_stage_run_caches(
-    mocker, test_stage: SurvivorTestStage, survivor_test_stage_args, tmp_cache_path
-) -> None:
+def test_survivor_test_stage_run_caches(mocker, survivor_test_stage_args, tmp_cache_path) -> None:
     """Test SurvivorTestStage generates a cache object that can be read correctly."""
 
+    test_stage = SurvivorTestStage()
     models = list(survivor_test_stage_args["models"].values())
     datasets = [survivor_test_stage_args["dataset"]]
     metrics = [survivor_test_stage_args["metric"]]
+    config = survivor_test_stage_args["config"]
 
-    run = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
+    run = test_stage.run(config=config, use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     mocker.patch.object(test_stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
+    cached_run = test_stage.run(config=config, use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
     assert cached_run is not run
 
-    reallabel_outputs = run.outputs
-    cached_realabel_outputs = cached_run.outputs
+    survivor_outputs = run.outputs
+    cached_survivor_outputs = cached_run.outputs
 
-    pd.testing.assert_frame_equal(cached_realabel_outputs.raw_output_df, reallabel_outputs.raw_output_df)
+    pd.testing.assert_frame_equal(cached_survivor_outputs.raw_output_df, survivor_outputs.raw_output_df)
     pd.testing.assert_frame_equal(
-        cached_realabel_outputs.metrics_with_survivor_label_df, reallabel_outputs.metrics_with_survivor_label_df
+        cached_survivor_outputs.metrics_with_survivor_label_df, survivor_outputs.metrics_with_survivor_label_df
     )
 
 
-def test_survivor_collect_report_consumables(
-    test_stage: SurvivorTestStage, survivor_test_stage_args, artifact_dir
-) -> None:
+def test_survivor_collect_report_consumables(survivor_test_stage_args, artifact_dir) -> None:
     """Test collect_report_consumables."""
     # Arrange
-    expected_deck = "image_classification_survivor"
+    expected_deck = "jatic_ri.image_classification.test_stages._impls.survivor_test_stage.SurvivorTestStage"
     expected_layout_name = "TwoItem"
     expected_content_left = Text(
         content=[
@@ -123,15 +91,17 @@ def test_survivor_collect_report_consumables(
     )
     expected_title = "Survivor Dataset Breakdown"
 
+    test_stage = SurvivorTestStage()
     models = list(survivor_test_stage_args["models"].values())
     datasets = [survivor_test_stage_args["dataset"]]
     metrics = [survivor_test_stage_args["metric"]]
+    config = survivor_test_stage_args["config"]
 
     # Run test stage once to ensure cache is present
-    run = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
+    run = test_stage.run(config=config, use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     # Run again to use cache
-    _ = test_stage.run(use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
+    _ = test_stage.run(config=config, use_stage_cache=True, models=models, metrics=metrics, datasets=datasets)
 
     # Act
     slide_content = run.collect_report_consumables(threshold=0.5)
