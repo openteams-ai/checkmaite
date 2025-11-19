@@ -48,7 +48,7 @@ packages = [{ include = "jatic_ri", from = "src" }]
 
 [tool.poetry.dependencies]
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
-dataeval = "==0.92.3"                 
+dataeval = "==0.92.3"
 maite = "0.8.2"
 nrtk = "==0.25.0"
 pybsm = ">=0.12.0"                                 # optional dep for nrtk, required here
@@ -58,7 +58,7 @@ xaitk-jatic = "==0.7.0"
 holoviews = ">=1.20.0"                             # arbitrary, required for panel pipelines
 httpx = ">=0.28.1"                                 # arbitrary, needed to run visdrone model
 jupyterlab = ">=4.3.5"                             # arbitrary, required for serving panel notebooks via CLI
-matplotlib = ">=3.8.4"                             # arbitrary, required by panel
+matplotlib = ">=3.8.4,< 3.10.8"                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
 more-itertools = ">=10.0"                          # arbitrary, used by linting test stage
 nbconvert = ">=7.16.6"                             # arbitrary, required for serving panel notebooks via CLI
 numba = ">=0.60.0"                                 # arbitrary, needed to run visdrone model

@@ -231,6 +231,9 @@ class XAITKAppOD(BaseXAITKApp):
             name="Choose generator",
             options=STACK_OPTIONS,
         )
+
+        super().__init__(styles, **params)
+
         self.md_text = """
                 The sample saliency generation uses the [DETR-Resnet50](https://huggingface.co/facebook/detr-resnet-50)
                 model and a sample image from the [VisDrone](https://github.com/VisDrone/VisDrone-Dataset) dataset.
@@ -239,9 +242,6 @@ class XAITKAppOD(BaseXAITKApp):
                 and 8GB RAM. To generate optimal saliency maps, kindly
                 refer to the [XAITK Documentation](https://xaitk-saliency.readthedocs.io/en/latest/implementations.html#end-to-end-saliency-generation).
                 """
-
-        super().__init__(styles, **params)
-
         self.test_img = TEST_IMAGE
         self.select_widget = pn.widgets.Select(
             name="Choose Detection (from top-10 detections)",
