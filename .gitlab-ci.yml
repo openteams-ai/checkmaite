@@ -121,11 +121,7 @@ test:
     # Pull large files using git-lfs
     - git lfs pull
     - poetry install --with dev
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
-  #  - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
 
@@ -290,3 +286,45 @@ export-merged-sbom:
   artifacts:
     paths:
       - "gl-sbom-merged-*.cdx.json"
+
+
+
+#########################################
+# Nightly runs (Deprecated packages only)
+#########################################
+
+nightly-unsupported:
+  extends: [.shared-setup, .poetry-setup]
+  image: python:3.11
+  stage: test
+  needs: []
+  timeout: 4h
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: never
+  variables:
+    PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
+  script:
+    - git lfs pull
+    # Install dev + unsupported groups (poetry group)
+    - poetry install --with dev,unsupported
+    # Run the panel configs that are currently commented out in the regular job
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
+    - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
+    # Keep your existing nightly-safe ones too, if you want:
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
+    - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
+    # Run pytest including unsupported tests (your default addopts exclude them)
+    - poetry run pytest tests -vvv -m "unsupported or heart" --cov=jatic_ri --cov-report=term-missing $PYTEST_OPTS
+  coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage_report.xml
+    paths:
+      - artifacts/*
