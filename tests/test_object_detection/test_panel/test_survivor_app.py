@@ -25,6 +25,7 @@ from jatic_ri.object_detection._panel.configurations.survivor_app import Survivo
     ],
     ids=["Binned", "Rounded", "Exact"],
 )
+@pytest.mark.unsupported
 def test_similarity_option_pane(
     strategy: str, exp_type: type, exp_value: Any, exp_description: str, is_widget: bool
 ) -> None:
@@ -70,6 +71,7 @@ def test_similarity_option_pane(
         "Leading_Decimal",
     ],
 )
+@pytest.mark.unsupported
 def test_parse_bin_string(input_str: str, exp_output: int | list[float] | None, exp_fail: bool) -> None:
     """Test SurvivorAppOD.parse_bin_string() sets SurvivorAppOD._bins correctly."""
     # Arrange
@@ -93,6 +95,7 @@ def test_parse_bin_string(input_str: str, exp_output: int | list[float] | None, 
     ],
     ids=["Exact", "Binned", "Rounded"],
 )
+@pytest.mark.unsupported
 def test_run_export(
     similarity_strategy: str,
     bins: str,
@@ -126,6 +129,7 @@ def test_run_export(
     assert output == exp_output
 
 
+@pytest.mark.unsupported
 def test_roundtrip() -> None:
     from jatic_ri.object_detection.test_stages import SurvivorTestStage
 

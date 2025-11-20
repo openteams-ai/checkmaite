@@ -47,6 +47,7 @@ def survivor_test_stage_args(
     }
 
 
+@pytest.mark.unsupported
 def test_survivor_test_stage_run_caches(mocker, survivor_test_stage_args, tmp_cache_path) -> None:
     """Test SurvivorTestStage generates a cache object that can be read correctly."""
 

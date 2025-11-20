@@ -94,6 +94,10 @@ mkdocs-jupyter = ">=0.25"                          # arbitrary
 mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
+# We use this instead of an optional Poetry group because in our testing we found that conda-lock (v 3.0.4) does not
+# appear to honor optional dependencies when the source is a Git URL... this causes problems at solve time if the solver
+# does not have a valid token for gitlab.jatic.net, and at install time since it appears to pip install the git-sourced
+# dependencies even when they're in an "optional" Poetry group
 [project.optional-dependencies]
 unsupported = [
     "heart-library==0.7.0",

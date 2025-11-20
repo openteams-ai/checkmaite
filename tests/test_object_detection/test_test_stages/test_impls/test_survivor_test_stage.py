@@ -192,6 +192,7 @@ def test_survivor_test_stage_run_caches(mocker, survivor_test_stage_args: dict) 
         assert_item_equal(run_attr, cached_attr, field)
 
 
+@pytest.mark.unsupported
 def test_survivor_collect_report_consumables(
     survivor_test_stage_args: dict,
     artifact_dir,

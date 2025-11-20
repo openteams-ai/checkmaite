@@ -308,7 +308,7 @@ nightly-unsupported:
   script:
     - git lfs pull
     # Install dev + unsupported groups (poetry group)
-    - poetry install --with dev,unsupported
+    - poetry install --with dev --extras unsupported
     # Run the panel configs that are currently commented out in the regular job
     - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
     - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
