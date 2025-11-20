@@ -13,6 +13,7 @@ from jatic_ri.object_detection.test_stages import RealLabelConfig, RealLabelTest
     [(0.6, (0.3, 0.4), True, False), (0.9, (0.2, 0.8), False, True)],
     ids=["Agnostic_Not_Ground_Truth", "Ground_Truth_Not_Agnostic"],
 )
+@pytest.mark.unsupported
 def test_run_export(
     exp_iou_threshold: float, exp_confidence_thresholds: tuple[float, float], exp_class_agnostic: bool, exp_rwgt: bool
 ) -> None:

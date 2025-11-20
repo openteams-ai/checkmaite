@@ -51,6 +51,7 @@ def reallabel_test_stage_args(
     }
 
 
+@pytest.mark.unsupported
 def test_reallabel_test_stage_run_caches(mocker, reallabel_test_stage_args: dict, tmp_cache_path) -> None:
     """Test RealLabelTestStage generates a cache object correctly."""
 
@@ -86,6 +87,7 @@ def test_reallabel_test_stage_run_caches(mocker, reallabel_test_stage_args: dict
     assert outputs.example_image.id == cached_outputs.example_image.id
 
 
+@pytest.mark.unsupported
 def test_reallabel_test_stage_collect_report_consumables(
     reallabel_test_stage_args: dict,
     artifact_dir,
@@ -129,6 +131,7 @@ def test_reallabel_test_stage_collect_report_consumables(
     assert filename.exists()
 
 
+@pytest.mark.unsupported
 def test_for_reallabel_output_changes():
     """When updating RealLabel, make sure we catch changes to the results dataclass and determine whether to expose them to the user."""
     available = {f.name for f in dataclasses.fields(RealLabelResults) if not f.name.startswith("_")}

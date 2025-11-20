@@ -1,8 +1,11 @@
 """Test heart_app"""
 
+import pytest
+
 from jatic_ri.object_detection._panel.configurations.heart_od_app import HeartODApp
 
 
+@pytest.mark.unsupported
 def test_add_test_stage_to_json() -> None:
     # run through visualization even though it can't be seen this way
     heart_od_app: HeartODApp = HeartODApp()
@@ -31,6 +34,7 @@ def test_add_test_stage_to_json() -> None:
     assert heart_od_app.output_test_stages["heart-0"]["CONFIG"]["parameters"] == "Stronger Attack"
 
 
+@pytest.mark.unsupported
 def test_common_app_model_recognition() -> None:
     """Test the model recognition function of the heart base app"""
     heart_od_app: HeartODApp = HeartODApp()
