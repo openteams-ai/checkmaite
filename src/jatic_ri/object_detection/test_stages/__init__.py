@@ -82,6 +82,7 @@ except ImportError:
 try:
     from jatic_ri.object_detection.test_stages._impls.heart_test_stage import (
         HeartAttackConfig,
+        HeartConfig,
         HeartOutputs,
         HeartTestStage,
     )
@@ -114,6 +115,7 @@ __all__ = [
     "DataevalShiftOutputs",
     # HeartTestStage
     "HeartTestStage",
+    "HeartConfig",
     "HeartAttackConfig",
     "HeartOutputs",
     # NRTKTestStage

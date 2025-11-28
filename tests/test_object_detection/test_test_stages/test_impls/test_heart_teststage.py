@@ -4,7 +4,7 @@ import pytest
 pytest.importorskip("heart_library")
 
 # Module-level imports after importorskip to prevent collection errors
-from jatic_ri.object_detection.test_stages import HeartAttackConfig, HeartTestStage  # noqa: E402
+from jatic_ri.object_detection.test_stages import HeartAttackConfig, HeartConfig, HeartTestStage  # noqa: E402
 from jatic_ri.object_detection.test_stages._impls.heart_test_stage import _DEFAULT_HEART_ATTACK_PARAMETERS  # noqa: E402
 
 ATTACK_CONFIGS = [
@@ -52,8 +52,10 @@ ATTACK_CONFIGS = [
 @pytest.mark.real_data
 @pytest.mark.parametrize("attack_config", ATTACK_CONFIGS)
 def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config):
-    stage = HeartTestStage(attack_configs=[attack_config], threshold=0.5)
+    config = HeartConfig(attack_configs=[attack_config], threshold=0.5)
+    stage = HeartTestStage()
     run = stage.run(
+        config=config,
         use_stage_cache=True,
         models=[fake_od_model_default],
         datasets=[fake_od_dataset_default],
@@ -61,7 +63,13 @@ def test_run(mocker, fake_od_model_default, fake_od_dataset_default, fake_od_met
     )
 
     mocker.patch.object(stage, "_run", side_effect=AssertionError("_run() called while cache hit was expected"))
-    cached_run = stage.run(use_stage_cache=True)
+    cached_run = stage.run(
+        config=config,
+        use_stage_cache=True,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        metrics=[fake_od_metric_default],
+    )
 
     assert cached_run.outputs.baseline.result == run.outputs.baseline.result
     assert [o.result for o in cached_run.outputs.attacked] == [o.result for o in run.outputs.attacked]
@@ -93,15 +101,19 @@ def test_default_attack_parameters(
 def test_report_consumables(
     fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, attack_config
 ) -> None:
-    stage = HeartTestStage(attack_configs=[attack_config], threshold=0.5)
+    config = HeartConfig(attack_configs=[attack_config], threshold=0.5)
+    stage = HeartTestStage()
 
     run = stage.run(
-        models=[fake_od_model_default], datasets=[fake_od_dataset_default], metrics=[fake_od_metric_default]
+        config=config,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        metrics=[fake_od_metric_default],
     )
 
-    slides = run.collect_report_consumables(threshold=0.5, deck="fake-deck")
+    slides = run.collect_report_consumables(threshold=0.5)
     for slide in slides:
-        assert slide["deck"] == "object_detection_model_evaluation"
+        assert slide["deck"] == "jatic_ri.object_detection.test_stages._impls.heart_test_stage.HeartTestStage"
         assert slide["layout_name"] == "ThreeSection"
 
         args = slide["layout_arguments"]
