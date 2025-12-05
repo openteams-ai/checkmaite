@@ -1,14 +1,60 @@
-"""JATIC Reference Implementation package"""
-
-import importlib.metadata as importlib_metadata
-import logging
+###############################
+# PyTorch MPS fallback handling
+#
+# This block must run before torch
+# is imported anywhere in the process.
+# Keep it at the top of the module.
+###############################
 import os
+import sys
 import warnings
-from pathlib import Path
+
+
+def _configure_torch_mps_fallback() -> None:
+    mps_env_var = "PYTORCH_ENABLE_MPS_FALLBACK"
+
+    torch_imported = "torch" in sys.modules
+    user_set_fallback = mps_env_var in os.environ
+
+    if not user_set_fallback:
+        os.environ[mps_env_var] = "1"
+
+    import torch
+
+    # Only warn if fallback wasn't user-configured *and* MPS is relevant
+    if not user_set_fallback and torch.backends.mps.is_available():
+        if torch_imported:
+            warnings.warn(
+                "torch was imported before jatic_ri and "
+                f"{mps_env_var} was not set. Changing it now may have no effect. "
+                f"Set {mps_env_var} before importing torch/jatic_ri to avoid this warning.",
+                stacklevel=2,
+            )
+        else:
+            warnings.warn(
+                "Enabled PyTorch MPS CPU fallback by default "
+                f"({mps_env_var}=1). "
+                f"Set {mps_env_var}=0 to disable CPU fallback.",
+                stacklevel=2,
+            )
+
+
+_configure_torch_mps_fallback()
+
+del _configure_torch_mps_fallback
+
+###############################
+# library init
+###############################
+
+import importlib.metadata as importlib_metadata  # noqa: E402
+import logging  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 __version__ = importlib_metadata.version("jatic_ri")
 
-PACKAGE_DIR = Path(os.path.dirname(__file__)).resolve()
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class _CachePath:
@@ -40,32 +86,31 @@ class _CachePath:
 
 
 cache_path = _CachePath(Path.home() / ".cache" / "jatic-ri")
+cache_path.__doc__ = """
+Get or set the global cache path used by jatic_ri.
 
-# setup loger to print to stdout and to file (`runtime.log`)
-log_formatter = logging.Formatter("%(asctime)s [%(levelname)-7.7s] [%(module)s] %(message)s")
-root_logger = logging.getLogger()
+- Called with no arguments, returns the current cache path.
+- Called with a path, creates the directory (if needed) and sets it as the new cache path.
 
-file_handler = logging.FileHandler(f"{PACKAGE_DIR}/runtime.log")
-file_handler.setFormatter(log_formatter)
-root_logger.addHandler(file_handler)
+Example
+-------
+>>> from jatic_ri import cache_path
+>>> cache_path()
+PosixPath('/home/user/.cache/jatic-ri')
+>>> cache_path("~/my-cache")
+PosixPath('/home/user/my-cache')
+"""
 
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(log_formatter)
-root_logger.addHandler(console_handler)
+from jatic_ri.core import cached_tasks, capability_core, image_classification, object_detection, report  # noqa: E402
+from jatic_ri.core._cache import binary_de_serializer  # noqa: E402
 
-# https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/326
-# must be set before torch is imported!
-user_mps_fallback = os.environ.get("PYTORCH_ENABLE_MPS_FALLBACK") is not None
-if not user_mps_fallback:
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-
-import torch  # noqa: E402
-
-if not user_mps_fallback and torch.backends.mps.is_available():
-    warnings.warn(
-        "MPS fallback has been enabled. "
-        "Please set the environment variable PYTORCH_ENABLE_MPS_FALLBACK=0 "
-        "to prevent CPU fallback.",
-        stacklevel=2,
-    )
+__all__ = [
+    "__version__",
+    "cache_path",
+    "image_classification",
+    "object_detection",
+    "cached_tasks",
+    "capability_core",
+    "binary_de_serializer",
+    "report",
+]

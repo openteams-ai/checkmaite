@@ -1,4 +1,6 @@
-"Check if conda lockfile is consistent with pyproject.toml."
+"""Check if conda lockfile is consistent with pyproject.toml.
+Conda lock does not include unsupported and ui optional dependencies
+"""
 
 import logging
 from pathlib import Path
