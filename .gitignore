@@ -169,9 +169,6 @@ cython_debug/
 # macos files
 .DS_Store
 
-# default test stage cache dir
-.tscache/
-tscache/
 # output directory for ci artifacts
 artifacts/
 # bin directory

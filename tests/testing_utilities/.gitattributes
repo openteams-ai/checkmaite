@@ -1,3 +1,0 @@
-example_models/dev_resnext.pt filter=lfs diff=lfs merge=lfs -text
-example_data/USA_summer/**/* filter=lfs diff=lfs merge=lfs -text
-example_data/USA_summer/dev_val.csv filter=lfs diff=lfs merge=lfs -text

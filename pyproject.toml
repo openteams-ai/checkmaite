@@ -9,14 +9,12 @@ description = "JATIC Reference Implementation"
 readme = "README.md"
 license = { text = "TBD" }
 authors = [
-    { name = "JATIC Developers" },
+    { name = "OpenTeams" },
 ]
 keywords = [
     "jatic",
     "artificial intelligence",
     "testing and evaluation",
-    "object detection",
-    "image classification",
 ]
 classifiers = [
     "Development Status :: 1 - Planning",
@@ -24,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-requires-python = ">=3.10, <3.12"                    # required by SDP
+requires-python = ">=3.10, <3.12"
 
 dynamic = ["dependencies"]
 
@@ -45,34 +43,34 @@ poetry = "==2.1.2"                                 # allow user to still use the
 
 [tool.poetry]
 packages = [{ include = "jatic_ri", from = "src" }]
+include = ["src/jatic_ri/py.typed"]
+exclude = ["src/jatic_ri/_docs.py"]
 
 [tool.poetry.dependencies]
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", tag="0.12.2"}
 dataeval = "==0.92.3"
 maite = "0.8.2"
 nrtk = "==0.25.0"
-pybsm = ">=0.12.0"                                 # optional dep for nrtk, required here
+pybsm = ">=0.12.0"                                                 # optional dep for nrtk, required here
 xaitk-saliency = "==0.12.0"
 xaitk-jatic = "==0.7.0"
 # external deps
-holoviews = ">=1.20.0"                             # arbitrary, required for panel pipelines
-httpx = ">=0.28.1"                                 # arbitrary, needed to run visdrone model
-jupyterlab = ">=4.3.5"                             # arbitrary, required for serving panel notebooks via CLI
-matplotlib = ">=3.8.4,< 3.10.8"                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
-more-itertools = ">=10.0"                          # arbitrary, used by linting test stage
-nbconvert = ">=7.16.6"                             # arbitrary, required for serving panel notebooks via CLI
-numba = ">=0.60.0"                                 # arbitrary, needed to run visdrone model
-opencv-python-headless = ">=4.9.0.80"              # necessary lower pin, required by nrtk usage here
-pandas = ">=2"                                     # arbitrary, required for data handling
-panel = ">=1.5.1,<=1.7.1"                          # necessary for FileDropper widget, and for progression of dashboards
-pillow = ">=11.0.0"                                # arbitrary
-pydantic = ">=2.0.0"                               # arbitrary
-streamz = ">=0.6.4"                                # arbitrary
-torch = ">=2.2.0"                                  # necessary lower pin (at least >=2.2.0 for security)
-torchmetrics = ">=1.4.0"                           # arbitrary, required for metric computation
-torchvision = ">=0.17.0"                           # arbitrary, required for models
-zstandard = ">=0.23.0"                             # arbitrary, used for zip compression of json
-smqtk-detection = ">=0.22.0"                       # necessary lower pin for running VisDrone model on Mac
+holoviews = { version = ">=1.20.0", optional = true }              # arbitrary, required for panel pipelines
+httpx = ">=0.28.1"                                                 # arbitrary, needed to run visdrone model
+jupyterlab = { version = ">=4.3.5", optional = true }              # arbitrary, required for serving panel notebooks via CLI
+matplotlib = ">=3.8.4,< 3.10.8"                                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
+nbconvert = { version = ">=7.16.6", optional = true }              # arbitrary, required for serving panel notebooks via CLI
+numba = ">=0.60.0"                                                 # arbitrary, needed to run visdrone model
+opencv-python-headless = ">=4.9.0.80"                              # necessary lower pin, required by nrtk usage here
+pandas = ">=2"                                                     # arbitrary, required for data handling
+panel = { version = ">=1.5.1,<=1.7.1", optional = true }           # necessary for FileDropper widget, and for progression of dashboards
+pillow = ">=11.0.0"                                                # arbitrary
+pydantic = ">=2.0.0"                                               # arbitrary
+streamz = { version = ">=0.6.4", optional = true }                 # arbitrary
+torch = ">=2.2.0"                                                  # necessary lower pin (at least >=2.2.0 for security)
+torchmetrics = ">=1.4.0"                                           # arbitrary, required for metric computation
+torchvision = ">=0.17.0"                                           # arbitrary, required for models
+smqtk-detection = ">=0.22.0"                                       # necessary lower pin for running VisDrone model on Mac
 transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
 
 [tool.poetry.group.dev.dependencies]
@@ -94,15 +92,35 @@ mkdocs-jupyter = ">=0.25"                          # arbitrary
 mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
+[tool.poetry.scripts]
+jatic-ri-serve = "jatic_ri.ui.app:main"
+
 # We use this instead of an optional Poetry group because in our testing we found that conda-lock (v 3.0.4) does not
 # appear to honor optional dependencies when the source is a Git URL... this causes problems at solve time if the solver
 # does not have a valid token for gitlab.jatic.net, and at install time since it appears to pip install the git-sourced
-# dependencies even when they're in an "optional" Poetry group
+# dependencies even when they're in an "optional" Poetry group. These will not be included in the conda-lock file.
 [project.optional-dependencies]
 unsupported = [
     "heart-library==0.7.0",
     "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4",
     "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6",
+]
+ui = [
+    "holoviews>=1.20.0",
+    "jupyterlab>=4.3.5",
+    "nbconvert>=7.16.6",
+    "panel>=1.5.1,<=1.7.1",
+    "streamz>=0.6.4"
+]
+all = [
+    "heart-library==0.7.0",
+    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4",
+    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6",
+    "holoviews>=1.20.0",
+    "jupyterlab>=4.3.5",
+    "nbconvert>=7.16.6",
+    "panel>=1.5.1,<=1.7.1",
+    "streamz>=0.6.4"
 ]
 
 [tool.bandit]
@@ -115,15 +133,14 @@ reportMissingImports = "warning"
 reportUnnecessaryTypeIgnoreComment = "error"
 include = [
     "src",
-    "tests",
 ]
 exclude = [
-    "**/_panel",
+    "**/ui", "tests"
 ]
 
 [tool.ruff]
 exclude = [
-  "environment*",
+  "environment*", "scripts/test_check_bare_pyright_ignore.py"
 ]
 
 line-length = 120
@@ -132,7 +149,7 @@ target-version = "py310"
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "C90", "I", "N", "D1", "D200", "D201", "D211", "D403", "D419", "UP",
+select = ["F", "E", "W", "C90", "I", "N", "D200", "D201", "D211", "D403", "D419", "UP",
           "YTT", "ANN", "S",  "BLE", "B", "A", "COM", "C4", "T10", "ISC", "ICN", "PYI", "PT", "Q",
           "RSE", "RET", "SLF", "SIM", "TID252", "ARG", "PD", "FLY", "NPY", "RUF027",
           "RUF100", "PERF"]
@@ -204,13 +221,14 @@ filterwarnings = [
     "ignore:More than 20 figures have been opened.:RuntimeWarning",
     "ignore:.*?not importable:UserWarning",
 ]
+
 xfail_strict = true
 
 # Omit the skipped optional dependencies from coverage report
 [tool.coverage.run]
 source = ["jatic_ri"]
 omit = [
-    "*/heart_test_stage.py",
-    "*/reallabel_test_stage.py",
-    "*/survivor_test_stage.py",
+    "*/heart_adversarial_capability.py",
+    "*/reallabel_labelling_capability.py",
+    "*/survivor_capability.py",
 ]
