@@ -121,12 +121,8 @@ test:
     # Pull large files using git-lfs
     - git lfs pull
     - poetry install --with dev --extras ui
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
-  #  - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
-    - poetry run python src/jatic_ri/ui/_panel_od/configurations/nrtk_app.py --ci
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
-  #  - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
-    - poetry run python src/jatic_ri/ui/_panel_od/configurations/xaitk_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/nrtk_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/xaitk_app.py --ci
     - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -139,13 +135,15 @@ test:
     paths:
       - artifacts/*
 
-conda-test:
+# build fresh conda-lock file, create env from it, and activate it
+dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
   needs: []
   script:
     - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
 
+# build conda env from conda-lock in the repo and activate it
 conda-lock-test:
   extends: [.shared-setup]
   stage: test
@@ -314,13 +312,13 @@ nightly-unsupported:
     # Install dev + unsupported groups (poetry group)
     - poetry install --with dev  --extras ui --extras unsupported
     # Run the panel configs that are currently commented out in the regular job
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/heart_od_app.py --ci
-    - poetry run python src/jatic_ri/image_classification/_panel/configurations/heart_ic_app.py --ci
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/reallabel_app.py --ci
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/survivor_app.py --ci
-    # Keep your existing nightly-safe ones too, if you want:
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/nrtk_app.py --ci
-    - poetry run python src/jatic_ri/object_detection/_panel/configurations/xaitk_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/heart_od_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/image_classification/heart_ic_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/reallabel_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/survivor_app.py --ci
+    # The following to apps are also run in MRs as currently supported but rerun them here to save all artifacts together
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/nrtk_app.py --ci
+    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/xaitk_app.py --ci
     # Run pytest including unsupported tests (your default addopts exclude them)
     - poetry run pytest tests -vvv -m "unsupported or heart" --cov=jatic_ri --cov-report=term-missing $PYTEST_OPTS
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'

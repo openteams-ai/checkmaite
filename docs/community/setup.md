@@ -59,6 +59,24 @@ If you plan to contribute to the project or need development tools, install with
 poetry install --with dev
 ```
 
+There are also two optional dependency groups, `unsupported` and `ui`. You can install these via poetry:
+
+```bash
+poetry install --extras ui
+```
+
+If you want to install all the extras, you can use:
+
+```bash
+poetry install --all-extras
+```
+
+And if you want to install everything and the kitchen sink:
+
+```bash
+poetry install --with dev --all-extras
+```
+
 This project utilizes `pre-commit` for linting and formatting. **Developers** should also install the `pre-commit` hooks using:
 
 ```bash
