@@ -8,7 +8,7 @@ import torch
 from PIL import Image
 
 from jatic_ri.core.object_detection.models import TorchvisionODModel
-from jatic_ri.ui._panel.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
+from jatic_ri.ui.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
 
 REPORT_PATH = "/report/path"
 REPORT_LINK = "<a href='report-link'>Report Link</a>"

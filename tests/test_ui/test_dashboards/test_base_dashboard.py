@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from jatic_ri.ui._panel._common.base_app import DEFAULT_STYLING
-from jatic_ri.ui._panel._common.base_dashboard import BaseTestbed
+from jatic_ri.ui._common.base_app import DEFAULT_STYLING
+from jatic_ri.ui._common.base_dashboard import BaseTestbed
 
 
 @pytest.fixture(scope="session")
