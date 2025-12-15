@@ -9,7 +9,7 @@ poetry run panel serve src/jatic_ri/ui/app.py --show
 
 import contextlib
 
-from jatic_ri.ui._panel.dashboards.combined_app import FullApp
+from jatic_ri.ui.dashboards.combined_app import FullApp
 
 # instantiate the app
 app = FullApp(local=True)  # pyright: ignore[reportArgumentType]
