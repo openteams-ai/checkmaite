@@ -1,9 +1,10 @@
+import logging
 from pathlib import Path
 
 import pytest
 import torch
 
-from jatic_ri.core._utils import set_device
+from jatic_ri.core._utils import CountAndDrop, set_device
 
 
 @pytest.fixture
@@ -69,3 +70,49 @@ def test_save_figure_to_tempfile(metric_results, threshold_od):
     fig = create_metrics_bar_plot(metric_results, metric_key="map_50", threshold=threshold_od)
     filename = save_figure_to_tempfile(fig)
     assert Path(filename).exists
+
+
+def test_count_and_drop_counts_and_suppresses() -> None:
+    # Create a record without going through the logging system.
+    rec = logging.LogRecord(
+        name="dataeval.core._hash",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=1,
+        msg="Image too small for perceptual hashing: min_dim=%d",
+        args=(8,),
+        exc_info=None,
+    )
+
+    f = CountAndDrop(lambda r: "perceptual" in r.getMessage().lower() and "hash" in r.getMessage().lower())
+
+    assert f.filter(rec) is False
+    assert f.count == 1
+    assert f.first == "Image too small for perceptual hashing: min_dim=8"
+
+    # second match increments count but doesn't change first
+    rec2 = logging.LogRecord(
+        name="dataeval.core._hash",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=2,
+        msg="Image too small for perceptual hashing: min_dim=%d",
+        args=(8,),
+        exc_info=None,
+    )
+    assert f.filter(rec2) is False
+    assert f.count == 2
+    assert f.first == "Image too small for perceptual hashing: min_dim=8"
+
+    # non-match passes through
+    rec3 = logging.LogRecord(
+        name="dataeval.core._hash",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=3,
+        msg="Some other warning",
+        args=(),
+        exc_info=None,
+    )
+    assert f.filter(rec3) is True
+    assert f.count == 2

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from gradient.slide_deck.shapes.image_shapes import GradientImage
 from gradient.templates_and_layouts.generic_layouts import SectionByItem
 
 from jatic_ri import cache_path
+from jatic_ri.core._utils import squash_repeated_warnings
 from jatic_ri.core.capability_core import (
     CapabilityConfigBase,
     CapabilityOutputsBase,
@@ -51,6 +53,8 @@ from jatic_ri.core.report._plotting_utils import (
     prepare_ratio_histograms,
     split_into_chunks,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DataevalCleaningConfig(CapabilityConfigBase):
@@ -258,7 +262,28 @@ class DataevalCleaningBase(
         ]
             A tuple containing hash, dimension, visual, and label statistics.
         """
-        hashes = hashstats(dataset)
+
+        # dataeval hasher does not work for images smaller than 8x8
+        # pixels e.g. bbox, resulting in very noisy, repeated warnings.
+        # instead we squash the repeated warnings into a single warning
+        # and explain to the user what has happened.
+        def is_small_perceptual_hash_warning(record: logging.LogRecord) -> bool:
+            """Identify dataeval warnings related to perceptual hashing of too-small images."""
+            if record.levelno != logging.WARNING:
+                return False
+            if not record.name.startswith("dataeval."):
+                return False
+            msg = record.getMessage().lower()
+            # Keep this loose so it survives minor wording / formatting changes in dataeval.
+            return "perceptual" in msg and "hash" in msg
+
+        with squash_repeated_warnings("dataeval", is_small_perceptual_hash_warning) as filt:
+            hashes = hashstats(dataset)
+            logger.warning(
+                f"Suppressed {filt.count} dataeval perceptual-hash warnings. "
+                "This usually occurs when hashing very small crops (e.g., <8x8 px), "
+                f"which cannot be perceptually hashed. Example warning: {filt.first}"
+            )
 
         img_dim_stats = dimensionstats(dataset)
         img_viz_stats = visualstats(dataset)
