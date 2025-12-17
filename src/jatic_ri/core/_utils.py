@@ -1,8 +1,10 @@
 import hashlib
 import importlib
 import json
+import logging
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +17,40 @@ from maite.protocols import ArrayLike
 
 if TYPE_CHECKING:
     from torch import nn
+
+
+class CountAndDrop(logging.Filter):
+    def __init__(self, predicate: Callable[[logging.LogRecord], bool]) -> None:
+        super().__init__()
+        self.predicate = predicate
+        self.count = 0
+        self.first = None
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if self.predicate(record):
+            self.count += 1
+            if self.first is None:
+                self.first = record.getMessage()
+            return False
+        return True
+
+
+@contextmanager
+def squash_repeated_warnings(logger_prefix: str, match: Callable[[logging.LogRecord], bool]) -> Iterator[CountAndDrop]:
+    """
+    Temporarily suppress repeated warnings emitted under `logger_prefix` (e.g. "dataeval"),
+    counting how many were suppressed and a sample message that was emitted.
+    """
+    lg = logging.getLogger(logger_prefix)
+    filt = CountAndDrop(match)
+
+    lg.addFilter(filt)
+
+    try:
+        yield filt
+
+    finally:
+        lg.removeFilter(filt)
 
 
 def load_torchvision_constructor(model_name: str, supported_torchvision_models: dict[str, str]) -> object:
