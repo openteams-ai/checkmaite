@@ -28,18 +28,21 @@ def test_config():
 def test_run_and_collect(fake_od_model_default, fake_od_dataset_default, test_config):
     capability = XaitkExplainable()
 
-    output = capability.run(
+    run_result = capability.run(
         use_cache=False,
         models=[fake_od_model_default],
         datasets=[fake_od_dataset_default],
         config=test_config,
     )
 
-    assert output.model_dump()  # smoke test
+    assert run_result.model_dump()  # smoke test
 
-    output = output.collect_report_consumables(threshold=0.5)
+    slides = run_result.collect_report_consumables(threshold=0.5)
 
-    assert len(output) == len(fake_od_dataset_default) * len(fake_od_dataset_default[0][1].scores)
+    assert len(slides) == len(fake_od_dataset_default) * len(fake_od_dataset_default[0][1].scores)
+
+    md = run_result.collect_md_report(threshold=0.5)
+    assert md  # smoke test
 
 
 def test_xaitk_temp_dataset(fake_od_dataset_default, fake_od_model_default):

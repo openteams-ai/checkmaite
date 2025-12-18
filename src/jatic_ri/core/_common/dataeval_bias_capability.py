@@ -30,6 +30,7 @@ from jatic_ri.core.report._gradient import (
     create_table_text_slide,
     create_two_item_text_slide,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import plot_blank_or_single_image, temp_image_file
 
 
@@ -135,6 +136,45 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
         # report_list.append(report_next_steps(deck))
 
         return report_list
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Collect Markdown-formatted report content.
+
+        Gathers the results from the bias analysis run and formats them
+        as Markdown text, without dependencies on Gradient.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+
+        outputs: DataevalBiasOutputs = self.outputs
+
+        md = MarkdownOutput(title="Bias Analysis Report")
+
+        generate_table_of_contents_md(md)
+
+        md.add_section_divider()
+
+        report_coverage_md(md, outputs.coverage)
+
+        if outputs.balance is not None:
+            md.add_section_divider()
+            report_balance_metadata_factors_md(md, outputs.balance)
+            report_balance_classwise_md(md, outputs.balance)
+
+        if outputs.diversity is not None:
+            md.add_section_divider()
+            report_diversity_md(md, outputs.diversity)
+
+        return md.render()
 
 
 class DataevalBiasBase(CapabilityRunner[DataevalBiasOutputs, TDataset, TModel, TMetric, DataevalBiasConfig]):
@@ -513,3 +553,168 @@ def report_next_steps(deck: str) -> dict[str, Any]:
             SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
         },
     }
+
+
+# ============================================================================
+# Markdown Report Generation Functions
+# ============================================================================
+
+
+def generate_table_of_contents_md(md: MarkdownOutput) -> None:
+    """Generate Markdown table of contents for the bias report.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    """
+    md.add_section(heading="Table of Contents")
+    md.add_bulleted_list(
+        [
+            "[Coverage Analysis](#coverage-analysis)",
+            "[Balance Analysis](#balance-analysis)",
+            "[Diversity Analysis](#diversity-analysis)",
+        ]
+    )
+
+
+def report_coverage_md(md: MarkdownOutput, coverage: DataevalBiasCoverageOutputs) -> None:
+    """Format coverage results as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    coverage : DataevalBiasCoverageOutputs
+        The coverage analysis outputs.
+    """
+    uncovered_count = len(coverage.uncovered_indices)
+    uncovered_percent = round(uncovered_count / coverage.total, 2)
+
+    md.add_section(heading="Coverage Analysis")
+    md.add_text(
+        "**Description:** Coverage uses AI to identify potentially under-represented images that warrant further "
+        "investigation. Under-represented images are those which are closely-related to, at most, a small amount "
+        "of other images in the dataset."
+    )
+
+    md.add_subsection(heading="Summary")
+    md.add_table(
+        headers=["Metric", "Value"],
+        rows=[
+            [
+                "Potentially under-represented images",
+                f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)",
+            ],
+            ["Coverage radius", f"{coverage.coverage_radius:.4f}"],
+        ],
+    )
+
+    if coverage.image is not None:
+        img_path = temp_image_file(coverage.image)
+        md.add_image(img_path, alt_text="Coverage Visualization")
+
+
+def report_balance_metadata_factors_md(md: MarkdownOutput, outputs: DataevalBiasBalanceOutputs) -> None:
+    """Format balance results (metadata factors) as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    outputs : DataevalBiasBalanceOutputs
+        The balance analysis outputs.
+    """
+    md.add_section(heading="Balance Analysis - Metadata Factors")
+    md.add_text(
+        "**Description:** Balance can help uncover potential model bias by identifying spurious correlations "
+        "between metadata and class labels. For example, a model might incorrectly learn to associate vehicles "
+        "with the metadata 'occlusions' if training images always show vehicles partially hidden by other objects. "
+        "This learned behaviour might then fail if a vehicle was to appear fully visible."
+    )
+    md.add_text(
+        "**Interpretation:** Values approaching or exceeding 0.5 in the heat map should be further investigated "
+        "to prevent a model from potentially learning a harmful shortcut."
+    )
+
+    img_path = temp_image_file(outputs.image_metadata)
+    md.add_image(img_path, alt_text="Balance Metadata Visualization")
+
+    md.add_subsection(heading="Balance Scores")
+    balance_rows = [
+        [factor_name, f"{outputs.balance[i]:.4f}"]
+        for i, factor_name in enumerate(outputs.factor_names)
+        if i < len(outputs.balance)
+    ]
+    md.add_table(
+        headers=["Factor", "Balance Score"],
+        rows=balance_rows,
+    )
+
+
+def report_balance_classwise_md(md: MarkdownOutput, outputs: DataevalBiasBalanceOutputs) -> None:
+    """Format balance results (classwise) as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    outputs : DataevalBiasBalanceOutputs
+        The balance analysis outputs.
+    """
+    md.add_section(heading="Balance Analysis - Class-wise")
+    md.add_text(
+        "**Description:** Balance can also help uncover potential model bias by identifying relative class "
+        "imbalance. Correlations between an individual class and all other class labels indicate that a "
+        "specific class is over-represented compared to other classes. This can become a problem if "
+        "operational data does not also have this imbalance."
+    )
+    md.add_text(
+        "**Interpretation:** Values approaching or exceeding 0.5 in the heat map should be further investigated."
+    )
+
+    img_path = temp_image_file(outputs.image_classwise)
+    md.add_image(img_path, alt_text="Balance Classwise Visualization")
+
+
+def report_diversity_md(md: MarkdownOutput, outputs: DataevalBiasDiversityOutputs) -> None:
+    """Format diversity results as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    outputs : DataevalBiasDiversityOutputs
+        The diversity analysis outputs.
+    """
+    md.add_section(heading="Diversity Analysis")
+    md.add_text(
+        "**Description:** Diversity measures how well each metadata factor is sampled over its range of "
+        "possible values. Values near 1 indicate wide sampling, while values near 0 indicate imbalanced "
+        "sampling e.g. all datapoints taking a single value."
+    )
+
+    md.add_text("**Interpretation:**")
+    md.add_bulleted_list(
+        [
+            "The categories of most interest are those with values that are between 0.1 and 0.4. The data for each "
+            "metadata factor in these ranges should be inspected to see if the sampled values are appropriate for "
+            "operational data.",
+            "Values below 0.1 are generally so heavily imbalanced that a genuine problem should be immediately "
+            "obvious.",
+        ]
+    )
+
+    img_path = temp_image_file(outputs.image)
+    md.add_image(img_path, alt_text="Diversity Visualization")
+
+    md.add_subsection(heading="Diversity Index Scores")
+    diversity_rows = [
+        [factor_name, f"{outputs.diversity_index[i]:.4f}"]
+        for i, factor_name in enumerate(outputs.factor_names)
+        if i < len(outputs.diversity_index)
+    ]
+    md.add_table(
+        headers=["Factor", "Diversity Index"],
+        rows=diversity_rows,
+    )

@@ -36,3 +36,4 @@ def test_run_and_collect(fake_ic_model_default, fake_ic_dataset_default, fake_ic
     assert outputs.model_dump()  # smoke test
 
     assert outputs.collect_report_consumables(threshold=0.5)  # smoke test
+    assert outputs.collect_md_report(threshold=0.5)  # smoke test

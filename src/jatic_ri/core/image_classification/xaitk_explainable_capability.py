@@ -14,6 +14,7 @@ from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import Generate
 from jatic_ri.core._common.xaitk_explainable_capability import XaitkExplainableBase
 from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import save_figure_to_tempfile
 
 
@@ -163,6 +164,85 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     gradient_slides.append(content)
 
         return gradient_slides
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Generate Markdown report for XAITK saliency analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        model_id = self.model_metadata[0]["id"]
+        index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+        md = MarkdownOutput("XAITK Saliency Maps - Image Classification")
+
+        md.add_text(f"**Model**: {model_id}")
+        md.add_blank_line()
+
+        conf_dict = self.config.model_dump()
+
+        i = -1
+        for sal_maps, gray_img, gt_label in zip(outputs.results, outputs.gray_imgs, outputs.gt_labels, strict=False):
+            i += 1
+
+            if "MCRISEStack" in conf_dict["saliency_generator"]["type"]:
+                fill_colors = conf_dict["saliency_generator"][conf_dict["saliency_generator"]["type"]]["fill_colors"]
+                for color_idx, color_value in enumerate(fill_colors):
+                    for sal_idx in index2label:
+                        fig = plt.figure()
+                        plt.axis("off")
+                        plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                        plt.xticks(())
+                        plt.yticks(())
+                        plt.imshow(
+                            np.asarray(sal_maps[color_idx][0]),
+                            cmap="seismic",
+                            alpha=0.3,
+                        )
+                        plt.colorbar()
+                        fig.tight_layout()
+
+                        img_path = save_figure_to_tempfile(fig=fig)
+                        plt.close(fig)
+
+                        md.add_section(heading=f"Saliency Map: {sal_idx}", level=3)
+                        md.add_text(f"**Model**: {model_id}")
+                        md.add_text(f"**Image**: {i}")
+                        md.add_text(f"**Fill Color**: {color_value}")
+                        md.add_text(f"**Ground Truth**: {gt_label}")
+                        md.add_text(f"**Prediction**: {index2label[sal_idx]}")
+                        md.add_image(img_path, alt_text=f"Saliency Map {sal_idx}")
+            else:
+                for sal_idx, sal_map in enumerate(sal_maps):
+                    fig = plt.figure()
+                    plt.axis("off")
+                    plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                    plt.xticks(())
+                    plt.yticks(())
+                    plt.imshow(sal_map, cmap="seismic", alpha=0.3)
+                    plt.colorbar()
+                    fig.tight_layout()
+
+                    img_path = save_figure_to_tempfile(fig=fig)
+                    plt.close(fig)
+
+                    md.add_section(heading=f"Saliency Map: {sal_idx}", level=3)
+                    md.add_text(f"**Model**: {model_id}")
+                    md.add_text(f"**Image**: {i}")
+                    md.add_text(f"**Ground Truth**: {gt_label}")
+                    md.add_text(f"**Prediction**: {index2label[sal_idx]}")
+                    md.add_image(img_path, alt_text=f"Saliency Map {sal_idx}")
+
+        return md.render()
 
 
 class XaitkExplainable(

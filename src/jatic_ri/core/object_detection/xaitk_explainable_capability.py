@@ -18,6 +18,7 @@ from jatic_ri.core._common.xaitk_explainable_capability import XaitkExplainableB
 from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from jatic_ri.core.object_detection.dataset_loaders import DetectionTarget
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import save_figure_to_tempfile
 
 
@@ -160,6 +161,85 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                 gradient_slides.append(content)
 
         return gradient_slides
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Generate Markdown report for XAITK saliency analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        model_id = self.model_metadata[0]["id"]
+        index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+        md = MarkdownOutput("XAITK Saliency Maps - Object Detection")
+
+        md.add_text(f"**Model**: {model_id}")
+        md.add_text(
+            "Saliency maps show which image regions most influenced each detection. "
+            "Brighter areas indicate higher relevance. "
+            "The confidence shown is the metric score from the original (un-occluded) image. "
+            "Pixel relevance is normalized on scale from 0 to 1."
+        )
+        md.add_blank_line()
+
+        for idx, datum in enumerate(outputs.results):
+            scores = datum.scores
+            if len(datum.sal_maps) == 0:
+                logging.warning(f"No detections found for image id {idx}")
+                continue
+
+            for sal_idx, bbox in enumerate(datum.boxes):
+                sal_map = datum.sal_maps[sal_idx]
+                # PIL throws error unless cast as uint8
+                ref_img_np = np.asarray(datum.img).astype(np.uint8)
+                if ref_img_np.shape[0] == 1:
+                    gray_img = np.asarray(Image.fromarray(ref_img_np[0]).convert("L"))
+                else:
+                    gray_img = np.asarray(Image.fromarray(ref_img_np.transpose(1, 2, 0)).convert("L"))
+
+                fig = plt.figure()
+                plt.axis("off")
+                plt.imshow(gray_img, alpha=0.7, cmap="gray")
+                plt.xticks(())
+                plt.yticks(())
+
+                plt.gca().add_patch(
+                    Rectangle(
+                        (bbox[0], bbox[1]),
+                        bbox[2] - bbox[0],
+                        bbox[3] - bbox[1],
+                        linewidth=2,
+                        edgecolor="r",
+                        facecolor="none",
+                    )
+                )
+
+                plt.imshow(sal_map, cmap="seismic", alpha=0.3)
+                plt.colorbar()
+                fig.tight_layout()
+
+                img_path = save_figure_to_tempfile(fig=fig)
+
+                plt.close(fig)
+
+                md.add_section(heading=f"Detection {sal_idx + 1} - Image {datum.img_id}", level=3)
+                md.add_text(f"**Model**: {model_id}")
+                md.add_text(f"**Image ID**: {datum.img_id}")
+                md.add_text(f"**Prediction**: {index2label[int(datum.labels[sal_idx])]}")
+                md.add_text(f"**Confidence**: {scores[sal_idx]:.2f}")
+                md.add_blank_line()
+                md.add_image(img_path, alt_text=f"Saliency Map for Detection {sal_idx + 1}")
+
+        return md.render()
 
 
 class XaitkExplainable(

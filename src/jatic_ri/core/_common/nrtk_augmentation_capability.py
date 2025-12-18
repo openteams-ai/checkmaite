@@ -1,3 +1,4 @@
+import contextlib
 import re
 from typing import Any
 
@@ -17,6 +18,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 
 PERTURBER_LABELS = {
     "factor": "Factor",
@@ -153,6 +155,79 @@ class NrtkAugmentationRun(CapabilityRunBase[NrtkAugmentationConfig, NrtkAugmenta
                 },
             },
         ]
+
+    def collect_md_report(self, threshold: float) -> str:
+        """Generate Markdown-formatted report for NRTK perturbation analysis.
+
+        This mirrors the semantics of collect_report_consumables:
+        it uses the same return_key, theta_key, and perturbation configuration
+        that feed the Gradient robustness curve.
+        """
+        outputs = self.outputs
+
+        dataset_id = self.dataset_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+
+        # Use the same key that collect_report_consumables uses for y-values
+        return_key = outputs.return_key
+        theta_key = self.config.perturber_factory.theta_key
+
+        # Human-readable labels for x/y axes
+        theta_label = PERTURBER_LABELS.get(theta_key, theta_key)
+        metric_label = METRIC_LABELS.get(return_key, return_key)
+
+        # Same perturbation label logic as collect_report_consumables
+        perturbation_classname = self.config.perturber_factory.get_config()["perturber"].split(".")[-1]
+        perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
+
+        # Extract the robustness curve data
+        values: list[float] = []
+        for perturber_output in outputs.perturbations:
+            val = perturber_output[return_key]
+            # Convert tensors / numpy scalars to Python float - avoid linting issues
+            import torch
+
+            if isinstance(val, torch.Tensor):
+                try:
+                    val = val.item()
+                except (AttributeError, RuntimeError, TypeError):
+                    val = float(val.detach().cpu().numpy())
+            else:
+                with contextlib.suppress(TypeError, ValueError, OverflowError):
+                    val = float(val)
+            values.append(val)
+
+        md = MarkdownOutput("NRTK Robustness Analysis")
+
+        # High-level summary
+        md.add_section(self.capability_id)
+        md.add_text(f"**Model**: {model_id}")
+        md.add_text(f"**Dataset**: {dataset_id}")
+        md.add_text(f"**Perturbation Type**: {perturbation_label}")
+        md.add_text(f"**Metric**: {metric_label}")
+        md.add_text(f"**Threshold**: {threshold}")
+        md.add_blank_line()
+
+        md.add_section("Configuration")
+        md.add_metrics_list(
+            {
+                "Theta key": theta_key,
+                "Metric key": return_key,
+                "Lower bound": 3.4,
+                "Upper bound": 5.3,
+            }
+        )
+
+        # Curve data: same x/y pairing as the DataFrame in collect_report_consumables
+        md.add_section("Perturbation Results")
+        thetas = list(self.config.perturber_factory.thetas)
+        rows: list[list[str]] = []
+        for theta, val in zip(thetas, values, strict=True):
+            rows.append([str(theta), f"{val:.4f}"])
+
+        md.add_table(headers=[theta_label, metric_label], rows=rows)
+
+        return md.render()
 
 
 class NrtkAugmentationBase(

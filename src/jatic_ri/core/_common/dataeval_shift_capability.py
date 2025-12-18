@@ -27,6 +27,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 
 
 class DataevalShiftConfig(CapabilityConfigBase):
@@ -103,6 +104,33 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
         report_consumables.append(ood_slide)
 
         return report_consumables
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Convert results from drift and OOD detection into Markdown format.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        dataset_ids = [d["id"] for d in self.dataset_metadata]
+
+        md = MarkdownOutput("Dataset Shift Analysis")
+
+        collect_drift_md(md, outputs.drift, dataset_ids=dataset_ids)
+
+        md.add_section_divider()
+
+        collect_ood_md(md, outputs.ood, dataset_ids=dataset_ids)
+
+        return md.render()
 
 
 class DataevalShiftBase(CapabilityRunner[DataevalShiftOutputs, TDataset, TModel, TMetric, DataevalShiftConfig]):
@@ -379,3 +407,151 @@ def collect_ood(deck: str, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids:
             SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
         },
     }
+
+
+# ============================================================================
+# Markdown Report Generation Functions
+# ============================================================================
+
+
+def collect_drift_md(
+    md: MarkdownOutput,
+    drift_outputs: DataevalShiftDriftOutputs,
+    *,
+    dataset_ids: list[str],
+) -> None:
+    """Generate Markdown content for drift detection results.
+
+    Uses outputs from MMD, KS, and CVM methods.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    drift_outputs : DataevalShiftDriftOutputs
+        Outputs from the drift detection methods (MMD, KS, CVM).
+    dataset_ids : list[str]
+        A list containing the IDs of the two datasets being compared.
+    """
+    drift_fields = {
+        field_name: {
+            "drifted": field_value.drifted,
+            "distance": field_value.distance,
+            "p_val": field_value.p_val,
+        }
+        for field_name, field_value in drift_outputs
+    }
+
+    any_drift = any(d["drifted"] for d in drift_fields.values())
+
+    md.add_text(f"**Dataset 1**: {dataset_ids[0]}")
+    md.add_text(f"**Dataset 2**: {dataset_ids[1]}")
+    md.add_text("**Category**: Dataset Shift")
+
+    md.add_section(heading="Drift Detection")
+    md.add_text(f"**Result:** {dataset_ids[1]} has{' ' if any_drift else ' not '}drifted from {dataset_ids[0]}")
+    md.add_blank_line()
+    md.add_text("**Tests for:**")
+    md.add_bulleted_list(["Covariate shift"])
+    md.add_text("**Risks:**")
+    md.add_bulleted_list(
+        [
+            "Degradation of model performance",
+            "Real-world performance no longer meets performance requirements",
+        ]
+    )
+    md.add_text("**Action:**")
+    action = "Retrain model (augmentation, transfer learning)" if any_drift else "No action required"
+    md.add_bulleted_list([action])
+
+    md.add_subsection(heading="Drift Test Results")
+    rows = [
+        [
+            field_name,
+            "Yes" if d["drifted"] else "No",
+            f"{d['distance']:.6f}",
+            f"{d['p_val']:.6f}",
+        ]
+        for field_name, d in drift_fields.items()
+    ]
+    md.add_table(
+        headers=["Method", "Has drifted?", "Test statistic", "P-value"],
+        rows=rows,
+    )
+
+
+def collect_ood_md(
+    md: MarkdownOutput,
+    ood_outputs: DataevalShiftOODOutputs,
+    *,
+    dataset_ids: list[str],
+) -> None:
+    """Generate Markdown content for OOD detection results.
+
+    Creates a table showing the number of OOD samples and the threshold
+    used for their calculation.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    ood_outputs : DataevalShiftOODOutputs
+        Outputs from the OOD detection methods, containing `is_ood`,
+        `instance_scores`, and `feature_scores`.
+    dataset_ids : list[str]
+        A list containing the IDs of the two datasets.
+    """
+    ood_fields = {
+        field_name: {
+            "is_ood": field_value.is_ood,
+            "instance_score": field_value.instance_score,
+        }
+        for field_name, field_value in ood_outputs
+        if hasattr(field_value, "is_ood") and hasattr(field_value, "instance_score")
+    }
+
+    percents = np.array([round(np.sum(x["is_ood"]) * 100 / len(x["is_ood"]), 1) for x in ood_fields.values()])
+    counts = np.array([np.sum(x["is_ood"], dtype=int) for x in ood_fields.values()])
+
+    # NOTE: Not the true threshold. Currently not available in OODOutput so smallest score found in outliers used
+    # Gets minimum of outlier-only scores or takes max of all scores if no outliers
+    thresholds = [
+        (np.min(x["instance_score"][x["is_ood"]]) if sum(x["is_ood"]) else np.max(x["instance_score"]))
+        for x in ood_fields.values()
+    ]
+
+    md.add_section(heading="Out-of-Distribution (OOD) Detection")
+    md.add_text(f"**Result:** {max(percents)}% OOD images were found in {dataset_ids[1]}")
+    md.add_blank_line()
+    md.add_text("**Tests for:**")
+    md.add_bulleted_list([f"{dataset_ids[1]} data that is OOD from {dataset_ids[0]}"])
+    md.add_text("**Risks:**")
+    md.add_bulleted_list(
+        [
+            "Degradation of model performance",
+            "Real-world performance no longer meets requirements",
+        ]
+    )
+    md.add_text("**Action:**")
+    actions = []
+    if sum(percents):
+        actions.append("Retrain model (augmentation, transfer learning)")
+        actions.append("Examine OOD samples to learn source of covariate shift")
+    else:
+        actions.append("No action required")
+    md.add_bulleted_list(actions)
+
+    md.add_subsection(heading="OOD Test Results")
+    rows = [
+        [
+            ood_output[0],
+            str(counts[idx]),
+            f"{percents[idx]:.1f}%",
+            f"{thresholds[idx]:.6f}",
+        ]
+        for idx, ood_output in enumerate(ood_outputs)
+    ]
+    md.add_table(
+        headers=["Method", "OOD Count", "OOD Percent", "Threshold"],
+        rows=rows,
+    )

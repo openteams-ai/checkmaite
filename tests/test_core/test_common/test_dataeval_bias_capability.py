@@ -64,6 +64,8 @@ def test_run_and_collect_ic(fake_ic_dataset_default) -> None:
 
     output.collect_report_consumables(threshold=0.5)  # smoke test
 
+    output.collect_md_report(threshold=0.5)  # smoke test
+
 
 class TestOdDataevalBiasCapability:
     ROOT = Path(__file__).parent.parent.parent / "data_for_tests"
@@ -75,6 +77,8 @@ class TestOdDataevalBiasCapability:
         output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])  # smoke test
 
         output.collect_report_consumables(threshold=0.5)  # smoke test
+
+        output.collect_md_report(threshold=0.5)  # smoke test
 
     def test_coco(self):
         coco_dataset = CocoDetectionDataset(
