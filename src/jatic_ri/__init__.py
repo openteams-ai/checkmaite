@@ -9,6 +9,15 @@ import os
 import sys
 import warnings
 
+# Filter Pydantic warnings about TypedDict ReadOnly qualifiers
+# These occur because ReadOnly is a static type annotation but Pydantic attempts runtime validation.  As long as we are
+# using MAITE objects in our Pydantics models, these warnings will continue to appear. They are harmless but noisy.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Items? .* on TypedDict class .* (?:is|are) using the `ReadOnly` qualifier\. Pydantic will not protect.*",
+    category=UserWarning,
+)
+
 
 def _configure_torch_mps_fallback() -> None:
     mps_env_var = "PYTORCH_ENABLE_MPS_FALLBACK"
