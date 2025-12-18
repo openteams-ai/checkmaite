@@ -191,8 +191,10 @@ filterwarnings = [
     # For full details on warnings suppression, see:
     # https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/497
     # "error",
-    # Should go away after we upgrade to maite>XXX
-    "ignore: Items 'id', 'index2label' on TypedDict class 'DatasetMetadata' are using the ReadOnly qualifier. Pydantic will not protect items from any mutation on dictionary instances.:UserWarning",
+    # Pydantic warnings about TypedDict ReadOnly qualifiers.  These occur since the qualifiers are for static type 
+    # checking only but Pydantic intends to provide runtime checks.  Essentially the error says "It looks from your annotations
+    # that you intend this to be ReadOnly, but Pydantic cannot actually enforce this."
+    "ignore:Items? .* on TypedDict class .* using the `ReadOnly` qualifier\\. Pydantic will not protect.*:UserWarning",
     # coming from smqtk_classifier via NRTK 0.25.0
     "ignore:`psycopg2` not importable.*:UserWarning",
     # From smqtk_classifier via NRTK 0.25.0
@@ -205,8 +207,6 @@ filterwarnings = [
     "ignore:The 'shapely.geos' module is deprecated.*:DeprecationWarning",  # TODO: investigate
     # From xaitk_saliency 0.12.0
     "ignore:the 'scipy.ndimage.filters' namespace is deprecated.*:DeprecationWarning",
-    # will be resolved by maite upgrade: DatumMetadata object which is usinng a ReadyOnly
-    "ignore: Item .* is using the `ReadOnly` qualifier. Pydantic will not protect items from any mutation on dictionary instances.",
     # TODO: Fix on upcoming MR. Continue to ignore for now.
     "ignore:More than 20 figures have been opened.:RuntimeWarning",
     "ignore:.*?not importable:UserWarning",
