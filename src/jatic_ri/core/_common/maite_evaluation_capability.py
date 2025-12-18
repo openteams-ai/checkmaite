@@ -16,6 +16,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
 
 
@@ -95,6 +96,51 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
                 },
             },
         ]
+
+    def collect_md_report(self, threshold: float) -> str:
+        md = MarkdownOutput(
+            title="Basic Evaluation with MAITE",
+        )
+
+        md.add_section(heading="Model Evaluation Summary")
+        md.add_text(f"**Model**: {self.model_metadata[0]['id']}")
+        md.add_text(f"**Dataset**: {self.dataset_metadata[0]['id']}")
+        md.add_text(f"**{self.outputs.overall_metric_name}**: {self.outputs.overall_metric_value:.2f}")
+
+        if self.outputs.class_metrics is not None:
+            class_metrics: dict[str, float] = {}
+            missing_classes: list[str] = []
+            for k, v in self.outputs.class_metrics.items():
+                if v is not None:
+                    class_metrics[k] = v
+                else:
+                    missing_classes.append(k)
+
+            fig = create_per_class_bar_plot(
+                overall_metric_name=self.outputs.overall_metric_name,
+                overall_metric_value=self.outputs.overall_metric_value,
+                class_metrics=class_metrics,
+                threshold=threshold,
+            )
+
+            img_path = save_figure_to_tempfile(fig=fig)
+            md.add_image(img_path, alt_text="Per-Class Metrics")
+
+            if missing_classes:
+                md.add_subsection("Classes Present in Model Index but Not in Test Dataset")
+                md.add_bulleted_list(missing_classes)
+
+        else:
+            fig = create_metrics_bar_plot(
+                self.outputs.result,
+                metric_key=self.outputs.overall_metric_name,
+                threshold=threshold,
+                width=0.4,
+            )
+            img_path = save_figure_to_tempfile(fig=fig)
+            md.add_image(img_path, alt_text="Overall Metrics")
+
+        return md.render()
 
 
 class MaiteEvaluationBase(CapabilityRunner[MaiteEvaluationOutputs, TDataset, TModel, TMetric, MaiteEvaluationConfig]):

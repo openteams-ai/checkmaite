@@ -40,6 +40,7 @@ from jatic_ri.core.report._gradient import (
     create_table_text_slide,
     create_two_item_text_slide,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import (
     DIMENSION_LIST,
     RATIO_LIST,
@@ -153,9 +154,11 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
             deck=deck,
             img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
             label_stats=outputs.label_stats,
-            box_stats=(outputs.box_dim_stats, outputs.box_viz_stats)
-            if outputs.box_dim_stats and outputs.box_viz_stats
-            else None,
+            box_stats=(
+                (outputs.box_dim_stats, outputs.box_viz_stats)
+                if outputs.box_dim_stats and outputs.box_viz_stats
+                else None
+            ),
             ratio_stats=outputs.box_ratio_stats,
             index2label=index2label,
         )
@@ -192,6 +195,77 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
             *stat_list[1:],
             generate_next_steps_report(deck=deck, dataset_id=dataset_id),
         ]
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Collect Markdown-formatted report for duplicates and outliers.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are
+            considered acceptable. Results below `threshold` require further
+            inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        dataset_id = self.dataset_metadata[0]["id"]
+        index2label = self.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+        artifact_dir = Path(cache_path() / "cleaning-artifacts")
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        md = MarkdownOutput(f"Dataset Cleaning Analysis - {dataset_id}")
+
+        generate_table_of_contents_md(md)
+
+        md.add_section_divider()
+        generate_duplicates_report_md(md, outputs.duplicates, outputs.label_stats.image_count)
+
+        md.add_section_divider()
+        generate_image_property_histograms_report_md(
+            md,
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+        )
+
+        md.add_section_divider()
+        generate_image_outliers_report_md(
+            md,
+            img_outliers=outputs.img_outliers,
+            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            dataset_size=outputs.label_stats.image_count,
+        )
+
+        md.add_section_divider()
+        generate_label_analysis_report_md(
+            md,
+            label_stats=outputs.label_stats,
+            index2label=index2label,
+        )
+
+        if outputs.box_dim_stats and outputs.box_viz_stats:
+            md.add_section_divider()
+            generate_target_property_histograms_report_md(
+                md,
+                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                ratio_stats=outputs.box_ratio_stats,
+            )
+
+            md.add_section_divider()
+            generate_target_outliers_report_md(
+                md,
+                target_outliers=outputs.target_outliers,
+                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                total_targets=outputs.label_stats.label_count,
+            )
+
+        md.add_section_divider()
+        generate_next_steps_report_md(md, dataset_id)
+
+        return md.render()
 
 
 class DataevalCleaningBase(
@@ -849,3 +923,397 @@ def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:
             SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
         },
     }
+
+
+# ============================================================================
+# Markdown Report Generation Functions
+# ============================================================================
+
+
+def generate_table_of_contents_md(md: MarkdownOutput) -> None:
+    """Generate Markdown table of contents for the cleaning report.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    """
+    md.add_section(heading="Table of Contents")
+    md.add_bulleted_list(
+        [
+            "[Image Duplicate Analysis](#image-duplicate-analysis)",
+            "[Image Property Histograms](#image-property-histograms)",
+            "[Image Outlier Analysis](#image-outlier-analysis)",
+            "[Label Analysis](#label-analysis)",
+            "[Target Property Histograms](#target-property-histograms)",
+            "[Target Outlier Analysis](#target-outlier-analysis)",
+            "[Next Steps](#next-steps)",
+        ]
+    )
+
+
+def generate_duplicates_report_md(
+    md: MarkdownOutput,
+    duplicates: DataevalCleaningDuplicatesOutputs,
+    dataset_size: int,
+) -> None:
+    """Format duplicates results as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    duplicates : DataevalCleaningDuplicatesOutputs
+        The duplicate analysis outputs.
+    dataset_size : int
+        The total size of the dataset.
+    """
+    exact = duplicates.exact
+    near = duplicates.near
+
+    total_ed = sum(len(d) for d in exact)
+    total_nd = sum(len(d) for d in near)
+
+    md.add_section(heading="Image Duplicate Analysis")
+    md.add_text("**Description:** Identify images which are identical or almost identical.")
+
+    md.add_table(
+        headers=["", "Exact Duplicates", "Near Duplicates"],
+        rows=[
+            [
+                "Percentage of Images",
+                f"{total_ed / dataset_size:.2%}",
+                f"{total_nd / dataset_size:.2%}",
+            ],
+            ["Number of Images", f"{total_ed}", f"{total_nd}"],
+        ],
+    )
+
+
+def generate_image_stats_report_md(
+    md: MarkdownOutput,
+    img_stats: tuple[
+        DataevalCleaningDimensionStatsOutputs,
+        DataevalCleaningVisualStatsOutputs,
+    ],
+    label_stats: DataevalCleaningLabelStatsOutputs,
+    index2label: dict[int, str],
+) -> None:
+    """Format image statistics as Markdown.
+
+    Convenience wrapper that combines image histograms and label analysis.
+    """
+    generate_image_property_histograms_report_md(md, img_stats=img_stats)
+    generate_label_analysis_report_md(md, label_stats=label_stats, index2label=index2label)
+
+
+def generate_image_outliers_report_md(
+    md: MarkdownOutput,
+    img_outliers: dict[int, dict[str, float]],
+    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    dataset_size: int,
+) -> None:
+    """Format image outliers as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    img_outliers : dict[int, dict[str, float]]
+        Image outlier data.
+    img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+        Image dimension and visual statistics.
+    dataset_size : int
+        The total size of the dataset.
+    """
+    metrics = DIMENSION_LIST + VISUAL_LIST
+
+    dim_box_output, viz_box_output = img_stats
+    image_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
+
+    issues = collect_issues(
+        outliers=img_outliers,
+        source_indices=image_source_indices,
+        valid_metrics=metrics,
+        use_box_indices=False,
+    )
+
+    all_metrics = {k: issues.get(k, []) for k in metrics if k not in ["channels", "distance_center", "distance_edge"]}
+
+    md.add_section(heading="Image Outlier Analysis")
+    md.add_text("**Description:** Numerical analysis of outliers in images.")
+
+    md.add_subsection(heading="Summary")
+    total_outlier_images = len(img_outliers)
+    md.add_text(f"Total images with outliers: {total_outlier_images} ({total_outlier_images / dataset_size:.2%})")
+
+    dimensional_metrics = [k for k in all_metrics if k in DIMENSION_LIST]
+    if dimensional_metrics:
+        md.add_subsection(heading="Dimensional Outliers")
+        dim_rows = []
+        for metric in dimensional_metrics:
+            outlier_count = len(all_metrics[metric])
+            percentage = outlier_count / dataset_size
+            dim_rows.append([metric, str(outlier_count), f"{percentage:.2%}"])
+
+        md.add_table(
+            headers=["Metric", "Count", "Percentage"],
+            rows=dim_rows,
+        )
+
+    visual_metrics = [k for k in all_metrics if k in VISUAL_LIST]
+    if visual_metrics:
+        md.add_subsection(heading="Visual Outliers")
+        vis_rows = []
+        for metric in visual_metrics:
+            outlier_count = len(all_metrics[metric])
+            percentage = outlier_count / dataset_size
+            vis_rows.append([metric, str(outlier_count), f"{percentage:.2%}"])
+
+        md.add_table(
+            headers=["Metric", "Count", "Percentage"],
+            rows=vis_rows,
+        )
+
+
+def generate_target_stats_report_md(
+    md: MarkdownOutput,
+    box_stats: tuple[
+        DataevalCleaningDimensionStatsOutputs,
+        DataevalCleaningVisualStatsOutputs,
+    ],
+    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+) -> None:
+    """Format target statistics as Markdown.
+
+    Convenience wrapper around target property histograms.
+    """
+    generate_target_property_histograms_report_md(md, box_stats=box_stats, ratio_stats=ratio_stats)
+
+
+def generate_target_outliers_report_md(
+    md: MarkdownOutput,
+    target_outliers: dict[int, dict[str, float]] | None,
+    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    total_targets: int,
+) -> None:
+    """Format target outliers as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    target_outliers : dict[int, dict[str, float]] | None
+        Target outlier data.
+    box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+        Bounding box dimension and visual statistics.
+    total_targets : int
+        The total number of targets.
+    """
+    if target_outliers is None:
+        return
+
+    metrics = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
+
+    dim_box_output, viz_box_output = box_stats
+    box_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
+
+    issues = collect_issues(
+        outliers=target_outliers,
+        source_indices=box_source_indices,
+        valid_metrics=metrics,
+        use_box_indices=True,
+    )
+
+    all_metrics = {k: issues.get(k, []) for k in metrics if k not in ["ratio_offset_x", "channels"]}
+    if "ratio_offset_x" in issues:
+        all_metrics.setdefault("ratio_offset_y", []).extend(issues["ratio_offset_x"])
+
+    md.add_section(heading="Target Outlier Analysis")
+    md.add_text("**Description:** Numerical analysis of outliers in targets (bounding boxes).")
+
+    md.add_subsection(heading="Summary")
+    total_outlier_targets = len(target_outliers)
+    md.add_text(f"Total targets with outliers: {total_outlier_targets} ({total_outlier_targets / total_targets:.2%})")
+
+    dimensional_metrics = [k for k in all_metrics if k in DIMENSION_LIST]
+    if dimensional_metrics:
+        md.add_subsection(heading="Dimensional Outliers")
+        dim_rows = []
+        for metric in dimensional_metrics:
+            outlier_count = len(all_metrics[metric])
+            percentage = outlier_count / total_targets
+            dim_rows.append([metric, str(outlier_count), f"{percentage:.2%}"])
+
+        md.add_table(
+            headers=["Metric", "Count", "Percentage"],
+            rows=dim_rows,
+        )
+
+    visual_metrics = [k for k in all_metrics if k in VISUAL_LIST]
+    if visual_metrics:
+        md.add_subsection(heading="Visual Outliers")
+        vis_rows = []
+        for metric in visual_metrics:
+            outlier_count = len(all_metrics[metric])
+            percentage = outlier_count / total_targets
+            vis_rows.append([metric, str(outlier_count), f"{percentage:.2%}"])
+
+        md.add_table(
+            headers=["Metric", "Count", "Percentage"],
+            rows=vis_rows,
+        )
+
+    ratio_metrics = [k for k in all_metrics if k.startswith("ratio_")]
+    if ratio_metrics:
+        md.add_subsection(heading="Ratio Outliers")
+        ratio_rows = []
+        for metric in ratio_metrics:
+            outlier_count = len(all_metrics[metric])
+            percentage = outlier_count / total_targets
+            ratio_rows.append([metric, str(outlier_count), f"{percentage:.2%}"])
+
+        md.add_table(
+            headers=["Metric", "Count", "Percentage"],
+            rows=ratio_rows,
+        )
+
+
+def generate_next_steps_report_md(
+    md: MarkdownOutput,
+    dataset_id: str,  # noqa: ARG001
+) -> None:
+    """Format next steps as Markdown.
+
+    Parameters
+    ----------
+    md : MarkdownOutput
+        The MarkdownOutput instance to add content to.
+    dataset_id : str
+        The dataset identifier.
+    """
+    md.add_section(heading="Next Steps")
+    md.add_text("Below are the recommended next steps to investigating issues that may arise during analysis.")
+
+    md.add_subsection(heading="In General")
+    md.add_bulleted_list(
+        [
+            "Remove the images/targets flagged in the Basic Check reports for images and targets",
+            "Manually review the images/targets flagged in the Outlier reports",
+        ]
+    )
+
+    md.add_subsection(heading="For Images")
+    md.add_bulleted_list(
+        [
+            "Check if images come up in multiple outlier categories. If so, remove.",
+            "Make sure images are representative of their respective environment/class. If not, remove.",
+        ]
+    )
+
+    md.add_subsection(heading="For Targets")
+    md.add_bulleted_list(
+        [
+            "Run bias analysis with bounding box stats and ensure there are no correlations between a statistic "
+            "and a class",
+            "Make sure targets are representative of their respective class. If not, remove.",
+        ]
+    )
+
+
+def generate_image_property_histograms_report_md(
+    md: MarkdownOutput,
+    img_stats: tuple[
+        DataevalCleaningDimensionStatsOutputs,
+        DataevalCleaningVisualStatsOutputs,
+    ],
+) -> None:
+    """Markdown analogue of the 'Image Property Histograms' slide."""
+    md.add_section(heading="Image Property Histograms")
+    md.add_text(
+        "**Description:** Visual overview of potential outliers in image properties. "
+        "Vertical lines are the outlier thresholds (computed internally). "
+        "Values outside of the vertical lines will be flagged as outliers."
+    )
+
+    img_hist_list = prepare_histograms(img_stats)
+
+    dir_ = Path(cache_path() / "cleaning-artifacts")
+    dir_.mkdir(parents=True, exist_ok=True)
+    filepath = dir_ / "img_stats_histogram_plots.png"
+
+    plot_stat_metrics(is_image=True, plot_list=img_hist_list, filepath=filepath)
+
+    md.add_image(filepath, alt_text="Image Property Histograms")
+
+
+def generate_label_analysis_report_md(
+    md: MarkdownOutput,
+    label_stats: DataevalCleaningLabelStatsOutputs,
+    index2label: dict[int, str],
+) -> None:
+    """Markdown analogue of the 'Label Analysis' slide.
+
+    NOTE: Keep this Markdown-only. We avoid calling `label_table()` because it is typed
+    to accept DataEval's `LabelStatsOutput`, while we hold an internal outputs model.
+    """
+    md.add_section(heading="Label Analysis")
+    md.add_text("Numerical analysis of label properties.")
+
+    avg_labels = float(np.mean(list(label_stats.label_counts_per_image))) if label_stats.label_counts_per_image else 0.0
+    md.add_bulleted_list(
+        [
+            f"**Class Count:** {int(label_stats.class_count)}",
+            f"**Label Count:** {int(label_stats.label_count)}",
+            f"**Average # Labels per Image:** {round(avg_labels, 2)}",
+        ]
+    )
+
+    # Prefer the class_names captured in outputs; fall back to index2label if needed.
+    class_names = (
+        list(label_stats.class_names)
+        if label_stats.class_names
+        else [index2label.get(i, str(i)) for i in range(int(label_stats.class_count))]
+    )
+
+    rows: list[list[str]] = []
+    for cls_idx, name in enumerate(class_names):
+        total = int(label_stats.label_counts_per_class.get(cls_idx, 0))
+        img_count = int(label_stats.image_counts_per_class.get(cls_idx, 0))
+        rows.append([str(name), str(total), str(img_count)])
+
+    md.add_table(headers=["Label", "Total Count", "Image Count"], rows=rows)
+
+
+def generate_target_property_histograms_report_md(
+    md: MarkdownOutput,
+    box_stats: (
+        tuple[
+            DataevalCleaningDimensionStatsOutputs,
+            DataevalCleaningVisualStatsOutputs,
+        ]
+        | None
+    ),
+    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+) -> None:
+    """Markdown analogue of the 'Target Property Histograms' slide."""
+    if box_stats is None or ratio_stats is None:
+        return
+
+    md.add_section(heading="Target Property Histograms")
+    md.add_text(
+        "**Description:** Visual overview of potential outliers in target properties. "
+        "Vertical lines are the outlier thresholds (computed internally). "
+        "Values outside of the vertical lines will be flagged as outliers."
+    )
+
+    box_hist_list = prepare_histograms(box_stats)
+    box_hist_list = prepare_ratio_histograms(ratio_stats, box_hist_list)
+
+    dir_ = Path(cache_path() / "cleaning-artifacts")
+    dir_.mkdir(parents=True, exist_ok=True)
+    filepath = dir_ / "box_stats_histogram_plots.png"
+
+    plot_stat_metrics(is_image=False, plot_list=box_hist_list, filepath=filepath)
+
+    md.add_image(filepath, alt_text="Target Property Histograms")

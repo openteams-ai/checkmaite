@@ -148,30 +148,32 @@ def _get_exception_title(metric: str, context: str, is_image: bool) -> str:
     return ""
 
 
-def save_figure_to_tempfile(fig: matplotlib.figure.Figure) -> str:
+def save_figure_to_tempfile(fig: matplotlib.figure.Figure, path: Path | None = None) -> str:
     """Save matplotlib figure object to a temporary file and return its filename.
 
     Parameters
     ----------
     fig : matplotlib.figure.Figure
         In-memory mpl figure object.
+    path : Path | None, optional
+        If provided, saves to this directory with a generated filename.
+        If None, saves to system temporary directory (default).
 
     Returns
     -------
     str
-        Filename of the temporary file.
+        Filename of the saved file.
     """
-
     buf = io.BytesIO()
-    fig.savefig(buf, format="png")
+    try:
+        fig.savefig(buf, format="png")
+        buf.seek(0)
 
-    fp = tempfile.NamedTemporaryFile(delete=False)
-    filename = f"{fp.name}.png"
-
-    with open(filename, "wb") as ff:
-        ff.write(buf.getvalue())
-
-    buf.close()
+        with tempfile.NamedTemporaryFile(delete=False, dir=path, suffix=".png") as fp:
+            fp.write(buf.getvalue())
+            filename = fp.name
+    finally:
+        buf.close()
 
     return filename
 
@@ -624,7 +626,7 @@ def collect_issues(
     return issues
 
 
-def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:
+def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png", path: Path | None = None) -> Path:
     """Save a PIL Image to a temporary file and return its path.
 
     Parameters
@@ -633,12 +635,15 @@ def temp_image_file(image: PIL.Image.Image, *, suffix: str = ".png") -> Path:
         The image to save.
     suffix : str, optional
         The suffix for the temporary file (default is ".png").
+    path : Path | None, optional
+        If provided, saves to this directory with a generated filename.
+        If None, saves to system temporary directory (default).
 
     Returns
     -------
     pathlib.Path
         The path to the temporary image file.
     """
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, dir=path) as f:
         image.save(f)
         return Path(f.name)

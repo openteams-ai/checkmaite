@@ -8,9 +8,7 @@ import pydantic
 from art.attacks.evasion import AdversarialPatchPyTorch, ProjectedGradientDescent
 from gradient import parse_lines
 from heart_library.attacks.attack import JaticAttack
-from heart_library.estimators.object_detection.pytorch import (
-    JaticPyTorchObjectDetector,
-)
+from heart_library.estimators.object_detection.pytorch import JaticPyTorchObjectDetector
 from maite.protocols import ArrayLike
 from numpy.typing import NDArray
 from pydantic import Field
@@ -24,6 +22,7 @@ from jatic_ri.core.capability_core import (
     CapabilityRunner,
     Number,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
 AttackName = Literal["PGD", "Patch"]
@@ -176,6 +175,75 @@ class HeartAdversarialRun(CapabilityRunBase[HeartAdversarialConfig, HeartAdversa
                 )
 
         return slides
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Generate Markdown report for HEART adversarial robustness analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        model_id = self.model_metadata[0]["id"]
+
+        md = MarkdownOutput("HEART Adversarial Robustness Testing")
+
+        md.add_text(f"**Model**: {model_id}")
+        md.add_text("**Category**: Adversarial Robustness")
+        md.add_blank_line()
+
+        def format_result(result: dict[str, float]) -> str:
+            return ", ".join(f"{metric}={value:.3f}" for metric, value in result.items())
+
+        # Baseline Performance
+        md.add_section(heading="Baseline Performance")
+        if outputs.baseline.result:
+            md.add_table(
+                headers=["Metric", "Value"],
+                rows=[[k, f"{v:.4f}"] for k, v in outputs.baseline.result.items()],
+            )
+        else:
+            md.add_text("No baseline metrics available.")
+
+        # Attacked outputs
+        for i, output in enumerate(outputs.attacked, 1):
+            md.add_section(heading=f"Attack {i}: {output.attack_config.name} - {output.attack_config.strength}")
+
+            # Perturbed metrics
+            md.add_subsection(heading="Perturbed Performance")
+            if output.result:
+                md.add_table(
+                    headers=["Metric", "Value"],
+                    rows=[[k, f"{v:.4f}"] for k, v in output.result.items()],
+                )
+            else:
+                md.add_text("No perturbed metrics available.")
+
+            # Attack parameters
+            md.add_subsection(heading="Attack Parameters")
+            md.add_bulleted_list([f"**Strength**: {output.attack_config.strength}"])
+            if output.attack_config.parameters:
+                param_items = [
+                    f"{param.replace('_', ' ')}: {value}" for param, value in output.attack_config.parameters.items()
+                ]
+                md.add_bulleted_list(param_items)
+
+            # Images
+            for j, (baseline_img, attack_img) in enumerate(zip(outputs.baseline.images, output.images, strict=True), 1):
+                md.add_subsection(heading=f"Image {j}")
+                md.add_text("**Baseline Image:**")
+                md.add_image(temp_image_file(baseline_img), alt_text=f"Baseline Image {j}")
+                md.add_text("**Perturbed Image:**")
+                md.add_image(temp_image_file(attack_img), alt_text=f"Perturbed Image {j}")
+
+        return md.render()
 
 
 class HeartAdversarial(

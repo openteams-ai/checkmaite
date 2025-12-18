@@ -31,8 +31,10 @@ def test_run_and_collect(dummy_shift_capability, fake_od_dataset_default):
     output = capability.run(use_cache=False, datasets=[dev_dataset, op_dataset])
 
     report = output.collect_report_consumables(threshold=0.0)
-
     assert report  # smoke-test for non-empty report
+
+    md = output.collect_md_report(threshold=0.0)
+    assert md  # smoke-test for non-empty markdown report
 
 
 def test_run_and_collect_drift(dummy_shift_capability, fake_od_dataset_default, test_config):

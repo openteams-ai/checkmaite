@@ -26,6 +26,8 @@ def test_run_and_collect(fake_od_dataset_default):
 
     assert output.collect_report_consumables(threshold=0.5)  # smoke test
 
+    assert output.collect_md_report(threshold=0.5)  # smoke test
+
 
 @pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
 @pytest.mark.filterwarnings(r"ignore:Bounding box .*? is invalid:UserWarning")

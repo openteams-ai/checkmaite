@@ -13,11 +13,7 @@ from gradient import SubText, Text
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata
 from pptx.dml.color import RGBColor
 from pydantic import model_validator
-from reallabel import (
-    MAITERealLabel,
-    RealLabelColumns,
-    plot_reallabel_results,
-)
+from reallabel import MAITERealLabel, RealLabelColumns, plot_reallabel_results
 from reallabel import RealLabelConfig as _NativeRealLabelConfig
 
 from jatic_ri.core._types import DataFrame, Image
@@ -29,6 +25,7 @@ from jatic_ri.core.capability_core import (
     CapabilityRunner,
     Number,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
 
@@ -271,6 +268,100 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
 
         return slides
 
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Generate Markdown report for RealLabel analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        reallabel_results = self.outputs
+        default_results_df = reallabel_results.results
+        model_id = self.model_metadata[0]["id"]
+
+        # Find RealLabel statistics
+        num_false_positives = (default_results_df["reallabel_type"] == "Likely Wrong").sum()
+        num_false_negatives = (default_results_df["reallabel_type"] == "Likely Missed").sum()
+        num_true_positives = (default_results_df["reallabel_type"] == "Likely Correct").sum()
+
+        md = MarkdownOutput("RealLabel Label Quality Analysis")
+
+        md.add_text(f"**Model**: {model_id}")
+        md.add_text("**Category**: Label Quality")
+        md.add_blank_line()
+
+        # Summary statistics
+        md.add_section(heading="Label Quality Summary")
+        summary_items = [
+            f"True Positives (Likely Correct): {num_true_positives}",
+            f"False Positives (Likely Wrong): {num_false_positives}",
+            f"False Negatives (Likely Missed): {num_false_negatives}",
+        ]
+        md.add_bulleted_list(summary_items)
+
+        md.add_blank_line()
+        md.add_text("**Label Type Legend:**")
+        legend_items = [
+            "🟩 Green: True Positive (correct label)",
+            "🟥 Red: False Positive (incorrect label)",
+            "🟦 Blue: False Negative (missing label)",
+        ]
+        md.add_bulleted_list(legend_items)
+
+        # Example visualization
+        if reallabel_results.example_image:
+            md.add_subsection(heading="Example Label Quality Visualization")
+            md.add_image(temp_image_file(reallabel_results.example_image.image), alt_text="Example Label Visualization")
+
+        # WANRS ranking
+        md.add_section(heading="WANRS Ranking")
+        md.add_text(
+            "**WANRS (Weighted Average Number of Relevant Suspects)** measures the expected number "
+            "of images to review before finding a relevant suspect. Lower values indicate images that "
+            "require higher priority review."
+        )
+        md.add_blank_line()
+
+        if reallabel_results.wanrs_df is not None and not reallabel_results.wanrs_df.empty:
+            # Show top 10 images by WANRS score
+            top_wanrs = (
+                reallabel_results.wanrs_df.loc[:, ["id", "WANRS"]]
+                .head(10)
+                .reset_index()
+                .assign(index=lambda df: df["index"] + 1)
+                .assign(WANRS=lambda df: df.WANRS.apply(lambda x: f"{x:.3f}"))
+                .rename(
+                    columns={
+                        "index": "Priority",
+                        "id": "Image ID",
+                        "WANRS": "WANRS Score",
+                    }
+                )
+            )
+
+            md.add_subsection(heading="Top 10 Images Requiring Review")
+            headers = list(top_wanrs.columns)
+            rows = []
+            for _, row in top_wanrs.iterrows():
+                rows.append([str(val) for val in row])
+            md.add_table(headers=headers, rows=rows)
+        else:
+            md.add_text("No WANRS data available.")
+            md.add_blank_line()
+            md.add_text(
+                "_Note: Without WANRS data, there is no quantitative prioritization "
+                "of images with label errors; some problematic images may not be prioritized._"
+            )
+
+        return md.render()
+
 
 class _LabellingDatasetWrapper(od.Dataset):
     """A wrapper for the MAITE Dataset for use with Labelling capability.
@@ -478,20 +569,28 @@ class ReallabelLabelling(
             return ReallabelLabellingOutputs(
                 results=default_reallabel_results.toPandas(),
                 example_image=ReallabelLabellingImageOutput(image=output_location, id=example_image_unique_id),  # pyright: ignore [reportArgumentType]
-                classification_disagreements_df=reallabel_results.classification_disagreements_df.toPandas()
-                if reallabel_results.classification_disagreements_df
-                else None,
+                classification_disagreements_df=(
+                    reallabel_results.classification_disagreements_df.toPandas()
+                    if reallabel_results.classification_disagreements_df
+                    else None
+                ),
                 verbose_df=reallabel_results.verbose_df.toPandas() if reallabel_results.verbose_df else None,
-                sequence_priority_score_df=reallabel_results.sequence_priority_score_df.toPandas()
-                if reallabel_results.sequence_priority_score_df
-                else None,
-                sequence_priority_score_balanced_df=reallabel_results.sequence_priority_score_balanced_df.toPandas()
-                if reallabel_results.sequence_priority_score_balanced_df
-                else None,
+                sequence_priority_score_df=(
+                    reallabel_results.sequence_priority_score_df.toPandas()
+                    if reallabel_results.sequence_priority_score_df
+                    else None
+                ),
+                sequence_priority_score_balanced_df=(
+                    reallabel_results.sequence_priority_score_balanced_df.toPandas()
+                    if reallabel_results.sequence_priority_score_balanced_df
+                    else None
+                ),
                 wanrs_df=reallabel_results.wanrs_df.toPandas() if reallabel_results.wanrs_df else None,
-                aggregated_confidence_df=reallabel_results.aggregated_confidence_df.toPandas()
-                if reallabel_results.aggregated_confidence_df
-                else None,
+                aggregated_confidence_df=(
+                    reallabel_results.aggregated_confidence_df.toPandas()
+                    if reallabel_results.aggregated_confidence_df
+                    else None
+                ),
             )
 
     def _compute_maite_inference_result(

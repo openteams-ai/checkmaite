@@ -61,6 +61,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         # the following code is not supported until MAITE>=0.8.0 is supported
         # it requires that target.scores be a 2D array, not a 1D array
         # NOTE: code will need to be updated to fail gracefully if 1D array is encountered
+        # When this gets updated, also update the markdown report method below
         uap = self.outputs["uap"]
         threshold = self.threshold
         is_feasible = uap >= threshold
@@ -100,6 +101,22 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         }
 
         return [feasibility_slide_args]
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Create Markdown report for feasibility analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        raise ValueError("Feasibility test for Object Detection is not possible until MAITE>=0.8.0 is supported.")
 
 
 class DataevalFeasibility(

@@ -49,6 +49,9 @@ def test_xaitk_capability_rise(fake_ic_dataset_default, fake_ic_model_default) -
 
     assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0]
 
+    md = run.collect_md_report(threshold=0.5)
+    assert md  # smoke test
+
 
 @pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
 def test_xaitk_capability_mc_rise(fake_ic_dataset_default, fake_ic_model_default) -> None:
@@ -62,6 +65,9 @@ def test_xaitk_capability_mc_rise(fake_ic_dataset_default, fake_ic_model_default
     output = run.collect_report_consumables(threshold=0.5)
 
     assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0] * 2
+
+    md = run.collect_md_report(threshold=0.5)
+    assert md  # smoke test
 
 
 def test_run_and_collect(fake_ic_dataset_default, fake_ic_model_default):
@@ -77,3 +83,5 @@ def test_run_and_collect(fake_ic_dataset_default, fake_ic_model_default):
     assert output.model_dump()  # smoke test
 
     assert output.collect_report_consumables(threshold=0.5)  # smoke test
+
+    assert output.collect_md_report(threshold=0.5)  # smoke test

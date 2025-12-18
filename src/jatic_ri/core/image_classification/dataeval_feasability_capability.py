@@ -13,6 +13,7 @@ from pydantic import Field
 from jatic_ri.core._types import Device
 from jatic_ri.core._utils import get_resnet18, set_device
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityRunBase, CapabilityRunner, Number
+from jatic_ri.core.report._markdown import MarkdownOutput
 
 
 class DataevalFeasibilityConfig(CapabilityConfigBase):
@@ -87,6 +88,62 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
                 },
             },
         ]
+
+    def collect_md_report(self, threshold: float) -> str:
+        """Create Markdown report for feasibility analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        results = self.outputs
+        dataset_id = self.dataset_metadata[0]["id"]
+        is_feasible = results.ber > threshold
+
+        md = MarkdownOutput("Dataset Feasibility Analysis")
+
+        md.add_text(f"**Dataset**: {dataset_id}")
+        md.add_text("**Category**: Feasibility")
+
+        md.add_section(heading="Bayes Error Rate")
+        md.add_text(f"**Result:** Performance goal of {threshold} {'is' if is_feasible else 'is NOT'} feasible.")
+        md.add_blank_line()
+        md.add_text("**Tests for:**")
+        md.add_bulleted_list(["Achievability of performance goal"])
+        md.add_text("**Risk(s):**")
+        md.add_bulleted_list(
+            [
+                "Performance goal cannot be achieved by any model (problem too hard)",
+                "Models that report performance above the goal are overfit and will not generalize to "
+                "real-world problems",
+            ]
+        )
+        md.add_text("**Action:**")
+        action = "No action required" if is_feasible else "Reduce difficulty of the problem statement"
+        md.add_bulleted_list([action])
+
+        md.add_subsection(heading="Results")
+        md.add_table(
+            headers=["Metric", "Value"],
+            rows=[
+                ["Feasible", str(is_feasible)],
+                ["Bayes Error Rate", str(np.round(results.ber, self.config.precision))],
+                [
+                    "Lower Bayes Error Rate",
+                    str(np.round(results.ber_lower, self.config.precision)),
+                ],
+                ["Performance Goal", str(threshold)],
+            ],
+        )
+
+        return md.render()
 
 
 class DataevalFeasibility(

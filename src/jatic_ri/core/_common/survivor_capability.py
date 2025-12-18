@@ -28,6 +28,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
 
@@ -141,6 +142,76 @@ class SurvivorRun(CapabilityRunBase[SurvivorConfig, SurvivorOutputs]):
             },
             *heatmap_slides,
         ]
+
+    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+        """Generate Markdown-formatted report for Survivor analysis.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+
+        Returns
+        -------
+        str
+            Markdown-formatted report content.
+        """
+        outputs = self.outputs
+        survivor_results = outputs.raw_output_df
+
+        label_counts = survivor_results.suid_label.value_counts()
+        total = label_counts.sum()
+
+        hard_proportion = label_counts.get("Hard", 0) / total
+        easy_proportion = label_counts.get("Easy", 0) / total
+        otb_proportion = label_counts.get("On the Bubble", 0) / total
+
+        md = MarkdownOutput("Survivor Dataset Analysis")
+
+        md.add_section(heading="Dataset Breakdown")
+        md.add_subsection(heading="Types of Data")
+        md.add_text("**Easy**: Models score the same and perform well.")
+        md.add_text("**Hard**: Models score the same and perform poorly.")
+        md.add_text("**On the Bubble**: Models score differently.")
+        md.add_blank_line()
+        md.add_text(
+            'Ideally, a dataset would be primarily "On the Bubble", '
+            "so all data is helping distinguish between model performance."
+        )
+
+        md.add_subsection(heading="Results")
+        md.add_table(
+            headers=["Category", "Count", "Percentage"],
+            rows=[
+                [
+                    "Easy",
+                    str(label_counts.get("Easy", 0)),
+                    f"{easy_proportion * 100:.1f}%",
+                ],
+                [
+                    "Hard",
+                    str(label_counts.get("Hard", 0)),
+                    f"{hard_proportion * 100:.1f}%",
+                ],
+                [
+                    "On the Bubble",
+                    str(label_counts.get("On the Bubble", 0)),
+                    f"{otb_proportion * 100:.1f}%",
+                ],
+                ["**Total**", f"**{total}**", "**100%**"],
+            ],
+        )
+        md.add_image(temp_image_file(outputs.label_count_plot), alt_text="Dataset Breakdown")
+
+        # Add heatmap plots
+        if outputs.heatmap_plots:
+            md.add_section(heading="Metadata Heatmaps")
+            for idx, plot in enumerate(outputs.heatmap_plots, 1):
+                md.add_subsection(f"Heatmap {idx}")
+                md.add_image(temp_image_file(plot), alt_text=f"Metadata Heatmap {idx}")
+
+        return md.render()
 
 
 class SurvivorBase(

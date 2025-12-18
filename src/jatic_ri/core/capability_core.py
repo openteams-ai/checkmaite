@@ -153,6 +153,23 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
         """
         raise NotImplementedError
 
+    def collect_md_report(self, threshold: float) -> str:
+        """Collect data for generating a markdown report.
+
+        Accesses in-depth data needed to produce a markdown report. This data
+        is typically generated in the `_run` method or loaded from cached results.
+
+        Parameters
+        ----------
+        threshold
+            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
+            Results below `threshold` require further inspection or are treated as failures.
+        Returns
+        -------
+            A string containing the markdown report content.
+        """
+        raise NotImplementedError
+
 
 class CapabilityRunCache(PydanticCache[CapabilityRunBase[Any, Any]]):
     def path(self, key: str) -> Path:
