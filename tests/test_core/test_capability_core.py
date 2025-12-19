@@ -3,10 +3,10 @@ from typing import Any
 import pytest
 
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
 )
 
@@ -24,7 +24,7 @@ class MockRun(CapabilityRunBase):
     outputs: MockOutputs
 
 
-class ParamCapabilityRunner(CapabilityRunner):
+class ParamCapability(Capability):
     _RUN_TYPE = MockRun
 
     def __init__(
@@ -101,11 +101,11 @@ def _mk_metrics(n: int, fake_od_metric_default) -> list[object]:
 
 
 @pytest.mark.parametrize("card", [Number.ZERO, Number.ONE, Number.TWO, Number.MANY])
-def test_capabilityrunner_collect_with_run(
+def test_capability_collect_with_run(
     card: Number, fake_od_model_default, fake_od_dataset_default, fake_od_metric_default
 ) -> None:
     # Use the same cardinality for all three axes to keep this test simple.
-    stage = ParamCapabilityRunner(supports_models=card, supports_datasets=card, supports_metrics=card)
+    stage = ParamCapability(supports_models=card, supports_datasets=card, supports_metrics=card)
 
     models = _mk_models(_valid_len(card), fake_od_model_default)
     datasets = _mk_datasets(_valid_len(card), fake_od_dataset_default)
@@ -135,7 +135,7 @@ def test_run_succeeds_with_valid_counts(
         "supports_metrics": Number.ZERO,
     }
     supports[f"supports_{axis}"] = card
-    stage = ParamCapabilityRunner(**supports)
+    stage = ParamCapability(**supports)
 
     models = _mk_models(_valid_len(supports["supports_models"]), fake_od_model_default)
     datasets = _mk_datasets(_valid_len(supports["supports_datasets"]), fake_od_dataset_default)
@@ -155,7 +155,7 @@ def test_run_raises_with_invalid_counts(
         "supports_metrics": Number.ZERO,
     }
     supports[f"supports_{axis}"] = card
-    stage = ParamCapabilityRunner(**supports)
+    stage = ParamCapability(**supports)
 
     # Valid counts for non-tested axes…
     models = _mk_models(_valid_len(supports["supports_models"]), fake_od_model_default)

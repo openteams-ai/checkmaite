@@ -18,10 +18,10 @@ from pydantic import Field
 from jatic_ri.core._types import Device
 from jatic_ri.core._utils import get_resnet18
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -133,7 +133,7 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
         return md.render()
 
 
-class DataevalShiftBase(CapabilityRunner[DataevalShiftOutputs, TDataset, TModel, TMetric, DataevalShiftConfig]):
+class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetric, DataevalShiftConfig]):
     """Detects dataset shift between two datasets using various methods.
 
     Performs three drift detection and two out-of-distribution tests

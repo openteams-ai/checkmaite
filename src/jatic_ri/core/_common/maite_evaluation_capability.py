@@ -8,9 +8,9 @@ from matplotlib.figure import Figure
 
 from jatic_ri.core.cached_tasks import evaluate
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -143,8 +143,8 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
         return md.render()
 
 
-class MaiteEvaluationBase(CapabilityRunner[MaiteEvaluationOutputs, TDataset, TModel, TMetric, MaiteEvaluationConfig]):
-    """Evaluation implementation of CapabilityRunner interface."""
+class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, TMetric, MaiteEvaluationConfig]):
+    """Evaluation implementation of Capability interface."""
 
     _RUN_TYPE = MaiteEvaluationRun
 

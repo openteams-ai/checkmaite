@@ -16,10 +16,10 @@ from jatic_ri import cache_path
 from jatic_ri.core._types import Device, Image
 from jatic_ri.core._utils import get_resnet18, set_device
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -177,7 +177,7 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
         return md.render()
 
 
-class DataevalBiasBase(CapabilityRunner[DataevalBiasOutputs, TDataset, TModel, TMetric, DataevalBiasConfig]):
+class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric, DataevalBiasConfig]):
     """Measures bias in a single dataset.
 
     Generates a Gradient report with bias measurements, potential risks, and

@@ -1,7 +1,7 @@
 from smqtk_core.configuration import from_config_dict as from_config_dict
 
 from jatic_ri.core.capability_core import (
-    CapabilityRunner,
+    Capability,
     Number,
     TConfig,
     TDataset,
@@ -11,7 +11,7 @@ from jatic_ri.core.capability_core import (
 )
 
 
-class XaitkExplainableBase(CapabilityRunner[TOutputs, TDataset, TModel, TMetric, TConfig]):
+class XaitkExplainableBase(Capability[TOutputs, TDataset, TModel, TMetric, TConfig]):
     """Xai capability that takes in the necessary arguements to demo saliency map generation."""
 
     @property

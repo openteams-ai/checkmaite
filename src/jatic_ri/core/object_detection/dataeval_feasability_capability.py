@@ -13,10 +13,10 @@ from jatic_ri.core._types import Device
 from jatic_ri.core._utils import set_device
 from jatic_ri.core.cached_tasks import predict
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
 )
 
@@ -120,7 +120,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
 
 class DataevalFeasibility(
-    CapabilityRunner[
+    Capability[
         DataevalFeasibilityOutputs,
         od.Dataset,
         od.Model,

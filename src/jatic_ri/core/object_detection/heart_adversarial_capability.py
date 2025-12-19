@@ -16,10 +16,10 @@ from pydantic import Field
 from jatic_ri.core._types import Image
 from jatic_ri.core.cached_tasks import evaluate
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
@@ -246,9 +246,7 @@ class HeartAdversarialRun(CapabilityRunBase[HeartAdversarialConfig, HeartAdversa
         return md.render()
 
 
-class HeartAdversarial(
-    CapabilityRunner[HeartAdversarialOutputs, od.Dataset, od.Model, od.Metric, HeartAdversarialConfig]
-):
+class HeartAdversarial(Capability[HeartAdversarialOutputs, od.Dataset, od.Model, od.Metric, HeartAdversarialConfig]):
     """Adversarial capability to Support
     Object Detection Adversarial Attacks, including:
     1. Projected Gradient Descent

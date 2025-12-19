@@ -9,10 +9,10 @@ from smqtk_core.configuration import from_config_dict
 
 from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -74,21 +74,21 @@ def _default_perturber_factory() -> PerturbImageFactory:
     )
 
 
-class NrtkAugmentationConfig(CapabilityConfigBase):
+class NrtkRobustnessConfig(CapabilityConfigBase):
     name: str = "natural_robustness_test_factory"
     perturber_factory: DeSerializablePlugfigurable[PerturbImageFactory] = Field(
         default_factory=_default_perturber_factory
     )
 
 
-class NrtkAugmentationOutputs(CapabilityOutputsBase):
+class NrtkRobustnessOutputs(CapabilityOutputsBase):
     perturbations: list[dict[str, Any]]
     return_key: str
 
 
-class NrtkAugmentationRun(CapabilityRunBase[NrtkAugmentationConfig, NrtkAugmentationOutputs]):
-    config: NrtkAugmentationConfig
-    outputs: NrtkAugmentationOutputs
+class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOutputs]):
+    config: NrtkRobustnessConfig
+    outputs: NrtkRobustnessOutputs
 
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
@@ -230,16 +230,14 @@ class NrtkAugmentationRun(CapabilityRunBase[NrtkAugmentationConfig, NrtkAugmenta
         return md.render()
 
 
-class NrtkAugmentationBase(
-    CapabilityRunner[NrtkAugmentationOutputs, TDataset, TModel, TMetric, NrtkAugmentationConfig]
-):
+class NrtkRobustnessBase(Capability[NrtkRobustnessOutputs, TDataset, TModel, TMetric, NrtkRobustnessConfig]):
     """Perform augmentation on images in a dataset based on a given configuration."""
 
-    _RUN_TYPE = NrtkAugmentationRun
+    _RUN_TYPE = NrtkRobustnessRun
 
     @classmethod
-    def _create_config(cls) -> NrtkAugmentationConfig:
-        return NrtkAugmentationConfig()
+    def _create_config(cls) -> NrtkRobustnessConfig:
+        return NrtkRobustnessConfig()
 
     @property
     def supports_datasets(self) -> Number:

@@ -19,10 +19,10 @@ from survivor.maite_survivor import MAITESurvivor
 from jatic_ri.core._types import DataFrame, Image
 from jatic_ri.core.cached_tasks import evaluate_from_predictions, predict
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -215,7 +215,7 @@ class SurvivorRun(CapabilityRunBase[SurvivorConfig, SurvivorOutputs]):
 
 
 class SurvivorBase(
-    CapabilityRunner[SurvivorOutputs, TDataset, TModel, TMetric, SurvivorConfig],
+    Capability[SurvivorOutputs, TDataset, TModel, TMetric, SurvivorConfig],
 ):
     _RUN_TYPE = SurvivorRun
 
