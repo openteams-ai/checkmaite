@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from jatic_ri.core.object_detection.nrtk_augmentation_capability import NrtkAugmentation, NrtkAugmentationConfig
+from jatic_ri.core.object_detection.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -21,11 +21,11 @@ ARGS = {
 
 @pytest.fixture
 def test_config():
-    return NrtkAugmentationConfig(name=ARGS["name"], perturber_factory=ARGS["perturber_factory"])
+    return NrtkRobustnessConfig(name=ARGS["name"], perturber_factory=ARGS["perturber_factory"])
 
 
 def test_run_and_collect(fake_od_model_default, fake_od_dataset_default, fake_od_metric_default, test_config):
-    capability = NrtkAugmentation()
+    capability = NrtkRobustness()
 
     copied_metric = deepcopy(fake_od_metric_default)
     copied_metric.metadata["id"] = "fake_metric"

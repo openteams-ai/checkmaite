@@ -1,17 +1,18 @@
-import maite.protocols.image_classification as ic
-from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
+import maite.protocols.object_detection as od
+from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
 
-from jatic_ri.core._common.nrtk_augmentation_capability import (
-    NrtkAugmentationBase,
-    NrtkAugmentationConfig,
-    NrtkAugmentationOutputs,
+from jatic_ri.core._common.nrtk_robustness_capability import (
+    NrtkRobustnessBase,
+    NrtkRobustnessConfig,
+    NrtkRobustnessOutputs,
 )
 from jatic_ri.core.cached_tasks import evaluate
 
 
-class NrtkAugmentation(NrtkAugmentationBase[ic.Dataset, ic.Model, ic.Metric]):
+class NrtkRobustness(NrtkRobustnessBase[od.Dataset, od.Model, od.Metric]):
     """
-    Apply realistic image perturbations, evaluate configured metrics, and report performance deltas.
+    Augmentation capability that applies realistic image perturbations, evaluates a configured metric, and reports
+    performance deltas.
 
     Iterates over perturbations that mimic real-world conditions, applies them to the dataset, runs the metric
     on each perturbed variant, and generates a report summarizing changes in model performance.
@@ -19,12 +20,12 @@ class NrtkAugmentation(NrtkAugmentationBase[ic.Dataset, ic.Model, ic.Metric]):
 
     def _run(
         self,
-        models: list[ic.Model],
-        datasets: list[ic.Dataset],
-        metrics: list[ic.Metric],
-        config: NrtkAugmentationConfig,
+        models: list[od.Model],
+        datasets: list[od.Dataset],
+        metrics: list[od.Metric],
+        config: NrtkRobustnessConfig,
         use_prediction_and_evaluation_cache: bool,
-    ) -> NrtkAugmentationOutputs:
+    ) -> NrtkRobustnessOutputs:
         """Run the capability"""
         model = models[0]
         dataset = datasets[0]
@@ -32,7 +33,7 @@ class NrtkAugmentation(NrtkAugmentationBase[ic.Dataset, ic.Model, ic.Metric]):
 
         perturbations = []
         for perturber in config.perturber_factory:
-            augmentation = JATICClassificationAugmentation(augment=perturber, augment_id="JATICClassification")
+            augmentation = JATICDetectionAugmentation(augment=perturber, augment_id="JATICDetection")
             perturbed_metrics, _, _ = evaluate(
                 model=model,
                 dataset=dataset,
@@ -49,7 +50,7 @@ class NrtkAugmentation(NrtkAugmentationBase[ic.Dataset, ic.Model, ic.Metric]):
             return_key = metric.return_key  # type: ignore[attr-defined]
         except AttributeError:
             raise AttributeError(
-                "Metric does not have a return_key attribute which is required for NrtkAugmentation."
+                "Metric does not have a return_key attribute which is required for NrtkRobustness."
             ) from None
 
-        return NrtkAugmentationOutputs(perturbations=perturbations, return_key=return_key)
+        return NrtkRobustnessOutputs(perturbations=perturbations, return_key=return_key)

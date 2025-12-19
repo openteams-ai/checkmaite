@@ -25,10 +25,10 @@ from gradient.templates_and_layouts.generic_layouts import SectionByItem
 from jatic_ri import cache_path
 from jatic_ri.core._utils import squash_repeated_warnings
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
     TDataset,
     TMetric,
@@ -268,9 +268,7 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         return md.render()
 
 
-class DataevalCleaningBase(
-    CapabilityRunner[DataevalCleaningOutputs, TDataset, TModel, TMetric, DataevalCleaningConfig]
-):
+class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel, TMetric, DataevalCleaningConfig]):
     """
     Performs dataset cleaning by identifying duplicates (exact and near)
     as well as statistical outliers using various pixel and image

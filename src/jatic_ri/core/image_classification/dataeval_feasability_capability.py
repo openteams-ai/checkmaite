@@ -12,7 +12,7 @@ from pydantic import Field
 
 from jatic_ri.core._types import Device
 from jatic_ri.core._utils import get_resnet18, set_device
-from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityRunBase, CapabilityRunner, Number
+from jatic_ri.core.capability_core import Capability, CapabilityConfigBase, CapabilityRunBase, Number
 from jatic_ri.core.report._markdown import MarkdownOutput
 
 
@@ -147,7 +147,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
 
 class DataevalFeasibility(
-    CapabilityRunner[
+    Capability[
         DataevalFeasibilityOutputs,
         ic.Dataset,
         ic.Model,

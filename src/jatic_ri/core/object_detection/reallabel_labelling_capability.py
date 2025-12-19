@@ -19,10 +19,10 @@ from reallabel import RealLabelConfig as _NativeRealLabelConfig
 from jatic_ri.core._types import DataFrame, Image
 from jatic_ri.core.cached_tasks import predict
 from jatic_ri.core.capability_core import (
+    Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,
     CapabilityRunBase,
-    CapabilityRunner,
     Number,
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
@@ -403,7 +403,7 @@ class _LabellingDatasetWrapper(od.Dataset):
 
 
 class ReallabelLabelling(
-    CapabilityRunner[ReallabelLabellingOutputs, od.Dataset, od.Model, od.Metric, ReallabelLabellingConfig],
+    Capability[ReallabelLabellingOutputs, od.Dataset, od.Model, od.Metric, ReallabelLabellingConfig],
 ):
     """Labelling capability.
 

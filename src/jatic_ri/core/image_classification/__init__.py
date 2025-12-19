@@ -4,7 +4,7 @@ from jatic_ri.core._common.dataeval_bias_capability import DataevalBiasConfig, D
 from jatic_ri.core._common.dataeval_cleaning_capability import DataevalCleaningConfig, DataevalCleaningOutputs
 from jatic_ri.core._common.dataeval_shift_capability import DataevalShiftConfig, DataevalShiftOutputs
 from jatic_ri.core._common.maite_evaluation_capability import MaiteEvaluationConfig, MaiteEvaluationOutputs
-from jatic_ri.core._common.nrtk_augmentation_capability import NrtkAugmentationConfig, NrtkAugmentationOutputs
+from jatic_ri.core._common.nrtk_robustness_capability import NrtkRobustnessConfig, NrtkRobustnessOutputs
 from jatic_ri.core.image_classification.dataeval_bias_capability import DataevalBias
 from jatic_ri.core.image_classification.dataeval_cleaning_capability import DataevalCleaning
 from jatic_ri.core.image_classification.dataeval_feasability_capability import (
@@ -14,7 +14,7 @@ from jatic_ri.core.image_classification.dataeval_feasability_capability import (
 )
 from jatic_ri.core.image_classification.dataeval_shift_capability import DataevalShift
 from jatic_ri.core.image_classification.maite_evaluation_capability import MaiteEvaluation
-from jatic_ri.core.image_classification.nrtk_augmentation_capability import NrtkAugmentation
+from jatic_ri.core.image_classification.nrtk_robustness_capability import NrtkRobustness
 from jatic_ri.core.image_classification.xaitk_explainable_capability import (
     XaitkExplainable,
     XaitkExplainableConfig,
@@ -49,9 +49,9 @@ __all__ = [
     "DataevalShift",
     "DataevalShiftConfig",
     "DataevalShiftOutputs",
-    "NrtkAugmentation",
-    "NrtkAugmentationConfig",
-    "NrtkAugmentationOutputs",
+    "NrtkRobustness",
+    "NrtkRobustnessConfig",
+    "NrtkRobustnessOutputs",
     "Survivor",
     "SurvivorConfig",
     "SurvivorOutputs",

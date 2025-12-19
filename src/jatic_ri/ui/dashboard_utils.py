@@ -18,8 +18,8 @@ from jatic_ri.core.image_classification.dataeval_shift_capability import (
 from jatic_ri.core.image_classification.maite_evaluation_capability import (
     MaiteEvaluation as MaiteEvaluationIC,
 )
-from jatic_ri.core.image_classification.nrtk_augmentation_capability import (
-    NrtkAugmentation as NrtkAugmentationIC,
+from jatic_ri.core.image_classification.nrtk_robustness_capability import (
+    NrtkRobustness as NrtkRobustnessIC,
 )
 
 # from jatic_ri.core.image_classification.test_stages import (
@@ -41,8 +41,8 @@ from jatic_ri.core.object_detection.dataeval_shift_capability import (
     DataevalShift as DataevalShiftOD,
 )
 from jatic_ri.core.object_detection.maite_evaluation_capability import MaiteEvaluation as MaiteEvaluationOD
-from jatic_ri.core.object_detection.nrtk_augmentation_capability import (
-    NrtkAugmentation as NrtkAugmentationOD,
+from jatic_ri.core.object_detection.nrtk_robustness_capability import (
+    NrtkRobustness as NrtkRobustnessOD,
 )
 
 # from jatic_ri.core.object_detection.test_stages import (
@@ -63,7 +63,7 @@ def rehydrate_test_stage_od(
     config: dict[str, Any],
 ) -> (
     MaiteEvaluationOD
-    | NrtkAugmentationOD
+    | NrtkRobustnessOD
     # | RealLabelTestStageOD
     # | SurvivorTestStageOD
     | XaitkExplainableOD
@@ -77,7 +77,7 @@ def rehydrate_test_stage_od(
     #     reallabel_config = RealLabelConfig(**config["CONFIG"])
     #     return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
-        return NrtkAugmentationOD()
+        return NrtkRobustnessOD()
     if config["TYPE"] == "XAITKTestStage":
         return XaitkExplainableOD()
     # if config["TYPE"] == "SurvivorTestStage":
@@ -102,7 +102,7 @@ def rehydrate_test_stage_ic(
     config: dict[str, Any],
 ) -> (
     MaiteEvaluationIC
-    | NrtkAugmentationIC
+    | NrtkRobustnessIC
     # | SurvivorTestStageIC
     | XaitkExplainableIC
     | DataevalShiftIC
@@ -112,7 +112,7 @@ def rehydrate_test_stage_ic(
 ):
     """Initialize test stage object based on config dictionary"""
     if config["TYPE"] == "NRTKTestStage":
-        return NrtkAugmentationIC()
+        return NrtkRobustnessIC()
     if config["TYPE"] == "XAITKTestStage":
         return XaitkExplainableIC()
     # if config["TYPE"] == "SurvivorTestStage":

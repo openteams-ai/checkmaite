@@ -210,8 +210,8 @@ def _check_cardinality(owner_id: str, label: str, required: Number, n: int) -> N
         raise TypeError(f"{owner_id} requires exactly {expected} {label}{s_expected}, but got {n} {label}{s_got}.")
 
 
-class CapabilityRunner(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
-    """Base class for running a capability and receiving report values.
+class Capability(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
+    """Base class for a capability.
 
     Attributes
     ----------
