@@ -19,12 +19,13 @@ from jatic_ri.core.capability_core import (
     TModel,
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
+from jatic_ri.core.report._plotting_utils import save_figure_to_tempfile
 
 PERTURBER_LABELS = {
     "factor": "Factor",
     "ksize": "Kernel Size",
-    "s_x": "Root Mean Squared",
-    "s_y": "Root Mean Squared",
+    "s_x": "Jitter Amplitude - X (radians)",
+    "s_y": "Jitter Amplitude - Y (radians)",
     "p_x": "Pitch in X Direction",
     "w_x": "Detector Width",
     "w_y": "Detector Height",
@@ -122,7 +123,7 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
             return_key: lowest_perturb_score,
         }
         df_perturbation = pd.DataFrame.from_dict(final_dict)
-        df_perturbation["line_id"] = "item_response_curve"
+        df_perturbation["line_id"] = "Item-Response Curve"
 
         # convert pert classname into semantic label
         # (e.g. nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber into Brightness Perturber)
@@ -137,14 +138,14 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
                 "deck": self.capability_id,
                 "layout_name": "NRTKEvaluation",  # specialized template in gradient codebase
                 "layout_arguments": {
-                    "title": self.capability_id,
+                    "title": "Natural Robustness Toolkit (NRTK)",
                     "data": df_perturbation,
                     "line_col": "line_id",
                     "x_data_col": self.config.perturber_factory.theta_key,
                     "y_data_col": return_key,
                     "perturbation_type": perturbation_label,
-                    "lower_bound": 3.4,
-                    "upper_bound": 5.3,
+                    "lower_bound": min(self.config.perturber_factory.thetas),
+                    "upper_bound": max(self.config.perturber_factory.thetas),
                     "model": model_id,
                     "plot_kwargs": {
                         "y_threshold_value": threshold,
@@ -197,10 +198,9 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
                     val = float(val)
             values.append(val)
 
-        md = MarkdownOutput("NRTK Robustness Analysis")
+        md = MarkdownOutput("Natural Robustness Toolkit (NRTK)")
 
         # High-level summary
-        md.add_section(self.capability_id)
         md.add_text(f"**Model**: {model_id}")
         md.add_text(f"**Dataset**: {dataset_id}")
         md.add_text(f"**Perturbation Type**: {perturbation_label}")
@@ -212,9 +212,9 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
         md.add_metrics_list(
             {
                 "Theta key": theta_key,
+                "Lower bound": min(self.config.perturber_factory.thetas),
+                "Upper bound": max(self.config.perturber_factory.thetas),
                 "Metric key": return_key,
-                "Lower bound": 3.4,
-                "Upper bound": 5.3,
             }
         )
 
@@ -224,6 +224,38 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
         rows: list[list[str]] = []
         for theta, val in zip(thetas, values, strict=True):
             rows.append([str(theta), f"{val:.4f}"])
+
+        perturber = self.config.perturber_factory.get_config()["perturber"].rpartition(".")[-1].replace("Perturber", "")
+
+        # Generate the plot inline ()
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+
+        # Plot the threshold line
+        ax.axhline(
+            y=threshold,
+            linestyle="solid",
+            color="red",
+            linewidth=3,
+        )
+
+        # Plot the data line
+        ax.plot(thetas, values, label="Item-Response Curve")
+
+        # Set labels and title
+        ax.set_xlabel(f"{perturber} {theta_label}")
+        ax.set_ylabel(metric_label)
+        ax.set_title("NRTK Robustness Curve")
+        ax.legend()
+
+        md.add_text(
+            f"This test seeks to evaluate the performance of Model ID {model_id} on dataset ID {dataset_id} as a "
+            f"{perturbation_label} perturber is applied.  The {theta_label} varies from {min(thetas)} to {max(thetas)}."
+            f" Model Performance below the red line indicates when a model has failed and should not be used."
+        )
+        md.add_image(save_figure_to_tempfile(fig), alt_text="NRTK Robustness Curve")
+        plt.close(fig)
 
         md.add_table(headers=[theta_label, metric_label], rows=rows)
 

@@ -8,7 +8,7 @@ from jatic_ri.core.capability_core import Number
 from jatic_ri.core.image_classification.dataset_loaders import YoloClassificationDataset
 from jatic_ri.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
 from jatic_ri.core.image_classification.models import TorchvisionICModel
-from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_ic
+from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
 
 CLASSES = ["cat", "dog"]
 NUM_IMAGES_PER_CLASS = 4
@@ -124,7 +124,7 @@ def dataset_ic(fake_dataset):
         "shift_config_ic",
     ],
 )
-def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic):
+def test_get_capability_from_app_config_and_run_ic(config_fixture_name, request, model_ic, dataset_ic):
     """Run end to end test from test stage config output to running the test.
     This is only for local testing as it is very time consuming.
     Once a faked model and dataset exist, it can be run in CI.
@@ -134,36 +134,36 @@ def test_rehydrate_and_run_ic(config_fixture_name, request, model_ic, dataset_ic
     """
     config = request.getfixturevalue(config_fixture_name)
 
-    test_stage = rehydrate_test_stage_ic(config=config)
+    capability, config_obj = get_capability_from_app_config_ic(config=config)
 
     metric_ic = accuracy_multiclass_torch_metric_factory(num_classes=12)
 
     # use deepcopy to enforce distinct datasets
-    if test_stage.supports_datasets == Number.TWO:
+    if capability.supports_datasets == Number.TWO:
         datasets = [deepcopy(dataset_ic), deepcopy(dataset_ic)]
-    elif test_stage.supports_datasets == Number.ONE:
+    elif capability.supports_datasets == Number.ONE:
         datasets = [dataset_ic]
-    elif test_stage.supports_datasets == Number.ZERO:
+    elif capability.supports_datasets == Number.ZERO:
         datasets = []
     else:
         raise ValueError("Test should be rewritten if more than two datasets used.")
 
-    if test_stage.supports_metrics == Number.ONE:
+    if capability.supports_metrics == Number.ONE:
         metrics = [metric_ic]
-    elif test_stage.supports_metrics == Number.ZERO:
+    elif capability.supports_metrics == Number.ZERO:
         metrics = []
     else:
         raise ValueError("Test should be rewritten if multiple metrics used.")
 
-    if test_stage.supports_models == Number.MANY:
+    if capability.supports_models == Number.MANY:
         models = [deepcopy(model_ic), deepcopy(model_ic), deepcopy(model_ic)]
-    elif test_stage.supports_models == Number.TWO:
+    elif capability.supports_models == Number.TWO:
         models = [deepcopy(model_ic), deepcopy(model_ic)]
-    elif test_stage.supports_models == Number.ONE:
+    elif capability.supports_models == Number.ONE:
         models = [model_ic]
     else:
         models = []
 
-    run = test_stage.run(models=models, datasets=datasets, metrics=metrics, use_cache=False)
+    run = capability.run(models=models, datasets=datasets, metrics=metrics, use_cache=False, config=config_obj)
 
     run.collect_report_consumables(threshold=0.5)

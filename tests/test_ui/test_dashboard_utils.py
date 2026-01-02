@@ -24,12 +24,12 @@ def test_create_download_link():
         "baseline_eval_config_od",
     ],
 )
-def test_rehydrate_test_stage_od(config_fixture_name, request):
-    from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_od
+def test_get_capability_from_app_config_od(config_fixture_name, request):
+    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
 
     config = request.getfixturevalue(config_fixture_name)
 
-    rehydrate_test_stage_od(config=config)
+    get_capability_from_app_config_od(config=config)
 
 
 @pytest.mark.parametrize(
@@ -45,41 +45,41 @@ def test_rehydrate_test_stage_od(config_fixture_name, request):
         "baseline_eval_config_ic",
     ],
 )
-def test_rehydrate_test_stage_ic(config_fixture_name, request):
-    from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_ic
+def test_get_capability_from_app_config_ic(config_fixture_name, request):
+    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
 
     config = request.getfixturevalue(config_fixture_name)
 
-    rehydrate_test_stage_ic(config=config)
+    get_capability_from_app_config_ic(config=config)
 
 
-def test_rehydrate_test_stage_od_unrecognized():
-    from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_od
-
-    heart_config = {
-        "TYPE": "HeartTestStage",
-    }
-    with pytest.raises(RuntimeError, match=r"\bHeart test stage\b"):
-        rehydrate_test_stage_od(config=heart_config)
-
-    unknown_config = {
-        "TYPE": "unknown_stage",
-    }
-    with pytest.raises(RuntimeError, match=r"\bUnable to instantiate\b"):
-        rehydrate_test_stage_od(config=unknown_config)
-
-
-def test_rehydrate_test_stage_ic_unrecognized():
-    from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_ic
+def test_get_capability_from_app_config_od_unrecognized():
+    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
 
     heart_config = {
         "TYPE": "HeartTestStage",
     }
     with pytest.raises(RuntimeError, match=r"\bHeart test stage\b"):
-        rehydrate_test_stage_ic(config=heart_config)
+        get_capability_from_app_config_od(config=heart_config)
 
     unknown_config = {
         "TYPE": "unknown_stage",
     }
     with pytest.raises(RuntimeError, match=r"\bUnable to instantiate\b"):
-        rehydrate_test_stage_ic(config=unknown_config)
+        get_capability_from_app_config_od(config=unknown_config)
+
+
+def test_get_capability_from_app_config_ic_unrecognized():
+    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
+
+    heart_config = {
+        "TYPE": "HeartTestStage",
+    }
+    with pytest.raises(RuntimeError, match=r"\bHeart test stage\b"):
+        get_capability_from_app_config_ic(config=heart_config)
+
+    unknown_config = {
+        "TYPE": "unknown_stage",
+    }
+    with pytest.raises(RuntimeError, match=r"\bUnable to instantiate\b"):
+        get_capability_from_app_config_ic(config=unknown_config)
