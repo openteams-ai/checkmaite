@@ -7,7 +7,7 @@ from jatic_ri.core.capability_core import Number
 from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
 from jatic_ri.core.object_detection.metrics import map50_torch_metric_factory
 from jatic_ri.core.object_detection.models import TorchvisionODModel
-from jatic_ri.ui.dashboard_utils import rehydrate_test_stage_od
+from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
 
 
 @pytest.fixture(scope="session")
@@ -90,14 +90,16 @@ def dataset_od_mini():
         "shift_config_od",
     ],
 )
-def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od, dataset_od_mini, artifact_dir):
+def test_get_capability_from_app_config_and_run_od(
+    config_fixture_name, request, model_od, dataset_od, dataset_od_mini, artifact_dir
+):
     """Run end to end test from test stage config output to running the test.
     This is only for local testing as it is very time consuming.
     Once a faked model and dataset exist, it can be run in CI.
     """
     config = request.getfixturevalue(config_fixture_name)
 
-    test_stage = rehydrate_test_stage_od(config=config)
+    capability, config_obj = get_capability_from_app_config_od(config=config)
 
     metric_od = map50_torch_metric_factory()
 
@@ -107,31 +109,31 @@ def test_rehydrate_and_run_od(config_fixture_name, request, model_od, dataset_od
         dataset = dataset_od
 
     # use deepcopy to enforce distinct datasets
-    if test_stage.supports_datasets == Number.TWO:
+    if capability.supports_datasets == Number.TWO:
         datasets = [deepcopy(dataset), deepcopy(dataset)]
-    elif test_stage.supports_datasets == Number.ONE:
+    elif capability.supports_datasets == Number.ONE:
         datasets = [dataset]
-    elif test_stage.supports_datasets == Number.ZERO:
+    elif capability.supports_datasets == Number.ZERO:
         datasets = []
     else:
         raise ValueError("Test should be rewritten if more than two datasets used.")
 
-    if test_stage.supports_metrics == Number.ONE:
+    if capability.supports_metrics == Number.ONE:
         metrics = [metric_od]
-    elif test_stage.supports_metrics == Number.ZERO:
+    elif capability.supports_metrics == Number.ZERO:
         metrics = []
     else:
         raise ValueError("Test should be rewritten if multiple metrics used.")
 
-    if test_stage.supports_models == Number.MANY:
+    if capability.supports_models == Number.MANY:
         models = [deepcopy(model_od), deepcopy(model_od), deepcopy(model_od)]
-    elif test_stage.supports_models == Number.TWO:
+    elif capability.supports_models == Number.TWO:
         models = [deepcopy(model_od), deepcopy(model_od)]
-    elif test_stage.supports_models == Number.ONE:
+    elif capability.supports_models == Number.ONE:
         models = [model_od]
     else:
         models = []
 
-    run = test_stage.run(datasets=datasets, metrics=metrics, models=models, use_cache=False)
+    run = capability.run(datasets=datasets, metrics=metrics, models=models, use_cache=False, config=config_obj)
 
     run.collect_report_consumables(threshold=0.5)

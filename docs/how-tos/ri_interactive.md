@@ -12,7 +12,7 @@ Once you have the environment set up, you can start the RI application by runnin
 following command in your terminal:
 
 ```bash
-poetry run panel serve src/jatic_ri/deploy/app.py --show
+poetry run panel serve src/jatic_ri/ui/app.py --show
 ```
 
 </details>
@@ -20,7 +20,7 @@ If running a conda environment, you can replace the need for `poetry run` with `
 or if the environment is activated, you can simply use:
 
 ```bash
-python panel serve src/jatic_ri/deploy/app.py --show
+python panel serve src/jatic_ri/ui/app.py --show
 ```
 </details>
 

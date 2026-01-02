@@ -3,133 +3,107 @@ from typing import Any
 
 import panel as pn
 
-from jatic_ri.core.image_classification.dataeval_bias_capability import (
+from jatic_ri.core.capability_core import Capability, CapabilityConfigBase
+
+# ruff: noqa: I001
+from jatic_ri.core.image_classification import (
     DataevalBias as DataevalBiasIC,
-)
-from jatic_ri.core.image_classification.dataeval_cleaning_capability import (
+    DataevalBiasConfig as DataevalBiasConfigIC,
     DataevalCleaning as DataevalCleaningIC,
-)
-from jatic_ri.core.image_classification.dataeval_feasability_capability import (
+    DataevalCleaningConfig as DataevalCleaningConfigIC,
     DataevalFeasibility as DataevalFeasibilityIC,
-)
-from jatic_ri.core.image_classification.dataeval_shift_capability import (
+    DataevalFeasibilityConfig as DataevalFeasibilityConfigIC,
     DataevalShift as DataevalShiftIC,
-)
-from jatic_ri.core.image_classification.maite_evaluation_capability import (
+    DataevalShiftConfig as DataevalShiftConfigIC,
     MaiteEvaluation as MaiteEvaluationIC,
-)
-from jatic_ri.core.image_classification.nrtk_robustness_capability import (
+    MaiteEvaluationConfig as MaiteEvaluationConfigIC,
     NrtkRobustness as NrtkRobustnessIC,
-)
-
-# from jatic_ri.core.image_classification.test_stages import (
-#     SurvivorTestStage as SurvivorTestStageIC,
-# )
-from jatic_ri.core.image_classification.xaitk_explainable_capability import (
+    NrtkRobustnessConfig as NrtkRobustnessConfigIC,
     XaitkExplainable as XaitkExplainableIC,
+    XaitkExplainableConfig as XaitkExplainableConfigIC,
+    #    SurvivorTestStage as SurvivorTestStageIC,
 )
-from jatic_ri.core.object_detection.dataeval_bias_capability import (
+
+# ruff: noqa: I001
+from jatic_ri.core.object_detection import (
     DataevalBias as DataevalBiasOD,
-)
-from jatic_ri.core.object_detection.dataeval_cleaning_capability import (
+    DataevalBiasConfig as DataevalBiasConfigOD,
     DataevalCleaning as DataevalCleaningOD,
-)
-from jatic_ri.core.object_detection.dataeval_feasability_capability import (
+    DataevalCleaningConfig as DataevalCleaningConfigOD,
     DataevalFeasibility as DataevalFeasibilityOD,
-)
-from jatic_ri.core.object_detection.dataeval_shift_capability import (
+    DataevalFeasibilityConfig as DataevalFeasibilityConfigOD,
     DataevalShift as DataevalShiftOD,
-)
-from jatic_ri.core.object_detection.maite_evaluation_capability import MaiteEvaluation as MaiteEvaluationOD
-from jatic_ri.core.object_detection.nrtk_robustness_capability import (
+    DataevalShiftConfig as DataevalShiftConfigOD,
+    MaiteEvaluation as MaiteEvaluationOD,
+    MaiteEvaluationConfig as MaiteEvaluationConfigOD,
     NrtkRobustness as NrtkRobustnessOD,
-)
-
-# from jatic_ri.core.object_detection.test_stages import (
-#     RealLabelConfig,
-# )
-# from jatic_ri.core.object_detection.test_stages import (
-#     RealLabelTestStage as RealLabelTestStageOD,
-# )
-# from jatic_ri.core.object_detection.test_stages import (
-#     SurvivorTestStage as SurvivorTestStageOD,
-# )
-from jatic_ri.core.object_detection.xaitk_explainable_capability import (
+    NrtkRobustnessConfig as NrtkRobustnessConfigOD,
     XaitkExplainable as XaitkExplainableOD,
+    XaitkExplainableConfig as XaitkExplainableConfigOD,
+    #    RealLabelTestStage as RealLabelTestStageOD,
+    #    SurvivorTestStage as SurvivorTestStageOD,
 )
 
 
-def rehydrate_test_stage_od(
+def get_capability_from_app_config_od(
     config: dict[str, Any],
-) -> (
-    MaiteEvaluationOD
-    | NrtkRobustnessOD
-    # | RealLabelTestStageOD
-    # | SurvivorTestStageOD
-    | XaitkExplainableOD
-    | DataevalShiftOD
-    | DataevalCleaningOD
-    | DataevalBiasOD
-    | DataevalFeasibilityOD
-):
+) -> tuple[Capability, CapabilityConfigBase]:
     """Initialize test stage object based on config dictionary"""
+
+    # Some capabilities take no configuration parameters, so CONFIG key will not exist.
+    capability_config = config.get("CONFIG", {})
+
     # if config["TYPE"] == "RealLabelTestStage":
-    #     reallabel_config = RealLabelConfig(**config["CONFIG"])
+    #     reallabel_config = RealLabelConfig(**capability_config)
     #     return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
-        return NrtkRobustnessOD()
+        return (NrtkRobustnessOD(), NrtkRobustnessConfigOD(**capability_config))
     if config["TYPE"] == "XAITKTestStage":
-        return XaitkExplainableOD()
+        return (XaitkExplainableOD(), XaitkExplainableConfigOD(**capability_config))
     # if config["TYPE"] == "SurvivorTestStage":
-    #     return SurvivorTestStageOD(config["CONFIG"])
+    #     return SurvivorTestStageOD(**capability_config)
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":
-        return MaiteEvaluationOD()
+        return (MaiteEvaluationOD(), MaiteEvaluationConfigOD(**capability_config))
     if config["TYPE"] == "DatasetFeasibilityTestStage":
-        return DataevalFeasibilityOD()
+        return (DataevalFeasibilityOD(), DataevalFeasibilityConfigOD(**capability_config))
     if config["TYPE"] == "DatasetBiasTestStage":
-        return DataevalBiasOD()
+        return (DataevalBiasOD(), DataevalBiasConfigOD(**capability_config))
     if config["TYPE"] == "DatasetCleaningTestStage":
-        return DataevalCleaningOD()
+        return (DataevalCleaningOD(), DataevalCleaningConfigOD(**capability_config))
     if config["TYPE"] == "DatasetShiftTestStage":
-        return DataevalShiftOD()
+        return (DataevalShiftOD(), DataevalShiftConfigOD(**capability_config))
 
     raise RuntimeError(f'Unable to instantiate TestStage object from config: {config["TYPE"]}')
 
 
-def rehydrate_test_stage_ic(
+def get_capability_from_app_config_ic(
     config: dict[str, Any],
-) -> (
-    MaiteEvaluationIC
-    | NrtkRobustnessIC
-    # | SurvivorTestStageIC
-    | XaitkExplainableIC
-    | DataevalShiftIC
-    | DataevalCleaningIC
-    | DataevalBiasIC
-    | DataevalFeasibilityIC
-):
+) -> tuple[Capability, CapabilityConfigBase]:
     """Initialize test stage object based on config dictionary"""
+
+    # Some capabilities take no configuration parameters, so CONFIG key will not exist.
+    capability_config = config.get("CONFIG", {})
+
     if config["TYPE"] == "NRTKTestStage":
-        return NrtkRobustnessIC()
+        return (NrtkRobustnessIC(), NrtkRobustnessConfigIC(**capability_config))
     if config["TYPE"] == "XAITKTestStage":
-        return XaitkExplainableIC()
+        return (XaitkExplainableIC(), XaitkExplainableConfigIC(**capability_config))
     # if config["TYPE"] == "SurvivorTestStage":
-    #     return SurvivorTestStageIC(config["CONFIG"])
+    #     return SurvivorTestStageIC(**capability_config)
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":
-        return MaiteEvaluationIC()
+        return (MaiteEvaluationIC(), MaiteEvaluationConfigIC(**capability_config))
     if config["TYPE"] == "DatasetFeasibilityTestStage":
-        return DataevalFeasibilityIC()
+        return (DataevalFeasibilityIC(), DataevalFeasibilityConfigIC(**capability_config))
     if config["TYPE"] == "DatasetBiasTestStage":
-        return DataevalBiasIC()
+        return (DataevalBiasIC(), DataevalBiasConfigIC(**capability_config))
     if config["TYPE"] == "DatasetCleaningTestStage":
-        return DataevalCleaningIC()
+        return (DataevalCleaningIC(), DataevalCleaningConfigIC(**capability_config))
     if config["TYPE"] == "DatasetShiftTestStage":
-        return DataevalShiftIC()
-
+        return (DataevalShiftIC(), DataevalShiftConfigIC(**capability_config))
     raise RuntimeError(f'Unable to instantiate TestStage object from config: {config["TYPE"]}')
 
 

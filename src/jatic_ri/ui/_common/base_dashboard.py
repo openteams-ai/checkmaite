@@ -25,7 +25,7 @@ from bokeh.models import HTMLTemplateFormatter
 from gradient.templates_and_layouts.create_deck import create_deck
 from streamz import Stream
 
-from jatic_ri.core.capability_core import Number
+from jatic_ri.core.capability_core import Capability, CapabilityConfigBase, Number
 from jatic_ri.core.image_classification.models import SUPPORTED_MODELS as SUPPORTED_MODELS_IC
 from jatic_ri.core.image_classification.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_IC
 from jatic_ri.core.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
@@ -34,8 +34,8 @@ from jatic_ri.core.object_detection.models import SUPPORTED_VISDRONE_MODELS as S
 from jatic_ri.ui._common.base_app import AppStyling, BaseApp
 from jatic_ri.ui.dashboard_utils import (
     create_download_link,
-    rehydrate_test_stage_ic,
-    rehydrate_test_stage_od,
+    get_capability_from_app_config_ic,
+    get_capability_from_app_config_od,
     with_loading,
 )
 
@@ -870,7 +870,7 @@ class BaseTestbed(BaseApp):
         logger.debug("load pipeline")
         self.threshold_visible = False
         self.dataset_2_visible = False
-        self.test_stages = {}
+        self.test_stages: dict[Any, tuple[Capability, CapabilityConfigBase]] = {}
         if "task" not in configs:
             self.status_source.emit("Task must be specified in the provided config.")
             logger.debug("Task must be specified in the provided config.")
@@ -883,9 +883,9 @@ class BaseTestbed(BaseApp):
                 self.status_source.emit(f'Loading {config["TYPE"]}')
                 logger.debug(f'Loading {config["TYPE"]}')
                 if self.task == "object_detection":
-                    stage = rehydrate_test_stage_od(config)
+                    stage = get_capability_from_app_config_od(config)
                 else:
-                    stage = rehydrate_test_stage_ic(config)
+                    stage = get_capability_from_app_config_ic(config)
                 self.test_stages[stage_label] = stage
                 # allow multiple models for multi-model test stages
                 if config["TYPE"] == "RealLabelTestStage" or config["TYPE"] == "SurvivorTestStage":
@@ -937,6 +937,7 @@ class BaseTestbed(BaseApp):
 
         slides = []
         for stage in self.test_stages.values():
+            capabilty = stage[0]
             self.status_source.emit(f"Loading inputs for {stage.__class__.__name__}")
 
             all_datasets = list(self.loaded_datasets.values())
@@ -955,31 +956,31 @@ class BaseTestbed(BaseApp):
             # for symmetry.)
 
             # Assemble datasets based on stage's supports_datasets
-            if stage.supports_datasets == Number.ZERO:
+            if capabilty.supports_datasets == Number.ZERO:
                 datasets = []
-            elif stage.supports_datasets == Number.ONE:
+            elif capabilty.supports_datasets == Number.ONE:
                 datasets = all_datasets[:1] if all_datasets else []
-            elif stage.supports_datasets == Number.TWO:
+            elif capabilty.supports_datasets == Number.TWO:
                 datasets = all_datasets[:2] if len(all_datasets) >= 2 else all_datasets
             else:  # Number.MANY
                 datasets = all_datasets
 
             # Assemble models based on stage's supports_models
-            if stage.supports_models == Number.ZERO:
+            if capabilty.supports_models == Number.ZERO:
                 models = []
-            elif stage.supports_models == Number.ONE:
+            elif capabilty.supports_models == Number.ONE:
                 models = all_models[:1] if all_models else []
-            elif stage.supports_models == Number.TWO:
+            elif capabilty.supports_models == Number.TWO:
                 models = all_models[:2] if len(all_models) >= 2 else all_models
             else:  # Number.MANY
                 models = all_models
 
             # Assemble metrics based on stage's supports_metrics
-            if stage.supports_metrics == Number.ZERO:
+            if capabilty.supports_metrics == Number.ZERO:
                 metrics = []
-            elif stage.supports_metrics == Number.ONE:
+            elif capabilty.supports_metrics == Number.ONE:
                 metrics = all_metrics[:1] if all_metrics else []
-            elif stage.supports_metrics == Number.TWO:
+            elif capabilty.supports_metrics == Number.TWO:
                 metrics = all_metrics[:2] if len(all_metrics) >= 2 else all_metrics
             else:  # Number.MANY
                 metrics = all_metrics
@@ -987,17 +988,17 @@ class BaseTestbed(BaseApp):
             # Build kwargs for stage.run, only including parameters the stage supports
             run_kwargs = {"use_cache": self.use_caches}
 
-            if stage.supports_datasets != Number.ZERO:
+            if capabilty.supports_datasets != Number.ZERO:
                 run_kwargs["datasets"] = datasets
-            if stage.supports_models != Number.ZERO:
+            if capabilty.supports_models != Number.ZERO:
                 run_kwargs["models"] = models
-            if stage.supports_metrics != Number.ZERO:
+            if capabilty.supports_metrics != Number.ZERO:
                 run_kwargs["metrics"] = metrics
 
-            # TODO: figure out how to pass user configuration to run
+            run_kwargs["config"] = stage[1]
 
             # run the stage, saving output to the class
-            run = stage.run(**run_kwargs)
+            run = capabilty.run(**run_kwargs)
             # collect the slides
             stage_slides = run.collect_report_consumables(threshold=float(self.threshold))
             slides += stage_slides
