@@ -104,6 +104,9 @@ class CocoDetectionDataset(Dataset):
         self._n_classes = len(self._index2label)
         self._images = content["images"]
 
+        # Build O(1) lookup index for image metadata
+        self._id_to_image = {img["id"]: img for img in self._images}
+
         # Generate dataset_id if not provided
         if dataset_id is None:
             dataset_id = f"coco_{id_hash(root=root, ann_file=ann_file)}"
@@ -165,7 +168,11 @@ class CocoDetectionDataset(Dataset):
             labels.append(ann["category_id"])
 
         # format metadata
-        metadata = self._images[[image["id"] for image in self._images].index(self.dataset.ids[index])]
+        try:
+            metadata = self._id_to_image[self.dataset.ids[index]]
+        except KeyError as e:
+            missing_id = self.dataset.ids[index]
+            raise KeyError(f"Image id {missing_id} not found in annotations 'images' list.") from e
 
         return img_pt, DetectionTarget(boxes, torch.as_tensor(labels), scores), metadata
 

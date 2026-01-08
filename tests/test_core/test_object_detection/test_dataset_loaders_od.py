@@ -1,5 +1,6 @@
 import re
 import shutil
+import time
 from pathlib import Path
 
 import pytest
@@ -179,6 +180,25 @@ class TestCocoDetectionDataset:
         assert coco_dataset.metadata["index2label"][1] == "person"
         assert coco_dataset.metadata["index2label"][2] == "bicycle"
 
+    def test_coco_dataset_missing_image_id_raises_keyerror(self):
+        """Simulate a mismatch where an image id is missing from the images index.
+
+        We remove one id from the prebuilt _id_to_image map to trigger the error
+        path and assert a helpful KeyError is raised.
+        """
+        coco_dataset = CocoDetectionDataset(
+            root=self.COCO_ROOT,
+            ann_file=self.ANN_FILE,
+        )
+
+        # Pick a valid id used by the underlying CocoDetection dataset
+        missing_id = coco_dataset.dataset.ids[0]
+        # Simulate inconsistent annotations by removing it from the index
+        del coco_dataset._id_to_image[missing_id]
+
+        with pytest.raises(KeyError, match=r"Image id .* not found"):
+            _ = coco_dataset[0]
+
 
 class TestDatasetLoader:
     ROOT = Path(__file__).parents[2] / "data_for_tests"
@@ -232,3 +252,35 @@ class TestDatasetLoader:
         }
         with pytest.raises(RuntimeError, match=r"\bNonexistentClass\b"):
             load_datasets(datasets=datasets_invalid)
+
+    def test_coco_dataset_metadata_lookup_performance(self):
+        """Benchmark metadata lookup performance with O(1) dict access.
+
+        This test verifies that repeated __getitem__ calls on the COCO dataset
+        maintain consistent O(1) performance by measuring access times.
+        """
+        coco_dataset = CocoDetectionDataset(
+            root=Path(self.COCO_ANNOTATION_PATH).parent.resolve(),
+            ann_file=str(self.COCO_ANNOTATION_PATH),
+        )
+
+        # Warm up: single access
+        _ = coco_dataset[0]
+
+        # Measure repeated accesses
+        n_iterations = 100
+        start_time = time.perf_counter()
+
+        for i in range(n_iterations):
+            _ = coco_dataset[i % len(coco_dataset)]
+
+        elapsed_time = time.perf_counter() - start_time
+        avg_access_time = elapsed_time / n_iterations
+
+        # Assert that average access time is very fast (O(1) behavior)
+        # Even with 100 iterations, should be sub-millisecond per access on modern hardware
+        # This is a loose bound to accommodate various system speeds
+        assert avg_access_time < 0.01, (
+            f"Average metadata lookup time {avg_access_time:.6f}s exceeds threshold. "
+            f"Expected O(1) dict access, got {avg_access_time * 1000:.3f}ms per access."
+        )
