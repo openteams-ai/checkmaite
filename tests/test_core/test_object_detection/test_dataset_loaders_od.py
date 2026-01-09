@@ -99,6 +99,11 @@ class TestYoloDetectionDataset:
     YAML_DATASET = YOLO_ROOT / "dataset.yaml"
     ANN_DIR = YOLO_ROOT / "ann_dir"
 
+    def test_metadata_is_dict(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+
+        assert isinstance(dataset.metadata, dict)
+
     def test_metadata_default(self):
         dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
         assert re.match(r"yolo_[0-9a-f]{8}$", dataset.metadata["id"])
