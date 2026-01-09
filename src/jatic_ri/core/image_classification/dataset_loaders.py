@@ -148,7 +148,7 @@ class YoloClassificationDataset:
         label = image_path.parent.name
         one_hot_encode[self._label2index[label]] = 1
 
-        metadata: DatumMetadata = {"id": self.metadata["id"]}
+        metadata: DatumMetadata = {"id": f"{label}/{image_path.name}"}
 
         return img_chw, one_hot_encode, metadata
 

@@ -96,7 +96,22 @@ def test_yolo_get_item(fake_dataset):
     assert img.shape == (3, height, width)  # CHW format
     assert len(label) == len(classes)
     assert label.sum() == 1  # One-hot encoded
-    assert metadata["id"] == "test_dataset"
+    assert isinstance(metadata["id"], str)
+    assert "/" in metadata["id"]  # Should be in format "class/filename"
+
+
+def test_yolo_unique_datum_ids(fake_dataset):
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+
+    datum_ids = set()
+    for i in range(len(dataset)):
+        _, _, metadata = dataset[i]
+        datum_id = metadata["id"]
+        assert datum_id not in datum_ids, f"Duplicate datum ID found: {datum_id}"
+        datum_ids.add(datum_id)
+
+    assert len(datum_ids) == len(dataset), "Not all datums have unique IDs"
 
 
 def test_yolo_iteration_over_dataset(fake_dataset):
