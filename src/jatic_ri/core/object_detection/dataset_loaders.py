@@ -198,7 +198,7 @@ class YoloDetectionDataset(Dataset):
 
     Attributes
     ----------
-    metadata : dict
+    metadata : DatasetMetadata
         Metadata about the dataset, including id and label mapping.
     classes
         Mapping from ids to labels.
@@ -240,7 +240,7 @@ class YoloDetectionDataset(Dataset):
         if dataset_id is None:
             dataset_id = f"yolo_{id_hash(yaml_dataset=yaml_dataset, ann_dir=ann_dir)}"
 
-        self.metadata = {"id": dataset_id, "index2label": content["names"]}
+        self.metadata = DatasetMetadata(id=dataset_id, index2label=content["names"])
 
     def __len__(self) -> int:
         """Return length of dataset.
