@@ -234,7 +234,19 @@ class YoloDetectionDataset(Dataset):
         self._train = content["train"]
         self._images = sorted(os.listdir(content["train"]))
         self._ann_dir = ann_dir
-        self._annotations = sorted(os.listdir(ann_dir))
+        self._annotation_files = sorted(os.listdir(ann_dir))
+
+        # Cache all annotations
+        self._annotations = []
+        for ann_file in self._annotation_files:
+            boxes = []
+            labels = []
+            with open(os.path.join(self._ann_dir, ann_file)) as fd:
+                for line in fd:
+                    label, x_center, y_center, width, height = line.split(" ")
+                    labels.append(int(label))
+                    boxes.append([float(x_center), float(y_center), float(width), float(height)])
+            self._annotations.append((boxes, labels))
 
         # Generate dataset_id if not provided
         if dataset_id is None:
@@ -274,20 +286,13 @@ class YoloDetectionDataset(Dataset):
         """
         try:
             image = self._images[index]
-            annotation = self._annotations[index]
+            boxes, labels = self._annotations[index]
         except IndexError as e:
             raise IndexError(
                 f"The index number {index} is out of range for the dataset which has length {len(self)}",
             ) from e
 
         img_pt = pil_to_tensor(Image.open(os.path.join(self._train, image)))
-        boxes = []
-        labels = []
-        with open(os.path.join(self._ann_dir, annotation)) as fd:
-            for line in fd:
-                label, x_center, y_center, width, height = line.split(" ")
-                labels.append(int(label))
-                boxes.append([float(x_center), float(y_center), float(width), float(height)])
 
         # format ground truth
         num_boxes = len(boxes)
