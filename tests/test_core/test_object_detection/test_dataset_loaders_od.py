@@ -143,6 +143,21 @@ class TestYoloDetectionDataset:
         assert yolo_dataset.metadata["index2label"][0] == "person"
         assert yolo_dataset.metadata["index2label"][1] == "bicycle"
 
+    def test_yolo_annotation_caching(self):
+        """Test that annotations are cached during initialization."""
+        yolo_dataset = YoloDetectionDataset(
+            yaml_dataset=self.YAML_DATASET,
+            ann_dir=self.ANN_DIR,
+        )
+        # Check that annotations are cached
+        assert hasattr(yolo_dataset, "_annotations")
+        assert len(yolo_dataset._annotations) == len(yolo_dataset)
+        # Each annotation should be a tuple of (boxes, labels)
+        for boxes, labels in yolo_dataset._annotations:
+            assert isinstance(boxes, list)
+            assert isinstance(labels, list)
+            assert len(boxes) == len(labels)
+
 
 class TestCocoDetectionDataset:
     ROOT = Path(__file__).parents[2] / "data_for_tests"
