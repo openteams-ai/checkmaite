@@ -1,5 +1,4 @@
 import hashlib
-import importlib
 import json
 import logging
 import warnings
@@ -10,9 +9,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
-import torchvision.transforms.v2 as v2
-from dataeval.typing import Transform
-from dataeval.utils.torch.models import ResNet18
 from maite.protocols import ArrayLike
 
 if TYPE_CHECKING:
@@ -51,38 +47,6 @@ def squash_repeated_warnings(logger_prefix: str, match: Callable[[logging.LogRec
 
     finally:
         lg.removeFilter(filt)
-
-
-def load_torchvision_constructor(model_name: str, supported_torchvision_models: dict[str, str]) -> object:
-    """Load a TorchVision model constructor.
-
-    Parameters
-    ----------
-    model_name : str
-        The name of the model to load.
-    supported_torchvision_models : dict[str, str]
-        A dictionary mapping model names to their constructor names in
-        torchvision.
-
-    Returns
-    -------
-    object
-        The TorchVision model constructor.
-
-    Raises
-    ------
-    ImportError
-        If there is an error importing the model constructor.
-    """
-    try:
-        return getattr(
-            importlib.import_module("torchvision.models.detection"),
-            supported_torchvision_models[model_name],
-        )
-    except Exception as e:
-        raise ImportError(
-            f"There was an error importing {supported_torchvision_models[model_name]} from torchvision.models.detection"
-        ) from e
 
 
 def set_device(device: str | None | torch.device) -> torch.device:
@@ -260,18 +224,6 @@ def to_torch_batch(input_batch: Sequence[ArrayLike], device: torch.device) -> to
             category=UserWarning,
         )
         return torch.stack([torch.as_tensor(obj, device=device) for obj in input_batch])
-
-
-def get_resnet18(dim: int | tuple[int, int] = 128) -> tuple[torch.nn.Module, Transform]:
-    model = ResNet18().eval()
-    transform = v2.Compose(
-        [
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Resize((dim, dim) if isinstance(dim, int) else dim),
-        ]
-    )
-    return model, transform
 
 
 def id_hash(**kwargs: Any) -> str:

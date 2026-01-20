@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
@@ -13,8 +14,9 @@ from gradient.templates_and_layouts.generic_layouts import SectionByItem
 from pydantic import Field
 
 from jatic_ri import cache_path
-from jatic_ri.core._types import Device, Image
-from jatic_ri.core._utils import get_resnet18, set_device
+from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
+from jatic_ri.core._types import Device, Image, ModelSpec, TorchvisionModelSpec
+from jatic_ri.core._utils import set_device
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -32,6 +34,8 @@ from jatic_ri.core.report._gradient import (
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import plot_blank_or_single_image, temp_image_file
+
+logger = logging.getLogger(__name__)
 
 
 class DataevalBiasConfig(CapabilityConfigBase):
@@ -59,6 +63,22 @@ class DataevalBiasConfig(CapabilityConfigBase):
     )
     percent: float = Field(
         default=0.01, description="Percent of observations to be considered uncovered. Only applies to adaptive radius."
+    )
+    feature_extractor_spec: ModelSpec = Field(
+        default_factory=TorchvisionModelSpec,
+        description=(
+            "Spec for model used to turn each image into a numeric feature vector (embeddings). "
+            "This is not the model-under-test; it's just for representation."
+        ),
+    )
+    target_embedding_dim: int = Field(
+        default=256,
+        ge=1,
+        description=(
+            "Requested embedding size after any optional PCA step. "
+            "If the extractor outputs more than this, we reduce with PCA; "
+            "if it outputs <= this, we keep the native size."
+        ),
     )
 
 
@@ -248,14 +268,46 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         """
         dataset = datasets[0]
 
-        model, transform = get_resnet18()
-        images = Images(dataset)
+        # We need a stable, user-tunable numeric representation of images so that distance-based checks
+        # (like coverage) behave sensibly. We therefore (1) load a feature extractor with matching
+        # preprocessing, (2) optionally shrink them to the user’s requested size with PCA (only when
+        # shrinking is possible), and (3) rescale to [0,1] because the coverage algorithm assumes features
+        # live on that range.
+        fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
+        embeddings = Embeddings(
+            dataset,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
+        ).to_numpy()
 
-        embeddings = Embeddings(dataset, config.batch_size, transform, model, device=config.device).to_numpy()
-        embeddings = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
-        # coverage expects sequence of vectors
-        if len(embeddings.shape) == 1:
-            embeddings = np.array([embeddings])
+        n, d = embeddings.shape
+
+        if config.target_embedding_dim < d:
+            k_max = min(n, d)
+            k = min(config.target_embedding_dim, k_max)
+
+            if k != config.target_embedding_dim:
+                logger.warning(
+                    f"Requested target_embedding_dim={config.target_embedding_dim}, but PCA is limited to "
+                    f"min(N, D)={k_max} (N={n} samples, D={d} features). Using {k} components.",
+                )
+
+            if k < d:
+                proj = pca_projector(embeddings, out_dim=k)
+                embeddings = proj.transform(embeddings)
+        else:
+            logger.warning(
+                f"Cannot reduce embeddings to target_embedding_dim={config.target_embedding_dim}: feature extractor "
+                f"already outputs {d}-D embeddings. Using {d} dimensions as-is.",
+            )
+
+        embeddings_01 = to_unit_interval_01(embeddings)
+        # coverage expects 2D array, shape (N, P), P embedding dimensions
+        if embeddings_01.ndim == 1:
+            embeddings_01 = embeddings_01[None, :]
 
         metadata = Metadata(dataset, exclude=config.metadata_to_exclude)
 
@@ -279,17 +331,15 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
             bal_dict = None
             div_dict = None
 
-        num_observations = min(max(3, int(np.sqrt(len(images)))), 20)
-
-        if num_observations >= len(embeddings):
+        num_observations = min(max(3, int(np.sqrt(len(dataset)))), 20)
+        if num_observations >= len(embeddings_01):
             raise ValueError(
                 f"Need at least (num_observations + 1) points to compute k-NN coverage, "
-                f"got N={len(embeddings)} points, requested num_observations={num_observations}. "
+                f"got N={len(embeddings_01)} points, requested num_observations={num_observations}. "
                 "Please provide more images."
             )
-
         cov_out = coverage(
-            embeddings,
+            embeddings_01,
             num_observations=num_observations,
             radius_type=config.radius_type,
             percent=config.percent,
@@ -297,7 +347,11 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         cov_dict = cov_out.data()
         cov_dict["total"] = len(dataset)
 
-        if len({np.asarray(image).shape for image in images}) == 1:
+        images = Images(dataset)
+        # if all uncovered images have the same shape, we can plot them.
+        # important not to check shape across all images (expensive), only uncovered ones
+        idxs = cov_out.uncovered_indices
+        if len({np.asarray(images[i]).shape for i in idxs}) == 1:
             cov_dict["image"] = cov_out.plot(images)
 
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})

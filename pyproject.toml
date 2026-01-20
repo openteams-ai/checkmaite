@@ -66,7 +66,7 @@ pandas = ">=2"                                                     # arbitrary, 
 panel = { version = ">=1.5.1,<=1.7.1", optional = true }           # necessary for FileDropper widget, and for progression of dashboards
 pillow = ">=11.0.0"                                                # arbitrary
 pydantic = ">=2.0.0"                                               # arbitrary
-urllib3 = ">=2.6.3"                                                # security: ensure patched urllib3
+scikit-learn = ">=1.7.0"                                           # arbitrary, required for embeddings
 streamz = { version = ">=0.6.4", optional = true }                 # arbitrary
 torch = ">=2.2.0"                                                  # necessary lower pin (at least >=2.2.0 for security)
 torchmetrics = ">=1.4.0"                                           # arbitrary, required for metric computation
