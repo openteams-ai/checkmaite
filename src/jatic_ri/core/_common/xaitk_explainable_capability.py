@@ -1,5 +1,3 @@
-from smqtk_core.configuration import from_config_dict as from_config_dict
-
 from jatic_ri.core.capability_core import (
     Capability,
     Number,
