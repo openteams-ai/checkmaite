@@ -15,7 +15,6 @@ from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
 from jatic_ri.core._common.xaitk_explainable_capability import XaitkExplainableBase
-from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from jatic_ri.core.object_detection.dataset_loaders import DetectionTarget
 from jatic_ri.core.report._markdown import MarkdownOutput
@@ -69,9 +68,7 @@ class XaitkExplainableConfig(CapabilityConfigBase):
     """Config class for Xai capability."""
 
     name: str = "saliency_xai_app"
-    saliency_generator: DeSerializablePlugfigurable[GenerateObjectDetectorBlackboxSaliency] = Field(
-        default_factory=_default_saliency_factory
-    )
+    saliency_generator: GenerateObjectDetectorBlackboxSaliency = Field(default_factory=_default_saliency_factory)
     img_batch_size: int = 1
 
 

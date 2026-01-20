@@ -12,7 +12,6 @@ from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 from jatic_ri.core._common.xaitk_explainable_capability import XaitkExplainableBase
-from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import save_figure_to_tempfile
@@ -53,9 +52,7 @@ class XaitkExplainableConfig(CapabilityConfigBase):
     """Config class for Xai capability"""
 
     name: str = "saliency_xaitk_app"
-    saliency_generator: DeSerializablePlugfigurable[GenerateImageClassifierBlackboxSaliency] = Field(
-        default_factory=_default_saliency_factory
-    )
+    saliency_generator: GenerateImageClassifierBlackboxSaliency = Field(default_factory=_default_saliency_factory)
     img_batch_size: int = 1
 
 

@@ -7,7 +7,6 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 
-from jatic_ri.core._types import DeSerializablePlugfigurable
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -77,9 +76,7 @@ def _default_perturber_factory() -> PerturbImageFactory:
 
 class NrtkRobustnessConfig(CapabilityConfigBase):
     name: str = "natural_robustness_test_factory"
-    perturber_factory: DeSerializablePlugfigurable[PerturbImageFactory] = Field(
-        default_factory=_default_perturber_factory
-    )
+    perturber_factory: PerturbImageFactory = Field(default_factory=_default_perturber_factory)
 
 
 class NrtkRobustnessOutputs(CapabilityOutputsBase):

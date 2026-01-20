@@ -71,6 +71,7 @@ streamz = { version = ">=0.6.4", optional = true }                 # arbitrary
 torch = ">=2.2.0"                                                  # necessary lower pin (at least >=2.2.0 for security)
 torchmetrics = ">=1.4.0"                                           # arbitrary, required for metric computation
 torchvision = ">=0.17.0"                                           # arbitrary, required for models
+smqtk-core = ">=0.21.0"                                            # necessary lower pin for compatibility with pydantic
 smqtk-detection = ">=0.22.0"                                       # necessary lower pin for running VisDrone model on Mac
 transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
 
