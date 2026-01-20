@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 from typing import Any
 
@@ -7,16 +8,15 @@ import pydantic
 import torch
 from dataeval.data import Embeddings
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
-from dataeval.detectors.ood import OOD_AE
+from dataeval.detectors.ood import OOD_KNN
 from dataeval.outputs import DriftMMDOutput
-from dataeval.utils.torch.models import AE
 from gradient import SubText
 from gradient.slide_deck.shapes import Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 from pydantic import Field
 
-from jatic_ri.core._types import Device
-from jatic_ri.core._utils import get_resnet18
+from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector
+from jatic_ri.core._types import Device, ModelSpec, TorchvisionModelSpec
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -29,13 +29,29 @@ from jatic_ri.core.capability_core import (
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
 
+logger = logging.getLogger(__name__)
+
 
 class DataevalShiftConfig(CapabilityConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
     device: Device = torch.device("cpu")
-    dim: int = 128
     batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
+    feature_extractor_spec: ModelSpec = Field(
+        default_factory=TorchvisionModelSpec,
+        description=(
+            "Spec for model used to turn each image into a numeric feature vector (embeddings). "
+            "This is not the model-under-test; it's just for representation."
+        ),
+    )
+    target_embedding_dim: int = Field(
+        default=256,
+        ge=1,
+        description=(
+            "Requested embedding size after any optional PCA step. "
+            "If the extractor outputs more than this, we reduce with PCA; "
+            "if it outputs <= this, we keep the native size."
+        ),
+    )
 
 
 class DataevalShiftUnivariateOutput(CapabilityOutputsBase):
@@ -55,14 +71,14 @@ class DataevalShiftDriftOutputs(CapabilityOutputsBase):
     ks: DataevalShiftUnivariateOutput
 
 
-class DataevalShiftOODAEOutput(CapabilityOutputsBase):
+class DataevalShiftOODKNNOutput(CapabilityOutputsBase):
     is_ood: np.ndarray
     instance_score: np.ndarray
     feature_score: np.ndarray | None
 
 
 class DataevalShiftOODOutputs(CapabilityOutputsBase):
-    ood_ae: DataevalShiftOODAEOutput
+    ood_knn: DataevalShiftOODKNNOutput
 
 
 class DataevalShiftOutputs(pydantic.BaseModel):
@@ -222,15 +238,58 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
         An object containing the outputs from MMD, CVM, and KS drift
         detectors.
         """
-        model, transform = get_resnet18(config.dim)
-        emb_1 = Embeddings(dataset_1, config.batch_size, transform, model, device=config.device)
-        emb_2 = Embeddings(dataset_2, config.batch_size, transform, model, device=config.device)
+
+        # Drift feature extraction logic:
+        # Use the same feature extractor + preprocessing on both datasets so “differences” reflect data shift.
+        # Optionally fit PCA on reference embeddings (dataset_1) and apply same projection to both sides to
+        # compare in lower-dimensional space without leaking information from dataset_2 into projection.
+        fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
 
         if len(dataset_1) < 2 or len(dataset_2) < 2:
             raise ValueError(
                 "Dataset drift detection is computed using unbiased statistics which require "
                 f"at least 2 datapoints, {min(len(dataset_1), len(dataset_2))} "
                 "datapoints were provided. Please provide more images as datapoints."
+            )
+
+        emb_1 = Embeddings(
+            dataset_1,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
+        ).to_numpy()
+
+        emb_2 = Embeddings(
+            dataset_2,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
+        ).to_numpy()
+
+        n1, d1 = emb_1.shape
+
+        if config.target_embedding_dim < d1:
+            k_max = min(n1, d1)
+            k = min(config.target_embedding_dim, k_max)
+
+            if k != config.target_embedding_dim:
+                logger.warning(
+                    f"Requested target_embedding_dim={config.target_embedding_dim}, but PCA is limited to "
+                    f"min(N_ref, D)={k_max} (N_ref={n1}, D={d1}). Using {k} components.",
+                )
+
+            if k < d1:
+                proj = pca_projector(emb_1, out_dim=k)
+                emb_1 = proj.transform(emb_1)
+                emb_2 = proj.transform(emb_2)
+        else:
+            logger.warning(
+                f"Cannot reduce embeddings to target_embedding_dim={config.target_embedding_dim}: feature "
+                f"extractor already outputs {d1}-D embeddings. Returning {d1}-D embeddings without PCA.",
             )
 
         detectors = {
@@ -255,18 +314,55 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
         -------
         An object containing the outputs from the OOD AE detector.
         """
-        _, transform = get_resnet18(config.dim)
+        # OOD feature extraction logic:
+        # Embed both datasets with the same feature extractor so OOD scoring compares like-with-like.
+        # consistent space. Optionally compress embeddings with PCA fitted on reference set (dataset_1).
+        fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
+
         emb_1 = Embeddings(
-            dataset_1, config.batch_size, transform, torch.nn.Identity(), device=config.device
-        ).to_numpy()
-        emb_2 = Embeddings(
-            dataset_2, config.batch_size, transform, torch.nn.Identity(), device=config.device
+            dataset_1,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
         ).to_numpy()
 
-        detectors = {"ood_ae": OOD_AE(AE(emb_1[0].shape))}
+        emb_2 = Embeddings(
+            dataset_2,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
+        ).to_numpy()
+
+        n1, d = emb_1.shape
+
+        if config.target_embedding_dim < d:
+            k_max = min(n1, d)
+            k = min(config.target_embedding_dim, k_max)
+
+            if k != config.target_embedding_dim:
+                logger.warning(
+                    f"Requested target_embedding_dim={config.target_embedding_dim}, but PCA is limited to "
+                    f"min(N_ref, D)={k_max} (N_ref={n1}, D={d}). Using {k} components.",
+                )
+
+            if k < d:
+                proj = pca_projector(emb_1, out_dim=k)
+                emb_1 = proj.transform(emb_1)
+                emb_2 = proj.transform(emb_2)
+        else:
+            logger.warning(
+                f"Cannot reduce embeddings to target_embedding_dim={config.target_embedding_dim}: feature "
+                f"extractor already outputs {d}-D embeddings. Returning {d}-D embeddings without PCA.",
+            )
+
+        detectors = {"ood_knn": OOD_KNN(k=min(10, n1 - 1), distance_metric="cosine")}
 
         for detector in detectors.values():
-            detector.fit(emb_1, threshold_perc=99, epochs=20, verbose=False)
+            detector.fit_embeddings(emb_1, threshold_perc=99)
 
         return DataevalShiftOODOutputs.model_validate(
             {name: detector.predict(emb_2).data() for name, detector in detectors.items()}

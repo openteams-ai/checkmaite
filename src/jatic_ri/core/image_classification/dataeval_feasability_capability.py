@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Literal
 
 import maite.protocols.image_classification as ic
@@ -10,10 +11,13 @@ from gradient.slide_deck.shapes import SubText, Text
 from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 from pydantic import Field
 
-from jatic_ri.core._types import Device
-from jatic_ri.core._utils import get_resnet18, set_device
+from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
+from jatic_ri.core._types import Device, ModelSpec, TorchvisionModelSpec
+from jatic_ri.core._utils import set_device
 from jatic_ri.core.capability_core import Capability, CapabilityConfigBase, CapabilityRunBase, Number
 from jatic_ri.core.report._markdown import MarkdownOutput
+
+logger = logging.getLogger(__name__)
 
 
 class DataevalFeasibilityConfig(CapabilityConfigBase):
@@ -29,6 +33,22 @@ class DataevalFeasibilityConfig(CapabilityConfigBase):
     )
     knn_n_neighbors: int = pydantic.Field(default=1, description="The number of neighbors to use for the KNN method")
     precision: int = pydantic.Field(default=3, description="The number of decimal places to round the results to")
+    feature_extractor_spec: ModelSpec = Field(
+        default_factory=TorchvisionModelSpec,
+        description=(
+            "Spec for model used to turn each image into a numeric feature vector (embeddings). "
+            "This is not the model-under-test; it's just for representation."
+        ),
+    )
+    target_embedding_dim: int = Field(
+        default=256,
+        ge=1,
+        description=(
+            "Requested embedding size after any optional PCA step. "
+            "If the extractor outputs more than this, we reduce with PCA; "
+            "if it outputs <= this, we keep the native size."
+        ),
+    )
 
 
 class DataevalFeasibilityOutputs(pydantic.BaseModel):
@@ -210,12 +230,50 @@ class DataevalFeasibility(
     ) -> DataevalFeasibilityOutputs:
         dataset = datasets[0]
 
-        model, transform = get_resnet18()
-        embeddings = Embeddings(dataset, config.batch_size, transform, model, device=config.device)
+        # Turn each image into feature vector using pre-trained feature extractor + matching preprocessing.
+        # If extractor outputs more dimensions than needed, fit PCA on dataset and project down to
+        # target dimension. Downstream BER code assumes values live on a [0,1] so rescale.
+        fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
+
+        embeddings = Embeddings(
+            dataset,
+            config.batch_size,
+            model=fe.model,
+            transforms=[fe.transforms],
+            device=config.device,
+            cache=True,
+        ).to_numpy()
+
+        n, d = embeddings.shape
+
+        if config.target_embedding_dim < d:
+            k_max = min(n, d)
+            k = min(config.target_embedding_dim, k_max)
+
+            if k != config.target_embedding_dim:
+                logger.warning(
+                    f"Requested target_embedding_dim={config.target_embedding_dim}, but PCA is limited to "
+                    f"min(N, D)={k_max} (N={n}, D={d}). Using {k} components.",
+                )
+
+            if k < d:
+                proj = pca_projector(embeddings, out_dim=k)
+                embeddings = proj.transform(embeddings)
+        else:
+            logger.warning(
+                f"Cannot reduce embeddings to target_embedding_dim={config.target_embedding_dim}: feature "
+                f"extractor already outputs {d}-D embeddings. Returning {d}-D embeddings without PCA.",
+            )
+
+        embeddings_01 = to_unit_interval_01(embeddings)
+        # ber expects 2D array, shape (N, P), P embedding dimensions
+        if embeddings_01.ndim == 1:
+            embeddings_01 = embeddings_01[None, :]
+
         metadata = Metadata(dataset)
 
         b: BEROutput = ber(
-            embeddings=embeddings.to_numpy(),
+            embeddings=embeddings_01,
             labels=metadata.class_labels,
             method=config.ber_method,
             k=config.knn_n_neighbors,

@@ -2,7 +2,7 @@ import contextlib
 import io
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TypeVar
 
 import matplotlib.figure
 import pandas as pd
@@ -190,3 +190,21 @@ else:
             return Annotated[
                 t, type(f"_{t.__name__}Annotation", (_PlugfigurableAnnotationBase,), {"_PLUGFIGURABLE_TYPE": t})
             ]
+
+
+class TorchvisionModelSpec(pydantic.BaseModel):
+    source: Literal["torchvision"] = "torchvision"
+
+    name: str = pydantic.Field(
+        default="efficientnet_b0",
+        description="Torchvision model name, e.g. 'resnet18', 'efficientnet_b0', 'convnext_tiny'.",
+    )
+
+    weights: str = pydantic.Field(
+        default="DEFAULT",
+        description="Which torchvision weights preset to use. Usually 'DEFAULT'.",
+    )
+
+
+# placeholder for future ModelSpec types
+ModelSpec = Annotated[TorchvisionModelSpec, pydantic.Field(discriminator="source")]
