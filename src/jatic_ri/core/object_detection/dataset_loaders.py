@@ -1,8 +1,7 @@
 import csv
 import json
-import os
+from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Literal, TypedDict
 
 import torch
@@ -10,9 +9,9 @@ import yaml
 from maite.protocols import ArrayLike, DatasetMetadata
 from maite.protocols.object_detection import Dataset, DatumMetadataType
 from PIL import Image
-from torchvision.datasets import CocoDetection
 from torchvision.ops.boxes import box_convert
 from torchvision.transforms.functional import pil_to_tensor
+from upath import UPath
 
 from jatic_ri.core._utils import id_hash
 
@@ -49,7 +48,7 @@ class CocoDetectionDataset(Dataset):
 
     Parameters
     ----------
-    root : str or Path
+    root : str or UPath
         Root directory of the dataset.
     ann_file : str
         Full filepath to the annotation file for the dataset.
@@ -58,8 +57,6 @@ class CocoDetectionDataset(Dataset):
 
     Attributes
     ----------
-    dataset : CocoDetection
-        The underlying CocoDetection dataset.
     metadata : DatasetMetadata
         Metadata about the dataset, including id and label mapping.
     classes
@@ -79,13 +76,12 @@ class CocoDetectionDataset(Dataset):
 
     """
 
-    def __init__(self, root: str | Path, ann_file: str, dataset_id: str | None = None) -> None:
-        """
-        Initialize the COCO detection dataset.
+    def __init__(self, root: str | UPath, ann_file: str, dataset_id: str | None = None) -> None:
+        """Initialize the COCO detection dataset.
 
         Parameters
         ----------
-        root : str or Path
+        root : str or UPath
             Root directory of the dataset containing the images
         ann_file : str
             Full filepath to the annotation file for the dataset
@@ -93,23 +89,24 @@ class CocoDetectionDataset(Dataset):
             Optional identifier for dataset. If omitted,
                 a unique one will be generated from the other input arguments.
         """
-        self.dataset: CocoDetection = CocoDetection(
-            root,
-            annFile=ann_file,
-            transforms=lambda image, target: (pil_to_tensor(image), target),
-        )
-        with open(ann_file) as fd:
+        self._root = UPath(root)
+
+        ann_path = UPath(ann_file)
+        with ann_path.open("r") as fd:
             content = json.load(fd)
+
         self._index2label = {x["id"]: x["name"] for x in content["categories"]}
         self._n_classes = len(self._index2label)
         self._images = content["images"]
 
-        # Build O(1) lookup index for image metadata
-        self._id_to_image = {img["id"]: img for img in self._images}
+        # Build annotation index by image_id
+        self._img_id_to_annotations: dict[int, list[dict]] = defaultdict(list)
+        for ann in content["annotations"]:
+            self._img_id_to_annotations[ann["image_id"]].append(ann)
 
         # Generate dataset_id if not provided
         if dataset_id is None:
-            dataset_id = f"coco_{id_hash(root=root, ann_file=ann_file)}"
+            dataset_id = f"coco_{id_hash(root=str(root), ann_file=ann_file)}"
 
         self.metadata = DatasetMetadata(id=dataset_id, index2label=self._index2label)
 
@@ -122,7 +119,7 @@ class CocoDetectionDataset(Dataset):
             The number of data elements in the dataset.
 
         """
-        return len(self.dataset)
+        return len(self._images)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, DetectionTarget, DatumMetadataType]:
         """Get `index`-th element from dataset.
@@ -144,16 +141,19 @@ class CocoDetectionDataset(Dataset):
 
         """
         try:
-            # get original data item
-            img_pt, annotations = self.dataset[index]
+            metadata = self._images[index]
         except IndexError as e:
-            # Here the underlying dataset is raising an IndexError since the index is beyond the
-            # container's bounds. When wrapping custom datasets, wrappers are responsible to for
-            # raising an IndexError in `__getitem__` when an index exceeds the container's bounds;
-            # this enables iteration on the wrapper to properly terminate.
             raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self.dataset)}",
+                f"The index number {index} is out of range for the dataset which has length {len(self._images)}",
             ) from e
+
+        img_path = self._root / metadata["file_name"]
+        with img_path.open("rb") as f, Image.open(f) as img:
+            img.load()  # Force load before closing file handle
+            img_pt = pil_to_tensor(img)
+
+        # Get annotations for this image
+        annotations = self._img_id_to_annotations[metadata["id"]]
 
         # format ground truth
         num_boxes = len(annotations)
@@ -166,13 +166,6 @@ class CocoDetectionDataset(Dataset):
             boxes[i, :] = box_convert(bbox, in_fmt="xywh", out_fmt="xyxy")
             scores[i] = 1
             labels.append(ann["category_id"])
-
-        # format metadata
-        try:
-            metadata = self._id_to_image[self.dataset.ids[index]]
-        except KeyError as e:
-            missing_id = self.dataset.ids[index]
-            raise KeyError(f"Image id {missing_id} not found in annotations 'images' list.") from e
 
         return img_pt, DetectionTarget(boxes, torch.as_tensor(labels), scores), metadata
 
@@ -213,8 +206,7 @@ class YoloDetectionDataset(Dataset):
     """
 
     def __init__(self, yaml_dataset: str, ann_dir: str, dataset_id: str | None = None) -> None:
-        """
-        Initialize the YOLO detection dataset.
+        """Initialize the YOLO detection dataset.
 
         Parameters
         ----------
@@ -226,22 +218,26 @@ class YoloDetectionDataset(Dataset):
             Optional identifier for dataset. If omitted,
                 a unique one will be generated from the other input arguments.
         """
-        with open(yaml_dataset) as fd:
+        self._yaml_path = UPath(yaml_dataset)
+        with self._yaml_path.open("r") as fd:
             content = yaml.safe_load(fd)
 
         self._n_classes = len(content["names"])
 
-        self._train = content["train"]
-        self._images = sorted(os.listdir(content["train"]))
-        self._ann_dir = ann_dir
-        self._annotation_files = sorted(os.listdir(ann_dir))
+        # Use UPath for remote filesystem support
+        self._train_path = UPath(content["train"])
+        self._images = sorted([p.name for p in self._train_path.iterdir() if p.is_file()])
+
+        self._ann_path = UPath(ann_dir)
+        annotation_files = sorted([p.name for p in self._ann_path.iterdir() if p.is_file()])
 
         # Cache all annotations
-        self._annotations = []
-        for ann_file in self._annotation_files:
-            boxes = []
-            labels = []
-            with open(os.path.join(self._ann_dir, ann_file)) as fd:
+        self._annotations: list[tuple[list[list[float]], list[int]]] = []
+        for ann_file in annotation_files:
+            boxes: list[list[float]] = []
+            labels: list[int] = []
+            ann_file_path = self._ann_path / ann_file
+            with ann_file_path.open("r") as fd:
                 for line in fd:
                     label, x_center, y_center, width, height = line.split(" ")
                     labels.append(int(label))
@@ -285,27 +281,30 @@ class YoloDetectionDataset(Dataset):
 
         """
         try:
-            image = self._images[index]
-            boxes, labels = self._annotations[index]
+            image_name = self._images[index]
+            boxes_raw, labels_raw = self._annotations[index]
         except IndexError as e:
             raise IndexError(
                 f"The index number {index} is out of range for the dataset which has length {len(self)}",
             ) from e
 
-        img_pt = pil_to_tensor(Image.open(os.path.join(self._train, image)))
+        image_path = self._train_path / image_name
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img.load()  # Force load before closing file handle
+            img_pt = pil_to_tensor(img)
 
         # format ground truth
-        num_boxes = len(boxes)
+        num_boxes = len(boxes_raw)
         boxes = torch.zeros(num_boxes, 4)
         scores = torch.zeros(num_boxes)
         for i in range(num_boxes):
             boxes[i, :] = box_convert(
-                torch.as_tensor(boxes[i]),
+                torch.as_tensor(boxes_raw[i]),
                 in_fmt="cxcywh",
                 out_fmt="xyxy",
             )
             scores[i] = 1
-        labels = torch.as_tensor(labels)
+        labels = torch.as_tensor(labels_raw)
 
         metadata: DatumMetadataType = {"id": index}
         return img_pt, DetectionTarget(boxes, labels, scores), metadata
@@ -320,14 +319,14 @@ class VisdroneDetectionDataset(Dataset):
 
     Parameters
     ----------
-    root : str or Path
+    root : str or UPath
         Root directory of the dataset.
     dataset_id : str, optional
         Identifier for the dataset, by default "visdrone".
 
     Attributes
     ----------
-    root : Path
+    root : UPath
         Resolved path to the root directory of the dataset.
     metadata : dict
         Metadata about the dataset, including id and label mapping.
@@ -343,22 +342,21 @@ class VisdroneDetectionDataset(Dataset):
 
     """
 
-    def __init__(self, root: str | Path, *, dataset_id: str | None = None) -> None:
-        """
-        Initialize the VisDrone detection dataset.
+    def __init__(self, root: str | UPath, *, dataset_id: str | None = None) -> None:
+        """Initialize the VisDrone detection dataset.
 
         Parameters
         ----------
-        root : str or Path
+        root : str or UPath
             Root directory of the dataset containing images and annotations folders
         dataset_id : str, optional
             Optional identifier for dataset. If omitted,
                 a unique one will be generated from the other input arguments.
         """
-        self.root = Path(root).expanduser().resolve()
+        self.root = UPath(root)
         # Generate dataset_id if not provided
         if dataset_id is None:
-            dataset_id = f"visdrone_{id_hash(root=self.root)}"
+            dataset_id = f"visdrone_{id_hash(root=str(self.root))}"
 
         self.metadata = {
             "id": dataset_id,
@@ -393,11 +391,14 @@ class VisdroneDetectionDataset(Dataset):
         -------
         tuple[torch.Tensor, DetectionTarget, DatumMetadataType]
             A tuple containing the image tensor, detection target, and metadata.
+            Note: metadata includes additional fields beyond DatumMetadataType.
 
         """
         image_path, target, metadata = self._samples[index]
-        image = pil_to_tensor(Image.open(image_path))
-        return image, target, metadata
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img.load()  # Force load before closing file handle
+            image = pil_to_tensor(img)
+        return image, target, metadata  # pyright: ignore[reportReturnType]
 
     def __len__(self) -> int:
         """Return length of dataset.
@@ -410,17 +411,17 @@ class VisdroneDetectionDataset(Dataset):
         """
         return len(self._samples)
 
-    def _load_samples(self, root: Path) -> list[tuple[Path, DetectionTarget, DatumMetadataType]]:
+    def _load_samples(self, root: UPath) -> list[tuple[UPath, DetectionTarget, dict]]:
         """Load samples from the VisDrone dataset structure.
 
         Parameters
         ----------
-        root : Path
+        root : UPath
             The root directory of the VisDrone dataset.
 
         Returns
         -------
-        list[tuple[Path, DetectionTarget, DatumMetadataType]]
+        list[tuple[UPath, DetectionTarget, dict]]
             A list of samples, where each sample is a tuple containing the image path,
             detection target, and metadata.
 
@@ -428,15 +429,21 @@ class VisdroneDetectionDataset(Dataset):
         images_folder = root / "images"
         annotations_folder = root / "annotations"
 
-        samples = []
+        samples: list[tuple[UPath, DetectionTarget, dict]] = []
 
-        for annotation_path in sorted(annotations_folder.glob("*.txt")):
+        # Get all annotation files
+        annotation_files = sorted(
+            [p for p in annotations_folder.iterdir() if p.is_file() and p.suffix.lower() == ".txt"]
+        )
+
+        for annotation_path in annotation_files:
             boxes: list[tuple[float, float, float, float]] = []
             scores: list[float] = []
             labels: list[int] = []
             truncations: list[int] = []
             occlusions: list[int] = []
-            with open(annotation_path) as f:
+
+            with annotation_path.open("r") as f:
                 r = csv.reader(f, delimiter=",")
                 # See https://github.com/VisDrone/VisDrone2018-DET-toolkit
                 # Discards any data after 8th value of a row (e.g. due to trailing comma).  See:
@@ -448,14 +455,16 @@ class VisdroneDetectionDataset(Dataset):
                     truncations.append(int(truncation))
                     occlusions.append(int(occlusion))
 
-            image_path = images_folder / annotation_path.relative_to(annotations_folder).with_suffix(".jpg")
+            # Construct image path from annotation filename
+            ann_stem = annotation_path.name.rsplit(".", 1)[0]
+            image_path = images_folder / f"{ann_stem}.jpg"
             target = DetectionTarget(
                 boxes=box_convert(torch.tensor(boxes), in_fmt="xywh", out_fmt="xyxy"),
                 scores=torch.tensor(scores),
                 labels=torch.tensor(labels),
             )
             metadata = {
-                "id": image_path.stem,
+                "id": ann_stem,
                 "image_path": str(image_path),
                 "annotation_path": str(annotation_path),
                 "truncations": truncations,
@@ -475,27 +484,29 @@ class DatasetSpecification(TypedDict):
     dataset_type : Literal["CocoDetectionDataset", "YoloDetectionDataset", "VisdroneDetectionDataset"]
         The type of the dataset.
         TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    metadata_path : str | Path
+    metadata_path : str | UPath
         Full path to the metadata file. For Coco datasets, this is the annotation file.
-        For yolo datasets, this is the yaml file.
-    data_dir : str | Path
+        For yolo datasets, this is the yaml file. Supports local paths and cloud URLs.
+    data_dir : str | UPath
         Full path to the directory containing:
         - the annotation files for yolo,
         - the split directory for coco, or
         - the root data directory for visdrone.
+        Supports local paths and cloud URLs (s3://, gs://, az://).
 
     """
 
     # TO DO hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
     dataset_type: Literal["CocoDetectionDataset", "YoloDetectionDataset", "VisdroneDetectionDataset"]
     # full path to the metadata file. For Coco datasets, this is the annotation file. For
-    # yolo datasets, this is the yaml file.
-    metadata_path: str | Path
+    # yolo datasets, this is the yaml file. Supports cloud URLs.
+    metadata_path: str | UPath
     # full path to the directory containing
     #   - the annotation files for yolo,
     #   - the split directory for coco, or
     #   - the root data directory for visdrone
-    data_dir: str | Path
+    # Supports cloud URLs (s3://, gs://, az://)
+    data_dir: str | UPath
 
 
 def load_datasets(

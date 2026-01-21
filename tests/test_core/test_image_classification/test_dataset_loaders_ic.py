@@ -124,12 +124,15 @@ def test_yolo_iteration_over_dataset(fake_dataset):
     assert count == len(dataset), "Iteration count does not match dataset length"
 
 
-def test_yolo_missing_data_split(fake_dataset):
+def test_yolo_missing_data_split(tmp_path):
+    # Create a directory without the expected split subdirectory
+    dataset_root = tmp_path / "empty_dataset"
+    dataset_root.mkdir()
     with pytest.raises(
         MissingYoloDataSplitError,
         match="The following data split subdirectory does not exist",
     ):
-        YoloClassificationDataset(dataset_id="test_dataset", root_dir=fake_dataset, split="train")
+        YoloClassificationDataset(dataset_id="test_dataset", root_dir=str(dataset_root), split="validation")
 
 
 def test_yolo_load_datasets(fake_dataset):

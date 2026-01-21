@@ -1,10 +1,9 @@
-import os
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import numpy as np
 from maite.protocols import DatasetMetadata, DatumMetadata
 from PIL import Image
+from upath import UPath
 
 from jatic_ri.core._utils import id_hash
 
@@ -59,14 +58,14 @@ class YoloClassificationDataset:
         ------
         If the specified data split subdirectory does not exist.
         """
-        try:
-            # convention adopted is to order labels alphabetically
-            self._images = sorted(self._get_filepaths_by_split(Path(f"{root_dir}/{split}")))
-            labels = sorted(os.listdir(Path(f"{root_dir}/{split}")))
-        except FileNotFoundError:
-            raise MissingYoloDataSplitError(
-                f"The following data split subdirectory does not exist {root_dir}/{split}"
-            ) from None
+        split_path = UPath(root_dir) / split
+
+        if not split_path.exists():
+            raise MissingYoloDataSplitError(f"The following data split subdirectory does not exist {split_path}")
+
+        # convention adopted is to order labels alphabetically
+        self._images = sorted(self._get_filepaths_by_split(split_path))
+        labels = sorted([p.name for p in split_path.iterdir() if p.is_dir()])
 
         self._index2label = dict(enumerate(labels))  # 0-indexing
         self._label2index = {val: idx for idx, val in enumerate(labels)}  # 0-indexing
@@ -77,21 +76,21 @@ class YoloClassificationDataset:
         self._metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
 
     @staticmethod
-    def _get_filepaths_by_split(dataset_split: Path) -> list[Path]:
+    def _get_filepaths_by_split(dataset_split: UPath) -> list[UPath]:
         """Get the filepaths for images in a YOLO classification dataset structure.
 
         Parameters
         ----------
-        dataset_split : Path
+        dataset_split : UPath
             Path to the dataset split directory e.g. "<dataset_root>/test".
 
-        list[Path]
+        list[UPath]
             List of filepaths relative to `dataset_split` for all images in dataset.
         """
-        filepaths = []
-        for class_dir in Path(dataset_split).iterdir():
+        filepaths: list[UPath] = []
+        for class_dir in dataset_split.iterdir():
             if class_dir.is_dir():
-                filepaths.extend([filepath for filepath in class_dir.glob("*") if filepath.is_file()])
+                filepaths.extend([filepath for filepath in class_dir.iterdir() if filepath.is_file()])
         return filepaths
 
     @property
@@ -140,9 +139,13 @@ class YoloClassificationDataset:
                 f"The index number {index} is out of range for the dataset which has length {len(self)}",
             ) from e
 
-        img = Image.open(image_path)
+        # Use UPath to support both local and remote filesystems
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img = img.convert("RGB")
+            arr = np.asarray(img)  # HWC
+
         # PIL loads data as HWC, but MAITE requires CHW
-        img_chw = np.array(img).transpose(2, 0, 1)
+        img_chw = np.moveaxis(arr, -1, 0)
 
         one_hot_encode = np.zeros([len(self._label2index)])
         label = image_path.parent.name

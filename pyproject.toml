@@ -55,6 +55,11 @@ pybsm = ">=0.12.0"                                                 # optional de
 xaitk-saliency = "==0.12.0"
 xaitk-jatic = "==0.7.0"
 # external deps
+fsspec = ">=2023.1.0"                                              # arbitrary, required for cloud storage support
+universal_pathlib = ">=0.3.8"                                      # arbitrary, required for cloud storage support
+s3fs = { version = ">=2023.1.0", optional = true }                 # arbitrary, required for AWS S3 cloud storage
+gcsfs = { version = ">=2023.1.0", optional = true }                # arbitrary, required for Google Cloud Storage
+adlfs = { version = ">=2023.1.0", optional = true }                # arbitrary, required for Azure Blob Storage
 holoviews = { version = ">=1.20.0", optional = true }              # arbitrary, required for panel pipelines
 httpx = ">=0.28.1"                                                 # arbitrary, needed to run visdrone model
 jupyterlab = { version = ">=4.3.5", optional = true }              # arbitrary, required for serving panel notebooks via CLI
@@ -74,6 +79,7 @@ torchvision = ">=0.17.0"                                           # arbitrary, 
 smqtk-core = ">=0.21.0"                                            # necessary lower pin for compatibility with pydantic
 smqtk-detection = ">=0.22.0"                                       # necessary lower pin for running VisDrone model on Mac
 transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
+urllib3 = ">=2.6.3"                                                # security: ensure patched urllib3
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=3.0.0"                             # arbitrary
@@ -113,6 +119,14 @@ ui = [
     "nbconvert>=7.16.6",
     "panel>=1.5.1,<=1.7.1",
     "streamz>=0.6.4"
+]
+aws = ["s3fs>=2023.1.0"]
+gcs = ["gcsfs>=2023.1.0"]
+azure = ["adlfs>=2023.1.0"]
+cloud = [
+    "s3fs>=2023.1.0",
+    "gcsfs>=2023.1.0",
+    "adlfs>=2023.1.0",
 ]
 
 [tool.bandit]
