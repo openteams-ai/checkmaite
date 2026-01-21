@@ -510,14 +510,17 @@ class ReallabelLabelling(
 
         # Get the UUID of the image that has the most bounding boxes, so it is easily seen in
         # visualizer and get a dataframe with all rows associated with that image.
-        example_image_unique_id = (
+        first_row = (
             default_reallabel_results.groupBy(config.column_names.unique_identifier_columns)
             .count()
             .orderBy(sf.col("count").desc())
             .drop("count")
             .first()
-            .asDict()
         )
+        if first_row is None:
+            msg = "No rows found in reallabel results"
+            raise ValueError(msg)
+        example_image_unique_id = first_row.asDict()
 
         results_for_most_populous_image_df = default_reallabel_results.filter(
             *[sf.col(key) == value for key, value in example_image_unique_id.items()]
