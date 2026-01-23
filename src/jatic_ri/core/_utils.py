@@ -1,11 +1,13 @@
+import functools
 import hashlib
+import importlib
 import json
 import logging
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import numpy as np
 import torch
@@ -13,6 +15,13 @@ from maite.protocols import ArrayLike
 
 if TYPE_CHECKING:
     from torch import nn
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+class MissingDependencyWarning(UserWarning):
+    """Optional dependency missing for a code path."""
 
 
 class CountAndDrop(logging.Filter):
@@ -240,3 +249,48 @@ def id_hash(**kwargs: Any) -> str:
         First 8 characters of the SHA-256 hash of the JSON-serialized kwargs
     """
     return hashlib.sha256(json.dumps(kwargs, default=str, sort_keys=True).encode()).hexdigest()[:8]
+
+
+def deprecated(*, replacement: str | None = None) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Mark a function as deprecated, emitting a DeprecationWarning on call."""
+
+    def deco(func: Callable[P, R]) -> Callable[P, R]:
+        msg = f"'{func.__qualname__}' is deprecated."
+        if replacement:
+            msg += f" Use '{replacement}' instead."
+
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return deco
+
+
+def requires_optional_dependency(
+    module_name: str,
+    *,
+    install_hint: str | None = None,
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Require an optional dependency; if missing, raise ImportError with an install hint."""
+
+    def deco(func: Callable[P, R]) -> Callable[P, R]:
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            try:
+                importlib.import_module(module_name)
+            except ImportError:
+                hint = f"\nInstall: {install_hint}" if install_hint else ""
+                msg = (
+                    f"'{func.__qualname__}' requires optional dependency '{module_name}', "
+                    "which is not installed."
+                    f"{hint}"
+                )
+                raise ImportError(msg) from None
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return deco

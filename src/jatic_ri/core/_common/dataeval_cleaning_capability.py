@@ -17,13 +17,9 @@ from dataeval.metrics.stats import (
     visualstats,
 )
 from dataeval.outputs import SourceIndex
-from gradient import SubText
-from gradient.slide_deck.shapes import Text
-from gradient.slide_deck.shapes.image_shapes import GradientImage
-from gradient.templates_and_layouts.generic_layouts import SectionByItem
 
 from jatic_ri import cache_path
-from jatic_ri.core._utils import squash_repeated_warnings
+from jatic_ri.core._utils import deprecated, requires_optional_dependency, squash_repeated_warnings
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -34,12 +30,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
-from jatic_ri.core.report._gradient import (
-    create_item_by_narrow_text_slide,
-    create_section_by_item_slide_extra_caption,
-    create_table_text_slide,
-    create_two_item_text_slide,
-)
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import (
     DIMENSION_LIST,
@@ -124,7 +115,9 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
     config: DataevalCleaningConfig
     outputs: DataevalCleaningOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Collect reports for duplicates and outliers for image and target data.
 
         Parameters
@@ -535,12 +528,12 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 def add_slide(
     deck: str,
     title: str,
-    text: Text,
+    text: gd.Text,
     metrics_subset: list[str],
     all_metrics: dict[str, list],
     total: int,
     is_images: bool = True,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """Add a slide with a table of metrics to the report.
 
     Parameters
@@ -568,10 +561,10 @@ def add_slide(
     metric_df = create_metric_dataframe_data(
         is_images=is_images, metrics_subset=metrics_subset, all_metrics=all_metrics, total=total
     )
-    return create_table_text_slide(deck=deck, title=title, text=text, data=metric_df)
+    return gd.create_table_text_slide(deck=deck, title=title, text=text, data=metric_df)
 
 
-def generate_table_of_contents(deck: str) -> dict[str, Any]:
+def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover
     """Generate a table of contents for the report.
 
     Returns
@@ -583,28 +576,30 @@ def generate_table_of_contents(deck: str) -> dict[str, Any]:
         "\n",
         "* Image Duplicate Analysis",
         "* Image Property Histograms",
-        Text("Used for adjusting the outlier analysis thresholds.", indent=1),
+        gd.Text("Used for adjusting the outlier analysis thresholds.", indent=1),
         "* Image Outlier Analysis",
         "* Label Analysis",
         "* Target Property Histograms",
-        Text("Used for adjusting the outlier analysis thresholds.", indent=1),
+        gd.Text("Used for adjusting the outlier analysis thresholds.", indent=1),
         "* Target Outlier Analysis",
         "* Next Steps",
     ]
 
-    left_item = GradientImage(
+    left_item = gd.GradientImage(
         src=Path(__file__).parents[2] / "assets/toc.png",
         width=100,
         height=100,
         top=0.5,
         left=0.5,
     )
-    return create_two_item_text_slide(deck=deck, title="Table of Contents", left_item=left_item, right_item=right_item)
+    return gd.create_two_item_text_slide(
+        deck=deck, title="Table of Contents", left_item=left_item, right_item=right_item
+    )
 
 
 def generate_duplicates_report(
     deck: str, duplicates: DataevalCleaningDuplicatesOutputs, dataset_size: int
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """Generate a report for image duplicates.
 
     Parameters
@@ -643,15 +638,15 @@ def generate_duplicates_report(
         }
     )
 
-    content = Text(
+    content = gd.Text(
         [
-            SubText("Description: ", bold=True),
-            SubText("Identify images which are identical or almost identical.\n"),
+            gd.SubText("Description: ", bold=True),
+            gd.SubText("Identify images which are identical or almost identical.\n"),
         ],
         fontsize=22,
     )
 
-    return create_table_text_slide(deck=deck, title=title, text=content, data=duplicates_df)
+    return gd.create_table_text_slide(deck=deck, title=title, text=content, data=duplicates_df)
 
 
 def generate_stats_report(
@@ -661,7 +656,7 @@ def generate_stats_report(
     box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
     ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
     index2label: dict[int, str],
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for image and target statistics.
 
     Parameters
@@ -686,8 +681,8 @@ def generate_stats_report(
     stat_slides = []
 
     content = [
-        Text("Description: ", bold=True, fontsize=22),
-        Text(
+        gd.Text("Description: ", bold=True, fontsize=22),
+        gd.Text(
             "Visual overview of potential outliers in image properties. Vertical lines are the outlier thresholds"
             "(computed internally). Values outside of the vertical lines will be flagged as outliers.",
             fontsize=22,
@@ -701,25 +696,27 @@ def generate_stats_report(
     title = "Image Property Histograms"
     filepath = dir_ / "img_stats_histogram_plots.png"
     plot_stat_metrics(is_image=True, plot_list=img_hist_list, filepath=filepath)
-    stat_slides.append(create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath))
+    stat_slides.append(
+        gd.create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath)
+    )
 
     # build gradient slide for label analysis
     result_content, label_df = label_table(label_stats, index2label=index2label)  # pyright: ignore[reportArgumentType]
     title = "Label Analysis"
     content = []
-    content.append(Text("Description: ", bold=True, fontsize=22))
-    content.append(Text("Numerical analysis of label properties.\n\n", fontsize=22))
+    content.append(gd.Text("Description: ", bold=True, fontsize=22))
+    content.append(gd.Text("Numerical analysis of label properties.\n\n", fontsize=22))
     for t in result_content:
-        content.append(Text(t, fontsize=16))
+        content.append(gd.Text(t, fontsize=16))
     stat_slides.append(
-        create_section_by_item_slide_extra_caption(
-            deck=deck, title=title, heading=Text(" "), content=content, body_value=label_df
+        gd.create_section_by_item_slide_extra_caption(
+            deck=deck, title=title, heading=gd.Text(" "), content=content, body_value=label_df
         )
     )
 
     content = [
-        Text("Description: ", bold=True, fontsize=22),
-        Text(
+        gd.Text("Description: ", bold=True, fontsize=22),
+        gd.Text(
             "Visual overview of potential outliers in target properties. Vertical lines are the outlier thresholds"
             " (computed internally). Values outside of the vertical lines will be flagged as outliers.",
             fontsize=22,
@@ -735,7 +732,7 @@ def generate_stats_report(
         plot_stat_metrics(is_image=False, plot_list=box_hist_list, filepath=filepath)
         title = "Target Property Histograms"
         stat_slides.append(
-            create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath)
+            gd.create_item_by_narrow_text_slide(deck=deck, title=title, content=content, body_value=filepath)
         )
 
     return stat_slides
@@ -746,7 +743,7 @@ def generate_image_outliers_report(
     img_outliers: dict[int, dict[str, float]],
     img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
     dataset_size: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for image outliers.
 
     Parameters
@@ -784,9 +781,9 @@ def generate_image_outliers_report(
     captions = ["Dimensional", "Visual", "Pixel"]
     for idx, chunk in enumerate(metric_chunks):
         title = f"Image {captions[idx]} Outliers"
-        text = Text(
+        text = gd.Text(
             [
-                SubText("Description: ", bold=True),
+                gd.SubText("Description: ", bold=True),
                 f" Numerical analysis of {captions[idx].lower()} outliers in images.",
             ],
             fontsize=21,
@@ -811,7 +808,7 @@ def generate_target_outliers_report(
     target_outliers: dict[int, dict[str, float]] | None,
     box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
     total_targets: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for target outliers.
 
     Parameters
@@ -854,9 +851,9 @@ def generate_target_outliers_report(
     captions = ["Dimensional", "Visual", "Pixel", "Ratio"]
     for idx, chunk in enumerate(metric_chunks):
         title = f"Target {captions[idx]} Outliers"
-        text = Text(
+        text = gd.Text(
             [
-                SubText("Description: ", bold=True),
+                gd.SubText("Description: ", bold=True),
                 f" Numerical analysis of {captions[idx].lower()} outliers in targets.",
             ],
             fontsize=21,
@@ -876,7 +873,7 @@ def generate_target_outliers_report(
     return outlier_slides
 
 
-def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:
+def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:  # pragma: no cover
     """Generate a report for next steps.
 
     Provides recommendations for investigating issues that may arise
@@ -895,16 +892,16 @@ def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:
     title = f"Dataset: {dataset_id} | Category: Cleaning"
     heading = "Next Steps\n"
     content = [
-        Text(t, fontsize=14)
+        gd.Text(t, fontsize=14)
         for t in (
             "Below are the recommended next steps to investigating issues that may arise during analysis.",
-            [SubText("In general:", bold=True)],
+            [gd.SubText("In general:", bold=True)],
             "- Remove the images/targets flagged in the Basic Check reports for images and targets",
             "- Manually review the images/targets flagged in the Outlier reports",
-            [SubText("For images:", bold=True)],
+            [gd.SubText("For images:", bold=True)],
             "- Check if images come up in multiple outlier categories. If so, remove.",
             "- Make sure images are representative of their respective environment/class. If not, remove.",
-            [SubText("For targets:", bold=True)],
+            [gd.SubText("For targets:", bold=True)],
             "- Run bias analysis with bounding box stats and ensure there are no correlations between a statistic and a class",  # noqa: E501
             "- Make sure targets are representative of their respective class. If not, remove.",
         )
@@ -914,11 +911,11 @@ def generate_next_steps_report(deck: str, dataset_id: str) -> dict[str, Any]:
         "deck": deck,
         "layout_name": "SectionByItem",
         "layout_arguments": {
-            SectionByItem.ArgKeys.TITLE.value: title,
-            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
-            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
+            gd.SectionByItem.ArgKeys.TITLE.value: title,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
         },
     }
 

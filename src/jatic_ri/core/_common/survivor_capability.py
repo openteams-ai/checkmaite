@@ -6,7 +6,6 @@ from typing import Any
 import numpy as np
 import pydantic
 import pyspark.sql
-from gradient import SubText, Text
 from maite import protocols as pr
 from matplotlib.figure import Figure
 from pydantic import Field
@@ -17,6 +16,7 @@ from survivor.config import SurvivorConfig as _NativeSurvivorConfig
 from survivor.maite_survivor import MAITESurvivor
 
 from jatic_ri.core._types import DataFrame, Image
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.cached_tasks import evaluate_from_predictions, predict
 from jatic_ri.core.capability_core import (
     Capability,
@@ -28,6 +28,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
@@ -72,7 +73,10 @@ class SurvivorRun(CapabilityRunBase[SurvivorConfig, SurvivorOutputs]):
     config: SurvivorConfig
     outputs: SurvivorOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Collect report consumables for Survivor.
 
         This method formats the Survivor analysis results into a list of
@@ -102,9 +106,9 @@ class SurvivorRun(CapabilityRunBase[SurvivorConfig, SurvivorOutputs]):
         otb_proportion = label_counts.get("On the Bubble", 0) / total
 
         # Simply return the title of the section and the data to be plotted
-        definition_text = Text(
+        definition_text = gd.Text(
             [
-                SubText("Types of Data\n", bold=True),
+                gd.SubText("Types of Data\n", bold=True),
                 f"• Easy: Models score the same and perform well.\n"
                 f"• Hard: Models score the same and perform poorly.\n"
                 f"• On the Bubble: Models score differently.\n\n"

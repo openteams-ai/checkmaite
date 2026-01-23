@@ -10,13 +10,11 @@ from dataeval.data import Embeddings
 from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
 from dataeval.detectors.ood import OOD_KNN
 from dataeval.outputs import DriftMMDOutput
-from gradient import SubText
-from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 from pydantic import Field
 
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector
 from jatic_ri.core._types import Device, ModelSpec, TorchvisionModelSpec
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -27,6 +25,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 
 logger = logging.getLogger(__name__)
@@ -90,7 +89,9 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
     config: DataevalShiftConfig
     outputs: DataevalShiftOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Convert results from drift and OOD detection into a Gradient-consumable list of slides.
 
         Parameters
@@ -369,7 +370,9 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
         )
 
 
-def collect_drift(deck: str, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
+def collect_drift(
+    deck: str, drift_outputs: DataevalShiftDriftOutputs, *, dataset_ids: list[str]
+) -> dict[str, Any]:  # pragma: no cover
     """Generate Gradient compliant kwargs for drift detection results.
 
     Uses outputs from MMD, KS, and CVM methods.
@@ -405,31 +408,33 @@ def collect_drift(deck: str, drift_outputs: DataevalShiftDriftOutputs, *, datase
     title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
     heading = "Metric: Drift"
     text = [
-        [SubText("Result:", bold=True)],
+        [gd.SubText("Result:", bold=True)],
         f"• {dataset_ids[1]} has{' ' if any_drift else ' not '}drifted from {dataset_ids[0]}",
-        [SubText("Tests for:", bold=True)],
+        [gd.SubText("Tests for:", bold=True)],
         "• Covariate shift",
-        [SubText("Risks:", bold=True)],
+        [gd.SubText("Risks:", bold=True)],
         "• Degradation of model performance",
         "• Real-world performance no longer meets performance requirements",
-        [SubText("Action:", bold=True)],
+        [gd.SubText("Action:", bold=True)],
         f"• {'Retrain model (augmentation, transfer learning)' if any_drift else 'No action required'}",
     ]
-    content = [Text(t, fontsize=16) for t in text]
+    content = [gd.Text(t, fontsize=16) for t in text]
 
     return {
         "deck": deck,
         "layout_name": "SectionByItem",
         "layout_arguments": {
-            SectionByItem.ArgKeys.TITLE.value: title,
-            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: drift_df,
+            gd.SectionByItem.ArgKeys.TITLE.value: title,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: drift_df,
         },
     }
 
 
-def collect_ood(deck: str, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]) -> dict[str, Any]:
+def collect_ood(
+    deck: str, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids: list[str]
+) -> dict[str, Any]:  # pragma: no cover
     """Parse OOD results into a report-consumable slide.
 
     Creates a table showing the number of OOD samples and the threshold
@@ -478,29 +483,29 @@ def collect_ood(deck: str, ood_outputs: DataevalShiftOODOutputs, *, dataset_ids:
     title = f"Dataset 1: {dataset_ids[0]} - Dataset 2: {dataset_ids[1]} | Category: Dataset Shift"
     heading = "Metric: Out-of-distribution (OOD)"
     text = [
-        [SubText("Result:", bold=True)],
+        [gd.SubText("Result:", bold=True)],
         f"• {max(percents)}% OOD images were found in {dataset_ids[1]}",
-        [SubText("Tests for:", bold=True)],
+        [gd.SubText("Tests for:", bold=True)],
         f"• {dataset_ids[1]} data that is OOD from {dataset_ids[0]}",
-        [SubText("Risks:", bold=True)],
+        [gd.SubText("Risks:", bold=True)],
         "• Degradation of model performance",
         "• Real-world performance no longer meets requirements",
-        [SubText("Action:", bold=True)],
+        [gd.SubText("Action:", bold=True)],
         f"• {'Retrain model (augmentation, transfer learning)' if sum(percents) else 'No action required'}",
         f"{'• Examine OOD samples to learn source of covariate shift' if sum(percents) else ''}",
     ]
 
-    content = [Text(t, fontsize=16) for t in text]
+    content = [gd.Text(t, fontsize=16) for t in text]
 
     return {
         "deck": deck,
         "layout_name": "SectionByItem",
         "layout_arguments": {
-            SectionByItem.ArgKeys.TITLE.value: title,
-            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
-            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
+            gd.SectionByItem.ArgKeys.TITLE.value: title,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: ood_df,
         },
     }
 

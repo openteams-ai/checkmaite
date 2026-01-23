@@ -22,7 +22,6 @@ import pandas as pd
 import panel as pn
 import param
 from bokeh.models import HTMLTemplateFormatter
-from gradient.templates_and_layouts.create_deck import create_deck
 from streamz import Stream
 
 from jatic_ri.core.capability_core import Capability, CapabilityConfigBase, Number
@@ -31,6 +30,7 @@ from jatic_ri.core.image_classification.models import SUPPORTED_TORCHVISION_MODE
 from jatic_ri.core.object_detection.models import SUPPORTED_MODELS as SUPPORTED_MODELS_OD
 from jatic_ri.core.object_detection.models import SUPPORTED_TORCHVISION_MODELS as SUPPORTED_TORCHVISION_MODELS_OD
 from jatic_ri.core.object_detection.models import SUPPORTED_VISDRONE_MODELS as SUPPORTED_VISDRONE_MODELS_OD
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.ui._common.base_app import AppStyling, BaseApp
 from jatic_ri.ui.dashboard_utils import (
     create_download_link,
@@ -1005,7 +1005,7 @@ class BaseTestbed(BaseApp):
 
         report_path = Path(self.output_dir)
         report_title = self._construct_report_filename()
-        report = create_deck(slides, report_path, deck_name=report_title)
+        report = gd.create_deck(slides, report_path, deck_name=report_title)
 
         self.status_source.emit(f"Report saved to {report}")
 

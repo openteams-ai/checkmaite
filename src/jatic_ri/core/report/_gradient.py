@@ -1,17 +1,112 @@
+"""
+DEPRECATED: Gradient-based reporting utilities.
+These functions are deprecated and will be removed in a future release.
+Use Markdown-based reporting instead.
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from gradient.slide_deck.shapes import Item, SubText, Text
-from gradient.templates_and_layouts.generic_layouts import (
-    ItemByNarrowText,
-    SectionByItem,
-    TableText,
-    TwoItem,
-)
-from gradient.templates_and_layouts.generic_layouts.section_by_stacked_items import (
-    SectionByStackedItems,
-)
+
+_GRADIENT_INSTALL_HINT = "pip install jatic-ri[unsupported]"
+
+
+def _missing_gradient_error() -> ImportError:
+    return ImportError(
+        "Gradient-based reporting is deprecated and is not installed by default.\n\n"
+        "Please migrate to Markdown reports (collect_md_report), or install:\n"
+        f"  {_GRADIENT_INSTALL_HINT}"
+    )
+
+
+class _MissingGradientMeta(type):
+    """Stub types that fail lazily with a helpful error."""
+
+    def __getattr__(cls, _name: str) -> Any:
+        raise _missing_gradient_error()
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:  # noqa: ARG002
+        raise _missing_gradient_error()
+
+
+# Static typing (pyright/mypy)
+if TYPE_CHECKING:  # # pragma: no cover
+    from typing import TypeAlias
+
+    HAS_GRADIENT: bool
+
+    class SubText:
+        def __init__(self, text: Any = None, **kwargs: Any) -> None: ...
+
+    class Text:
+        def __init__(self, text: Any = None, **kwargs: Any) -> None: ...
+
+    class GradientImage:
+        def __init__(self, src: str | Path, **kwargs: Any) -> None: ...
+
+    Item: TypeAlias = Any
+
+    class ItemByNarrowText:
+        ArgKeys: Any
+
+    class SectionByItem:
+        ArgKeys: Any
+
+    class SectionByStackedItems:
+        ArgKeys: Any
+
+    class TableText:
+        ArgKeys: Any
+
+    class TwoItem:
+        ArgKeys: Any
+
+    def create_deck(*args: Any, **kwargs: Any) -> Any: ...  # noqa: ARG001
+    def parse_lines(*args: Any, **kwargs: Any) -> Any: ...  # noqa: ARG001
+
+else:
+    try:  # pragma: no cover
+        from gradient import SubText, create_deck, parse_lines
+        from gradient.slide_deck.shapes import Item, Text
+        from gradient.slide_deck.shapes.image_shapes import GradientImage
+        from gradient.templates_and_layouts.generic_layouts import (
+            ItemByNarrowText,
+            SectionByItem,
+            SectionByStackedItems,
+            TableText,
+            TwoItem,
+        )
+
+        HAS_GRADIENT = True
+    except ImportError:
+        HAS_GRADIENT = False
+
+        class SubText(metaclass=_MissingGradientMeta): ...
+
+        class Text(metaclass=_MissingGradientMeta): ...
+
+        class Item(metaclass=_MissingGradientMeta): ...
+
+        class GradientImage(metaclass=_MissingGradientMeta): ...
+
+        class ItemByNarrowText(metaclass=_MissingGradientMeta): ...
+
+        class SectionByItem(metaclass=_MissingGradientMeta): ...
+
+        class SectionByStackedItems(metaclass=_MissingGradientMeta): ...
+
+        class TableText(metaclass=_MissingGradientMeta): ...
+
+        class TwoItem(metaclass=_MissingGradientMeta): ...
+
+        def create_deck(*args: Any, **kwargs: Any) -> Any:  # noqa: ARG001
+            raise _missing_gradient_error()
+
+        def parse_lines(*args: Any, **kwargs: Any) -> Any:  # noqa: ARG001
+            raise _missing_gradient_error()
 
 
 def create_section_by_item_slide(
@@ -21,7 +116,7 @@ def create_section_by_item_slide(
     text: list[str] | list[list[SubText]],
     table: pd.DataFrame | None = None,
     image_path: Path | None = None,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Fills in SectionByItem Gradient template with values
 
@@ -50,12 +145,12 @@ def create_section_by_item_slide(
     dict[str, Any]
         Dictionary with Gradient template arguments
     """
-    if all([table is not None, image_path is not None]):
+    if table is not None and image_path is not None:
         raise ValueError("Both table and image_path cannot be provided.")
 
     content = [Text(t, fontsize=16) for t in text]
 
-    template = {
+    template: dict[str, Any] = {
         "deck": deck,
         "layout_name": "SectionByItem",
         "layout_arguments": {
@@ -82,7 +177,7 @@ def create_section_by_stacked_items_slide(
     text: list[str],
     table: pd.DataFrame,
     image_path: Path,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Fills in SectionByStackedItems Gradient template with values
 
@@ -111,7 +206,6 @@ def create_section_by_stacked_items_slide(
     dict[str, Any]
         Dictionary with Gradient template arguments
     """
-
     content = [Text(t, fontsize=16) for t in text]
 
     return {
@@ -136,27 +230,10 @@ def create_table_text_slide(
     title: str,
     text: Text,
     data: pd.DataFrame,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Fills a **TableText** Gradient slide with a block of narrative text and a
     tabular view of data.
-
-    Parameters
-    ----------
-    deck : str
-        Name of the Gradient deck this slide belongs to.
-    title : str
-        Title that appears in the slide header.
-    text : Text
-        Text object (e.g., `gradient.Text`) providing the explanatory
-        paragraph(s) that accompany the table.
-    data : pd.DataFrame
-        DataFrame to render as a table on the slide.
-
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary with Gradient template arguments.
     """
     return {
         "deck": deck,
@@ -175,30 +252,10 @@ def create_section_by_item_slide_extra_caption(
     heading: Text,
     content: list[Text],
     body_value: pd.DataFrame | Path,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Populates a **SectionByItem** Gradient slide that combines a heading,
     multiline body text, and a single “item” (either a table *or* an image).
-
-    Parameters
-    ----------
-    deck : str
-        Name of the Gradient deck this slide will live in.
-    title : str
-        Slide-level title shown in the header.
-    heading : Text
-        Sub-heading placed above the body text block.
-    content : list[Text]
-        Sequence of `gradient.Text` objects that form the main narrative body.
-    body_value : pd.DataFrame or pathlib.Path
-        • If a `pd.DataFrame` is supplied, it is rendered as a table.
-        • If a `Path` is supplied, the referenced file is inserted as an
-          image (typically PNG/JPEG).
-
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary with Gradient template arguments.
     """
     return {
         "deck": deck,
@@ -217,28 +274,10 @@ def create_item_by_narrow_text_slide(
     title: str,
     content: list[Text],
     body_value: pd.DataFrame | Path,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Populates a **ItemByNarrowText** Gradient slide that combines a title,
     multiline body text, and a single “item” (either a table *or* an image).
-
-    Parameters
-    ----------
-    deck : str
-        Name of the Gradient deck this slide will live in.
-    title : str
-        Slide-level title shown in the header.
-    content : list[Text]
-        Sequence of `gradient.Text` objects that form the main narrative body.
-    body_value : pd.DataFrame or pathlib.Path
-        • If a `pd.DataFrame` is supplied, it is rendered as a table.
-        • If a `Path` is supplied, the referenced file is inserted as an
-          image (typically PNG/JPEG).
-
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary with Gradient template arguments.
     """
     return {
         "deck": deck,
@@ -256,26 +295,10 @@ def create_two_item_text_slide(
     title: str,
     left_item: Item,
     right_item: Item,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """
     Populates a **TwoItem** Gradient slide that combines a title,
     and two items.
-
-    Parameters
-    ----------
-    deck : str
-        Name of the Gradient deck this slide will live in.
-    title : str
-        Slide-level title shown in the header.
-    left_item : Item
-        Left item to display on the slide.
-    right_item : Item
-        Right item to display on the slide.
-
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary with Gradient template arguments.
     """
     return {
         "deck": deck,

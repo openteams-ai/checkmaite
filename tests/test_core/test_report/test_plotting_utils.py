@@ -4,11 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-from gradient.templates_and_layouts.create_deck import create_deck
 
-from jatic_ri.core.report._gradient import (
-    create_section_by_item_slide,
-)
+from jatic_ri.core.report import _gradient as gd
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 from jatic_ri.core.report._plotting_utils import (
     create_metric_dataframe_data,
     get_cutoff_values,
@@ -31,6 +29,7 @@ def fake_image() -> str:
 class TestCommonBiasUtilityFunctions:
     """Test private helper functions used by Bias"""
 
+    @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     @pytest.mark.parametrize("with_table", [True, False])
     def test_create_section_by_item_slide(self, with_table: bool, fake_image):
         """Tests SectionByItem arguments are correctly populated with and without a DataFrame"""
@@ -41,7 +40,7 @@ class TestCommonBiasUtilityFunctions:
             table = None
             image_path = Path(fake_image)
 
-        result_template = create_section_by_item_slide(
+        result_template = gd.create_section_by_item_slide(
             deck="DECK",
             title="TITLE",
             heading="HEADING",
@@ -62,7 +61,7 @@ class TestCommonBiasUtilityFunctions:
         else:
             assert isinstance(layout_args["item_section_body"], Path)
 
-        create_deck(
+        gd.create_deck(
             [result_template], path=Path("artifacts"), deck_name=f"test_create_text_data_slide_table={str(with_table)}"
         )
 

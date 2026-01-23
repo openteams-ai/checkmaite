@@ -7,16 +7,12 @@ import pandas as pd
 import pydantic
 from dataeval.data import Embeddings, Images, Metadata
 from dataeval.metrics.bias import balance, coverage, diversity
-from gradient import SubText
-from gradient.slide_deck.shapes import Text
-from gradient.slide_deck.shapes.image_shapes import GradientImage
-from gradient.templates_and_layouts.generic_layouts import SectionByItem
 from pydantic import Field
 
 from jatic_ri import cache_path
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from jatic_ri.core._types import Device, Image, ModelSpec, TorchvisionModelSpec
-from jatic_ri.core._utils import set_device
+from jatic_ri.core._utils import deprecated, requires_optional_dependency, set_device
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -27,11 +23,7 @@ from jatic_ri.core.capability_core import (
     TMetric,
     TModel,
 )
-from jatic_ri.core.report._gradient import (
-    create_section_by_item_slide,
-    create_table_text_slide,
-    create_two_item_text_slide,
-)
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import plot_blank_or_single_image, temp_image_file
 
@@ -118,7 +110,10 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
     config: DataevalBiasConfig
     outputs: DataevalBiasOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002  # pragma: no cover
         """Collect consumables for the report.
 
         Gathers the results from the bias analysis run and formats them
@@ -357,7 +352,7 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
 
 
-def generate_table_of_contents(deck: str) -> dict[str, Any]:
+def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover
     """Generates a table of contents for the report.
 
     Returns
@@ -365,6 +360,7 @@ def generate_table_of_contents(deck: str) -> dict[str, Any]:
     dict[str, Any]
         A dictionary representing the table of contents slide.
     """
+
     right_item = [
         "\n",
         "* Coverage Analysis",
@@ -373,19 +369,19 @@ def generate_table_of_contents(deck: str) -> dict[str, Any]:
         "* Next Steps",
     ]
 
-    left_item = GradientImage(
+    left_item = gd.GradientImage(
         src=Path(__file__).parents[2] / "assets/toc.png",
         width=100,
         height=100,
         top=0.5,
         left=0.5,
     )
-    return create_two_item_text_slide(
+    return gd.create_two_item_text_slide(
         deck=deck, title="Bias Table of Contents", left_item=left_item, right_item=right_item
     )
 
 
-def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[str, Any]:
+def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[str, Any]:  # pragma: no cover
     """Format coverage results for Gradient consumption.
 
     Parameters
@@ -398,6 +394,7 @@ def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[st
     dict[str, Any]
         A dictionary representing the coverage analysis slide.
     """
+
     title = "Coverage Analysis"
 
     uncovered_count = len(coverage.uncovered_indices)
@@ -407,10 +404,10 @@ def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[st
         {"Potentially under-represented images": [f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"]},
     )
 
-    content = Text(
+    content = gd.Text(
         [
-            SubText("Description: ", bold=True),
-            SubText(
+            gd.SubText("Description: ", bold=True),
+            gd.SubText(
                 "Coverage uses AI to identify potentially under-represented images "
                 "that warrant further investigation. Under-represented images are "
                 "those which are closely-related to, at most, a small amount of other "
@@ -420,10 +417,12 @@ def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[st
         fontsize=22,
     )
 
-    return create_table_text_slide(deck=deck, title=title, text=content, data=cov_df)
+    return gd.create_table_text_slide(deck=deck, title=title, text=content, data=cov_df)
 
 
-def report_balance_metadata_factors(deck: str, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
+def report_balance_metadata_factors(
+    deck: str, outputs: DataevalBiasBalanceOutputs
+) -> dict[str, Any]:  # pragma: no cover
     """Format balance results (metadata factors) for Gradient consumption.
 
     Parameters
@@ -436,13 +435,14 @@ def report_balance_metadata_factors(deck: str, outputs: DataevalBiasBalanceOutpu
     dict[str, Any]
         A dictionary representing the balance analysis slide for metadata factors.
     """
+
     title = "Balance Analysis 1"
     heading = "   "
 
     text = [
         [
-            SubText("Description: ", bold=True, fontsize=20),
-            SubText(
+            gd.SubText("Description: ", bold=True, fontsize=20),
+            gd.SubText(
                 "Balance can help uncover potential model bias by identifying "
                 "spurious correlations between metadata and class labels. For "
                 "example, a model might incorrectly learn to associate vehicles"
@@ -453,7 +453,7 @@ def report_balance_metadata_factors(deck: str, outputs: DataevalBiasBalanceOutpu
             ),
         ],
         [
-            SubText(
+            gd.SubText(
                 "Values approaching or exceeding 0.5 in the heat map should be "
                 "further investigated to prevent a model from potentially learning "
                 "a harmful shortcut.",
@@ -462,7 +462,7 @@ def report_balance_metadata_factors(deck: str, outputs: DataevalBiasBalanceOutpu
         ],
     ]
 
-    return create_section_by_item_slide(
+    return gd.create_section_by_item_slide(
         deck=deck,
         title=title,
         heading=heading,
@@ -471,7 +471,7 @@ def report_balance_metadata_factors(deck: str, outputs: DataevalBiasBalanceOutpu
     )
 
 
-def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:
+def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> dict[str, Any]:  # pragma: no cover
     """Format balance results (classwise) for Gradient consumption.
 
     Parameters
@@ -484,13 +484,14 @@ def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> 
     dict[str, Any]
         A dictionary representing the balance analysis slide for classwise balance.
     """
+
     title = "Balance Analysis 2"
     heading = "   "
 
     text = [
         [
-            SubText("Description: ", bold=True, fontsize=20),
-            SubText(
+            gd.SubText("Description: ", bold=True, fontsize=20),
+            gd.SubText(
                 "Balance can also help uncover potential model bias by identifying "
                 "relative class imbalance. Correlations between an individual class "
                 "and all other class labels indicate that a specific class is "
@@ -500,14 +501,14 @@ def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> 
             ),
         ],
         [
-            SubText(
+            gd.SubText(
                 "Values approaching or exceeding 0.5 in the heat map should be further " "investigated.",
                 fontsize=20,
             )
         ],
     ]
 
-    return create_section_by_item_slide(
+    return gd.create_section_by_item_slide(
         deck=deck,
         title=title,
         heading=heading,
@@ -516,7 +517,7 @@ def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> 
     )
 
 
-def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[str, Any]:
+def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[str, Any]:  # pragma: no cover
     """Format diversity results for Gradient consumption.
 
     Parameters
@@ -529,13 +530,14 @@ def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[s
     dict[str, Any]
         A dictionary representing the diversity analysis slide.
     """
+
     title = "Diversity Analysis"
     heading = "   "
 
     text = [
         [
-            SubText("Description: ", bold=True, fontsize=20),
-            SubText(
+            gd.SubText("Description: ", bold=True, fontsize=20),
+            gd.SubText(
                 "Diversity measures how well each metadata factor is sampled over its range of "
                 "possible values. Values near 1 indicate wide sampling, while values near 0 "
                 "indicate imbalanced sampling e.g. all datapoints taking a single value.",
@@ -543,7 +545,7 @@ def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[s
             ),
         ],
         [
-            SubText(
+            gd.SubText(
                 "The categories of most interest are those with values that are between 0.1 "
                 "and 0.4. The data for each metadata factor in these ranges should be inspected "
                 " to see if the sampled values are appropriate for operational data.",
@@ -551,7 +553,7 @@ def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[s
             )
         ],
         [
-            SubText(
+            gd.SubText(
                 "Values below 0.1 are generally so heavily imbalanced that a genuine problem "
                 "should be immediately obvious.",
                 fontsize=20,
@@ -559,7 +561,7 @@ def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[s
         ],
     ]
 
-    return create_section_by_item_slide(
+    return gd.create_section_by_item_slide(
         deck=deck,
         title=title,
         heading=heading,
@@ -568,7 +570,7 @@ def report_diversity(deck: str, outputs: DataevalBiasDiversityOutputs) -> dict[s
     )
 
 
-def report_next_steps(deck: str) -> dict[str, Any]:
+def report_next_steps(deck: str) -> dict[str, Any]:  # pragma: no cover
     """Generate a report for the next steps.
 
     This outlines how to investigate issues that may arise during analysis.
@@ -578,6 +580,7 @@ def report_next_steps(deck: str) -> dict[str, Any]:
     dict[str, Any]
         A dictionary representing the next steps slide.
     """
+
     dir_ = Path(cache_path() / "bias-artifacts")
     dir_.mkdir(parents=True, exist_ok=True)
     filepath = dir_ / "blank_img.png"
@@ -586,10 +589,10 @@ def report_next_steps(deck: str) -> dict[str, Any]:
     title = "Bias Analysis"
     heading = "Next Steps\n"
     content = [
-        Text(t, fontsize=14)
+        gd.Text(t, fontsize=14)
         for t in (
             "Below are the recommended next steps to investigating issues that may arise during analysis.",
-            [SubText("In general:", bold=True)],
+            [gd.SubText("In general:", bold=True)],
             "1. Insert text here",
             "2. Insert text here",
             "3. Insert text here",
@@ -600,11 +603,11 @@ def report_next_steps(deck: str) -> dict[str, Any]:
         "deck": deck,
         "layout_name": "SectionByItem",
         "layout_arguments": {
-            SectionByItem.ArgKeys.TITLE.value: title,
-            SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-            SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-            SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
-            SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
+            gd.SectionByItem.ArgKeys.TITLE.value: title,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+            gd.SectionByItem.ArgKeys.LINE_SECTION_HALF.value: True,
+            gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: filepath,
         },
     }
 

@@ -936,36 +936,44 @@ class TestMarkdownImageAssetHelpers:
         # From cwd=tmp_path to tmp_path/report/images/a.png => report/images/a.png
         assert mapping == {"images/a.png": "report/images/a.png"}
 
-    def test_create_markdown_output_saves_and_rewrites(self, tmp_path: Path, monkeypatch):
-        """Integration-style test: save markdown, copy image, and rewrite paths for saved + displayed markdown."""
-        # Make cwd predictable (create_markdown_output uses Path.cwd() for source_root)
-        monkeypatch.chdir(tmp_path)
 
-        # Patch display to avoid notebook side effects during tests
-        from IPython.display import Markdown
+def test_create_markdown_output_saves_and_rewrites(tmp_path: Path, monkeypatch):
+    """Integration-style test: save markdown, copy image, rewrite paths; optionally display."""
+    monkeypatch.chdir(tmp_path)
 
-        import jatic_ri.core.report._markdown as mdmod
+    from IPython.display import Markdown
 
-        monkeypatch.setattr(mdmod, "display", lambda *_a, **_kw: None)
+    # Patch the display function used by create_markdown_output
+    monkeypatch.setattr("jatic_ri.core.report._markdown._ipy_display", lambda *_a, **_kw: None)
 
-        img = tmp_path / "img.png"
-        img.write_text("data")
+    img = tmp_path / "img.png"
+    img.write_text("data")
 
-        md = "![alt](img.png)\n"
-        out_dir = tmp_path / "report"
+    md = "![alt](img.png)\n"
+    out_dir = tmp_path / "report"
 
-        result = create_markdown_output(md, out_dir)
+    result = create_markdown_output(md, out_dir, display=True)
 
-        # Saved markdown should point to images/<name>
-        saved = (out_dir / "report.md").read_text(encoding="utf-8")
-        assert "(images/img.png)" in saved
+    saved = (out_dir / "report.md").read_text(encoding="utf-8")
+    assert "(images/img.png)" in saved
+    assert (out_dir / "images" / "img.png").exists()
 
-        # Copied image should exist
-        assert (out_dir / "images" / "img.png").exists()
+    assert isinstance(result, Markdown)
+    assert "report/images/img.png" in getattr(result, "data", "")
 
-        # Returned object is a Markdown display object
-        assert isinstance(result, Markdown)
 
-        # Displayed markdown should resolve from cwd -> out_dir/images/img.png
-        # With cwd=tmp_path, out_dir=tmp_path/report => display path is "report/images/img.png"
-        assert "report/images/img.png" in getattr(result, "data", "")
+def test_create_markdown_output_no_display_returns_none(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    img = tmp_path / "img.png"
+    img.write_text("data")
+
+    md = "![alt](img.png)\n"
+    out_dir = tmp_path / "report"
+
+    result = create_markdown_output(md, out_dir)  # display defaults to False
+    assert result is None
+
+    saved = (out_dir / "report.md").read_text(encoding="utf-8")
+    assert "(images/img.png)" in saved
+    assert (out_dir / "images" / "img.png").exists()

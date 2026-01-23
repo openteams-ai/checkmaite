@@ -7,6 +7,7 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -88,7 +89,10 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
     config: NrtkRobustnessConfig
     outputs: NrtkRobustnessOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the
         load_cached_results method
 

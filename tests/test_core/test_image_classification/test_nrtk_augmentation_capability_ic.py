@@ -1,6 +1,7 @@
 import pytest
 
 from jatic_ri.core.image_classification.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -22,7 +23,8 @@ def test_config():
     return NrtkRobustnessConfig(name=ARGS["name"], perturber_factory=ARGS["perturber_factory"])
 
 
-def test_run_and_collect(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default, test_config):
+@pytest.fixture
+def test_run(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default, test_config):
     capability = NrtkRobustness()
 
     outputs = capability.run(
@@ -35,5 +37,13 @@ def test_run_and_collect(fake_ic_model_default, fake_ic_dataset_default, fake_ic
 
     assert outputs.model_dump()  # smoke test
 
-    assert outputs.collect_report_consumables(threshold=0.5)  # smoke test
-    assert outputs.collect_md_report(threshold=0.5)  # smoke test
+    return outputs
+
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_run_and_collect_consumables(test_run):
+    assert test_run.collect_report_consumables(threshold=0.5)  # smoke test
+
+
+def test_run_and_collect_md(test_run):
+    assert test_run.collect_md_report(threshold=0.5)  # smoke test

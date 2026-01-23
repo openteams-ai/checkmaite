@@ -134,7 +134,7 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
 
         return hashlib.sha256(json.dumps(uid_content).encode("utf-8")).hexdigest()
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Collect data for generating a report.
 
         Accesses in-depth data needed by Gradient to produce a report. This data

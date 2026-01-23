@@ -13,7 +13,8 @@ from shutil import copy2
 from typing import Any
 from urllib.parse import urlparse
 
-from IPython.display import Markdown, display
+from IPython.display import Markdown
+from IPython.display import display as _ipy_display
 
 
 # Markdown image syntax: ![alt](path "optional title")
@@ -534,9 +535,7 @@ class MarkdownOutput:
 
     def display(self) -> None:
         """Display the rendered markdown in a Jupyter notebook."""
-        from IPython.display import Markdown, display
-
-        display(Markdown(self.render()))
+        _ipy_display(Markdown(self.render()))
 
     def save(self, path: str | Path, encoding: str = "utf-8") -> None:
         """Write the rendered markdown to a file.
@@ -698,7 +697,9 @@ def _build_display_mapping(saved_md: str, *, out_dir: Path) -> dict[str, str]:
     return mapping
 
 
-def create_markdown_output(md_report: str, path: str | Path, md_filename: str = "report.md") -> Markdown:
+def create_markdown_output(
+    md_report: str, path: str | Path, md_filename: str = "report.md", display: bool = False
+) -> Any:
     """
     Save a markdown report and its local image assets into `path`, then display it.
 
@@ -722,9 +723,12 @@ def create_markdown_output(md_report: str, path: str | Path, md_filename: str = 
     saved_md = _rewrite_markdown_paths(md_report, orig_to_saved_rel)
     _save_markdown(saved_md, out_dir, md_filename)
 
-    saved_rel_to_display = _build_display_mapping(saved_md, out_dir=out_dir)
-    displayed_md = _rewrite_markdown_paths(saved_md, saved_rel_to_display)
+    if display:
+        saved_rel_to_display = _build_display_mapping(saved_md, out_dir=out_dir)
+        displayed_md = _rewrite_markdown_paths(saved_md, saved_rel_to_display)
 
-    md_obj = Markdown(displayed_md)
-    display(md_obj)
-    return md_obj
+        md_obj = Markdown(displayed_md)
+        _ipy_display(md_obj)
+        return md_obj
+
+    return None
