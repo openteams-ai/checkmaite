@@ -12,6 +12,7 @@ from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 from jatic_ri.core._common.xaitk_explainable_capability import XaitkExplainableBase
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import save_figure_to_tempfile
@@ -62,7 +63,10 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
     config: XaitkExplainableConfig
     outputs: XaitkExplainableOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Access the in-depth data needed by Gradient to produce a report
         generated in the run method or in the load_cached_results method.
         Each slide will have a short text description of the model used,

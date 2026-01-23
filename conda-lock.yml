@@ -15,7 +15,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 353f04623e886083ec109a1b9cb439bbf254aa2999451bac0eff68be70986123
+    linux-64: 55dbf9680883d8a2d6c79e2b5050c4614f4b4f48222b4d554482159f02fd6b10
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -5805,7 +5805,7 @@ package:
   category: main
   optional: false
 - name: llvmlite
-  version: 0.46.0
+  version: 0.45.1
   manager: conda
   platform: linux-64
   dependencies:
@@ -5816,10 +5816,10 @@ package:
     python: '>=3.11,<3.12.0a0'
     python_abi: 3.11.*
     zstd: '>=1.5.7,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/llvmlite-0.46.0-py311h41a00d4_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/llvmlite-0.45.1-py311h41a00d4_0.conda
   hash:
-    md5: cc330c606421fa13d1139e9766259ae3
-    sha256: d33d455c85366f409f26a4186bdf9c08ccc2f068d3cf5da48e9daa31457707a7
+    md5: 8f1e63415ecf9e21530b825dbcd843f4
+    sha256: 5529ee8dea19299f574991f39d1995334e1c2979c15736618cd2db0d6fb499e0
   category: main
   optional: false
 - name: lz4-c
@@ -6447,7 +6447,7 @@ package:
   category: main
   optional: false
 - name: numba
-  version: 0.63.1
+  version: 0.62.1
   manager: conda
   platform: linux-64
   dependencies:
@@ -6455,14 +6455,14 @@ package:
     _openmp_mutex: '>=4.5'
     libgcc: '>=14'
     libstdcxx: '>=14'
-    llvmlite: '>=0.46.0,<0.47.0a0'
-    numpy: '>=1.23,<3'
+    llvmlite: '>=0.45.1,<0.46.0a0'
+    numpy: '>=1.24,<2.4'
     python: '>=3.11,<3.12.0a0'
     python_abi: 3.11.*
-  url: https://conda.anaconda.org/conda-forge/linux-64/numba-0.63.1-py311h3c884d5_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/numba-0.62.1-py311hcdb8226_1.conda
   hash:
-    md5: 3d05eaf5e34f383eec6ded1cac922bac
-    sha256: d096edd82d702ab98ff13bedee05d4ffadf208ad7a3ed3a748b59b976d2ba3b0
+    md5: 1241ccc9ea3f6f8271554ba33a455084
+    sha256: 73b0692e95b677e4bafe9a0a8e09ddf966896c1be1810ec3ffbedf12ec0eb4ac
   category: main
   optional: false
 - name: numpy
@@ -7460,20 +7460,21 @@ package:
   category: main
   optional: false
 - name: pybsm
-  version: 0.13.0
+  version: 0.14.0
   manager: conda
   platform: linux-64
   dependencies:
     matplotlib-base: '>=3.5.2'
+    numba: ~=0.62.1
     numpy: '>=1.22,<2.0'
     python: '>=3.11,<3.12.0a0'
     python_abi: 3.11.*
     scipy: '>=1.10.0'
     setuptools: '>=78.1.1'
-  url: https://conda.anaconda.org/conda-forge/linux-64/pybsm-0.13.0-py311h38be061_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/pybsm-0.14.0-py311h38be061_0.conda
   hash:
-    md5: ae9ea7994d8b29b12bf628b091a23f28
-    sha256: 2861d0a3f534dd2b04e18b782ac6927545eb9192fdb1ceb6f1647d809ae43fa3
+    md5: 1fcacc5ec178b1bd997d61cd322d8f7d
+    sha256: feb276d37509f405cf8a1bbc4ab95f4633ac5b5030dc83ea260683a3f949ba3d
   category: main
   optional: false
 - name: pycairo
@@ -7647,15 +7648,15 @@ package:
   category: main
   optional: false
 - name: pyparsing
-  version: 3.3.1
+  version: 3.3.2
   manager: conda
   platform: linux-64
   dependencies:
     python: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.1-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.2-pyhcf101f3_0.conda
   hash:
-    md5: d837065e4e0de4962c3462079c23f969
-    sha256: 0c70bc577f5efa87501bdc841b88f594f4d3f3a992dfb851e2130fa5c817835b
+    md5: 3687cc0b82a8b4c17e1f0eb7e47163d5
+    sha256: 417fba4783e528ee732afa82999300859b065dc59927344b4859c64aae7182de
   category: main
   optional: false
 - name: pyproj
@@ -8633,15 +8634,15 @@ package:
   category: main
   optional: false
 - name: setuptools
-  version: 80.9.0
+  version: 80.10.1
   manager: conda
   platform: linux-64
   dependencies:
-    python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-80.9.0-pyhff2d567_0.conda
+    python: '>=3.10'
+  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-80.10.1-pyh332efcf_0.conda
   hash:
-    md5: 4de79c071274a53dcaf2a8c749d1499e
-    sha256: 972560fcf9657058e3e1f97186cc94389144b46dbdf58c807ce62e83f977e863
+    md5: cb72cedd94dd923c6a9405a3d3b1c018
+    sha256: 89d5bb48047e7e27aa52a3a71d6ebf386e5ee4bdbd7ca91d653df9977eca8253
   category: main
   optional: false
 - name: shaderc
@@ -10351,141 +10352,5 @@ package:
   hash:
     md5: 4a13eeac0b5c8e5b8ab496e6c4ddd829
     sha256: 68f0206ca6e98fea941e5717cec780ed2873ffabc0e1ed34428c061e2c6268c7
-  category: main
-  optional: false
-- name: adjusttext
-  version: 1.3.0
-  manager: pip
-  platform: linux-64
-  dependencies:
-    matplotlib: '*'
-    numpy: '*'
-    scipy: '*'
-  url: https://files.pythonhosted.org/packages/53/1c/8feedd607cc14c5df9aef74fe3af9a99bf660743b842a9b5b1865326b4aa/adjustText-1.3.0-py3-none-any.whl
-  hash:
-    sha256: da23d7b24b6db5ffa039bb136bfa556207365e32f48ac74b07ad26dd485bc691
-  category: main
-  optional: false
-- name: blockdiag
-  version: 3.0.0
-  manager: pip
-  platform: linux-64
-  dependencies:
-    funcparserlib: '>=1.0.0a0'
-    pillow: '>3.0'
-    setuptools: '*'
-    webcolors: '*'
-  url: https://files.pythonhosted.org/packages/cf/cd/b82f859a9ebc4d24c1a8b901a68df0d90aa717fd4d47d6166db9449dc0ff/blockdiag-3.0.0-py3-none-any.whl
-  hash:
-    sha256: 4031bfae6a7f36071d733dec639987346e10f7871356ee2c7a221961c64961d8
-  category: main
-  optional: false
-- name: colour
-  version: 0.1.5
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/74/46/e81907704ab203206769dee1385dc77e1407576ff8f50a0681d0a6b541be/colour-0.1.5-py2.py3-none-any.whl
-  hash:
-    sha256: 33f6db9d564fadc16e59921a56999b79571160ce09916303d35346dddc17978c
-  category: main
-  optional: false
-- name: funcparserlib
-  version: 1.0.1
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/83/66/acd740d84f59c655935f586c113a863aa404dfe932052a68a1163d88ea63/funcparserlib-1.0.1-py2.py3-none-any.whl
-  hash:
-    sha256: 95da15d3f0d00b9b6f4bf04005c708af3faa115f7b45692ace064ebe758c68e8
-  category: main
-  optional: false
-- name: gradient
-  version: 0.12.2
-  manager: pip
-  platform: linux-64
-  dependencies:
-    adjusttext: '>=0.7.3'
-    beautifulsoup4: '>=4.12.2'
-    blockdiag: '>=3.0.0'
-    colour: '>=0.1.5'
-    cycler: '>=0.10'
-    jinja2: '>=3.1.5'
-    matplotlib: '>=3.7.1'
-    mdutils: '>=1.6.0'
-    mistune: '>=3.0.2'
-    numpy: '>=1.24.2,<2.1.0'
-    pandas: '>=2.2.2'
-    pillow: '>=10.0.1'
-    pydantic: '>=2.7.4'
-    python-pptx: '>=0.6.21'
-    pyyaml: '>=6.0.1'
-    seaborn: '>=0.11.0'
-    setuptools: '>=70.0.0'
-    typing-extensions: '>=4.9.0'
-    zipp: '>=3.19.1'
-  url: git+https://gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
-  hash:
-    sha256: 19c4261c63eb118a3b9db90cab736be3264ad9dc
-  source:
-    type: url
-    url: git+https://gitlab.jatic.net/jatic/morse/gradient.git@19c4261c63eb118a3b9db90cab736be3264ad9dc
-  category: main
-  optional: false
-- name: lxml
-  version: 6.0.2
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/b8/89/ea8f91594bc5dbb879734d35a6f2b0ad50605d7fb419de2b63d4211765cc/lxml-6.0.2-cp311-cp311-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
-  hash:
-    sha256: 7d2de809c2ee3b888b59f995625385f74629707c9355e0ff856445cdcae682b7
-  category: main
-  optional: false
-- name: mdutils
-  version: 1.8.1
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/06/38/f2eeaa5d1c13e64a4dc18b5c6e28b9d5f8b20f5450ba8c3a694e4a78893d/mdutils-1.8.1-py3-none-any.whl
-  hash:
-    sha256: 3d62d0a4d19fcd68d1daf956d1832f4a598663c73022bd95b09fae69c994b5ac
-  category: main
-  optional: false
-- name: python-pptx
-  version: 1.0.2
-  manager: pip
-  platform: linux-64
-  dependencies:
-    lxml: '>=3.1.0'
-    pillow: '>=3.3.2'
-    typing-extensions: '>=4.9.0'
-    xlsxwriter: '>=0.5.7'
-  url: https://files.pythonhosted.org/packages/d9/4f/00be2196329ebbff56ce564aa94efb0fbc828d00de250b1980de1a34ab49/python_pptx-1.0.2-py3-none-any.whl
-  hash:
-    sha256: 160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba
-  category: main
-  optional: false
-- name: seaborn
-  version: 0.13.2
-  manager: pip
-  platform: linux-64
-  dependencies:
-    matplotlib: '>=3.4,<3.6.1 || >3.6.1'
-    numpy: '>=1.20,<1.24.0 || >1.24.0'
-    pandas: '>=1.2'
-  url: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
-  hash:
-    sha256: 636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987
-  category: main
-  optional: false
-- name: xlsxwriter
-  version: 3.2.9
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/3a/0c/3662f4a66880196a590b202f0db82d919dd2f89e99a27fadef91c4a33d41/xlsxwriter-3.2.9-py3-none-any.whl
-  hash:
-    sha256: 9a5db42bc5dff014806c58a20b9eae7322a134abb6fce3c92c181bfb275ec5b3
   category: main
   optional: false

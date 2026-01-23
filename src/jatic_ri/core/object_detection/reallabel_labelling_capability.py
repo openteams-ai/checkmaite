@@ -9,7 +9,6 @@ import numpy as np
 import PIL.Image
 import pyspark.sql.functions as sf
 import torch
-from gradient import SubText, Text
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata
 from pptx.dml.color import RGBColor
 from pydantic import model_validator
@@ -17,6 +16,7 @@ from reallabel import MAITERealLabel, RealLabelColumns, plot_reallabel_results
 from reallabel import RealLabelConfig as _NativeRealLabelConfig
 
 from jatic_ri.core._types import DataFrame, Image
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.cached_tasks import predict
 from jatic_ri.core.capability_core import (
     Capability,
@@ -25,6 +25,7 @@ from jatic_ri.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
@@ -107,7 +108,10 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
     config: ReallabelLabellingConfig
     outputs: ReallabelLabellingOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Collect all report consumables.
 
         Parameters
@@ -143,10 +147,10 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
             "fontsize": 12,
         }
 
-        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[SubText, SubText]:
+        def bullet_point(text: str, **text_formatting_kwargs: Any) -> tuple[gd.SubText, gd.SubText]:
             return (
-                SubText("• ", fontsize=22),
-                SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
+                gd.SubText("• ", fontsize=22),
+                gd.SubText(text, **{**bullet_formatting, **text_formatting_kwargs}),
             )
 
         slides = [
@@ -155,10 +159,10 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                 "layout_name": "TwoItem",
                 "layout_arguments": {
                     "title": "RealLabel Label Breakdown",
-                    "left_item": Text(
+                    "left_item": gd.Text(
                         content=[
                             # Paragraph 1
-                            SubText(
+                            gd.SubText(
                                 "RealLabel aids re-labeling efforts by "
                                 "using model ensembling to determine if a label is a:\n",
                                 **sentence_formatting,
@@ -167,9 +171,9 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                             *bullet_point("False Positive: (Potentially Incorrect Label)\n"),
                             *bullet_point("False Negative: (Potentially Missing Label)\n"),
                             # Spacing
-                            SubText("\n" * 1, **spaces_formatting),
+                            gd.SubText("\n" * 1, **spaces_formatting),
                             # Paragraph 2
-                            SubText(
+                            gd.SubText(
                                 "In this dataset, RealLabel has found:\n",
                                 **sentence_formatting,
                             ),
@@ -179,7 +183,7 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                                 color=RGBColor(173, 214, 95),
                                 bold=True,
                             ),
-                            SubText(
+                            gd.SubText(
                                 f"{num_true_positives}\n",
                                 **bullet_formatting,
                                 bold=True,
@@ -189,7 +193,7 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                                 color=RGBColor(72, 127, 199),
                                 bold=True,
                             ),
-                            SubText(
+                            gd.SubText(
                                 f"{num_false_positives}\n",
                                 **bullet_formatting,
                                 bold=True,
@@ -199,13 +203,13 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                                 color=RGBColor(221, 0, 0),
                                 bold=True,
                             ),
-                            SubText(
+                            gd.SubText(
                                 f"{num_false_negatives}\n",
                                 **bullet_formatting,
                                 bold=True,
                             ),
-                            SubText("\n" * 1, **spaces_formatting),
-                            SubText(
+                            gd.SubText("\n" * 1, **spaces_formatting),
+                            gd.SubText(
                                 "An example image "
                                 f"({','.join({f'{k}: {v}' for k, v in reallabel_results.example_image.id.items()})})"
                                 " is shown to the right",
@@ -237,10 +241,10 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                         "line_section_heading": "WANRS Ranking",
                         "line_section_half": True,
                         "line_section_body": [
-                            Text(
+                            gd.Text(
                                 content=[
                                     wanrs_description_prelink_text,
-                                    SubText(
+                                    gd.SubText(
                                         content="RealLabel documentation",
                                         hyperlink="https://jatic.pages.jatic.net/morse/reallabel/user_guide/explanation/how_reallabel_works.html#optional-output-dataframe-wanrs-output",
                                     ),
@@ -249,7 +253,7 @@ class ReallabelLabellingRun(CapabilityRunBase[ReallabelLabellingConfig, Reallabe
                                 ],
                                 fontsize=16,
                             ),
-                            Text(
+                            gd.Text(
                                 "Note: The accuracy of this ranking depends on the quality of the model’s "
                                 "predictions. If the model is not well-calibrated or misses certain types of "
                                 "errors, some problematic images may not be prioritized.",

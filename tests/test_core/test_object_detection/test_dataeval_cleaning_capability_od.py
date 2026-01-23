@@ -4,6 +4,7 @@ import pytest
 
 from jatic_ri.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
 from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 
 def ignore_degenerate_data_warnings(test_fn):
@@ -16,6 +17,8 @@ def ignore_degenerate_data_warnings(test_fn):
     return test_fn
 
 
+# Pytest does not support applying decorators to fixtures directly
+# so we can't transform fake_od_dataset_default fixture here.
 @ignore_degenerate_data_warnings
 def test_run_and_collect(fake_od_dataset_default):
     capability = DataevalCleaning()
@@ -24,8 +27,19 @@ def test_run_and_collect(fake_od_dataset_default):
 
     assert output.model_dump()  # smoke test
 
+
+@ignore_degenerate_data_warnings
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_collect_reports(fake_od_dataset_default):
+    capability = DataevalCleaning()
+    output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])
     assert output.collect_report_consumables(threshold=0.5)  # smoke test
 
+
+@ignore_degenerate_data_warnings
+def test_collect_md_report(fake_od_dataset_default):
+    capability = DataevalCleaning()
+    output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])
     assert output.collect_md_report(threshold=0.5)  # smoke test
 
 

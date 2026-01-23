@@ -2,6 +2,7 @@ import pytest
 from torch import as_tensor, equal
 
 from jatic_ri.core.object_detection.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 ARGS = {
     "name": "XaitkExplainable Example",
@@ -36,10 +37,34 @@ def test_run_and_collect(fake_od_model_default, fake_od_dataset_default, test_co
     )
 
     assert run_result.model_dump()  # smoke test
+    return run_result
+
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_run_and_collect_consumables(fake_od_model_default, fake_od_dataset_default, test_config):
+    capability = XaitkExplainable()
+
+    run_result = capability.run(
+        use_cache=False,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        config=test_config,
+    )
 
     slides = run_result.collect_report_consumables(threshold=0.5)
 
     assert len(slides) == len(fake_od_dataset_default) * len(fake_od_dataset_default[0][1].scores)
+
+
+def test_run_and_collect_md(fake_od_model_default, fake_od_dataset_default, test_config):
+    capability = XaitkExplainable()
+
+    run_result = capability.run(
+        use_cache=False,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        config=test_config,
+    )
 
     md = run_result.collect_md_report(threshold=0.5)
     assert md  # smoke test

@@ -1,21 +1,27 @@
+import pytest
+
 from jatic_ri.core.image_classification.dataeval_feasability_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     DataevalFeasibilityOutputs,
     DataevalFeasibilityRun,
 )
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 
-def test_run_and_collect(fake_ic_dataset_default):
+@pytest.fixture
+def run_dataeval_feasibility_ic(fake_ic_dataset_default):
     capability = DataevalFeasibility()
 
-    output = capability.run(use_cache=False, datasets=[fake_ic_dataset_default])
+    return capability.run(use_cache=False, datasets=[fake_ic_dataset_default])
 
+
+def test_run_and_collect(run_dataeval_feasibility_ic):
     # Numerical outputs can vary slightly depending on environment/library
     # versions. Validate structural correctness and plausibility instead
     # of relying on an exact numeric match.
-    ber = output.outputs.ber
-    ber_lower = output.outputs.ber_lower
+    ber = run_dataeval_feasibility_ic.outputs.ber
+    ber_lower = run_dataeval_feasibility_ic.outputs.ber_lower
 
     assert isinstance(ber, float)
     assert isinstance(ber_lower, float)
@@ -23,7 +29,10 @@ def test_run_and_collect(fake_ic_dataset_default):
     assert 0.0 <= ber_lower <= 1.0
     assert ber_lower <= ber
 
-    assert output.collect_report_consumables(threshold=0.5)  # smoke test
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_collect_report_consumables(run_dataeval_feasibility_ic):
+    assert run_dataeval_feasibility_ic.collect_report_consumables(threshold=0.5)  # smoke test
 
 
 def _make_run(ber: float, ber_lower: float) -> DataevalFeasibilityRun:

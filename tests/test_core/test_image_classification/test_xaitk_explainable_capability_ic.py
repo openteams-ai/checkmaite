@@ -1,8 +1,13 @@
 from copy import deepcopy
+from typing import Any
 
 import pytest
 
-from jatic_ri.core.image_classification.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
+from jatic_ri.core.image_classification.xaitk_explainable_capability import (
+    XaitkExplainable,
+    XaitkExplainableConfig,
+)
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 RISE_ARGS = {
     "name": "XAITKTestStage RISE Example",
@@ -36,52 +41,107 @@ MC_RISE_ARGS = {
 }
 
 
-@pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
-def test_xaitk_capability_rise(fake_ic_dataset_default, fake_ic_model_default) -> None:
+@pytest.fixture
+def fixed_ic_model(fake_ic_model_default):
+    """
+    XAITK requires index2label to be a dict with integer keys from 0..n-1.
+    Our test fixture uses string keys starting from '1', so remap here.
+    """
+    model_copy = deepcopy(fake_ic_model_default)
+    model_copy.metadata["index2label"] = {int(i) - 1: label for i, label in model_copy.metadata["index2label"].items()}
+    return model_copy
+
+
+@pytest.fixture
+def rise_config():
+    return XaitkExplainableConfig(**RISE_ARGS)
+
+
+@pytest.fixture
+def mc_rise_config():
+    return XaitkExplainableConfig(**MC_RISE_ARGS)
+
+
+@pytest.fixture
+def test_run_rise(fake_ic_dataset_default, fixed_ic_model, rise_config) -> Any:
     capability = XaitkExplainable()
-
-    config = XaitkExplainableConfig(**RISE_ARGS)
-
-    run = capability.run(
-        use_cache=False, models=[fake_ic_model_default], datasets=[fake_ic_dataset_default], config=config
+    outputs = capability.run(
+        use_cache=False,
+        models=[fixed_ic_model],
+        datasets=[fake_ic_dataset_default],
+        config=rise_config,
     )
-    output = run.collect_report_consumables(threshold=0.5)
 
+    assert outputs.model_dump()  # smoke test
+    return outputs
+
+
+@pytest.fixture
+def test_run_mc_rise(fake_ic_dataset_default, fixed_ic_model, mc_rise_config) -> Any:
+    capability = XaitkExplainable()
+    outputs = capability.run(
+        use_cache=False,
+        models=[fixed_ic_model],
+        datasets=[fake_ic_dataset_default],
+        config=mc_rise_config,
+    )
+
+    assert outputs.model_dump()  # smoke test
+    return outputs
+
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_run_and_collect_consumables_rise(test_run_rise, fake_ic_dataset_default):
+    output = test_run_rise.collect_report_consumables(threshold=0.5)
+    assert output  # smoke test
     assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0]
 
-    md = run.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+
+def test_run_and_collect_md_rise(test_run_rise):
+    assert test_run_rise.collect_md_report(threshold=0.5)  # smoke test
+
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_run_and_collect_consumables_mc_rise(test_run_mc_rise, fake_ic_dataset_default):
+    output = test_run_mc_rise.collect_report_consumables(threshold=0.5)
+    assert output  # smoke test
+    assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0] * 2
+
+
+def test_run_and_collect_md_mc_rise(test_run_mc_rise):
+    assert test_run_mc_rise.collect_md_report(threshold=0.5)  # smoke test
+
+
+# --------------------------------------------------------------------
+# Keep the original "known-bad" behavior explicitly documented via xfail
+# (These use the *unfixed* model fixture on purpose)
+# --------------------------------------------------------------------
 
 
 @pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
-def test_xaitk_capability_mc_rise(fake_ic_dataset_default, fake_ic_model_default) -> None:
+def test_xaitk_capability_rise_unfixed_model(fake_ic_dataset_default, fake_ic_model_default, rise_config) -> None:
     capability = XaitkExplainable()
-
-    config = XaitkExplainableConfig(**MC_RISE_ARGS)
-
     run = capability.run(
-        use_cache=False, models=[fake_ic_model_default], datasets=[fake_ic_dataset_default], config=config
+        use_cache=False,
+        models=[fake_ic_model_default],  # intentionally unfixed
+        datasets=[fake_ic_dataset_default],
+        config=rise_config,
     )
-    output = run.collect_report_consumables(threshold=0.5)
 
-    assert len(output) == len(fake_ic_dataset_default) * fake_ic_dataset_default[0][1].shape[0] * 2
-
-    md = run.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+    # if it ever stops erroring, these should succeed and xfail will alert us
+    _ = run.collect_report_consumables(threshold=0.5)
+    assert run.collect_md_report(threshold=0.5)
 
 
-def test_run_and_collect(fake_ic_dataset_default, fake_ic_model_default):
+@pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
+def test_xaitk_capability_mc_rise_unfixed_model(fake_ic_dataset_default, fake_ic_model_default, mc_rise_config) -> None:
     capability = XaitkExplainable()
+    run = capability.run(
+        use_cache=False,
+        models=[fake_ic_model_default],  # intentionally unfixed
+        datasets=[fake_ic_dataset_default],
+        config=mc_rise_config,
+    )
 
-    model_copy = deepcopy(fake_ic_model_default)
-    # xaitk requires index2label to be a dict with integer keys from 0 to n-1
-    # test fixture uses string keys starting from '1' so we remap them here
-    model_copy.metadata["index2label"] = {int(i) - 1: label for i, label in model_copy.metadata["index2label"].items()}
-
-    output = capability.run(use_cache=False, models=[model_copy], datasets=[fake_ic_dataset_default])
-
-    assert output.model_dump()  # smoke test
-
-    assert output.collect_report_consumables(threshold=0.5)  # smoke test
-
-    assert output.collect_md_report(threshold=0.5)  # smoke test
+    _ = run.collect_report_consumables(threshold=0.5)
+    assert run.collect_md_report(threshold=0.5)

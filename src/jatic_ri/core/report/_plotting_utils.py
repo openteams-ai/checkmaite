@@ -10,10 +10,11 @@ import pandas as pd
 import PIL.Image
 from dataeval.metrics.stats import LabelStatsOutput
 from dataeval.outputs import SourceIndex
-from gradient import SubText
 from matplotlib import pyplot as plt
 from numpy.typing import ArrayLike
 from pydantic import BaseModel
+
+from jatic_ri.core.report import _gradient as gd
 
 # type aliases for user readability
 histogram_title = str
@@ -484,12 +485,12 @@ def label_table(label_stats: LabelStatsOutput, index2label: dict[int, str]) -> t
 
     """
     count_str = []
-    count_str.append([SubText("Class Count:", bold=True), f" {label_stats.class_count}"])
-    count_str.append([SubText("Label Count:", bold=True), f" {label_stats.label_count}"])
-    count_str.append([SubText("Image Count:", bold=True), f" {label_stats.image_count}"])
+    count_str.append([gd.SubText("Class Count:", bold=True), f" {label_stats.class_count}"])
+    count_str.append([gd.SubText("Label Count:", bold=True), f" {label_stats.label_count}"])
+    count_str.append([gd.SubText("Image Count:", bold=True), f" {label_stats.image_count}"])
     count_str.append(
         [
-            SubText("Average number of labels per image:", bold=True),
+            gd.SubText("Average number of labels per image:", bold=True),
             f"  {round(np.mean(label_stats.label_counts_per_image), 1)}",
         ]
     )

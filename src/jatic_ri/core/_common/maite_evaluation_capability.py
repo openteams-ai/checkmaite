@@ -6,6 +6,7 @@ import numpy as np
 import pydantic
 from matplotlib.figure import Figure
 
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.cached_tasks import evaluate
 from jatic_ri.core.capability_core import (
     Capability,
@@ -38,7 +39,10 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
     config: MaiteEvaluationConfig
     outputs: MaiteEvaluationOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Access data for Gradient report generation.
 
         Retrieves in-depth data produced during the `run` method or loaded

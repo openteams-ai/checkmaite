@@ -6,7 +6,6 @@ import maite.protocols.object_detection as od
 import numpy as np
 import pydantic
 from art.attacks.evasion import AdversarialPatchPyTorch, ProjectedGradientDescent
-from gradient import parse_lines
 from heart_library.attacks.attack import JaticAttack
 from heart_library.estimators.object_detection.pytorch import JaticPyTorchObjectDetector
 from maite.protocols import ArrayLike
@@ -14,6 +13,7 @@ from numpy.typing import NDArray
 from pydantic import Field
 
 from jatic_ri.core._types import Image
+from jatic_ri.core._utils import deprecated, requires_optional_dependency
 from jatic_ri.core.cached_tasks import evaluate
 from jatic_ri.core.capability_core import (
     Capability,
@@ -22,6 +22,7 @@ from jatic_ri.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import temp_image_file
 
@@ -116,7 +117,10 @@ class HeartAdversarialRun(CapabilityRunBase[HeartAdversarialConfig, HeartAdversa
     config: HeartAdversarialConfig
     outputs: HeartAdversarialOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Creates all needed information to create meaningful Adversarial gradient component
 
         Parameters
@@ -141,7 +145,7 @@ class HeartAdversarialRun(CapabilityRunBase[HeartAdversarialConfig, HeartAdversa
             for baseline_image, attack_image in zip(outputs.baseline.images, output.images, strict=True):
                 left_section_content = temp_image_file(baseline_image)
                 mid_section_content = temp_image_file(attack_image)
-                right_section_content = parse_lines(
+                right_section_content = gd.parse_lines(
                     [
                         f"**Original metric**: *{format_result(outputs.baseline.result)}*",
                         f"**Perturbed metric**: *{format_result(output.result)}*",

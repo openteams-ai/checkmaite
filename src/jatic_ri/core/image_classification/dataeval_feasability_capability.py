@@ -7,14 +7,13 @@ import pandas as pd
 import pydantic
 from dataeval.data import Embeddings, Metadata
 from dataeval.metrics.estimators import BEROutput, ber
-from gradient.slide_deck.shapes import SubText, Text
-from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 from pydantic import Field
 
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from jatic_ri.core._types import Device, ModelSpec, TorchvisionModelSpec
-from jatic_ri.core._utils import set_device
+from jatic_ri.core._utils import deprecated, requires_optional_dependency, set_device
 from jatic_ri.core.capability_core import Capability, CapabilityConfigBase, CapabilityRunBase, Number
+from jatic_ri.core.report import _gradient as gd
 from jatic_ri.core.report._markdown import MarkdownOutput
 
 logger = logging.getLogger(__name__)
@@ -64,6 +63,9 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
     config: DataevalFeasibilityConfig
     outputs: DataevalFeasibilityOutputs
 
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
         results = self.outputs
 
@@ -81,17 +83,17 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         title = f"Dataset: {dataset_id} | Category: Feasibility"
         heading = "Metric: Bayes Error Rate"
         content = [
-            Text(t)
+            gd.Text(t)
             for t in (
-                [SubText("Result:", bold=True)],
+                [gd.SubText("Result:", bold=True)],
                 f"Performance goal of {threshold} {'is' if is_feasible else 'is NOT'} feasible.",
-                [SubText("Tests for:", bold=True)],
+                [gd.SubText("Tests for:", bold=True)],
                 " * Achievability of performance goal",
-                [SubText("Risk(s):", bold=True)],
+                [gd.SubText("Risk(s):", bold=True)],
                 " * Performance goal cannot be achieved by any model (problem too hard)",
                 " * Models that report performance above the goal are overfit and \
                 will not generalize to real-world problems",
-                [SubText("Action:", bold=True)],
+                [gd.SubText("Action:", bold=True)],
                 f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
             )
         ]
@@ -101,10 +103,10 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
                 "deck": self.capability_id,
                 "layout_name": "SectionByItem",
                 "layout_arguments": {
-                    SectionByItem.ArgKeys.TITLE.value: title,
-                    SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                    SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                    SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
+                    gd.SectionByItem.ArgKeys.TITLE.value: title,
+                    gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                    gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                    gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
                 },
             },
         ]

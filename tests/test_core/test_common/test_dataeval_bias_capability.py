@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -13,6 +14,7 @@ from jatic_ri.core._common.dataeval_bias_capability import (
     DataevalBiasRun,
 )
 from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
+from jatic_ri.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture
@@ -57,28 +59,42 @@ def run(dummy_dataset_ic, fake_image):
     )
 
 
-def test_run_and_collect_ic(fake_ic_dataset_default) -> None:
+@pytest.fixture
+def test_run_ic(fake_ic_dataset_default) -> Any:
     capability = DataevalBiasBase()
 
-    output = capability.run(use_cache=False, datasets=[fake_ic_dataset_default])  # smoke test
+    return capability.run(use_cache=False, datasets=[fake_ic_dataset_default])  # smoke test
 
-    output.collect_report_consumables(threshold=0.5)  # smoke test
 
-    output.collect_md_report(threshold=0.5)  # smoke test
+def test_collect_md_report_ic(test_run_ic):
+    md = test_run_ic.collect_md_report(threshold=0.5)
+    assert md  # smoke test
+
+
+@pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+def test_collect_report_consumables_ic(test_run_ic):
+    consumables = test_run_ic.collect_report_consumables(threshold=0.5)
+    assert consumables  # smoke test
 
 
 class TestOdDataevalBiasCapability:
     ROOT = Path(__file__).parent.parent.parent / "data_for_tests"
     coco_dataset_dir = ROOT / "coco_resized_val2017"
 
-    def test_run_and_collect(self, fake_od_dataset_default):
+    @pytest.fixture
+    def test_run_od(self, fake_od_dataset_default) -> Any:
         capability = DataevalBiasBase()
 
-        output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])  # smoke test
+        return capability.run(use_cache=False, datasets=[fake_od_dataset_default])  # smoke test
 
-        output.collect_report_consumables(threshold=0.5)  # smoke test
+    def test_collect_md_report_od(self, test_run_od):
+        md = test_run_od.collect_md_report(threshold=0.5)
+        assert md  # smoke test
 
-        output.collect_md_report(threshold=0.5)  # smoke test
+    @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
+    def test_collect_report_consumables_od(self, test_run_od):
+        consumables = test_run_od.collect_report_consumables(threshold=0.5)
+        assert consumables  # smoke test
 
     def test_coco(self):
         coco_dataset = CocoDetectionDataset(

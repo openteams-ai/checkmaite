@@ -6,11 +6,9 @@ import numpy as np
 import pandas as pd
 import pydantic
 from dataeval.metrics.estimators import uap
-from gradient.slide_deck.shapes import Text
-from gradient.templates_and_layouts.generic_layouts.section_by_item import SectionByItem
 
 from jatic_ri.core._types import Device
-from jatic_ri.core._utils import set_device
+from jatic_ri.core._utils import deprecated, requires_optional_dependency, set_device
 from jatic_ri.core.cached_tasks import predict
 from jatic_ri.core.capability_core import (
     Capability,
@@ -19,6 +17,7 @@ from jatic_ri.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from jatic_ri.core.report import _gradient as gd
 
 
 class DataevalFeasibilityConfig(CapabilityConfigBase):
@@ -41,7 +40,10 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
     config: DataevalFeasibilityConfig
     outputs: DataevalFeasibilityOutputs
 
-    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
+    # The order is important
+    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @deprecated(replacement="collect_md_report")
+    def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Create slides for Gradient report
 
         Parameters
@@ -87,16 +89,16 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             "**Action:**",
             f"* {'No action required' if is_feasible else 'Reduce difficulty of the problem statement'}",
         ]
-        content = [Text(t, fontsize=16) for t in text]
+        content = [gd.Text(t, fontsize=16) for t in text]
 
         feasibility_slide_args = {
             "deck": "object_detection_dataset_evaluation",
             "layout_name": "SectionByItem",
             "layout_arguments": {
-                SectionByItem.ArgKeys.TITLE.value: title,
-                SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
-                SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
-                SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
+                gd.SectionByItem.ArgKeys.TITLE.value: title,
+                gd.SectionByItem.ArgKeys.LINE_SECTION_HEADING.value: heading,
+                gd.SectionByItem.ArgKeys.LINE_SECTION_BODY.value: content,
+                gd.SectionByItem.ArgKeys.ITEM_SECTION_BODY.value: feasibility_df,
             },
         }
 
