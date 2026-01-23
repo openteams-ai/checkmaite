@@ -62,7 +62,7 @@ adlfs = { version = ">=2023.1.0", optional = true }                # arbitrary, 
 holoviews = { version = ">=1.20.0", optional = true }              # arbitrary, required for panel pipelines
 httpx = ">=0.28.1"                                                 # arbitrary, needed to run visdrone model
 jupyterlab = { version = ">=4.3.5", optional = true }              # arbitrary, required for serving panel notebooks via CLI
-ipython = { version = ">=9.6.0", optional = true }                 # arbitrary, required for rendering Markdown reports
+ipython = ">=8.13,<9.0"                                            # necessary, rendering Markdown reports. ipython 9.x needs Python >=3.11
 matplotlib = ">=3.8.4,< 3.10.8"                                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
 nbconvert = { version = ">=7.16.6", optional = true }              # arbitrary, required for serving panel notebooks via CLI
 numba = ">=0.60.0"                                                 # arbitrary, needed to run visdrone model
