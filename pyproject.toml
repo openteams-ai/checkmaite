@@ -51,8 +51,8 @@ dataeval = "==0.92.3"
 maite = "0.8.2"
 nrtk = "==0.25.0"
 pybsm = ">=0.12.0"                                                 # optional dep for nrtk, required here
-xaitk-saliency = "==0.12.0"
-xaitk-jatic = "==0.7.0"
+xaitk-saliency = "==0.14.1"
+xaitk-jatic = "==0.8.0"
 # external deps
 fsspec = ">=2023.1.0"                                              # arbitrary, required for cloud storage support
 universal_pathlib = ">=0.3.8"                                      # arbitrary, required for cloud storage support
