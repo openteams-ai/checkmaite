@@ -92,6 +92,51 @@ class TestVisdroneDetectionDataset:
         assert "occlusions" in metadata
         assert len(metadata["occlusions"]) == len(target.boxes)
 
+    def test_get_input(self):
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+        image = dataset.get_input(0)
+
+        assert isinstance(image, torch.Tensor)
+        assert image.ndim == 3
+        assert image.shape[0] == 3
+
+    def test_get_target(self):
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+        target = dataset.get_target(0)
+
+        assert isinstance(target, DetectionTarget)
+        assert isinstance(target.boxes, torch.Tensor)
+        assert target.boxes.ndim == 2
+        assert target.boxes.shape[-1] == 4
+        assert isinstance(target.scores, torch.Tensor)
+        assert target.scores.ndim == 1
+        assert isinstance(target.labels, torch.Tensor)
+        assert target.labels.ndim == 1
+
+    def test_get_metadata(self):
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+        metadata = dataset.get_metadata(0)
+
+        assert isinstance(metadata, dict)
+        assert "id" in metadata
+        assert "image_path" in metadata
+        assert "annotation_path" in metadata
+
+    def test_fieldwise_methods_consistent_with_getitem(self):
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+
+        for i in range(len(dataset)):
+            image_full, target_full, metadata_full = dataset[i]
+            image_field = dataset.get_input(i)
+            target_field = dataset.get_target(i)
+            metadata_field = dataset.get_metadata(i)
+
+            assert torch.equal(image_full, image_field)
+            assert torch.equal(target_full.boxes, target_field.boxes)
+            assert torch.equal(target_full.labels, target_field.labels)
+            assert torch.equal(target_full.scores, target_field.scores)
+            assert metadata_full == metadata_field
+
 
 class TestYoloDetectionDataset:
     ROOT = Path(__file__).parents[2] / "data_for_tests"
@@ -158,6 +203,62 @@ class TestYoloDetectionDataset:
             assert isinstance(labels, list)
             assert len(boxes) == len(labels)
 
+    def test_get_input(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        image = dataset.get_input(0)
+
+        assert isinstance(image, torch.Tensor)
+        assert image.ndim == 3
+        assert image.shape[0] == 3
+
+    def test_get_target_does_not_load_image(self):
+        """Test that get_target returns the target without loading the image."""
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        target = dataset.get_target(0)
+
+        assert isinstance(target, DetectionTarget)
+        assert target.boxes.ndim == 2
+        assert target.labels.ndim == 1
+        assert target.scores.ndim == 1
+
+    def test_get_metadata(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        metadata = dataset.get_metadata(0)
+
+        assert isinstance(metadata, dict)
+        assert "id" in metadata
+        assert metadata["id"] == 0
+
+    def test_fieldwise_methods_consistent_with_getitem(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+
+        for i in range(len(dataset)):
+            image_full, target_full, metadata_full = dataset[i]
+            image_field = dataset.get_input(i)
+            target_field = dataset.get_target(i)
+            metadata_field = dataset.get_metadata(i)
+
+            assert torch.equal(image_full, image_field)
+            assert torch.equal(target_full.boxes, target_field.boxes)
+            assert torch.equal(target_full.labels, target_field.labels)
+            assert torch.equal(target_full.scores, target_field.scores)
+            assert metadata_full == metadata_field
+
+    def test_get_input_index_error(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        with pytest.raises(IndexError):
+            dataset.get_input(100)
+
+    def test_get_target_index_error(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        with pytest.raises(IndexError):
+            dataset.get_target(100)
+
+    def test_get_metadata_index_error(self):
+        dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
+        with pytest.raises(IndexError):
+            dataset.get_metadata(100)
+
 
 class TestCocoDetectionDataset:
     ROOT = Path(__file__).parents[2] / "data_for_tests"
@@ -222,6 +323,63 @@ class TestCocoDetectionDataset:
         # This should not raise - it should return an empty detection target
         element = coco_dataset[0]
         assert element[1].boxes.shape[0] == 0
+
+    def test_get_input(self):
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        image = dataset.get_input(0)
+
+        assert isinstance(image, torch.Tensor)
+        assert image.ndim == 3
+        assert image.shape[0] == 3
+
+    def test_get_target_does_not_load_image(self):
+        """Test that get_target returns the target without loading the image."""
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        target = dataset.get_target(0)
+
+        assert isinstance(target, DetectionTarget)
+        assert target.boxes.ndim == 2
+        assert target.labels.ndim == 1
+        assert target.scores.ndim == 1
+
+    def test_get_metadata_does_not_load_image(self):
+        """Test that get_metadata returns without loading the image."""
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        metadata = dataset.get_metadata(0)
+
+        assert isinstance(metadata, dict)
+        assert "id" in metadata
+        assert "file_name" in metadata
+
+    def test_fieldwise_methods_consistent_with_getitem(self):
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+
+        for i in range(len(dataset)):
+            image_full, target_full, metadata_full = dataset[i]
+            image_field = dataset.get_input(i)
+            target_field = dataset.get_target(i)
+            metadata_field = dataset.get_metadata(i)
+
+            assert torch.equal(image_full, image_field)
+            assert torch.equal(target_full.boxes, target_field.boxes)
+            assert torch.equal(target_full.labels, target_field.labels)
+            assert torch.equal(target_full.scores, target_field.scores)
+            assert metadata_full == metadata_field
+
+    def test_get_input_index_error(self):
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        with pytest.raises(IndexError):
+            dataset.get_input(100)
+
+    def test_get_target_index_error(self):
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        with pytest.raises(IndexError):
+            dataset.get_target(100)
+
+    def test_get_metadata_index_error(self):
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.ANN_FILE)
+        with pytest.raises(IndexError):
+            dataset.get_metadata(100)
 
 
 class TestDatasetLoader:
@@ -307,4 +465,179 @@ class TestDatasetLoader:
         assert avg_access_time < 0.01, (
             f"Average metadata lookup time {avg_access_time:.6f}s exceeds threshold. "
             f"Expected O(1) dict access, got {avg_access_time * 1000:.3f}ms per access."
+        )
+
+
+class TestAccessorMethodPerformance:
+    """Performance tests comparing accessor methods to __getitem__.
+
+    The accessor methods (get_input, get_target, get_metadata) are designed to
+    provide performance benefits when only a subset of the data is needed:
+    - get_target: Skips image loading, should be significantly faster than __getitem__
+    - get_metadata: Skips image loading and annotation processing, should be fastest
+    - get_input: Still loads the image, expected to have similar performance to __getitem__
+    """
+
+    ROOT = Path(__file__).parents[2] / "data_for_tests"
+    COCO_ROOT = ROOT / "coco_dataset"
+    COCO_ANN_FILE = str(COCO_ROOT / "ann_file.json")
+    YOLO_ROOT = ROOT / "yolo_dataset"
+    YOLO_YAML = YOLO_ROOT / "dataset.yaml"
+    YOLO_ANN_DIR = YOLO_ROOT / "ann_dir"
+    VISDRONE_ROOT = ROOT / "visdrone_dataset"
+
+    def test_coco_get_target_faster_than_getitem(self):
+        """Verify get_target is faster than __getitem__ by skipping image loading."""
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.COCO_ANN_FILE)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_target(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_target time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_target(i % len(dataset))
+        get_target_time = time.perf_counter() - start
+
+        assert get_target_time < getitem_time, (
+            f"get_target ({get_target_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )
+
+    def test_coco_get_metadata_faster_than_getitem(self):
+        """Verify get_metadata is faster than __getitem__ by skipping image and annotation processing."""
+        dataset = CocoDetectionDataset(root=self.COCO_ROOT, ann_file=self.COCO_ANN_FILE)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_metadata(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_metadata time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_metadata(i % len(dataset))
+        get_metadata_time = time.perf_counter() - start
+
+        assert get_metadata_time < getitem_time, (
+            f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading and annotation processing"
+        )
+
+    def test_yolo_get_target_faster_than_getitem(self):
+        """Verify YOLO get_target is faster than __getitem__ by skipping image loading."""
+        dataset = YoloDetectionDataset(yaml_dataset=self.YOLO_YAML, ann_dir=self.YOLO_ANN_DIR)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_target(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_target time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_target(i % len(dataset))
+        get_target_time = time.perf_counter() - start
+
+        assert get_target_time < getitem_time, (
+            f"get_target ({get_target_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )
+
+    def test_yolo_get_metadata_faster_than_getitem(self):
+        """Verify YOLO get_metadata is faster than __getitem__ by skipping image loading."""
+        dataset = YoloDetectionDataset(yaml_dataset=self.YOLO_YAML, ann_dir=self.YOLO_ANN_DIR)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_metadata(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_metadata time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_metadata(i % len(dataset))
+        get_metadata_time = time.perf_counter() - start
+
+        assert get_metadata_time < getitem_time, (
+            f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )
+
+    def test_visdrone_get_target_faster_than_getitem(self):
+        """Verify VisDrone get_target is faster than __getitem__ by skipping image loading."""
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_target(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_target time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_target(i % len(dataset))
+        get_target_time = time.perf_counter() - start
+
+        assert get_target_time < getitem_time, (
+            f"get_target ({get_target_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )
+
+    def test_visdrone_get_metadata_faster_than_getitem(self):
+        """Verify VisDrone get_metadata is faster than __getitem__ by skipping image loading."""
+        dataset = VisdroneDetectionDataset(self.VISDRONE_ROOT)
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_metadata(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_metadata time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_metadata(i % len(dataset))
+        get_metadata_time = time.perf_counter() - start
+
+        assert get_metadata_time < getitem_time, (
+            f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
         )

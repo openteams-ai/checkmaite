@@ -36,6 +36,19 @@ class YoloClassificationDataset:
         A typed dictionary containing at least an 'id' field of type str
         and a index2label mapping from id to labels.
 
+    Methods
+    -------
+    __getitem__(index)
+        Provide mapping-style access to dataset elements.
+    __len__()
+        Return the number of data elements in the dataset.
+    get_input(index)
+        Get only the image data at the given index.
+    get_target(index)
+        Get only the target label at the given index.
+    get_metadata(index)
+        Get only the metadata at the given index.
+
     """
 
     def __init__(
@@ -154,6 +167,99 @@ class YoloClassificationDataset:
         metadata: DatumMetadata = {"id": f"{label}/{image_path.name}"}
 
         return img_chw, one_hot_encode, metadata
+
+    def get_input(self, index: int, /) -> "NDArray[Any]":
+        """Get only the image data at the given index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        NDArray[Any]
+            The image data as a NumPy array in CHW format.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            image_path = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            ) from e
+
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img = img.convert("RGB")
+            arr = np.asarray(img)
+
+        return np.moveaxis(arr, -1, 0)
+
+    def get_target(self, index: int, /) -> "NDArray[Any]":
+        """Get only the target label at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        NDArray[Any]
+            The one-hot encoded label as a NumPy array.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            image_path = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            ) from e
+
+        one_hot_encode = np.zeros([len(self._label2index)])
+        label = image_path.parent.name
+        one_hot_encode[self._label2index[label]] = 1
+
+        return one_hot_encode
+
+    def get_metadata(self, index: int, /) -> DatumMetadata:
+        """Get only the metadata at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DatumMetadata
+            The metadata dictionary for the datum.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            image_path = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            ) from e
+
+        label = image_path.parent.name
+        return {"id": f"{label}/{image_path.name}"}
 
 
 class DatasetSpecification(TypedDict):
