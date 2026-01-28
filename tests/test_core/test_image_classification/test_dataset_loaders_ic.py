@@ -1,5 +1,7 @@
 import os
+import time
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -158,3 +160,136 @@ def test_yolo_different_splits_no_id_match(fake_dataset):
     dataset2 = YoloClassificationDataset(root_dir=dataset_root, split="train")
 
     assert dataset1.metadata["id"] != dataset2.metadata["id"]
+
+
+def test_get_input(fake_dataset):
+    dataset_root, _, _, image_shape = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    image = dataset.get_input(0)
+
+    width, height = image_shape
+    assert isinstance(image, np.ndarray)
+    assert image.shape == (3, height, width)
+
+
+def test_get_target_does_not_load_image(fake_dataset):
+    """Test that get_target returns the label without loading the image."""
+    dataset_root, classes, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    target = dataset.get_target(0)
+
+    assert isinstance(target, np.ndarray)
+    assert len(target) == len(classes)
+    assert target.sum() == 1  # One-hot encoded
+
+
+def test_get_metadata_does_not_load_image(fake_dataset):
+    """Test that get_metadata returns without loading the image."""
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    metadata = dataset.get_metadata(0)
+
+    assert isinstance(metadata, dict)
+    assert "id" in metadata
+    assert "/" in metadata["id"]  # Should be in format "class/filename"
+
+
+def test_fieldwise_methods_consistent_with_getitem(fake_dataset):
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+
+    for i in range(len(dataset)):
+        image_full, target_full, metadata_full = dataset[i]
+        image_field = dataset.get_input(i)
+        target_field = dataset.get_target(i)
+        metadata_field = dataset.get_metadata(i)
+
+        assert np.array_equal(image_full, image_field)
+        assert np.array_equal(target_full, target_field)
+        assert metadata_full == metadata_field
+
+
+def test_get_input_index_error(fake_dataset):
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    with pytest.raises(IndexError):
+        dataset.get_input(100)
+
+
+def test_get_target_index_error(fake_dataset):
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    with pytest.raises(IndexError):
+        dataset.get_target(100)
+
+
+def test_get_metadata_index_error(fake_dataset):
+    dataset_root, _, _, _ = fake_dataset
+    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    with pytest.raises(IndexError):
+        dataset.get_metadata(100)
+
+
+class TestAccessorMethodPerformance:
+    """Performance tests comparing accessor methods to __getitem__.
+
+    The accessor methods (get_input, get_target, get_metadata) are designed to
+    provide performance benefits when only a subset of the data is needed:
+    - get_target: Skips image loading, should be significantly faster than __getitem__
+    - get_metadata: Skips image loading, should be significantly faster than __getitem__
+    - get_input: Still loads the image, expected to have similar performance to __getitem__
+    """
+
+    def test_get_target_faster_than_getitem(self, fake_dataset):
+        """Verify get_target is faster than __getitem__ by skipping image loading."""
+        dataset_root, _, _, _ = fake_dataset
+        dataset = YoloClassificationDataset(dataset_id="test_perf", root_dir=dataset_root, split="test")
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_target(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_target time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_target(i % len(dataset))
+        get_target_time = time.perf_counter() - start
+
+        assert get_target_time < getitem_time, (
+            f"get_target ({get_target_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )
+
+    def test_get_metadata_faster_than_getitem(self, fake_dataset):
+        """Verify get_metadata is faster than __getitem__ by skipping image loading."""
+        dataset_root, _, _, _ = fake_dataset
+        dataset = YoloClassificationDataset(dataset_id="test_perf", root_dir=dataset_root, split="test")
+        n_iterations = 50
+
+        # Warm up
+        _ = dataset[0]
+        _ = dataset.get_metadata(0)
+
+        # Measure __getitem__ time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset[i % len(dataset)]
+        getitem_time = time.perf_counter() - start
+
+        # Measure get_metadata time
+        start = time.perf_counter()
+        for i in range(n_iterations):
+            _ = dataset.get_metadata(i % len(dataset))
+        get_metadata_time = time.perf_counter() - start
+
+        assert get_metadata_time < getitem_time, (
+            f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
+            "because it skips image loading"
+        )

@@ -68,6 +68,12 @@ class CocoDetectionDataset(Dataset):
         Provide mapping-style access to dataset elements.
     __len__()
         Return the number of data elements in the dataset.
+    get_input(index)
+        Get only the image tensor at the given index.
+    get_target(index)
+        Get only the detection target at the given index.
+    get_metadata(index)
+        Get only the metadata at the given index.
 
     Notes
     -----
@@ -169,6 +175,104 @@ class CocoDetectionDataset(Dataset):
 
         return img_pt, DetectionTarget(boxes, torch.as_tensor(labels), scores), metadata
 
+    def get_input(self, index: int, /) -> torch.Tensor:
+        """Get only the image tensor at the given index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        torch.Tensor
+            The image tensor.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            metadata = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self._images)}",
+            ) from e
+
+        img_path = self._root / metadata["file_name"]
+        with img_path.open("rb") as f, Image.open(f) as img:
+            img.load()
+            return pil_to_tensor(img)
+
+    def get_target(self, index: int, /) -> DetectionTarget:
+        """Get only the detection target at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DetectionTarget
+            The detection target containing boxes, labels, and scores.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            metadata = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self._images)}",
+            ) from e
+
+        annotations = self._img_id_to_annotations[metadata["id"]]
+
+        num_boxes = len(annotations)
+        boxes = torch.zeros(num_boxes, 4)
+        scores = torch.zeros(num_boxes)
+        labels = []
+        for i in range(num_boxes):
+            ann = annotations[i]
+            bbox = torch.as_tensor(ann["bbox"])
+            boxes[i, :] = box_convert(bbox, in_fmt="xywh", out_fmt="xyxy")
+            scores[i] = 1
+            labels.append(ann["category_id"])
+
+        return DetectionTarget(boxes, torch.as_tensor(labels), scores)
+
+    def get_metadata(self, index: int, /) -> DatumMetadataType:
+        """Get only the metadata at the given index without loading image or annotations.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DatumMetadataType
+            The metadata dictionary for the datum.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            return self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self._images)}",
+            ) from e
+
 
 class YoloDetectionDataset(Dataset):
     """A dataset protocol for object detection ML subproblem providing datum-level data access.
@@ -202,6 +306,12 @@ class YoloDetectionDataset(Dataset):
         Provide mapping-style access to dataset elements.
     __len__()
         Return the number of data elements in the dataset.
+    get_input(index)
+        Get only the image tensor at the given index.
+    get_target(index)
+        Get only the detection target at the given index.
+    get_metadata(index)
+        Get only the metadata at the given index.
 
     """
 
@@ -309,6 +419,102 @@ class YoloDetectionDataset(Dataset):
         metadata: DatumMetadataType = {"id": index}
         return img_pt, DetectionTarget(boxes, labels, scores), metadata
 
+    def get_input(self, index: int, /) -> torch.Tensor:
+        """Get only the image tensor at the given index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        torch.Tensor
+            The image tensor.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            image_name = self._images[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            ) from e
+
+        image_path = self._train_path / image_name
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img.load()
+            return pil_to_tensor(img)
+
+    def get_target(self, index: int, /) -> DetectionTarget:
+        """Get only the detection target at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DetectionTarget
+            The detection target containing boxes, labels, and scores.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        try:
+            boxes_raw, labels_raw = self._annotations[index]
+        except IndexError as e:
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            ) from e
+
+        num_boxes = len(boxes_raw)
+        boxes = torch.zeros(num_boxes, 4)
+        scores = torch.zeros(num_boxes)
+        for i in range(num_boxes):
+            boxes[i, :] = box_convert(
+                torch.as_tensor(boxes_raw[i]),
+                in_fmt="cxcywh",
+                out_fmt="xyxy",
+            )
+            scores[i] = 1
+        labels = torch.as_tensor(labels_raw)
+
+        return DetectionTarget(boxes, labels, scores)
+
+    def get_metadata(self, index: int, /) -> DatumMetadataType:
+        """Get only the metadata at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DatumMetadataType
+            The metadata dictionary for the datum.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        if index < 0 or index >= len(self):
+            raise IndexError(
+                f"The index number {index} is out of range for the dataset which has length {len(self)}",
+            )
+        return {"id": index}
+
 
 class VisdroneDetectionDataset(Dataset):
     """A dataset protocol for object detection ML subproblem providing datum-level data access.
@@ -339,6 +545,12 @@ class VisdroneDetectionDataset(Dataset):
         Provide mapping-style access to dataset elements.
     __len__()
         Return the number of data elements in the dataset.
+    get_input(index)
+        Get only the image tensor at the given index.
+    get_target(index)
+        Get only the detection target at the given index.
+    get_metadata(index)
+        Get only the metadata at the given index.
 
     """
 
@@ -474,6 +686,74 @@ class VisdroneDetectionDataset(Dataset):
             samples.append((image_path, target, metadata))
 
         return samples
+
+    def get_input(self, index: int, /) -> torch.Tensor:
+        """Get only the image tensor at the given index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        torch.Tensor
+            The image tensor.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        image_path, _, _ = self._samples[index]
+        with image_path.open("rb") as f, Image.open(f) as img:
+            img.load()
+            return pil_to_tensor(img)
+
+    def get_target(self, index: int, /) -> DetectionTarget:
+        """Get only the detection target at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DetectionTarget
+            The detection target containing boxes, labels, and scores.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        _, target, _ = self._samples[index]
+        return target
+
+    def get_metadata(self, index: int, /) -> DatumMetadataType:
+        """Get only the metadata at the given index without loading the image.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to retrieve.
+
+        Returns
+        -------
+        DatumMetadataType
+            The metadata dictionary for the datum.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+
+        """
+        _, _, metadata = self._samples[index]
+        return metadata  # pyright: ignore[reportReturnType]
 
 
 class DatasetSpecification(TypedDict):
