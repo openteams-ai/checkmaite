@@ -617,7 +617,7 @@ class ReallabelLabelling(
                 model=model,
                 dataset=dataset,
                 dataset_id=dataset.metadata["id"],
-                return_augmented_data=True,
+                return_augmented_data=False,
                 use_cache=use_prediction_and_evaluation_cache,
             )
             clean_predictions = [x[0] for x in predictions]

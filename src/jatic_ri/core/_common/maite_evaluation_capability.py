@@ -221,8 +221,7 @@ class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, T
             model=model,
             metric=metric,
             dataset=dataset,
-            dataset_id=dataset_id,
-            return_augmented_data=True,
+            return_augmented_data=False,
             use_cache=use_prediction_and_evaluation_cache,
         )
         if result is None:
@@ -299,5 +298,6 @@ def create_per_class_bar_plot(
     ax.set_title(f"Class-wise Metric: {overall_metric_name}")
     ax.set_xticks(index, class_metrics.keys(), rotation=45, ha="right")
     fig.tight_layout()
+    plt.close(fig)
 
     return fig
