@@ -1,8 +1,9 @@
+import abc
 import functools
 import hashlib
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, TypeAlias, TypeVar, cast
+from typing import Any, Literal, TypeAlias, TypeVar, cast
 
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
@@ -55,21 +56,55 @@ def _make_task_cache(task: str, model_type: type[PModel]) -> PydanticCache[PMode
     return TaskCache()
 
 
-class _ConfigBase(pydantic.BaseModel):
+def _get_id(
+    obj: gen.Model | gen.Dataset | gen.Augmentation | gen.Metric | None,
+    *,
+    id: str | None = None,  # noqa: A002
+) -> str | None:
+    if obj is not None and id is not None:
+        raise ValueError
+    if obj is not None:
+        return obj.metadata["id"]
+    if id is not None:
+        return id
+    return None
+
+
+class _ConfigBase(pydantic.BaseModel, abc.ABC):
     @functools.cached_property
-    def uid(self) -> str:
-        return hashlib.sha256(self.model_dump_json().encode("utf-8")).hexdigest()
+    def cache_key(self) -> str | None:
+        if not self.is_valid_for_caching():
+            return None
+
+        return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
+
+    @abc.abstractmethod
+    def is_valid_for_caching(self) -> bool: ...
+
+
+StrictReturnAugmentedData = Literal["all", "targets", "none"]
+ReturnAugmentedData = bool | StrictReturnAugmentedData
+
+
+def _parse_return_augmented_data(rad: ReturnAugmentedData) -> StrictReturnAugmentedData:
+    if isinstance(rad, bool):
+        return "all" if rad else "none"
+    return rad
 
 
 class _PredictConfig(_ConfigBase):
-    model_id: str
-    dataset_id: str
+    model_id: str | None
+    dataset_id: str | None
     augmentation_id: str | None
-    return_augmented_data: bool
+    return_augmented_data: StrictReturnAugmentedData
+
+    def is_valid_for_caching(self) -> bool:
+        # self.augmentation_id is None is a valid use case and should not result in an invalid cache key
+        return not any(id is None for id in [self.model_id, self.dataset_id])  # noqa: A001
 
 
 class _PredictCall(CapabilityOutputsBase):
-    config: _PredictConfig | None
+    config: _PredictConfig
     predictions: list[PydanticCompatTargetBatchType]
     augmented_data: list[
         tuple[
@@ -81,90 +116,6 @@ class _PredictCall(CapabilityOutputsBase):
 
 
 _predict_cache = _make_task_cache("predict", _PredictCall)
-
-
-def _predict(
-    *,
-    model: gen.Model[T_Input, T_Target],
-    dataloader: gen.DataLoader[T_Input, T_Target, T_Metadata] | None = None,
-    dataset: gen.Dataset[T_Input, T_Target, T_Metadata] | None = None,
-    batch_size: int = 1,
-    augmentation: gen.Augmentation[
-        T_Input,
-        T_Target,
-        T_Metadata,
-        T_Input,
-        T_Target,
-        T_Metadata,
-    ]
-    | None = None,
-    return_augmented_data: bool = False,
-    dataset_id: str | None = None,
-    use_cache: bool = True,
-) -> tuple[
-    Sequence[Sequence[T_Target]],
-    Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
-    _PredictConfig | None,
-]:
-    model_id = model.metadata["id"]
-    model_index2label = getattr(model.metadata, "index2label", {})
-    dataset_id = dataset.metadata["id"] if dataset is not None else dataset_id
-    dataset_index2label = getattr(dataset.metadata, "index2label", {}) if dataset is not None else {}
-
-    error_msg = f"""
-    The model and dataset index to label mappings do not match which is likely a user error.
-
-    Model index to label mapping: {model_index2label}
-    Dataset index to label mapping: {dataset_index2label}
-    Model ID: {model_id}
-    Dataset ID: {dataset_id}
-
-    If this mismatch is not actually an error, please contact the RI team to discuss your use-case.
-"""
-    if model_index2label != dataset_index2label:
-        raise ValueError(error_msg)
-
-    augmentation_id = augmentation.metadata["id"] if augmentation else None
-    config: _PredictConfig | None
-
-    if dataset_id is None:
-        config = key = None
-    else:
-        config = _PredictConfig(
-            model_id=model_id,
-            dataset_id=dataset_id,
-            augmentation_id=augmentation_id,
-            return_augmented_data=return_augmented_data,
-        )
-        key = config.uid
-
-    if key is not None and use_cache:
-        call = _predict_cache.get(key)
-        if call is not None:
-            # pydantic types don't play well with generics,
-            ps = cast(Sequence[Sequence[T_Target]], call.predictions)
-            ads = cast(
-                Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]], call.augmented_data
-            )
-            return ps, ads, call.config
-
-    ps, ads = maite.tasks.predict(
-        model=model,
-        dataloader=dataloader,
-        dataset=dataset,
-        batch_size=batch_size,
-        augmentation=augmentation,
-        return_augmented_data=return_augmented_data,
-    )
-
-    call = _PredictCall.model_validate(
-        {"config": config, "predictions": ps, "augmented_data": ads}, from_attributes=True
-    )
-
-    if key is not None and use_cache:
-        _predict_cache.set(key, call)
-
-    return ps, ads, config
 
 
 # TODO: add overloads so that we can make signature more precise for users
@@ -183,30 +134,81 @@ def predict(
         T_Metadata,
     ]
     | None = None,
-    return_augmented_data: bool = False,
+    return_augmented_data: ReturnAugmentedData = False,
     dataset_id: str | None = None,
     use_cache: bool = True,
 ) -> tuple[Sequence[Sequence[T_Target]], Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]]]:
     "Generate predictions using a model and dataset."
 
-    ps, ads, _ = _predict(
+    model_id = _get_id(obj=model)
+    model_index2label = getattr(model.metadata, "index2label", {})
+    dataset_id = _get_id(dataset, id=dataset_id)
+    dataset_index2label = getattr(dataset.metadata, "index2label", {}) if dataset is not None else {}
+
+    error_msg = f"""
+        The model and dataset index to label mappings do not match which is likely a user error.
+
+        Model index to label mapping: {model_index2label}
+        Dataset index to label mapping: {dataset_index2label}
+        Model ID: {model_id}
+        Dataset ID: {dataset_id}
+
+        If this mismatch is not actually an error, please contact the RI team to discuss your use-case.
+    """
+    if model_index2label != dataset_index2label:
+        raise ValueError(error_msg)
+
+    strict_return_augmented_data = _parse_return_augmented_data(return_augmented_data)
+
+    config = _PredictConfig(
+        model_id=model_id,
+        dataset_id=dataset_id,
+        augmentation_id=_get_id(augmentation) if augmentation else None,
+        return_augmented_data=strict_return_augmented_data,
+    )
+
+    if config.cache_key is not None and use_cache:
+        call = _predict_cache.get(config.cache_key)
+        if call is not None:
+            # pydantic types don't play well with generics,
+            ps = cast(Sequence[Sequence[T_Target]], call.predictions)
+            ads = cast(
+                Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]], call.augmented_data
+            )
+            return ps, ads
+
+    ps, ads = maite.tasks.predict(
         model=model,
         dataloader=dataloader,
         dataset=dataset,
         batch_size=batch_size,
         augmentation=augmentation,
-        return_augmented_data=return_augmented_data,
-        dataset_id=dataset_id,
-        use_cache=use_cache,
+        return_augmented_data=strict_return_augmented_data != "none",
     )
+
+    if strict_return_augmented_data == "targets":
+        ads = [(cast(Sequence[T_Input], []), targets, metadata) for _, targets, metadata in ads]
+
+    if config.cache_key is not None and use_cache:
+        _predict_cache.set(
+            config.cache_key,
+            _PredictCall.model_validate(
+                {"config": config, "predictions": ps, "augmented_data": ads}, from_attributes=True
+            ),
+        )
+
     return ps, ads
 
 
 class _EvaluateFromPredictionsConfig(_ConfigBase):
-    model_id: str | None = None
-    dataset_id: str | None = None
-    augmentation_id: str | None = None
-    metric_id: str
+    model_id: str | None
+    dataset_id: str | None
+    augmentation_id: str | None
+    metric_id: str | None
+
+    def is_valid_for_caching(self) -> bool:
+        # self.augmentation_id is None is a valid use case and should not result in an invalid cache key
+        return not any(id is None for id in [self.model_id, self.dataset_id, self.metric_id])  # noqa: A001
 
 
 class _EvaluateFromPredictionsCall(CapabilityOutputsBase):
@@ -217,29 +219,29 @@ class _EvaluateFromPredictionsCall(CapabilityOutputsBase):
 _evaluate_from_predictions_cache = _make_task_cache("evaluate-from-predictions", _EvaluateFromPredictionsCall)
 
 
-def _evaluate_from_predictions(
+def evaluate_from_predictions(
     *,
     metric: gen.Metric[T_Target],
     predictions: Sequence[Sequence[T_Target]],
     targets: Sequence[Sequence[T_Target]],
-    key: str | _PredictConfig | None,
+    model: gen.Model | None = None,
+    model_id: str | None = None,
+    dataset: gen.Dataset | None = None,
+    dataset_id: str | None = None,
+    augmentation: gen.Augmentation | None = None,
+    augmentation_id: str | None = None,
     use_cache: bool = True,
 ) -> dict[str, Any]:
-    metric_id = metric.metadata["id"]
+    "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
+    config = _EvaluateFromPredictionsConfig(
+        model_id=_get_id(model, id=model_id),
+        dataset_id=_get_id(dataset, id=dataset_id),
+        augmentation_id=_get_id(augmentation, id=augmentation_id),
+        metric_id=_get_id(metric),
+    )
 
-    if isinstance(key, _PredictConfig):
-        config = _EvaluateFromPredictionsConfig(
-            model_id=key.model_id,
-            dataset_id=key.dataset_id,
-            augmentation_id=key.augmentation_id,
-            metric_id=metric_id,
-        )
-        key = config.uid
-    else:
-        config = _EvaluateFromPredictionsConfig(metric_id=metric_id)
-
-    if key is not None and use_cache:
-        call = _evaluate_from_predictions_cache.get(key)
+    if config.cache_key is not None and use_cache:
+        call = _evaluate_from_predictions_cache.get(config.cache_key)
         if call is not None:
             return call.metric_results
 
@@ -249,28 +251,15 @@ def _evaluate_from_predictions(
         targets=targets,
     )
 
-    call = _EvaluateFromPredictionsCall.model_validate(
-        {"config": config, "metric_results": metric_results}, from_attributes=True
-    )
-
-    if key is not None and use_cache:
-        _evaluate_from_predictions_cache.set(key, call)
+    if config.cache_key is not None and use_cache:
+        _evaluate_from_predictions_cache.set(
+            config.cache_key,
+            _EvaluateFromPredictionsCall.model_validate(
+                {"config": config, "metric_results": metric_results}, from_attributes=True
+            ),
+        )
 
     return metric_results
-
-
-def evaluate_from_predictions(
-    *,
-    metric: gen.Metric[T_Target],
-    predictions: Sequence[Sequence[T_Target]],
-    targets: Sequence[Sequence[T_Target]],
-    key: str | _PredictConfig | None = None,
-    use_cache: bool = True,
-) -> dict[str, Any]:
-    "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
-    return _evaluate_from_predictions(
-        metric=metric, predictions=predictions, targets=targets, key=key, use_cache=use_cache
-    )
 
 
 def evaluate(
@@ -289,7 +278,7 @@ def evaluate(
         T_Metadata,
     ]
     | None = None,
-    return_augmented_data: bool = False,
+    return_augmented_data: ReturnAugmentedData = False,
     return_preds: bool = False,
     dataset_id: str | None = None,
     use_cache: bool = True,
@@ -299,25 +288,30 @@ def evaluate(
     Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
 ]:
     "Evaluate a model's performance on data according to some metric with optional augmentation."
-    ps, ads, config = _predict(
+
+    strict_return_augmented_data = _parse_return_augmented_data(return_augmented_data)
+    ps, ads = predict(
         model=model,
         dataloader=dataloader,
         dataset=dataset,
         batch_size=batch_size,
         augmentation=augmentation,
-        return_augmented_data=True,  # must be True as otherwise no targets available for evaluate_from_predicitions
+        return_augmented_data="targets" if strict_return_augmented_data == "none" else strict_return_augmented_data,
         dataset_id=dataset_id,
         use_cache=use_cache,
     )
-    metric_results = _evaluate_from_predictions(
+    metric_results = evaluate_from_predictions(
         metric=metric,
         predictions=ps,
         targets=[d[1] for d in ads],
-        key=config.uid if config else None,
+        model=model,
+        dataset=dataset,
+        dataset_id=dataset_id,
+        augmentation=augmentation,
         use_cache=use_cache,
     )
     return (
         metric_results,
         ps if return_preds else [],
-        ads if return_augmented_data else [],
+        ads if strict_return_augmented_data != "none" else [],
     )

@@ -184,6 +184,9 @@ config.json
 /docs/tutorials/*_example_output
 /docs/reference/examples/*_example_output
 /docs/how-tos/temp_yolo_dataset/
+demo_cache
+visdrone_test
+visdrone_test.zip
 
 # gitlab-local-ci
 .gitlab-ci-local/
