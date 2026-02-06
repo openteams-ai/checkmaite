@@ -1,14 +1,14 @@
 import logging
-from typing import Any, Literal
+from typing import Any
 
 import maite.protocols.image_classification as ic
 import numpy as np
 import pandas as pd
 import pydantic
 from dataeval.data import Embeddings, Metadata
-from dataeval.metrics.estimators import BEROutput, ber
 from pydantic import Field
 
+from jatic_ri.core._common._knn import compute_ber_knn
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from jatic_ri.core._types import Device, ModelSpec, TorchvisionModelSpec
 from jatic_ri.core._utils import deprecated, requires_optional_dependency, set_device
@@ -27,10 +27,9 @@ class DataevalFeasibilityConfig(CapabilityConfigBase):
     batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
 
     device: Device = pydantic.Field(default_factory=lambda: set_device("cpu"))
-    ber_method: Literal["KNN", "MST"] = pydantic.Field(
-        default="KNN", description="The method to use for the Bayes Error Rate"
+    knn_n_neighbors: int = pydantic.Field(
+        default=1, description="The number of neighbors to use for kNN BER estimation."
     )
-    knn_n_neighbors: int = pydantic.Field(default=1, description="The number of neighbors to use for the KNN method")
     precision: int = pydantic.Field(default=3, description="The number of decimal places to round the results to")
     feature_extractor_spec: ModelSpec = Field(
         default_factory=TorchvisionModelSpec,
@@ -71,7 +70,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
         dataset_id = self.dataset_metadata[0]["id"]
 
-        is_feasible = results.ber > threshold
+        is_feasible = (1.0 - results.ber) >= threshold
         feasibility_dict = {
             "Feasible": [str(is_feasible)],
             "Bayes Error Rate": [np.round(results.ber, self.config.precision)],
@@ -127,7 +126,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         """
         results = self.outputs
         dataset_id = self.dataset_metadata[0]["id"]
-        is_feasible = results.ber > threshold
+        is_feasible = (1.0 - results.ber) >= threshold
 
         md = MarkdownOutput("Dataset Feasibility Analysis")
 
@@ -274,12 +273,10 @@ class DataevalFeasibility(
 
         metadata = Metadata(dataset)
 
-        b: BEROutput = ber(
+        ber_upper, ber_lower = compute_ber_knn(
             embeddings=embeddings_01,
             labels=metadata.class_labels,
-            method=config.ber_method,
             k=config.knn_n_neighbors,
         )
 
-        b_data = b.data()
-        return DataevalFeasibilityOutputs.model_validate({"ber": b_data["ber"], "ber_lower": b_data["ber_lower"]})
+        return DataevalFeasibilityOutputs.model_validate({"ber": ber_upper, "ber_lower": ber_lower})

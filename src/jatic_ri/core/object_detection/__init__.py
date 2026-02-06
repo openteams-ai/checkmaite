@@ -7,7 +7,7 @@ from jatic_ri.core._common.maite_evaluation_capability import MaiteEvaluationCon
 from jatic_ri.core._common.nrtk_robustness_capability import NrtkRobustnessConfig, NrtkRobustnessOutputs
 from jatic_ri.core.object_detection.dataeval_bias_capability import DataevalBias
 from jatic_ri.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
-from jatic_ri.core.object_detection.dataeval_feasability_capability import (
+from jatic_ri.core.object_detection.dataeval_feasibility_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     DataevalFeasibilityOutputs,

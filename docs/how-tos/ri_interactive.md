@@ -32,7 +32,7 @@ the web interface.
 The first step is to select which Workflow you would like to work with:
 
 - *Model Evaluation (ME)* to analyze model performance, robustness, and explainability using the JATIC tools MAITE, NRTK, and XAITK respectively.
-- *Dataset Analysis (DA)* to understand and improve dataset quality by analyzing data biases, feasability, shift, and cleaning statistics using the JATIC tool Dataeval. 
+- *Dataset Analysis (DA)* to understand and improve dataset quality by analyzing data biases, feasibility, shift, and cleaning statistics using the JATIC tool Dataeval.
 
 All of these tools are available for both Image Classification (IC) and Object Detection (OD) tasks.
 

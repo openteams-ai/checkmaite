@@ -1,6 +1,6 @@
 import pytest
 
-from jatic_ri.core.image_classification.dataeval_feasability_capability import (
+from jatic_ri.core.image_classification.dataeval_feasibility_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     DataevalFeasibilityOutputs,
@@ -47,7 +47,8 @@ def _make_run(ber: float, ber_lower: float) -> DataevalFeasibilityRun:
 
 
 def test_feasibility_collect_md_report_feasible_branch() -> None:
-    run = _make_run(ber=0.91234, ber_lower=0.87654)
+    # BER=0.2 → accuracy=0.8 >= threshold=0.5 → feasible
+    run = _make_run(ber=0.2, ber_lower=0.1)
 
     md = run.collect_md_report(threshold=0.5)
 
@@ -56,8 +57,8 @@ def test_feasibility_collect_md_report_feasible_branch() -> None:
     assert "is feasible" in md
 
     # Rounded to precision=3 in the Results table
-    assert "0.912" in md
-    assert "0.877" in md
+    assert "0.2" in md
+    assert "0.1" in md
 
     # Action branch for feasible
     assert "No action required" in md
@@ -65,7 +66,8 @@ def test_feasibility_collect_md_report_feasible_branch() -> None:
 
 
 def test_feasibility_collect_md_report_not_feasible_branch() -> None:
-    run = _make_run(ber=0.2, ber_lower=0.1)
+    # BER=0.912 → accuracy=0.088 < threshold=0.5 → NOT feasible
+    run = _make_run(ber=0.91234, ber_lower=0.87654)
 
     md = run.collect_md_report(threshold=0.5)
 
