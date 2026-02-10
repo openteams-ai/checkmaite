@@ -20,6 +20,7 @@ from dataeval.outputs import SourceIndex
 
 from jatic_ri import cache_path
 from jatic_ri.core._utils import deprecated, requires_optional_dependency, squash_repeated_warnings
+from jatic_ri.core.analytics_store._schema import BaseRecord
 from jatic_ri.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -47,6 +48,57 @@ from jatic_ri.core.report._plotting_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class DataevalCleaningRecord(BaseRecord, table_name="dataeval_cleaning"):
+    """Record for DataevalCleaning capability results.
+
+    Stores dataset quality metrics including duplicates, outliers,
+    label statistics, image geometry, and visual properties.
+    """
+
+    dataset_id: str
+
+    # Exact/near duplicates inflate effective dataset size and bias training.
+    exact_duplicate_count: int
+    exact_duplicate_ratio: float
+    near_duplicate_count: int
+    near_duplicate_ratio: float
+
+    # Outlier counts quantify how many images deviate statistically, signalling data collection issues.
+    image_outlier_count: int
+    image_outlier_ratio: float
+
+    # Basic dataset dimensions needed to contextualise all other metrics.
+    class_count: int
+    label_count: int
+    image_count: int
+
+    # Target outliers (for object detection only)
+    # Separately tracked because bounding-box outliers have different causes than image-level ones.
+    target_outlier_count: int | None = None
+    target_outlier_ratio: float | None = None
+
+    # Mean resolution reveals the pixel budget available for learning; large std_aspect_ratio
+    # signals mixed orientations that will require aggressive cropping or padding.
+    mean_width: float
+    mean_height: float
+    std_aspect_ratio: float
+
+    # Brightness, contrast, and sharpness are the three strongest predictors of visual
+    # quality issues. Together they characterise lighting, dynamic range, and focus.
+    mean_brightness: float
+    mean_contrast: float
+    mean_sharpness: float
+
+    # Imbalance ratio (max/min class count) is a single number that captures skew;
+    # min/max counts anchor it to absolute sample sizes so analysts can judge severity.
+    class_imbalance_ratio: float
+    min_class_image_count: int
+    max_class_image_count: int
+
+    # Distinguishes classification (~1.0) from sparse OD (~5) from dense OD (~50+).
+    mean_labels_per_image: float
 
 
 class DataevalCleaningConfig(CapabilityConfigBase):
@@ -259,6 +311,69 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         generate_next_steps_report_md(md, dataset_id)
 
         return md.render()
+
+    def extract(self) -> list[DataevalCleaningRecord]:
+        """Extract metrics from this DataevalCleaning run.
+
+        Returns a single record for the dataset used in this run.
+        """
+        outputs = self.outputs
+
+        total_images = outputs.label_stats.image_count
+        duplicates = outputs.duplicates
+        exact_dup_count = sum(len(d) for d in duplicates.exact)
+        near_dup_count = sum(len(d) for d in duplicates.near)
+        img_outlier_count = len(outputs.img_outliers)
+
+        # Handle optional target outliers (for object detection)
+        target_outlier_count: int | None = None
+        target_outlier_ratio: float | None = None
+        if outputs.target_outliers is not None:
+            total_targets = outputs.label_stats.label_count
+            target_outlier_count = len(outputs.target_outliers)
+            target_outlier_ratio = target_outlier_count / total_targets if total_targets > 0 else 0.0
+
+        widths = outputs.img_dim_stats.width.astype(float)
+        heights = outputs.img_dim_stats.height.astype(float)
+        aspect_ratios = outputs.img_dim_stats.aspect_ratio.astype(float)
+
+        brightness = outputs.img_viz_stats.brightness.astype(float)
+        contrast = outputs.img_viz_stats.contrast.astype(float)
+        sharpness = outputs.img_viz_stats.sharpness.astype(float)
+
+        image_counts_per_class = outputs.label_stats.image_counts_per_class
+        class_image_counts = list(image_counts_per_class.values()) if image_counts_per_class else [0]
+        min_class_count = min(class_image_counts)
+        max_class_count = max(class_image_counts)
+        imbalance_ratio = float(max_class_count) / min_class_count if min_class_count > 0 else float("inf")
+
+        return [
+            DataevalCleaningRecord(
+                run_uid=self.run_uid,
+                dataset_id=self.dataset_metadata[0]["id"],
+                exact_duplicate_count=exact_dup_count,
+                exact_duplicate_ratio=exact_dup_count / total_images if total_images > 0 else 0.0,
+                near_duplicate_count=near_dup_count,
+                near_duplicate_ratio=near_dup_count / total_images if total_images > 0 else 0.0,
+                image_outlier_count=img_outlier_count,
+                image_outlier_ratio=img_outlier_count / total_images if total_images > 0 else 0.0,
+                class_count=outputs.label_stats.class_count,
+                label_count=outputs.label_stats.label_count,
+                image_count=total_images,
+                target_outlier_count=target_outlier_count,
+                target_outlier_ratio=target_outlier_ratio,
+                mean_width=float(np.mean(widths)),
+                mean_height=float(np.mean(heights)),
+                std_aspect_ratio=float(np.std(aspect_ratios)),
+                mean_brightness=float(np.mean(brightness)),
+                mean_contrast=float(np.mean(contrast)),
+                mean_sharpness=float(np.mean(sharpness)),
+                class_imbalance_ratio=imbalance_ratio,
+                min_class_image_count=min_class_count,
+                max_class_image_count=max_class_count,
+                mean_labels_per_image=outputs.label_stats.label_count / total_images if total_images > 0 else 0.0,
+            )
+        ]
 
 
 class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel, TMetric, DataevalCleaningConfig]):

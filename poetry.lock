@@ -9494,4 +9494,4 @@ unsupported = ["gradient", "heart-library", "reallabel", "survivor"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.12"
-content-hash = "5bb981286a417e7a2f94a1d65e6a64125c53c986b19ee4a93ff2d5b5bf827764"
+content-hash = "c56012492e2e1f0186be2ad32d9e9c879a88bd1c43672d9cc46b53b300052b34"

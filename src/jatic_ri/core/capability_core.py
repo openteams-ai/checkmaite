@@ -3,10 +3,10 @@ import enum
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 import maite.protocols.generic as gen
 from maite.protocols import DatasetMetadata, MetricMetadata, ModelMetadata
@@ -19,6 +19,9 @@ from pydantic import (
 
 from jatic_ri import cache_path
 from jatic_ri.core._cache import PydanticCache, binary_de_serializer
+
+if TYPE_CHECKING:
+    from jatic_ri.core.analytics_store._schema import BaseRecord
 
 TModel = TypeVar("TModel", bound=gen.Model[Any, Any])
 TDataset = TypeVar("TDataset", bound=gen.Dataset[Any, Any, Any])
@@ -134,6 +137,17 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
 
         return hashlib.sha256(json.dumps(uid_content).encode("utf-8")).hexdigest()
 
+    @cached_property
+    def run_uid(self) -> str:
+        """Compute the unique run identifier for this run instance."""
+        return self.compute_uid(
+            capability_id=self.capability_id,
+            config=self.config,
+            dataset_metadata=self.dataset_metadata,
+            model_metadata=self.model_metadata,
+            metric_metadata=self.metric_metadata,
+        )
+
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Collect data for generating a report.
 
@@ -169,6 +183,31 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
             A string containing the markdown report content.
         """
         raise NotImplementedError
+
+    def extract(self) -> "Sequence[BaseRecord]":
+        """Extract records from this run for storage in the analytics store.
+
+        Subclasses should override this method to return one or more
+        capability-specific records.  Returning multiple records is the
+        standard way to handle variable-length data (e.g. one record per
+        metric, one record per dataset).
+
+        The default implementation returns an empty list (no extraction).
+
+        Convention: single-dataset capabilities should include a field
+        named ``dataset_id: str`` on their record class.  This enables
+        direct JOINs across capability tables (e.g.
+        ``JOIN maite_evaluation m ON c.dataset_id = m.dataset_id``).
+        Multi-dataset capabilities do not currently have a convention
+        for cross-capability JOINs; use the ``runs`` table instead.
+
+        Returns
+        -------
+        Sequence[BaseRecord]
+            Records for storage, or an empty list if this run type
+            doesn't support extraction.
+        """
+        return []
 
 
 class CapabilityRunCache(PydanticCache[CapabilityRunBase[Any, Any]]):
@@ -288,7 +327,6 @@ class Capability(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
             MAITE-compliant metrics.
         config
             The capability configuration object used for this run.
-
         use_cache
             Whether to use cached results if available, by default True.
 
