@@ -70,8 +70,10 @@ opencv-python-headless = ">=4.9.0.80"                              # necessary l
 pandas = ">=2"                                                     # arbitrary, required for data handling
 panel = { version = ">=1.5.1,<=1.7.1", optional = true }           # necessary for FileDropper widget, and for progression of dashboards
 pillow = ">=11.0.0"                                                # arbitrary
+polars = ">=1.37.0"                                                # arbitrary, required for analytics store
 pydantic = ">=2.0.0"                                               # arbitrary
 scikit-learn = ">=1.7.0"                                           # arbitrary, required for embeddings
+setuptools = ">=78.1.1,<82.0.0"                                    # xaitk-saliency path still imports pkg_resources
 streamz = { version = ">=0.6.4", optional = true }                 # arbitrary
 torch = ">=2.2.0"                                                  # necessary lower pin (at least >=2.2.0 for security)
 torchmetrics = ">=1.4.0"                                           # arbitrary, required for metric computation

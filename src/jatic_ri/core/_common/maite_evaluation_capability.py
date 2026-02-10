@@ -7,6 +7,7 @@ import pydantic
 from matplotlib.figure import Figure
 
 from jatic_ri.core._utils import deprecated, requires_optional_dependency
+from jatic_ri.core.analytics_store._schema import BaseRecord
 from jatic_ri.core.cached_tasks import evaluate
 from jatic_ri.core.capability_core import (
     Capability,
@@ -19,6 +20,37 @@ from jatic_ri.core.capability_core import (
 )
 from jatic_ri.core.report._markdown import MarkdownOutput
 from jatic_ri.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
+
+
+class MaiteEvaluationRecord(BaseRecord, table_name="maite_evaluation"):
+    """Record for MaiteEvaluation capability results.
+
+    One record is emitted per output of ``Metric.compute()`` (one row per
+    key in the returned dict).  Per-class breakdowns are stored as separate
+    records with ``scope="class"`` and the class name in ``class_name``.
+
+    This flat layout enables straightforward SQL queries such as::
+
+        SELECT * FROM maite_evaluation WHERE output_key = 'accuracy'
+    """
+
+    # Identifies the dataset under evaluation; enables cross-capability JOINs with other
+    # single-dataset tables (e.g. dataeval_cleaning) on this field.
+    dataset_id: str
+
+    model_id: str
+    metric_id: str
+
+    # Each row stores one key/value pair from Metric.compute(). One row per output makes
+    # it trivial to filter, aggregate, and pivot in SQL without parsing nested structures.
+    output_key: str
+    output_value: float
+
+    # Scope distinguishes overall results from per-class breakdowns in the same table,
+    # avoiding the need for a separate table while keeping queries simple
+    # (WHERE scope = 'overall').
+    scope: str = "overall"  # "overall" or "class"
+    class_name: str | None = None
 
 
 class MaiteEvaluationConfig(CapabilityConfigBase):
@@ -145,6 +177,52 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
             md.add_image(img_path, alt_text="Overall Metrics")
 
         return md.render()
+
+    def extract(self) -> list[MaiteEvaluationRecord]:
+        """Extract metrics from this MaiteEvaluation run.
+
+        Returns one record per metric key in the result dict, plus
+        one record per class metric (if available).
+        """
+        dataset_id = self.dataset_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+        metric_id = self.metric_metadata[0]["id"]
+        outputs = self.outputs
+
+        records: list[MaiteEvaluationRecord] = []
+
+        # One record per key in Metric.compute() output
+        for key, value in outputs.result.items():
+            records.append(
+                MaiteEvaluationRecord(
+                    run_uid=self.run_uid,
+                    dataset_id=dataset_id,
+                    model_id=model_id,
+                    metric_id=metric_id,
+                    output_key=key,
+                    output_value=value,
+                    scope="overall",
+                )
+            )
+
+        # One record per class breakdown
+        if outputs.class_metrics:
+            for class_name, value in outputs.class_metrics.items():
+                if value is not None:
+                    records.append(
+                        MaiteEvaluationRecord(
+                            run_uid=self.run_uid,
+                            dataset_id=dataset_id,
+                            model_id=model_id,
+                            metric_id=metric_id,
+                            output_key=outputs.overall_metric_name,
+                            output_value=value,
+                            scope="class",
+                            class_name=class_name,
+                        )
+                    )
+
+        return records
 
 
 class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, TMetric, MaiteEvaluationConfig]):
