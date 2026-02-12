@@ -1,49 +1,30 @@
-# Setup Guide
+# Development Setup Guide
+
+A guide for contributing developers.
+
+## Clone the project repository
+
+Ensure you have the right permissions, and clone the project repository:
+
+```bash
+# You need to set up personal-access-tokens
+git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation.git
+
+# or
+
+# You need to set up SSH keys
+git clone git@gitlab.jatic.net:jatic/reference-implementation/reference-implementation.git
+```
 
 ## Creating an environment
 
 We provide both poetry-based environment and conda-based environment options:
 
-<details>
-<summary>Setup conda environment</summary>
+### Option 1: Setup poetry environment
 
-To set up a conda environment, install `conda` on your machine and build the environment by running:
+To set up a poetry environment, [install `poetry`](https://python-poetry.org/docs/#installation) (the minimum supported version is `2.0.0`).
 
-```bash
-# create env with conda-lock installed
-conda create -n jatic-ri "conda-lock>=3"
-# activate the environment
-conda activate jatic-ri
-# use conda-lock to install dependencies
-CONDA_ENV_NAME=jatic-ri make conda-env
-# finally, install the reference implementation package
-pip install -e .
-```
-
-This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using:
-
-```bash
-pre-commit install
-```
-
-</details>
-
-<details>
-<summary>Setup poetry environment</summary>
-
-To set up a poetry environment, install `poetry` (the minimum supported version is `2.0.0`):
-
-**osx / linux / bash on windows command**
-```bash
-curl -sSL https://install.python-poetry.org | python3 - --version 2.1.2
-```
-
-**windows powershell command**
-```bash
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py - --version 2.1.2
-```
-
-### For regular users
+#### For regular users
 
 You can build the environment by running:
 
@@ -51,12 +32,18 @@ You can build the environment by running:
 poetry install
 ```
 
-### For package developers
+#### For package developers
 
 If you plan to contribute to the project or need development tools, install with development dependencies:
 
 ```bash
 poetry install --with dev
+```
+
+To contribute to the documentation, install with the docs dependencies:
+
+```bash
+poetry install --with docs
 ```
 
 There are also two optional dependency groups, `unsupported` and `ui`. You can install these via poetry:
@@ -82,7 +69,27 @@ This project utilizes `pre-commit` for linting and formatting. **Developers** sh
 ```bash
 poetry run pre-commit install
 ```
-</details>
+
+### Option 2: Setup conda environment
+
+To set up a conda environment, [install `conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) on your machine and build the environment by running:
+
+```bash
+# create env with conda-lock installed
+conda create -n jatic-ri "conda-lock>=3"
+# activate the environment
+conda activate jatic-ri
+# use conda-lock to install dependencies
+CONDA_ENV_NAME=jatic-ri make conda-env
+# finally, install the reference implementation package
+pip install -e . --no-deps
+```
+
+This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using:
+
+```bash
+pre-commit install
+```
 
 ## Testing
 
@@ -94,11 +101,20 @@ This project uses `pytest` for it's test suite. Run the full test suite with:
 poetry run pytest tests -svv
 ```
 
-There are also tests which run on real data. These are time consuming to run so they are skipped by default.
+This project also contains test markers to flag special test groups. The tests marked `real_data` are
+time consuming tests that utilize real data. The tests marked `unsupported` are dependent on non-active 
+JATIC tools which are not installed in the environment by default. Both of these test groups are skipped
+by default and run nightly in CI. 
+
 You can run them manually with:
 
 ```bash
 poetry run pytest tests -svv -m real_data
+```
+or
+
+```bash
+poetry run pytest tests -svv -m "real_data and unsupported"
 ```
 
 **NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI
@@ -117,8 +133,8 @@ Linting and formatting are automated via `pre-commit` hooks. However, if you'd l
 poetry run pre-commit run --all-files --verbose
 ```
 
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI
-directory to run all pre-commit hooks:
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI directory to run all pre-commit hooks:
+
 ```bash
 make format
 ```

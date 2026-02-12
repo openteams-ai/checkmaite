@@ -5,7 +5,7 @@ interactively. This allows you to explore and utilize the full capabilities of t
 
 To run the RI application, we recommend setting up a virtual environment and installing
 the necessary dependencies, for detailed instructions, please refer to the [Setup
-Guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/community/setup.html).
+Guide](./install_setup.md).
 
 
 Once you have the environment set up, you can start the RI application by running the
@@ -55,6 +55,6 @@ You can then run the workflow by clicking the "Run analysis"
 button. The application will then execute the workflow and generate a report with the results.
 ![Model Evaluation Summary](../assets/ri_me_summary.png)
 
-The Dataset Analysis workflow works in the same manner with different JATIC tools available. 
+The Dataset Analysis workflow works in the same manner with different JATIC tools available.
 
 For detailed information on how each tool is configured and operates, refer to the individual pages in the RI documentation or the original tool’s documentation.

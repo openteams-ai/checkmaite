@@ -1,7 +1,7 @@
 site_name: JATIC Reference Implementation
 site_url: https://jatic.pages.jatic.net/reference-implementation/reference-implementation/
 use_directory_urls: false
-theme: 
+theme:
   name: material
   favicon: assets/favicon.ico
   features:
@@ -9,11 +9,11 @@ theme:
     - navigation.tabs
     - navigation.indexes
     - toc.integrate
-  palette: 
+  palette:
     # Palette toggle for light mode
     - scheme: default
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
       primary: black
       accent: indigo
@@ -28,34 +28,37 @@ theme:
 
 nav:  # navigation links on sidebar
   - Home: index.md
-  - Explanations:
-    - explanations/index.md
-  - How-tos:
-    - how-tos/index.md
-    - Object Detection Workflow via API: how-tos/ri_api_od.ipynb
-    - Image Classification Workflow via API: how-tos/ri_api_ic.ipynb
-  - Tutorials:
-    - tutorials/index.md
-    - Dataeval tutorials:
-      - Bias: tutorials/dataeval_bias_tutorial.ipynb
-      - Feasibility: tutorials/dataeval_feasibility_tutorial.ipynb
-      - Linting: tutorials/dataeval_linting_tutorial.ipynb
-      - Shift: tutorials/dataeval_shift_tutorial.ipynb
-    - NRTK Tutorial: tutorials/nrtk_tutorial.ipynb
-    - XAITK Tutorial: tutorials/xaitk_tutorial.ipynb
+  - Get started:
+    - get-started/index.md
+    - Setup: get-started/install_setup.md
+    - Run the RI application interactively: get-started/ri_interactive.md
+    - Object Detection Workflow via API: get-started/ri_api_od.ipynb
+    - Image Classification Workflow via API: get-started/ri_api_ic.ipynb
+  - Using JATIC tools:
+    - tool-usage/index.md
+    - Dataset evaluation:
+      - Dataeval - Bias: tool-usage/dataeval_bias_tutorial.ipynb
+      - Dataeval - Feasibility: tool-usage/dataeval_feasibility_tutorial.ipynb
+      - Dataeval - Linting: tool-usage/dataeval_linting_tutorial.ipynb
+      - Dataeval - Shift: tool-usage/dataeval_shift_tutorial.ipynb
+    - Model evaluation:
+      - NRTK: tool-usage/nrtk_tutorial.ipynb
+      - XAITK: tool-usage/xaitk_tutorial.ipynb
 
-    # These tools are not currently supported by JATIC. The notebooks have been archived under `docs/reference/examples` 
+    # These tools are not currently supported by JATIC. The notebooks have been archived under `docs/reference/examples`
 
     #- RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
     #- Survivor Tutorial: tutorials/survivor_tutorial.ipynb
 
   - Reference:
+    - reference/index.md
     - Conventions: reference/conventions.md
-    - Development Strategy: reference/development.md
-    - Persona: reference/persona.md
-  - Community:
-    - Setup: community/setup.md
-    - Contributing: community/contributing.md
+  - RI development:
+    - development/index.md
+    - Development setup: development/dev_setup.md
+    - Development strategy: development/dev_strategy.md
+    - User persona: development/persona.md
+    - Contributing: development/contributing.md
 markdown_extensions:
   - admonition  # enables callout boxes
   - attr_list
@@ -74,3 +77,7 @@ plugins:
 
 exclude_docs: |
   reference/examples
+  get-started/temp_yolo_dataset
+  get-started/tscache
+  tool-usage/report
+  *_Report.md
