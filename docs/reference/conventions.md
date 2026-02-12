@@ -1,4 +1,4 @@
-# Reference Implementation Conventions
+# Reference Implementation (API) Conventions
 
 ## Overview
 
@@ -23,12 +23,12 @@ As these conventions are incorporated into the reference implementation, they ma
 - Object detection models will return MAITE-compliant object detection [targets](https://gitlab.jatic.net/jatic/cdao/maite/-/blob/main/src/maite/_internals/protocols/object_detection.py?ref_type=heads#L27), which consist of `ArrayLike` of predicted classes, `ArrayLike` of scores, and `ArrayLike` of bounding boxes.
 
 - Image classification models will return MAITE-compliant image classification [targets](https://gitlab.jatic.net/jatic/cdao/maite/-/blob/main/src/maite/_internals/protocols/image_classification.py?ref_type=heads#L25), which consist of an `ArrayLike` of pseudo-probabilities for each class it is trained to predict.
-    
+
 - Models which find no prediction on a given target will return an `ObjectDetectionTarget` with empty `ArrayLike` elements for bounding boxes/labels.
 
 ### Supported models
 
-In order for users to be able to bring their own models to the reference implementation, without having to write any additional code to support the loading and wrapping of that model into MAITE-compliant objects, we must provide some generalized wrappers for commonly used models. This list contains the set of models that the reference implementation has (or will) support. As development continues, this list will be updated.
+In order for users to be able to bring their own models to the reference implementation, without having to write any additional code to support the loading and wrapping of that model into MAITE-compliant objects, we must provide some generalized wrappers for commonly used models. This list contains the set of models that the reference implementation has (or will) support.
 
 #### Object Detection
 - [fasterrcnn_resnet50_fpn](https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html)
@@ -72,9 +72,9 @@ In order for users to be able to bring their own datasets to the reference imple
   - The `Metric` class will have an attribute called `return_key` which describes the top-level performance metric:
     - E.g., for a metric that computes `map_50`, the `return_key` will be `map_50`.
     - Because `return_key` is not an attribute of the protocols for metrics, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `return_key` attribute.
-  
+
   - The list of keys returned by `compute()` will include a key that matches the `return_key` of the metric, which describes the top-level performance of predictions against the ground truth provided in the `update()` method.
-  
+
   - The values of each element in the dictionary returned by `compute()` will adhere to the `numpy.ArrayLike` type, and will consist of an array containing a single floating point value such that:
     - The value can safely be cast to a float with `float(<value>)`.
     - The value will possess the `<value>.numpy()` method.
