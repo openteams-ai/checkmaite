@@ -41,7 +41,8 @@ def test_collect_md_report(test_run):
 
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables(test_run):
-    consumables = test_run.collect_report_consumables(threshold=0.0)
+    with pytest.warns(DeprecationWarning):
+        consumables = test_run.collect_report_consumables(threshold=0.0)
     assert consumables  # smoke test for non-empty report consumables
 
 

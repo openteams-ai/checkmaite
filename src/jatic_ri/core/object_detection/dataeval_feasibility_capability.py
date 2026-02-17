@@ -453,10 +453,10 @@ def _first_pass_scan(
 
     for idx in range(num_images):
         image, target, _ = dataset[idx]
-        image_np = np.array(image)
+        image_np = np.asarray(image)
         _, img_h, img_w = image_np.shape
-        boxes_np = np.array(target.boxes)
-        labels_np = np.array(target.labels)
+        boxes_np = np.asarray(target.boxes)
+        labels_np = np.asarray(target.labels)
 
         if len(boxes_np) == 0:
             continue
@@ -668,8 +668,8 @@ class DataevalFeasibility(
             for idx in chunk_indices:
                 image, target, _ = dataset[idx]
 
-                image_np = np.array(image)
-                boxes_np = np.array(target.boxes)
+                image_np = np.asarray(image)
+                boxes_np = np.asarray(target.boxes)
 
                 crops = _extract_instance_crops(
                     image=image_np,

@@ -199,7 +199,8 @@ class TestDataevalFeasibilityCapability:
             config=test_config,
         )
 
-        slides = output.collect_report_consumables(threshold=0.5)
+        with pytest.warns(DeprecationWarning):
+            slides = output.collect_report_consumables(threshold=0.5)
 
         assert isinstance(slides, list)
 

@@ -73,7 +73,8 @@ def test_collect_md_report_ic(test_run_ic):
 
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables_ic(test_run_ic):
-    consumables = test_run_ic.collect_report_consumables(threshold=0.5)
+    with pytest.warns(DeprecationWarning):
+        consumables = test_run_ic.collect_report_consumables(threshold=0.5)
     assert consumables  # smoke test
 
 
@@ -93,7 +94,8 @@ class TestOdDataevalBiasCapability:
 
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables_od(self, test_run_od):
-        consumables = test_run_od.collect_report_consumables(threshold=0.5)
+        with pytest.warns(DeprecationWarning):
+            consumables = test_run_od.collect_report_consumables(threshold=0.5)
         assert consumables  # smoke test
 
     def test_coco(self):

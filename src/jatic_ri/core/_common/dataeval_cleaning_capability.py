@@ -1,22 +1,22 @@
 import logging
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
-from dataeval.detectors.linters import Outliers
-from dataeval.metrics.stats import (
-    DimensionStatsOutput,
-    HashStatsOutput,
-    LabelStatsOutput,
-    VisualStatsOutput,
-    dimensionstats,
-    hashstats,
-    labelstats,
-    visualstats,
-)
-from dataeval.outputs import SourceIndex
+from dataeval import Metadata
+from dataeval.core import calculate, label_stats
+from dataeval.flags import ImageStats
+from dataeval.quality import Outliers
+from dataeval.types import SourceIndex
+
+if TYPE_CHECKING:
+    from dataeval.core._calculate import CalculationResult
+    from dataeval.core._label_stats import LabelStatsResult
+    from dataeval.quality import DuplicatesOutput
+
 
 from jatic_ri import cache_path
 from jatic_ri.core._utils import deprecated, requires_optional_dependency, squash_repeated_warnings
@@ -48,6 +48,43 @@ from jatic_ri.core.report._plotting_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_duplicates_output(duplicates: "DuplicatesOutput") -> dict[str, Sequence[Sequence[int]] | None]:
+    """
+    Normalize duplicates output into a single-dataset index format.
+
+    This helper converts the duplicates result into `{"exact": ..., "near": ...}` where
+    each entry is a sequence of groups and each group is a sequence of `int` indices
+    referring to items within a single dataset. This is the only form supported by the
+    reporting and downstream consumers.
+
+    If the duplicates output contains non-`int` identifiers (e.g., tuples/records that
+    encode dataset membership), that indicates a cross-dataset duplicate check. Those
+    are not supported yet and will raise a `TypeError`.
+    """
+
+    exact = duplicates.items.exact
+    near = duplicates.items.near
+
+    if exact is not None:
+        if not isinstance(exact[0][0], int):
+            raise TypeError("Cross-dataset exact-duplicate checks not currently supported.")
+        exact_norm = cast(Sequence[Sequence[int]], [list(group) for group in exact])
+    else:
+        exact_norm = None
+
+    if near is None:
+        near_norm = None
+    else:
+        near_norm: Sequence[Sequence[int]] | None = []
+        for group in near:
+            if not isinstance(group.indices[0], int):
+                raise TypeError("Cross-dataset near-duplicate checks not currently supported.")
+            indices = cast(Sequence[int], group.indices)
+            near_norm.append(list(indices))
+
+    return {"exact": exact_norm, "near": near_norm}
 
 
 class DataevalCleaningRecord(BaseRecord, table_name="dataeval_cleaning"):
@@ -106,14 +143,15 @@ class DataevalCleaningConfig(CapabilityConfigBase):
 
 
 class DataevalCleaningDuplicatesOutputs(CapabilityOutputsBase):
-    exact: Sequence[Sequence[int]]
-    near: Sequence[Sequence[int]]
+    exact: Sequence[Sequence[int]] | None
+    near: Sequence[Sequence[int]] | None
 
 
 class DataevalCleaningDimensionStatsOutputs(CapabilityOutputsBase):
     source_index: Sequence[SourceIndex]
     object_count: list[int]
     image_count: int
+    # Dataeval ImageStats.DIMENSION
     offset_x: np.ndarray
     offset_y: np.ndarray
     width: np.ndarray
@@ -125,19 +163,24 @@ class DataevalCleaningDimensionStatsOutputs(CapabilityOutputsBase):
     center: np.ndarray
     distance_center: np.ndarray
     distance_edge: np.ndarray
+    invalid_box: np.ndarray
 
 
 class DataevalCleaningVisualStatsOutputs(CapabilityOutputsBase):
     source_index: Sequence[SourceIndex]
     object_count: list[int]
     image_count: int
+    # Dataeval ImageStats.VISUAL
     brightness: np.ndarray
     contrast: np.ndarray
     darkness: np.ndarray
-    # missing: np.ndarray  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
     sharpness: np.ndarray
-    # zeros: np.ndarray  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
     percentiles: np.ndarray
+    # Dataeval ImageStats.PIXEL_ZEROS | ImageStats.PIXEL_MISSING
+    # TODO: Should we add others ImageStats.PIXEL ?
+    # - mean, std, var, skew, kurt, entropy, histogram
+    missing: np.ndarray
+    zeros: np.ndarray
 
 
 class DataevalCleaningLabelStatsOutputs(CapabilityOutputsBase):
@@ -149,6 +192,10 @@ class DataevalCleaningLabelStatsOutputs(CapabilityOutputsBase):
     class_count: int
     label_count: int
     class_names: Sequence[str]
+    # TODO: Add these stats
+    # classes_per_image: Sequence[Sequence[int]]
+    # empty_image_indices: Sequence[int]
+    # empty_image_count: int
 
 
 class DataevalCleaningOutputs(CapabilityOutputsBase):
@@ -321,8 +368,8 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
 
         total_images = outputs.label_stats.image_count
         duplicates = outputs.duplicates
-        exact_dup_count = sum(len(d) for d in duplicates.exact)
-        near_dup_count = sum(len(d) for d in duplicates.near)
+        exact_dup_count = sum(len(d) for d in duplicates.exact) if duplicates.exact is not None else 0
+        near_dup_count = sum(len(d) for d in duplicates.near) if duplicates.near is not None else 0
         img_outlier_count = len(outputs.img_outliers)
 
         # Handle optional target outliers (for object detection)
@@ -422,26 +469,28 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         """
         return Number.ZERO
 
-    def _run_basic_stats(
-        self, dataset: TDataset
-    ) -> tuple[
-        HashStatsOutput,
-        DimensionStatsOutput,
-        VisualStatsOutput,
-        LabelStatsOutput,
-    ]:
+    def _run_basic_stats(self, dataset: TDataset) -> tuple["CalculationResult", "LabelStatsResult"]:
         """Compute statistics for the images in the dataset.
+
+        Parameters
+        ----------
+        dataset : TDataset
+            input dataset.
 
         Returns
         -------
-        tuple[
-            HashStatsOutput,
-            DimensionStatsOutput,
-            VisualStatsOutput,
-            LabelStatsOutput,
-        ]
-            A tuple containing hash, dimension, visual, and label statistics.
+        tuple[CalculationResult, LabelStatsResult]
+            Type containing hash, dimension, visual, and label statistics.
         """
+
+        flags = (
+            ImageStats.DIMENSION
+            | ImageStats.HASH_XXHASH
+            | ImageStats.HASH_PHASH
+            | ImageStats.VISUAL
+            | ImageStats.PIXEL_ZEROS
+            | ImageStats.PIXEL_MISSING
+        )
 
         # dataeval hasher does not work for images smaller than 8x8
         # pixels e.g. bbox, resulting in very noisy, repeated warnings.
@@ -458,23 +507,28 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             return "perceptual" in msg and "hash" in msg
 
         with squash_repeated_warnings("dataeval", is_small_perceptual_hash_warning) as filt:
-            hashes = hashstats(dataset)
+            stats = calculate(
+                dataset,
+                stats=flags,
+                per_target=False,
+            )
             logger.warning(
                 f"Suppressed {filt.count} dataeval perceptual-hash warnings. "
                 "This usually occurs when hashing very small crops (e.g., <8x8 px), "
                 f"which cannot be perceptually hashed. Example warning: {filt.first}"
             )
 
-        img_dim_stats = dimensionstats(dataset)
-        img_viz_stats = visualstats(dataset)
+        metadata = Metadata(dataset)
 
-        label_stats = labelstats(dataset)
+        label_stats_result = label_stats(
+            metadata.class_labels,
+            metadata.item_indices,
+            index2label=metadata.index2label,
+            image_count=len(dataset),
+        )
+        return stats, label_stats_result
 
-        return hashes, img_dim_stats, img_viz_stats, label_stats
-
-    def _compute_basic_outliers(
-        self, dim_stats: DimensionStatsOutput | None = None, viz_stats: VisualStatsOutput | None = None
-    ) -> dict[int, dict[str, float]]:
+    def _compute_basic_outliers(self, stats: "CalculationResult") -> dict[int, dict[str, float]]:
         """
         Compute z-score-based outliers for selected dimension and visual metrics.
 
@@ -484,41 +538,36 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        dim_stats : DimensionStatsOutput | None, optional
-            Dimension statistics, by default None.
-        viz_stats : VisualStatsOutput | None, optional
-            Visual statistics, by default None.
+        stats : CalculationResult
+            dataset statistics.
 
         Returns
         -------
         dict[int, dict[str, float]]
             A dictionary of outliers.
         """
-        all_outliers_dict = {}
+        # Workaround to failing Outliers.from_stats() on stats with hash values
+        if any("hash" in key for key in stats["stats"]):
+            stats_without_hash = dict(stats)
+            stats_without_hash = cast("CalculationResult", stats_without_hash)
+            stats_without_hash["stats"] = {k: v for k, v in stats_without_hash["stats"].items() if "hash" not in k}
+        else:
+            stats_without_hash = stats
 
-        for stats in [dim_stats, viz_stats]:
-            outliers_dict = {}
-            if stats is not None:
-                base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats)
+        base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats_without_hash)
+        outliers_dict = defaultdict(dict)
 
-                for k, v in base_outliers.issues.items():
-                    filtered_values = {
-                        category: value
-                        for category, value in v.items()
-                        if category in DIMENSION_LIST or category in VISUAL_LIST
-                    }
-                    if filtered_values:
-                        outliers_dict[k] = filtered_values
+        base_outliers_df = base_outliers.issues[["item_id", "metric_name", "metric_value"]]
+        for k, category, value in base_outliers_df.iter_rows():
+            if category in DIMENSION_LIST or category in VISUAL_LIST:
+                outliers_dict[k][category] = value
 
-            if outliers_dict:
-                self._dictionary_merge(all_outliers_dict, outliers_dict)
-
-        return all_outliers_dict
+        return dict(outliers_dict)
 
     def _outlier_at_1(
         self,
         outlier_result: dict[int, dict[str, float]],
-        stats: DimensionStatsOutput,
+        stats: "CalculationResult",
         categories: list[str],
     ) -> dict[int, dict[str, float]]:
         """
@@ -535,8 +584,8 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         ----------
         outlier_result : dict[int, dict[str, float]]
             The dictionary to store outlier results.
-        stats : DimensionStatsOutput
-            Dimension statistics.
+        stats : CalculationResult
+            Type containing dimension statistics.
         categories : list[str]
             List of categories to check.
 
@@ -546,13 +595,13 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             The updated outlier results dictionary.
         """
         for category in categories:
-            data = getattr(stats, category)
+            data = stats["stats"][category]
             if over_1 := np.flatnonzero(data > 1).tolist():
                 for idx in over_1:
                     if idx not in outlier_result:
                         outlier_result[idx] = {}
                     if f"ratio_{category}" not in outlier_result[idx]:
-                        outlier_result[idx].update({f"ratio_{category}": data[idx]})
+                        outlier_result[idx].update({f"ratio_{category}": float(data[idx])})
 
         return outlier_result
 
@@ -580,7 +629,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
                 dict1[key] = inner
         return dict1
 
-    def _compute_ratio_outliers(self, ratio_stats: DimensionStatsOutput) -> dict[int, dict[str, float]]:
+    def _compute_ratio_outliers(self, stats: "CalculationResult") -> dict[int, dict[str, float]]:
         """
         Compute z-score-based outliers for selected ratio metrics.
 
@@ -590,8 +639,8 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        ratio_stats : DimensionStatsOutput
-            Ratio statistics.
+        stats : CalculationResult
+            Type containing dimension statistics.
 
         Returns
         -------
@@ -599,17 +648,18 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             A dictionary of outliers.
         """
         outliers_dict = {}
+        base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats)
+        outliers_dict = defaultdict(dict)
 
-        base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(ratio_stats)
-        for k, v in base_outliers.issues.items():
-            filtered_values = {f"ratio_{category}": value for category, value in v.items() if category in RATIO_LIST}
-            if filtered_values:
-                outliers_dict[k] = filtered_values
+        base_outliers_df = base_outliers.issues[["item_id", "metric_name", "metric_value"]]
+        for k, category, value in base_outliers_df.iter_rows():
+            if category in RATIO_LIST:
+                outliers_dict[k][category] = value
 
         return outliers_dict
 
     def _compute_box_outliers(
-        self, box_dim_stats: DimensionStatsOutput, box_viz_stats: VisualStatsOutput, ratiostats: DimensionStatsOutput
+        self, box_stats: "CalculationResult", ratiostats: "CalculationResult"
     ) -> dict[int, dict[str, float]]:
         """
         Compute outliers related to bounding boxes.
@@ -619,11 +669,9 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        box_dim_stats : DimensionStatsOutput
-            Bounding box dimension statistics.
-        box_viz_stats : VisualStatsOutput
-            Bounding box visual statistics.
-        ratiostats : DimensionStatsOutput
+        box_stats : CalculationResult
+            Bounding box dimension and visual statistics.
+        ratiostats : CalculationResult
             Ratio statistics.
 
         Returns
@@ -631,13 +679,130 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         dict[int, dict[str, float]]
             A dictionary of outliers.
         """
-        box_result = self._compute_basic_outliers(dim_stats=box_dim_stats, viz_stats=box_viz_stats)
-        ratio_result = self._compute_ratio_outliers(ratio_stats=ratiostats)
+
+        box_result = self._compute_basic_outliers(box_stats)
+        ratio_result = self._compute_ratio_outliers(ratiostats)
 
         ratio_categories = ["offset_x", "offset_y", "width", "height", "size"]
         adjusted_ratio_result = self._outlier_at_1(ratio_result, ratiostats, ratio_categories)
 
         return self._dictionary_merge(box_result, adjusted_ratio_result)
+
+    # Temporary private method to convert CalculationResult into a dict loadable by
+    # DataevalCleaningDimensionStatsOutputs
+    def _get_common_stats(self, stats: "CalculationResult") -> dict:
+        return {
+            key: stats[key]
+            for key in [
+                "source_index",
+                "object_count",
+                "image_count",
+            ]
+        }
+
+    def _get_dim_stats(self, stats: "CalculationResult") -> dict:
+        common_stats = self._get_common_stats(stats)
+        return common_stats | {
+            key: stats["stats"][key]
+            for key in [
+                "offset_x",
+                "offset_y",
+                "width",
+                "height",
+                "channels",
+                "size",
+                "aspect_ratio",
+                "depth",
+                "center",
+                "distance_center",
+                "distance_edge",
+                "invalid_box",
+            ]
+        }
+
+    # Temporary private method to convert CalculationResult into local structures
+    # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
+    def _get_img_dim_viz_stats(self, stats: "CalculationResult") -> tuple[dict, dict]:
+        common_img_stats = self._get_common_stats(stats)
+        img_dim_stats = common_img_stats | {
+            key: stats["stats"][key]
+            for key in [
+                "offset_x",
+                "offset_y",
+                "width",
+                "height",
+                "channels",
+                "size",
+                "aspect_ratio",
+                "depth",
+                "center",
+                "distance_center",
+                "distance_edge",
+                "invalid_box",
+            ]
+        }
+        img_viz_stats = common_img_stats | {
+            key: stats["stats"][key]
+            for key in [
+                "brightness",
+                "contrast",
+                "darkness",
+                "sharpness",
+                "percentiles",
+                "missing",
+                "zeros",
+            ]
+        }
+        return img_dim_stats, img_viz_stats
+
+    # Temporary private method to convert CalculationResult into local structures
+    # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
+    def _get_box_dim_viz_stats(self, box_stats: "CalculationResult") -> tuple[dict, dict]:
+        common_box_stats = self._get_common_stats(box_stats)
+        box_dim_stats = common_box_stats | {
+            key: box_stats["stats"][key]
+            for key in [
+                "offset_x",
+                "offset_y",
+                "width",
+                "height",
+                "channels",
+                "size",
+                "aspect_ratio",
+                "depth",
+                "center",
+                "distance_center",
+                "distance_edge",
+                "invalid_box",
+            ]
+        }
+        box_viz_stats = common_box_stats | {
+            key: box_stats["stats"][key]
+            for key in [
+                "brightness",
+                "contrast",
+                "darkness",
+                "sharpness",
+                "percentiles",
+                "missing",
+                "zeros",
+            ]
+        }
+        return box_dim_stats, box_viz_stats
+
+    # Temporary private method to convert LabelStatsResult into a dict acceptable by
+    # DataevalCleaningLabelStatsOutputs
+    def _convert_label_stats(self, label_stats_result: "LabelStatsResult") -> dict:
+        # remove additional fields
+        keys_to_remove = [
+            "classes_per_image",
+            "empty_image_indices",
+            "empty_image_count",
+        ]
+        index2label = label_stats_result["index2label"]
+        output = {key: value for key, value in label_stats_result.items() if key not in keys_to_remove}
+        output["class_names"] = list(index2label.values())
+        return output
 
 
 def add_slide(
@@ -734,8 +899,8 @@ def generate_duplicates_report(
     exact = duplicates.exact
     near = duplicates.near
 
-    total_ed = sum(len(d) for d in exact)
-    total_nd = sum(len(d) for d in near)
+    total_ed = sum(len(d) for d in exact) if exact is not None else 0
+    total_nd = sum(len(d) for d in near) if near is not None else 0
 
     title = "Image Duplicate Analysis"
 
@@ -816,7 +981,7 @@ def generate_stats_report(
     )
 
     # build gradient slide for label analysis
-    result_content, label_df = label_table(label_stats, index2label=index2label)  # pyright: ignore[reportArgumentType]
+    result_content, label_df = label_table(label_stats, index2label=index2label)
     title = "Label Analysis"
     content = []
     content.append(gd.Text("Description: ", bold=True, fontsize=22))
@@ -1081,8 +1246,8 @@ def generate_duplicates_report_md(
     exact = duplicates.exact
     near = duplicates.near
 
-    total_ed = sum(len(d) for d in exact)
-    total_nd = sum(len(d) for d in near)
+    total_ed = sum(len(d) for d in exact) if exact is not None else 0
+    total_nd = sum(len(d) for d in near) if near is not None else 0
 
     md.add_section(heading="Image Duplicate Analysis")
     md.add_text("**Description:** Identify images which are identical or almost identical.")

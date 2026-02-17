@@ -8,8 +8,7 @@ import matplotlib.figure
 import numpy as np
 import pandas as pd
 import PIL.Image
-from dataeval.metrics.stats import LabelStatsOutput
-from dataeval.outputs import SourceIndex
+from dataeval.types import SourceIndex
 from matplotlib import pyplot as plt
 from numpy.typing import ArrayLike
 from pydantic import BaseModel
@@ -38,8 +37,8 @@ VISUAL_LIST = [
     "contrast",
     "darkness",
     "sharpness",
-    # "missing",  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
-    # "zeros",  restore after https://gitlab.jatic.net/jatic/aria/dataeval/-/issues/1056
+    "missing",
+    "zeros",
 ]
 RATIO_LIST = [
     "width",
@@ -467,12 +466,12 @@ def plot_blank_or_single_image(filepath: Path) -> None:
     plt.close(fig)
 
 
-def label_table(label_stats: LabelStatsOutput, index2label: dict[int, str]) -> tuple[list[str], pd.DataFrame]:
+def label_table(label_stats, index2label: dict[int, str]) -> tuple[list[str], pd.DataFrame]:  # noqa: ANN001
     """Create a table of label counts per class and per image.
 
     Parameters
     ----------
-    label_stats : LabelStatsOutput
+    label_stats : DataevalCleaningLabelStatsOutputs
         Statistics about labels.
     index2label : dict[int, str]
         Mapping from class index to label name.

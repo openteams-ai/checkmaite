@@ -83,7 +83,7 @@ DEFAULT_OD_DATASET_IMAGES: Sequence[ArrayLike] = [
 
 DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
     DetectionTarget(
-        boxes=torch.Tensor(
+        boxes=torch.tensor(
             [
                 [301.84, 74.94, 351.46, 226.38],  # date
                 [137.47, 124.11, 197.65, 195.13],  # cherry
@@ -91,7 +91,7 @@ DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
             ]
         ),
         labels=torch.tensor([4, 3, 2], dtype=torch.int32),
-        scores=torch.Tensor([1.0, 1.0, 1.0]),
+        scores=torch.tensor([1.0, 1.0, 1.0]),
     )
     for _ in range(DEFAULT_DATASET_LENGTH)
 ]

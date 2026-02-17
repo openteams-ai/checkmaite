@@ -5,7 +5,8 @@ import maite.protocols.image_classification as ic
 import numpy as np
 import pandas as pd
 import pydantic
-from dataeval.data import Embeddings, Metadata
+from dataeval import Embeddings, Metadata
+from dataeval.extractors import TorchExtractor
 from pydantic import Field
 
 from jatic_ri.core._common._knn import compute_ber_knn
@@ -235,15 +236,12 @@ class DataevalFeasibility(
         # If extractor outputs more dimensions than needed, fit PCA on dataset and project down to
         # target dimension. Downstream BER code assumes values live on a [0,1] so rescale.
         fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
-
+        extractor = TorchExtractor(fe.model, transforms=fe.transforms, device=config.device)
         embeddings = Embeddings(
             dataset,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         n, d = embeddings.shape
 

@@ -1568,37 +1568,61 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataeval"
-version = "0.92.3"
+version = "1.0.0rc1"
 description = "DataEval provides a simple interface to characterize image data and its impact on model performance across classification and object-detection tasks"
 optional = false
-python-versions = "<3.14,>=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "dataeval-0.92.3-py3-none-any.whl", hash = "sha256:9c37271421d8e9367654afdbc0e132b52eee0e1c7f8ee6b1e3ae88dee4d06490"},
-    {file = "dataeval-0.92.3.tar.gz", hash = "sha256:66b7beeb82071cf96f803105567265ece68d3bdf2a1c98d3ce5a786db91700fe"},
+    {file = "dataeval-1.0.0rc1-py3-none-any.whl", hash = "sha256:52b41be73df4dee5481cb7b04cbd001a3939f1a04111165439c394f1b42ad3d5"},
+    {file = "dataeval-1.0.0rc1.tar.gz", hash = "sha256:444ea7f1185bb1a6e1c9b7def979794823734e239600442c18d6feec9b74ee41"},
 ]
 
 [package.dependencies]
-fast-hdbscan = "0.2.0"
 lightgbm = ">=4"
 numba = ">=0.61.0"
-numpy = {version = ">=1.24.2,<2.3", markers = "python_version < \"3.12\""}
-pandas = {version = ">=2.0.0", markers = "python_version < \"3.13\""}
+numpy = ">=1.24.2"
 polars = ">=1.0.0"
+psutil = ">=7.0.0"
+pydantic = ">=2.8"
 scikit-learn = ">=1.5.0"
-scipy = {version = ">=1.10.0", markers = "python_version < \"3.12\""}
+scipy = ">=1.10.0"
 torch = ">=2.2.0"
-torchvision = ">=0.17.0"
 typing-extensions = ">=4.12"
-xxhash = ">=3.3"
+xxhash = ">=3.4"
 
 [package.extras]
-all = ["matplotlib (>=3.7.1)", "tqdm (>=4.66)"]
 cpu = ["torch (>=2.2.0)", "torchvision (>=0.17.0)"]
 cu118 = ["torch (>=2.2.0)", "torchvision (>=0.17.0)"]
-cu126 = ["torch (>=2.2.0)", "torchvision (>=0.17.0)"]
-matplotlib = ["matplotlib (>=3.7.1)"]
-tqdm = ["tqdm (>=4.66)"]
+cu124 = ["torch (>=2.2.0)", "torchvision (>=0.17.0)"]
+cu128 = ["torch (>=2.2.0)", "torchvision (>=0.17.0)"]
+onnx = ["onnx", "onnxruntime (>=1.14.0)"]
+onnx-gpu = ["onnx", "onnxruntime-gpu (>=1.14.0)"]
+opencv = ["opencv-python-headless (>=4.8.0)"]
+
+[[package]]
+name = "dataeval-plots"
+version = "0.0.6"
+description = "DataEval companion package for plotting utilities"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "dataeval_plots-0.0.6-py3-none-any.whl", hash = "sha256:97b3f33f486ac26ce52b0414eca7a5bd61f1c1e75cf14fcf320ff665038319e5"},
+    {file = "dataeval_plots-0.0.6.tar.gz", hash = "sha256:371699e5d61ee56ae738ebb8ee0de33fcbb1f5f5d190bd6cf3f75f7bf8fb9497"},
+]
+
+[package.dependencies]
+matplotlib = ">=3.7.1"
+numpy = {version = ">=1.24.2", markers = "python_version < \"3.12\""}
+polars = ">=1.0.0"
+
+[package.extras]
+all = ["altair (>=5.0)", "plotly (>=5.0)", "seaborn (>=0.12)"]
+altair = ["altair (>=5.0)"]
+opencv = ["opencv-python-headless (>=4.12.0.88)"]
+plotly = ["plotly (>=5.0)"]
+seaborn = ["seaborn (>=0.12)"]
 
 [[package]]
 name = "datasets"
@@ -1849,23 +1873,6 @@ files = [
 
 [package.extras]
 tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipython", "littleutils", "pytest", "rich ; python_version >= \"3.11\""]
-
-[[package]]
-name = "fast-hdbscan"
-version = "0.2.0"
-description = "A fast multicore version of hdbscan for low dimensional euclidean spaces"
-optional = false
-python-versions = ">=3.9"
-groups = ["main"]
-files = [
-    {file = "fast_hdbscan-0.2.0-py3-none-any.whl", hash = "sha256:7315af09f5b19a4f1a8d6113b90eb4e98813d3bc0d55f05c0f24984252e164f2"},
-    {file = "fast_hdbscan-0.2.0.tar.gz", hash = "sha256:002966c2adbac5170a6627ea2f685cdedcd2a1c2cb077401fba6748f0fbc39f0"},
-]
-
-[package.dependencies]
-numba = ">=0.56"
-numpy = ">=1.21"
-scikit-learn = ">=1.1"
 
 [[package]]
 name = "fastjsonschema"
@@ -9494,4 +9501,4 @@ unsupported = ["gradient", "heart-library", "reallabel", "survivor"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.12"
-content-hash = "c56012492e2e1f0186be2ad32d9e9c879a88bd1c43672d9cc46b53b300052b34"
+content-hash = "8bb5fcdc8ec978dda66ca0742416cec552b7d5a3edadde90e1f06989d9c7ae09"

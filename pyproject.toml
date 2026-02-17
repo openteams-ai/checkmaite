@@ -40,6 +40,7 @@ libgl = "*"
 libopengl = "*"                                    # patch for a missing dependency from something (opencv?) in conda-forge
 pip = "*"                                          # ensure pip is available for conda-lock
 poetry = "==2.1.2"                                 # allow user to still use the `make check-conda` pre-commit hook
+dataeval-plots = {source = "pypi"}
 
 [tool.poetry]
 packages = [{ include = "jatic_ri", from = "src" }]
@@ -47,8 +48,9 @@ include = ["src/jatic_ri/py.typed"]
 exclude = ["src/jatic_ri/_docs.py"]
 
 [tool.poetry.dependencies]
-dataeval = "==0.92.3"
-maite = "0.8.2"
+dataeval = ">=1.0.0rc1"
+dataeval-plots = "==0.0.6"                                        # We specify pypi source as dataeval_plots wont be on conda-forge
+maite = "==0.8.2"
 nrtk = "==0.25.0"
 pybsm = ">=0.12.0"                                                 # optional dep for nrtk, required here
 xaitk-saliency = "==0.14.1"
@@ -102,7 +104,7 @@ mkdocs-jupyter = ">=0.25"                          # arbitrary
 mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
-[tool.poetry.scripts]
+[project.scripts]
 jatic-ri-serve = "jatic_ri.ui.app:main"
 
 # We use this instead of an optional Poetry group because in our testing we found that conda-lock (v 3.0.4) does not
