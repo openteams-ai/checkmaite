@@ -1,3 +1,6 @@
+import hashlib
+import json
+
 import maite.protocols.object_detection as od
 from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
 
@@ -33,7 +36,21 @@ class NrtkRobustness(NrtkRobustnessBase[od.Dataset, od.Model, od.Metric]):
 
         perturbations = []
         for perturber in config.perturber_factory:
-            augmentation = JATICDetectionAugmentation(augment=perturber, augment_id="JATICDetection")
+            # For each NRTK perturber, we want to create a unique augment_id for caching purposes.
+            # Hashing the name of the perturber class and all of its instance attriubutes is a fairly robust way to
+            # do this.  Note that a perturber algorithm could change between versions of the library, and this would
+            # result in invalid cache hits.
+
+            class_name = perturber.__class__.__name__
+            # Get all instance attributes
+            attrs = perturber.__dict__ if hasattr(perturber, "__dict__") else {}
+            perturber_props = {"class_name": class_name, "attributes": attrs}
+
+            # Create a deterministic hash from the properties
+            props_str = json.dumps(perturber_props, sort_keys=True, default=str)
+            augment_id = hashlib.sha256(props_str.encode()).hexdigest()
+
+            augmentation = JATICDetectionAugmentation(augment=perturber, augment_id=augment_id)
             perturbed_metrics, _, _ = evaluate(
                 model=model,
                 dataset=dataset,
