@@ -1,11 +1,13 @@
 import maite.protocols.object_detection as od
-from dataeval.detectors.linters import Duplicates
-from dataeval.metrics.stats import boxratiostats, dimensionstats, visualstats
+from dataeval.core import calculate, calculate_ratios
+from dataeval.flags import ImageStats
+from dataeval.quality import Duplicates
 
 from jatic_ri.core._common.dataeval_cleaning_capability import (
     DataevalCleaningBase,
     DataevalCleaningConfig,
     DataevalCleaningOutputs,
+    _normalize_duplicates_output,
 )
 
 
@@ -30,39 +32,40 @@ class DataevalCleaning(DataevalCleaningBase[od.Dataset, od.Model, od.Metric]):
 
         dataset = datasets[0]
 
-        hashes, img_dim_stats, img_viz_stats, label_stats = self._run_basic_stats(dataset=dataset)
+        stats, label_stats_result = self._run_basic_stats(dataset=dataset)
 
-        duplicates = Duplicates().from_stats(hashes)
+        duplicates = Duplicates().from_stats(stats)
+        img_outliers = self._compute_basic_outliers(stats=stats)
 
-        img_outliers = self._compute_basic_outliers(dim_stats=img_dim_stats, viz_stats=img_viz_stats)
-
+        # boxes stats
         incremented_dataset = dataset
 
-        box_dim_stats = dimensionstats(
-            dataset=incremented_dataset,
-            per_box=True,
-        )
-        box_viz_stats = visualstats(
-            dataset=incremented_dataset,
-            per_box=True,
+        target_stats_output = calculate(
+            incremented_dataset,
+            stats=(ImageStats.DIMENSION | ImageStats.VISUAL | ImageStats.PIXEL_ZEROS | ImageStats.PIXEL_MISSING),
+            per_image=False,
+            per_target=True,
         )
 
-        dimensional_ratio_stats = boxratiostats(imgstats=img_dim_stats, boxstats=box_dim_stats)
+        dimensional_ratio_stats = calculate_ratios(stats, target_stats_output=target_stats_output)
 
-        target_outliers = self._compute_box_outliers(
-            box_dim_stats=box_dim_stats, box_viz_stats=box_viz_stats, ratiostats=dimensional_ratio_stats
-        )
+        target_outliers = self._compute_box_outliers(target_stats_output, ratiostats=dimensional_ratio_stats)
+
+        img_dim_stats, img_viz_stats = self._get_img_dim_viz_stats(stats)
+        box_dim_stats, box_viz_stats = self._get_box_dim_viz_stats(target_stats_output)
+        dim_stats = self._get_dim_stats(dimensional_ratio_stats)
+        label_stats_result = self._convert_label_stats(label_stats_result)
 
         return DataevalCleaningOutputs.model_validate(
             {
-                "duplicates": duplicates.data(),
+                "duplicates": _normalize_duplicates_output(duplicates),
                 "img_outliers": img_outliers,
-                "img_dim_stats": img_dim_stats.data(),
-                "img_viz_stats": img_viz_stats.data(),
-                "label_stats": label_stats.data(),
+                "img_dim_stats": img_dim_stats,
+                "img_viz_stats": img_viz_stats,
+                "label_stats": label_stats_result,
                 "target_outliers": target_outliers,
-                "box_dim_stats": box_dim_stats.data(),
-                "box_viz_stats": box_viz_stats.data(),
-                "box_ratio_stats": dimensional_ratio_stats.data(),
+                "box_dim_stats": box_dim_stats,
+                "box_viz_stats": box_viz_stats,
+                "box_ratio_stats": dim_stats,
             }
         )

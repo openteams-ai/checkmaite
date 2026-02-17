@@ -1,13 +1,22 @@
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
+import dataeval_plots as dep
 import numpy as np
 import pandas as pd
+import polars as pl
 import pydantic
-from dataeval.data import Embeddings, Images, Metadata
-from dataeval.metrics.bias import balance, coverage, diversity
+from dataeval import Embeddings, Metadata
+from dataeval.bias import Balance, Diversity
+from dataeval.core import coverage_adaptive, coverage_naive
+from dataeval.extractors import TorchExtractor
 from pydantic import Field
+
+if TYPE_CHECKING:
+    from dataeval.bias._balance import BalanceOutput
+    from dataeval.bias._diversity import DiversityOutput
+
 
 from jatic_ri import cache_path
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
@@ -262,6 +271,8 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
             The outputs of the bias analysis.
         """
         dataset = datasets[0]
+        metadata = Metadata(dataset, exclude=config.metadata_to_exclude)
+        class_names = list(metadata.index2label.values())
 
         # We need a stable, user-tunable numeric representation of images so that distance-based checks
         # (like coverage) behave sensibly. We therefore (1) load a feature extractor with matching
@@ -269,14 +280,12 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         # shrinking is possible), and (3) rescale to [0,1] because the coverage algorithm assumes features
         # live on that range.
         fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
+        extractor = TorchExtractor(fe.model, transforms=fe.transforms, device=config.device)
         embeddings = Embeddings(
             dataset,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         n, d = embeddings.shape
 
@@ -304,23 +313,21 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         if embeddings_01.ndim == 1:
             embeddings_01 = embeddings_01[None, :]
 
-        metadata = Metadata(dataset, exclude=config.metadata_to_exclude)
-
         # metadata is not empty and hence valid to run balance, diversity, parity
         if metadata.factor_names:
-            bal_out = balance(metadata, num_neighbors=config.num_neighbors)
-            bal_dict = bal_out.data()
-            bal_dict["image_metadata"] = bal_out.plot(plot_classwise=False)
-            if len(np.unique(metadata.class_labels)) != len(metadata.class_names):
-                bal_dict["image_classwise"] = bal_out.plot(
-                    plot_classwise=True, row_labels=np.unique(metadata.class_labels)
+            bal_out = Balance(num_neighbors=config.num_neighbors).evaluate(metadata)
+            bal_dict = self._convert_balance_output(bal_out, metadata)
+            bal_dict["image_metadata"] = dep.plot(bal_out, plot_classwise=False)
+            if len(np.unique(metadata.class_labels)) != len(class_names):
+                bal_dict["image_classwise"] = dep.plot(
+                    bal_out, plot_classwise=True, row_labels=np.unique(metadata.class_labels)
                 )
             else:
-                bal_dict["image_classwise"] = bal_out.plot(plot_classwise=True)
+                bal_dict["image_classwise"] = dep.plot(bal_out, plot_classwise=True)
 
-            div_out = diversity(metadata, method=config.diversity_method)
-            div_dict = div_out.data()
-            div_dict["image"] = div_out.plot()
+            div_out = Diversity(method=config.diversity_method).evaluate(metadata)
+            div_dict = self._convert_diversity_output(div_out, metadata)
+            div_dict["image"] = dep.plot(div_out)
 
         else:
             bal_dict = None
@@ -333,23 +340,70 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
                 f"got N={len(embeddings_01)} points, requested num_observations={num_observations}. "
                 "Please provide more images."
             )
-        cov_out = coverage(
-            embeddings_01,
-            num_observations=num_observations,
-            radius_type=config.radius_type,
-            percent=config.percent,
-        )
-        cov_dict = cov_out.data()
+
+        if config.radius_type == "naive":
+            cov_dict = cast(dict, coverage_naive(embeddings_01, num_observations=num_observations))
+        else:  # config.radius_type == "adaptive"
+            cov_dict = cast(
+                dict, coverage_adaptive(embeddings_01, num_observations=num_observations, percent=config.percent)
+            )
         cov_dict["total"] = len(dataset)
 
-        images = Images(dataset)
         # if all uncovered images have the same shape, we can plot them.
         # important not to check shape across all images (expensive), only uncovered ones
-        idxs = cov_out.uncovered_indices
-        if len({np.asarray(images[i]).shape for i in idxs}) == 1:
-            cov_dict["image"] = cov_out.plot(images)
+        idxs = cov_dict["uncovered_indices"]
+        if len({np.asarray(dataset[i][0]).shape for i in idxs}) == 1:
+            cov_dict["image"] = dep.plot(dataset, indices=idxs)
 
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
+
+    # Temporary method to convert balance output containing pl.DataFrames into expected structure with numpy arrays
+    def _convert_balance_output(self, bal_out: "BalanceOutput", metadata: Metadata) -> dict:
+        bal_dict = bal_out.data()
+
+        # We should convert values for "balance", "factors" and "classwise" keys
+        # from polars.DataFrame into np.array:
+        balance_df = bal_dict["balance"]  # type(balance) == polars.DataFrame
+        bal_dict["balance"] = balance_df["mi_value"].to_numpy()
+        # bal_dict["factor_names"] == ["class_label"] + metadata.factor_names
+        bal_dict["factor_names"] = balance_df["factor_name"].to_list()
+
+        factors_df = bal_dict["factors"]
+        piv = factors_df[["factor1", "factor2", "mi_value"]].pivot(  # noqa: PD010
+            values="mi_value", index="factor1", on="factor2"
+        )
+        keys_df = pl.DataFrame({"factor1": metadata.factor_names}, schema={"factor1": piv["factor1"].dtype})
+        piv = keys_df.join(piv, on="factor1", how="left")
+        piv = piv[metadata.factor_names]
+        piv = piv.fill_null(1.0)
+        bal_dict["factors"] = piv.to_numpy()
+
+        classwise_df = bal_dict["classwise"]
+        piv = classwise_df[["class_name", "factor_name", "mi_value"]].pivot(  # noqa: PD010
+            values="mi_value", index="class_name", on="factor_name"
+        )
+        bal_dict["class_names"] = piv["class_name"].to_list()
+        bal_dict["classwise"] = piv[bal_dict["factor_names"]].to_numpy()
+        return bal_dict
+
+    # Temporary method to convert diversity output containing pl.DataFrames into expected structure with numpy arrays
+    def _convert_diversity_output(self, div_out: "DiversityOutput", metadata: Metadata) -> dict:
+        div_dict = div_out.data()
+
+        # We should convert values for "factors" and "classwise" keys
+        # from polars.DataFrame into np.array:
+        div_dict["factor_names"] = metadata.factor_names
+        factors_df = div_dict["factors"]
+        div_dict["diversity_index"] = factors_df["diversity_value"].to_numpy()
+
+        classwise_df = div_dict["classwise"]
+        piv = classwise_df[["class_name", "factor_name", "diversity_value"]].pivot(  # noqa: PD010
+            values="diversity_value", index="class_name", on="factor_name"
+        )
+        div_dict["classwise"] = piv[div_dict["factor_names"]].to_numpy()
+        div_dict["class_names"] = piv["class_name"].to_list()
+
+        return div_dict
 
 
 def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover

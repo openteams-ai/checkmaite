@@ -33,7 +33,8 @@ def test_run_and_collect(fake_od_dataset_default):
 def test_collect_reports(fake_od_dataset_default):
     capability = DataevalCleaning()
     output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])
-    assert output.collect_report_consumables(threshold=0.5)  # smoke test
+    with pytest.warns(DeprecationWarning):
+        assert output.collect_report_consumables(threshold=0.5)  # smoke test
 
 
 @ignore_degenerate_data_warnings

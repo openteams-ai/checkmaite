@@ -35,12 +35,12 @@ def sample_duplicates_output():
 @pytest.fixture
 def sample_dimension_stats():
     """Create sample dimension stats for testing."""
-    from dataeval.outputs import SourceIndex
+    from dataeval.types import SourceIndex
 
     n = 100
     rng = np.random.default_rng(42)
     return DataevalCleaningDimensionStatsOutputs(
-        source_index=[SourceIndex(image=i, box=None, channel=None) for i in range(n)],
+        source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
         offset_x=rng.random(n),
@@ -54,18 +54,19 @@ def sample_dimension_stats():
         center=rng.random(n),
         distance_center=rng.random(n),
         distance_edge=rng.random(n),
+        invalid_box=rng.random(n),
     )
 
 
 @pytest.fixture
 def sample_visual_stats():
     """Create sample visual stats for testing."""
-    from dataeval.outputs import SourceIndex
+    from dataeval.types import SourceIndex
 
     n = 100
     rng = np.random.default_rng(42)
     return DataevalCleaningVisualStatsOutputs(
-        source_index=[SourceIndex(image=i, box=None, channel=None) for i in range(n)],
+        source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
         brightness=rng.random(n) * 255,
@@ -73,6 +74,8 @@ def sample_visual_stats():
         darkness=rng.random(n) * 255,
         sharpness=rng.random(n) * 100,
         percentiles=rng.random((n, 3)) * 255,
+        missing=rng.random(n),
+        zeros=rng.random(n),
     )
 
 

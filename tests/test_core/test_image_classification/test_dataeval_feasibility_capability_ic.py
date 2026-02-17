@@ -32,7 +32,8 @@ def test_run_and_collect(run_dataeval_feasibility_ic):
 
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables(run_dataeval_feasibility_ic):
-    assert run_dataeval_feasibility_ic.collect_report_consumables(threshold=0.5)  # smoke test
+    with pytest.warns(DeprecationWarning):
+        assert run_dataeval_feasibility_ic.collect_report_consumables(threshold=0.5)  # smoke test
 
 
 def _make_run(ber: float, ber_lower: float) -> DataevalFeasibilityRun:

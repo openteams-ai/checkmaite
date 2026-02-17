@@ -6,10 +6,9 @@ import numpy as np
 import pandas as pd
 import pydantic
 import torch
-from dataeval.data import Embeddings
-from dataeval.detectors.drift import DriftCVM, DriftKS, DriftMMD
-from dataeval.detectors.ood import OOD_KNN
-from dataeval.outputs import DriftMMDOutput
+from dataeval import Embeddings
+from dataeval.extractors import TorchExtractor
+from dataeval.shift import DriftMMD, DriftMMDOutput, DriftUnivariate, OODKNeighbors
 from pydantic import Field
 
 from jatic_ri.core._common.feature_extractor import load_feature_extractor, pca_projector
@@ -252,24 +251,18 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
                 f"at least 2 datapoints, {min(len(dataset_1), len(dataset_2))} "
                 "datapoints were provided. Please provide more images as datapoints."
             )
-
+        extractor = TorchExtractor(fe.model, transforms=fe.transforms, device=config.device)
         emb_1 = Embeddings(
             dataset_1,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         emb_2 = Embeddings(
             dataset_2,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         n1, d1 = emb_1.shape
 
@@ -295,8 +288,8 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
 
         detectors = {
             "mmd": partial(DriftMMD, device=config.device),
-            "cvm": DriftCVM,
-            "ks": DriftKS,
+            "cvm": partial(DriftUnivariate, method="cvm"),
+            "ks": partial(DriftUnivariate, method="ks"),
         }
 
         return DataevalShiftDriftOutputs.model_validate(
@@ -319,24 +312,18 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
         # Embed both datasets with the same feature extractor so OOD scoring compares like-with-like.
         # consistent space. Optionally compress embeddings with PCA fitted on reference set (dataset_1).
         fe = load_feature_extractor(device=config.device, model_spec=config.feature_extractor_spec)
-
+        extractor = TorchExtractor(fe.model, transforms=fe.transforms, device=config.device)
         emb_1 = Embeddings(
             dataset_1,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         emb_2 = Embeddings(
             dataset_2,
-            config.batch_size,
-            model=fe.model,
-            transforms=[fe.transforms],
-            device=config.device,
-            cache=True,
-        ).to_numpy()
+            extractor=extractor,
+            batch_size=config.batch_size,
+        )[:]
 
         n1, d = emb_1.shape
 
@@ -360,10 +347,10 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
                 f"extractor already outputs {d}-D embeddings. Returning {d}-D embeddings without PCA.",
             )
 
-        detectors = {"ood_knn": OOD_KNN(k=min(10, n1 - 1), distance_metric="cosine")}
+        detectors = {"ood_knn": OODKNeighbors(k=min(10, n1 - 1), distance_metric="cosine")}
 
         for detector in detectors.values():
-            detector.fit_embeddings(emb_1, threshold_perc=99)
+            detector.fit(emb_1, threshold_perc=99)
 
         return DataevalShiftOODOutputs.model_validate(
             {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
