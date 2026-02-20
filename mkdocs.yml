@@ -53,6 +53,8 @@ nav:  # navigation links on sidebar
   - Reference:
     - reference/index.md
     - Conventions: reference/conventions.md
+    - Personas: reference/personas.md
+    - Workflows: reference/workflows.md
   - RI development:
     - development/index.md
     - Development setup: development/dev_setup.md
@@ -66,7 +68,8 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
-
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 plugins:
   - mkdocs-jupyter:
