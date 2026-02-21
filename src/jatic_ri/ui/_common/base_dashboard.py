@@ -936,9 +936,9 @@ class BaseTestbed(BaseApp):
         self.status_source.emit("Processing. Please wait...")
 
         slides = []
-        for stage in self.test_stages.values():
-            capabilty = stage[0]
-            self.status_source.emit(f"Loading inputs for {stage.__class__.__name__}")
+        for key, value in self.test_stages.items():
+            capabilty = value["stage"]
+            self.status_source.emit(f"Loading inputs for {capabilty.__class__.__name__}")
 
             all_datasets = list(self.loaded_datasets.values())
             all_models = list(self.loaded_models.values())
@@ -995,10 +995,11 @@ class BaseTestbed(BaseApp):
             if capabilty.supports_metrics != Number.ZERO:
                 run_kwargs["metrics"] = metrics
 
-            run_kwargs["config"] = stage[1]
+            run_kwargs["config"] = value["config"]
 
             # run the stage, saving output to the class
             run = capabilty.run(**run_kwargs)
+            self.test_stages[key]["run"] = run
             # collect the slides
             stage_slides = run.collect_report_consumables(threshold=float(self.threshold))
             slides += stage_slides
