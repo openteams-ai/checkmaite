@@ -3,7 +3,6 @@ from typing import Any
 
 import panel as pn
 
-from jatic_ri.core.capability_core import Capability, CapabilityConfigBase
 
 # ruff: noqa: I001
 from jatic_ri.core.image_classification import (
@@ -47,7 +46,7 @@ from jatic_ri.core.object_detection import (
 
 def get_capability_from_app_config_od(
     config: dict[str, Any],
-) -> tuple[Capability, CapabilityConfigBase]:
+) -> dict[str, Any]:
     """Initialize test stage object based on config dictionary"""
 
     # Some capabilities take no configuration parameters, so CONFIG key will not exist.
@@ -57,53 +56,89 @@ def get_capability_from_app_config_od(
     #     reallabel_config = RealLabelConfig(**capability_config)
     #     return RealLabelTestStageOD(config=reallabel_config)
     if config["TYPE"] == "NRTKTestStage":
-        return (NrtkRobustnessOD(), NrtkRobustnessConfigOD(**capability_config))
+        return {
+            "stage": NrtkRobustnessOD(),
+            "config": NrtkRobustnessConfigOD(**capability_config),
+        }
     if config["TYPE"] == "XAITKTestStage":
-        return (XaitkExplainableOD(), XaitkExplainableConfigOD(**capability_config))
+        return {
+            "stage": XaitkExplainableOD(),
+            "config": XaitkExplainableConfigOD(**capability_config),
+        }
     # if config["TYPE"] == "SurvivorTestStage":
     #     return SurvivorTestStageOD(**capability_config)
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":
-        return (MaiteEvaluationOD(), MaiteEvaluationConfigOD(**capability_config))
+        return {
+            "stage": MaiteEvaluationOD(),
+            "config": MaiteEvaluationConfigOD(**capability_config),
+        }
     if config["TYPE"] == "DatasetFeasibilityTestStage":
-        return (DataevalFeasibilityOD(), DataevalFeasibilityConfigOD(**capability_config))
+        return {
+            "stage": DataevalFeasibilityOD(),
+            "config": DataevalFeasibilityConfigOD(**capability_config),
+        }
     if config["TYPE"] == "DatasetBiasTestStage":
-        return (DataevalBiasOD(), DataevalBiasConfigOD(**capability_config))
+        return {
+            "stage": DataevalBiasOD(),
+            "config": DataevalBiasConfigOD(**capability_config),
+        }
     if config["TYPE"] == "DatasetCleaningTestStage":
-        return (DataevalCleaningOD(), DataevalCleaningConfigOD(**capability_config))
+        return {"stage": DataevalCleaningOD(), "config": DataevalCleaningConfigOD(**capability_config)}
     if config["TYPE"] == "DatasetShiftTestStage":
-        return (DataevalShiftOD(), DataevalShiftConfigOD(**capability_config))
+        return {
+            "stage": DataevalShiftOD(),
+            "config": DataevalShiftConfigOD(**capability_config),
+        }
 
     raise RuntimeError(f'Unable to instantiate TestStage object from config: {config["TYPE"]}')
 
 
 def get_capability_from_app_config_ic(
     config: dict[str, Any],
-) -> tuple[Capability, CapabilityConfigBase]:
+) -> dict[str, Any]:
     """Initialize test stage object based on config dictionary"""
 
     # Some capabilities take no configuration parameters, so CONFIG key will not exist.
     capability_config = config.get("CONFIG", {})
 
     if config["TYPE"] == "NRTKTestStage":
-        return (NrtkRobustnessIC(), NrtkRobustnessConfigIC(**capability_config))
+        return {
+            "stage": NrtkRobustnessIC(),
+            "config": NrtkRobustnessConfigIC(**capability_config),
+        }
     if config["TYPE"] == "XAITKTestStage":
-        return (XaitkExplainableIC(), XaitkExplainableConfigIC(**capability_config))
+        return {
+            "stage": XaitkExplainableIC(),
+            "config": XaitkExplainableConfigIC(**capability_config),
+        }
     # if config["TYPE"] == "SurvivorTestStage":
     #     return SurvivorTestStageIC(**capability_config)
     if config["TYPE"] == "HeartTestStage":
         raise RuntimeError("Heart test stage is not currently supported.")
     if config["TYPE"] == "BaselineEvaluationTestStage":
-        return (MaiteEvaluationIC(), MaiteEvaluationConfigIC(**capability_config))
+        return {
+            "stage": MaiteEvaluationIC(),
+            "config": MaiteEvaluationConfigIC(**capability_config),
+        }
     if config["TYPE"] == "DatasetFeasibilityTestStage":
-        return (DataevalFeasibilityIC(), DataevalFeasibilityConfigIC(**capability_config))
+        return {
+            "stage": DataevalFeasibilityIC(),
+            "config": DataevalFeasibilityConfigIC(**capability_config),
+        }
     if config["TYPE"] == "DatasetBiasTestStage":
-        return (DataevalBiasIC(), DataevalBiasConfigIC(**capability_config))
+        return {
+            "stage": DataevalBiasIC(),
+            "config": DataevalBiasConfigIC(**capability_config),
+        }
     if config["TYPE"] == "DatasetCleaningTestStage":
-        return (DataevalCleaningIC(), DataevalCleaningConfigIC(**capability_config))
+        return {"stage": DataevalCleaningIC(), "config": DataevalCleaningConfigIC(**capability_config)}
     if config["TYPE"] == "DatasetShiftTestStage":
-        return (DataevalShiftIC(), DataevalShiftConfigIC(**capability_config))
+        return {
+            "stage": DataevalShiftIC(),
+            "config": DataevalShiftConfigIC(**capability_config),
+        }
     raise RuntimeError(f'Unable to instantiate TestStage object from config: {config["TYPE"]}')
 
 
