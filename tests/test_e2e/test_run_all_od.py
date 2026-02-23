@@ -92,7 +92,9 @@ def test_get_capability_from_app_config_and_run_od(
     """
     config = request.getfixturevalue(config_fixture_name)
 
-    capability, config_obj = get_capability_from_app_config_od(config=config)
+    loaded_capability = get_capability_from_app_config_od(config=config)
+    capability = loaded_capability["stage"]
+    config_obj = loaded_capability["config"]
 
     metric_od = map50_torch_metric_factory()
 

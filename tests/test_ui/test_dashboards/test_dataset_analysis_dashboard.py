@@ -102,11 +102,12 @@ def test_dataset_analysis_dashboard_od_real_data(json_config_da_od, artifact_dir
     assert title_ymd_h in report_title
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.filterwarnings(r"ignore:Unsupported placeholder:Warning")
 def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_config_od, artifact_dir):
     """Test running of the DA dashboard for object detection.
     The actual run (_run_all_tests) is mocked for speed.
+    UI requires gradient.
     """
 
     def _clear_app(app):
@@ -227,14 +228,14 @@ def test_dataset_analysis_dashboard_od_model_widget_mechanics(baseline_eval_conf
     assert app.loaded_models
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")
 @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
 @pytest.mark.filterwarnings(
     "ignore:Precision loss occurred in moment calculation due to catastrophic cancellation:RuntimeWarning"
 )
 def test_dataset_analysis_dashboard_ic_real_data(json_config_da_ic, artifact_dir, yolo_dataset, tmp_path):
-    """Test running of the DA dashboard for image_classification."""
+    """Test running of the DA dashboard for image_classification. UI requires gradient."""
     app = DatasetAnalysisDashboard(
         task="image_classification",
         output_dir=artifact_dir,
