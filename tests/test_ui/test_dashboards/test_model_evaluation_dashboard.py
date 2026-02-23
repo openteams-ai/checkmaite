@@ -36,11 +36,11 @@ def yolo_dataset(artifact_dir):
     return root_dir
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")
 @pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend:UserWarning")
 def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir, tmp_path):
-    """Test running of the ME dashboard for object detection."""
+    """Test running of the ME dashboard for object detection. UI requires gradient"""
     app = ModelEvaluationTestbed(
         task="object_detection",
         output_dir=artifact_dir,
@@ -97,11 +97,12 @@ def test_model_evaluation_dashboard_od_real_data(json_config_me_od, artifact_dir
     assert title_ymd_h in report_title
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend:UserWarning")
 def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir, yolo_dataset, tmp_path):
     """Test running of the DA dashboard for image_classification.
     The actual run (_run_all_tests) is mocked for speed.
+    UI requires gradient.
     """
     app = ModelEvaluationTestbed(
         task="image_classification",

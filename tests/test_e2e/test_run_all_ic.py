@@ -134,7 +134,9 @@ def test_get_capability_from_app_config_and_run_ic(config_fixture_name, request,
     """
     config = request.getfixturevalue(config_fixture_name)
 
-    capability, config_obj = get_capability_from_app_config_ic(config=config)
+    loaded_capability = get_capability_from_app_config_ic(config=config)
+    capability = loaded_capability["stage"]
+    config_obj = loaded_capability["config"]
 
     metric_ic = accuracy_multiclass_torch_metric_factory(num_classes=12)
 
