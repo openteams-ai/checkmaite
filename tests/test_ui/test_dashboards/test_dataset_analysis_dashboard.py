@@ -37,7 +37,7 @@ def yolo_dataset(artifact_dir):
     return root_dir
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.filterwarnings(r"ignore:.*?more than \d+ detections in a single image:UserWarning")
 @pytest.mark.filterwarnings("ignore:All samples look discrete with so few data points:UserWarning")
 @pytest.mark.filterwarnings(r"ignore:.*?did not meet the recommended \d+ occurrences:UserWarning")

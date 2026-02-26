@@ -98,7 +98,7 @@ def dataset_ic(fake_dataset):
     return YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.parametrize(
     "config_fixture_name",
     [
