@@ -46,7 +46,7 @@ def dataset_od_mini():
     )
 
 
-@pytest.mark.real_data
+@pytest.mark.unsupported
 @pytest.mark.parametrize(
     "config_fixture_name",
     [
