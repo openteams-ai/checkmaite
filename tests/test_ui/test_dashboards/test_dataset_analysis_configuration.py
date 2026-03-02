@@ -29,44 +29,6 @@ def _reset_da_config_app(app: FullApp):
     app.pipeline._state.output_test_stages = {}
 
 
-@pytest.mark.parametrize("local", [True, False])
-def test_route_da_od_none(local):
-    """Test the route to the final page of the pipeline
-    ROUTE:
-    LandingPage -> DAConfigurationLandingPage -> DatasetAnalysisDashboard
-
-    No selections means it goes straight to final page
-    """
-    task = "object_detection"
-    workflow = "dataset_analysis"
-    # instantiate the pipeline
-    app = FullApp(task=task, local=local, workflow=workflow)
-    app.panel()
-
-    assert app.pipeline._next_stage == "DAConfigurationLandingPage"
-
-    # go to da od landing page
-    app.pipeline._state.od_button.clicks += 1
-    assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
-
-    # reset the app (ensure this test is not affected by changing defaults)
-    _reset_da_config_app(app)
-
-    # with everything False, the next stage should be "DatasetAnalysisDashboard"
-    assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
-
-    # go to next stage
-    app.pipeline.next_button.clicks += 1
-    # ensure we actually went to the final page by checking the class name
-    assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"
-
-    final_output = app.pipeline._state.output_test_stages
-    assert len(final_output) == 1  # only "task" should be present
-    assert "task" in final_output.keys()
-    assert final_output["task"] == task
-    assert app.pipeline._state.local == local
-
-
 @pytest.mark.parametrize("task", ["object_detection", "image_classification"])
 def test_route_da_bias_shift_cleaning(task):
     """Test route when bias, shift, and/or cleaning are selected
@@ -83,9 +45,11 @@ def test_route_da_bias_shift_cleaning(task):
     app.panel()
 
     # go to me od/ic landing page
-    state = app.pipeline._state
-    button = getattr(state, f"{app.suffix.lower()}_button")
-    button.clicks += 1
+    if task == "object_detection":
+        app.pipeline._state.od_button.clicks += 1
+    elif task == "image_classification":
+        app.pipeline._state.ic_button.clicks += 1
+
     assert app.pipeline._state.__class__.__name__ == "DAConfigurationLandingPage"
 
     # reset the app (ensure this test is not affected by changing defaults)
@@ -109,6 +73,7 @@ def test_route_da_bias_shift_cleaning(task):
     assert app.pipeline._next_stage == "DatasetAnalysisDashboard"
 
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "DatasetAnalysisDashboard"

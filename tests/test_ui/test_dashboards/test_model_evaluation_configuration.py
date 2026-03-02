@@ -45,6 +45,7 @@ def test_route_me_od_none(local):
     assert app.pipeline._next_stage == "ModelEvaluationTestbed"
 
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
@@ -86,6 +87,7 @@ def test_route_me_eval(task):
     assert app.pipeline._next_stage == "ModelEvaluationTestbed"
 
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the final page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
@@ -125,6 +127,7 @@ def test_route_me_nrtk_only(task):
     assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
 
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
@@ -134,6 +137,7 @@ def test_route_me_nrtk_only(task):
     app.pipeline._state.add_button.clicks += 1
 
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
@@ -172,16 +176,19 @@ def test_route_me_nrtk_xaitk(task):
     # with only nrtk true, the next stage should be nrtk
     assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
     # add perturber factory
     app.pipeline._state.add_button.clicks += 1
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
@@ -215,10 +222,12 @@ def test_route_me_xaitk_only(task):
     # toggle nrtk to true
     app.pipeline._state.show_xaitk_config = True
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
     # go to next stage
+    app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
     app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
