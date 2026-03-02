@@ -70,7 +70,7 @@ nbconvert = { version = ">=7.16.6", optional = true }              # arbitrary, 
 numba = ">=0.60.0"                                                 # arbitrary, needed to run visdrone model
 opencv-python-headless = ">=4.9.0.80"                              # necessary lower pin, required by nrtk usage here
 pandas = ">=2"                                                     # arbitrary, required for data handling
-panel = { version = ">=1.5.1,<=1.7.1", optional = true }           # necessary for FileDropper widget, and for progression of dashboards
+panel = { version = ">=1.8.7", optional = true }                   # necessary for FileDropper widget, and for progression of dashboards
 pillow = ">=11.0.0"                                                # arbitrary
 polars = ">=1.37.0"                                                # arbitrary, required for analytics store
 pydantic = ">=2.0.0"                                               # arbitrary
@@ -122,8 +122,9 @@ ui = [
     "holoviews>=1.20.0",
     "jupyterlab>=4.3.5",
     "nbconvert>=7.16.6",
-    "panel>=1.5.1,<=1.7.1",
-    "streamz>=0.6.4"
+    "panel>=1.8.7",
+    "streamz>=0.6.4",
+    "bokeh>=3.8.2"                                 # security patch
 ]
 aws = ["s3fs>=2023.1.0"]
 gcs = ["gcsfs>=2023.1.0"]
