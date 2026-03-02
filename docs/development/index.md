@@ -20,4 +20,8 @@ Documentation for RI developers and contributors.
 
     Guidelines on contributing to the Reference Implementation project.
 
+-  [__Key Concepts: Capabilities, Runs, and caches__ :octicons-arrow-right-24:](key_concepts.md)
+
+    An overview of the core abstractions that underpin how evaluations are defined and executed..
+
 </div>

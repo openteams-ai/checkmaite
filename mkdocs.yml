@@ -59,6 +59,7 @@ nav:  # navigation links on sidebar
     - development/index.md
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md
+    - Key concepts: development/key_concepts.md
     - User persona: development/persona.md
     - Contributing: development/contributing.md
 markdown_extensions:
