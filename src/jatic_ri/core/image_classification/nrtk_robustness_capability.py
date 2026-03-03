@@ -2,7 +2,7 @@ import hashlib
 import json
 
 import maite.protocols.image_classification as ic
-from nrtk.interop.maite.interop.image_classification.augmentation import JATICClassificationAugmentation
+from nrtk.interop import MAITEImageClassificationAugmentation
 
 from jatic_ri.core._common.nrtk_robustness_capability import (
     NrtkRobustnessBase,
@@ -49,7 +49,7 @@ class NrtkRobustness(NrtkRobustnessBase[ic.Dataset, ic.Model, ic.Metric]):
             props_str = json.dumps(perturber_props, sort_keys=True, default=str)
             augment_id = hashlib.sha256(props_str.encode()).hexdigest()
 
-            augmentation = JATICClassificationAugmentation(augment=perturber, augment_id=augment_id)
+            augmentation = MAITEImageClassificationAugmentation(augment=perturber, augment_id=augment_id)
             perturbed_metrics, _, _ = evaluate(
                 model=model,
                 dataset=dataset,

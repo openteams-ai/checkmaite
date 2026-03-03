@@ -278,7 +278,12 @@ class FakeODMetric(od.Metric):
         self.return_key: str = return_key
         self.metadata: MetricMetadata = metric_metadata
 
-    def update(self, preds: Sequence[od.ObjectDetectionTarget], targets: Sequence[od.ObjectDetectionTarget]) -> None:
+    def update(
+        self,
+        preds: Sequence[od.ObjectDetectionTarget],
+        targets: Sequence[od.ObjectDetectionTarget],
+        metadatas: Sequence[od.DatumMetadataType] = [],
+    ) -> None:
         pass
 
     def compute(self) -> dict[str, Any]:
@@ -679,7 +684,12 @@ class FakeICMetric(ic.Metric):
         self.metadata: MetricMetadata = metric_metadata
         self.return_key: str = return_key
 
-    def update(self, preds: Sequence[ic.TargetType], targets: Sequence[ic.TargetType]) -> None:
+    def update(
+        self,
+        preds: Sequence[ic.TargetType],
+        targets: Sequence[ic.TargetType],
+        metadatas: Sequence[ic.DatumMetadataType] = [],
+    ) -> None:
         pass
 
     def compute(self) -> dict[str, Any]:

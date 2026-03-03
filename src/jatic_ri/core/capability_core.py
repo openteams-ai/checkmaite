@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 TModel = TypeVar("TModel", bound=gen.Model[Any, Any])
 TDataset = TypeVar("TDataset", bound=gen.Dataset[Any, Any, Any])
-TMetric = TypeVar("TMetric", bound=gen.Metric[Any])
+TMetric = TypeVar("TMetric", bound=gen.Metric[Any, Any])
 
 TConfig = TypeVar("TConfig", bound="CapabilityConfigBase")
 TOutputs = TypeVar("TOutputs", bound=BaseModel)

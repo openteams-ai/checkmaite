@@ -1,7 +1,7 @@
 import abc
 import functools
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, TypeVar, cast
 
@@ -9,8 +9,8 @@ import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
 import maite.tasks
 import pydantic
-from maite._internals.protocols import generic as gen
 from maite.protocols import ArrayLike
+from maite.protocols import generic as gen
 from maite.protocols.image_classification import DatumMetadataType as ImageClassificationDatumMetadataType
 from maite.protocols.image_classification import InputType as ImageClassificationInputType
 from maite.protocols.image_classification import TargetType as ImageClassificationTargetType
@@ -221,7 +221,7 @@ _evaluate_from_predictions_cache = _make_task_cache("evaluate-from-predictions",
 
 def evaluate_from_predictions(
     *,
-    metric: gen.Metric[T_Target],
+    metric: gen.Metric[T_Target, T_Metadata],
     predictions: Sequence[Sequence[T_Target]],
     targets: Sequence[Sequence[T_Target]],
     model: gen.Model | None = None,
@@ -231,7 +231,7 @@ def evaluate_from_predictions(
     augmentation: gen.Augmentation | None = None,
     augmentation_id: str | None = None,
     use_cache: bool = True,
-) -> dict[str, Any]:
+) -> Mapping[str, Any]:
     "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
     config = _EvaluateFromPredictionsConfig(
         model_id=_get_id(model, id=model_id),
@@ -246,9 +246,7 @@ def evaluate_from_predictions(
             return call.metric_results
 
     metric_results = maite.tasks.evaluate_from_predictions(
-        metric=metric,
-        predictions=predictions,
-        targets=targets,
+        metric=metric, pred_batches=predictions, target_batches=targets, metadata_batches=[[] for _ in targets]
     )
 
     if config.cache_key is not None and use_cache:
@@ -265,7 +263,7 @@ def evaluate_from_predictions(
 def evaluate(
     *,
     model: gen.Model[T_Input, T_Target],
-    metric: gen.Metric[T_Target],
+    metric: gen.Metric[T_Target, T_Metadata],
     dataloader: gen.DataLoader[T_Input, T_Target, T_Metadata] | None = None,
     dataset: gen.Dataset[T_Input, T_Target, T_Metadata] | None = None,
     batch_size: int = 1,
@@ -283,7 +281,7 @@ def evaluate(
     dataset_id: str | None = None,
     use_cache: bool = True,
 ) -> tuple[
-    dict[str, Any],
+    Mapping[str, Any],
     Sequence[Sequence[T_Target]],
     Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
 ]:

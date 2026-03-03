@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 import pytest
-from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
-from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
+from nrtk.impls.perturb_image.photometric.enhance import BrightnessPerturber
+from nrtk.impls.perturb_image_factory import PerturberOneStepFactory
 
 
 @pytest.fixture(scope="session")
@@ -107,7 +107,7 @@ def nrtk_config_od():
     nrtk_app = NRTKAppOD()
     nrtk_app.panel()
     nrtk_app.perturber_select.value = BrightnessPerturber
-    nrtk_app.factory_selector.value = OneStepPerturbImageFactory
+    nrtk_app.factory_selector.value = PerturberOneStepFactory
     nrtk_app.theta_key.value = "factor"
     nrtk_app.theta_value.value = 10.0
     nrtk_app.name_input.value = "TestFactory"
@@ -124,7 +124,7 @@ def nrtk_config_ic():
     nrtk_app = NRTKAppIC()
     nrtk_app.panel()
     nrtk_app.perturber_select.value = BrightnessPerturber
-    nrtk_app.factory_selector.value = OneStepPerturbImageFactory
+    nrtk_app.factory_selector.value = PerturberOneStepFactory
     nrtk_app.theta_key.value = "factor"
     nrtk_app.theta_value.value = 10.0
     nrtk_app.name_input.value = "TestFactory"

@@ -86,6 +86,7 @@ class TorchODMetric:
         self,
         preds: Sequence[od.ObjectDetectionTarget],
         targets: Sequence[od.ObjectDetectionTarget],
+        metadatas: Sequence[od.DatumMetadataType] = [],  # noqa: ARG002
     ) -> None:
         """Add predictions and targets to metric's cache for later calculation.
 

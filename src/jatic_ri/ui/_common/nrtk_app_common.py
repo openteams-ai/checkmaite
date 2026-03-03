@@ -81,8 +81,10 @@ class NRTKBaseApp(BaseApp):
         Input for the start value (for Step/LinSpace factories).
     stop : pn.widgets.FloatInput
         Input for the stop value (for Step/LinSpace factories).
-    step : pn.widgets.FloatInput or pn.widgets.IntInput
-        Input for the step value (for Step/LinSpace factories).
+    step : pn.widgets.FloatInput
+        Input for the step value (for Step factories).
+    num : pn.widgets.IntInput
+        Input for the num value (for LinSpace factory).
     to_int : pn.widgets.Checkbox
         Checkbox to indicate if the output should be integer (for Step factory).
     theta_value : pn.widgets.FloatInput
@@ -139,10 +141,6 @@ class NRTKBaseApp(BaseApp):
         Input for RMS jitter amplitude X (PyBSM).
     s_y_provider : pn.widgets.FloatInput
         Input for RMS jitter amplitude Y (PyBSM).
-    da_x_provider : pn.widgets.FloatInput
-        Input for angular drift rate X (PyBSM).
-    da_y_provider : pn.widgets.FloatInput
-        Input for angular drift rate Y (PyBSM).
     qe_provider : pn.widgets.LiteralInput
         Input for quantum efficiency (PyBSM).
     qewavelengths_provider : pn.widgets.LiteralInput
@@ -250,21 +248,9 @@ class NRTKBaseApp(BaseApp):
 
         pert_impl = self.perturber_select.value
 
-        factory_options = {}
+        factory_options = {factory_impl.__name__: factory_impl for factory_impl in PerturbImageFactory.get_impls()}
         self.name_input = pn.widgets.TextInput(name="Stage Name", placeholder="Enter a name here...")
         self.name_input.stylesheets = [self.styles.widget_stylesheet]
-
-        if pert_impl.__name__ != "PybsmPerturber":
-            for factory_impl in PerturbImageFactory.get_impls():
-                # Skip Pybsm factory and private factory
-                if "Pybsm" in factory_impl.__name__:
-                    continue
-                factory_options[factory_impl.__name__] = factory_impl
-        else:
-            for factory_impl in PerturbImageFactory.get_impls():
-                # Skip Pybsm factory and private factory
-                if factory_impl.__name__ == "CustomPybsmPerturbImageFactory":
-                    factory_options[factory_impl.__name__] = factory_impl
 
         self.factory_selector = pn.widgets.Select(name="Factory Type", options=factory_options)
         self.factory_selector.stylesheets = [self.styles.widget_stylesheet]
@@ -302,7 +288,7 @@ class NRTKBaseApp(BaseApp):
         # (https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/178)
         theta_keys_options.remove("rng") if "rng" in theta_keys_options else None
 
-        if factory_impl.__name__ == "StepPerturbImageFactory":
+        if factory_impl.__name__ == "PerturberStepFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
@@ -315,24 +301,31 @@ class NRTKBaseApp(BaseApp):
             self.to_int.stylesheets = [self.styles.widget_stylesheet]
 
             return pn.Column(self.theta_key, self.start, self.stop, self.step, self.to_int)
-        if factory_impl.__name__ == "LinSpacePerturbImageFactory":
+        if factory_impl.__name__ == "PerturberLinspaceFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.start = pn.widgets.FloatInput(name="Start", value=0.0)
             self.start.stylesheets = [self.styles.widget_stylesheet]
             self.stop = pn.widgets.FloatInput(name="Stop", value=1.0)
             self.stop.stylesheets = [self.styles.widget_stylesheet]
-            self.step = pn.widgets.IntInput(name="Step", value=1)
-            self.step.stylesheets = [self.styles.widget_stylesheet]
+            self.num = pn.widgets.IntInput(name="num", value=1)
+            self.num.stylesheets = [self.styles.widget_stylesheet]
 
-            return pn.Column(self.theta_key, self.start, self.stop, self.step)
-        if factory_impl.__name__ == "OneStepPerturbImageFactory":
+            return pn.Column(self.theta_key, self.start, self.stop, self.num)
+        if factory_impl.__name__ == "PerturberOneStepFactory":
             self.theta_key = pn.widgets.Select(name="Theta Key", options=theta_keys_options)
             self.theta_key.stylesheets = [self.styles.widget_stylesheet]
             self.theta_value = pn.widgets.FloatInput(name="Theta Value", value=0.0)
             self.theta_value.stylesheets = [self.styles.widget_stylesheet]
 
             return pn.Column(self.theta_key, self.theta_value)
+        if factory_impl.__name__ == "PerturberMultivariateFactory":
+            self.theta_keys_input = pn.widgets.LiteralInput(name="Theta Keys", type=list, value=[])
+            self.theta_keys_input.stylesheets = [self.styles.widget_stylesheet]
+            self.thetas_input = pn.widgets.LiteralInput(name="Thetas", type=list, value=[])
+            self.thetas_input.stylesheets = [self.styles.widget_stylesheet]
+
+            return pn.Column(self.theta_keys_input, self.thetas_input)
         bad_factory_text = pn.widget.StaticText(value=f"{factory_impl.__name__} is not supported")
         bad_factory_text.stylesheets = [self.styles.widget_stylesheet]
         return pn.Column(bad_factory_text)
@@ -453,14 +446,6 @@ class NRTKBaseApp(BaseApp):
         self.s_y_provider = pn.widgets.FloatInput(name="RMS Jitter Amplitude, Y Direction (rad)")
         self.s_y_provider.value = 0
 
-        self.da_x_provider = pn.widgets.FloatInput(name="Line of Sight Angular Drift Rate, X Direction (rad/s)")
-        self.da_x_provider.description = "Drift rate during one integration time"
-        self.da_x_provider.value = 0.0
-
-        self.da_y_provider = pn.widgets.FloatInput(name="Line of Sight Angular Drift Rate, Y Direction (rad/s)")
-        self.da_y_provider.description = "Drift rate during one integration time"
-        self.da_y_provider.value = 0.0
-
         self.qe_provider = pn.widgets.LiteralInput(
             name="Quantum Efficiency as a function of Wavelength (e-/photon)", type=list
         )
@@ -521,8 +506,6 @@ class NRTKBaseApp(BaseApp):
             self.max_well_fill_provider,
             self.s_x_provider,
             self.s_y_provider,
-            self.da_x_provider,
-            self.da_y_provider,
             self.qe_provider,
             self.qewavelengths_provider,
             title="Sensor Parameters",
@@ -623,7 +606,7 @@ class NRTKBaseApp(BaseApp):
         factory = from_config_dict(factory_config, PerturbImageFactory.get_impls())
         perturber = factory[len(factory) - 1]
         img = np.asarray(Image.open(EXAMPLE_IMG))
-        perturbed_img = perturber(image=img, additional_params={"img_gsd": 3.19 / 160})
+        perturbed_img = perturber(image=img, img_gsd=3.19 / 160)
         perturbed_img = self.__extract_aug_img(perturbed_img)
         fig, ax = plt.subplots(figsize=(3, 3))
         ax.axis("off")
@@ -645,7 +628,7 @@ class NRTKBaseApp(BaseApp):
             - sensor_config: Configuration for the PyBSM sensor.
         """
         scenario_config = {
-            "name": self.scenario_name_provider.value,
+            "scenario_name": self.scenario_name_provider.value,
             "ihaze": self.ihaze_provider.value,
             "altitude": self.altitude_provider.value,
             "ground_range": self.ground_range_provider.value,
@@ -667,7 +650,7 @@ class NRTKBaseApp(BaseApp):
         qewavelengths = qewavelengths if qewavelengths else None
 
         sensor_config = {
-            "name": self.sensor_name_provider.value,
+            "sensor_name": self.sensor_name_provider.value,
             "D": self.d_provider.value,
             "f": self.f_provider.value,
             "p_x": self.px_provider.value,
@@ -682,8 +665,6 @@ class NRTKBaseApp(BaseApp):
             "max_well_fill": self.max_well_fill_provider.value,
             "s_x": self.s_x_provider.value,
             "s_y": self.s_y_provider.value,
-            "da_x": self.da_x_provider.value,
-            "da_y": self.da_y_provider.value,
             "qe": qe,
             "qe_wavelengths": qewavelengths,
         }
@@ -700,24 +681,14 @@ class NRTKBaseApp(BaseApp):
             perturber factory. Returns an empty dictionary if there's an error
             or if the factory is not supported.
         """
-        from nrtk.impls.perturb_image.pybsm.scenario import PybsmScenario
-        from nrtk.impls.perturb_image.pybsm.sensor import PybsmSensor
 
         pert_impl = self.perturber_select.value
         factory_impl = self.factory_selector.value
-        if factory_impl.__name__ == "CustomPybsmPerturbImageFactory":
+        if factory_impl.__name__ == "PerturberMultivariateFactory":
             scenario_config, sensor_config = self._parse_pybsm_factory_config()
             output_config = {}
 
-            output_config["sensor"] = {
-                "type": f"{PybsmSensor.__module__}.{PybsmSensor.__name__}",
-                f"{PybsmSensor.__module__}.{PybsmSensor.__name__}": sensor_config,
-            }
-            output_config["scenario"] = {
-                "type": f"{PybsmScenario.__module__}.{PybsmScenario.__name__}",
-                f"{PybsmScenario.__module__}.{PybsmScenario.__name__}": scenario_config,
-            }
-
+            perturber_kwargs = scenario_config | sensor_config
             thetas = self.thetas_input.value
             theta_keys = self.theta_keys_input.value
             if thetas is None or theta_keys is None:
@@ -728,7 +699,9 @@ class NRTKBaseApp(BaseApp):
                 return {}
             output_config["thetas"] = thetas
             output_config["theta_keys"] = theta_keys
-        elif factory_impl.__name__ == "StepPerturbImageFactory":
+            output_config["perturber_kwargs"] = perturber_kwargs
+            output_config["perturber"] = f"{pert_impl.__module__}.{pert_impl.__name__}"
+        elif factory_impl.__name__ == "PerturberStepFactory":
             output_config = {
                 "perturber": f"{pert_impl.__module__}.{pert_impl.__name__}",
                 "theta_key": self.theta_key.value,
@@ -737,15 +710,15 @@ class NRTKBaseApp(BaseApp):
                 "step": self.step.value,
                 "to_int": self.to_int.value,
             }
-        elif factory_impl.__name__ == "LinSpacePerturbImageFactory":
+        elif factory_impl.__name__ == "PerturberLinspaceFactory":
             output_config = {
                 "perturber": f"{pert_impl.__module__}.{pert_impl.__name__}",
                 "theta_key": self.theta_key.value,
                 "start": self.start.value,
                 "stop": self.stop.value,
-                "step": self.step.value,
+                "num": self.num.value,
             }
-        elif factory_impl.__name__ == "OneStepPerturbImageFactory":
+        elif factory_impl.__name__ == "PerturberOneStepFactory":
             output_config = {
                 "perturber": f"{pert_impl.__module__}.{pert_impl.__name__}",
                 "theta_key": self.theta_key.value,

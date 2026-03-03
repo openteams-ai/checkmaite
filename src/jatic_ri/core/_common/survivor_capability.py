@@ -1,5 +1,6 @@
 import tempfile
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -349,7 +350,7 @@ class SurvivorBase(
             # Calling `evaluate()` to calculate the metrics would require doing model predictions again with each
             # target as its own dataset.
             for i, datum_prediction in enumerate(predictions):
-                results: dict[str, Any] = evaluate_from_predictions(
+                results: Mapping[str, Any] = evaluate_from_predictions(
                     metric=metric,
                     predictions=[datum_prediction],
                     targets=[targets[i][1]],

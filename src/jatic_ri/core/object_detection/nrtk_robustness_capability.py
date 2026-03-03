@@ -2,7 +2,7 @@ import hashlib
 import json
 
 import maite.protocols.object_detection as od
-from nrtk.interop.maite.interop.object_detection.augmentation import JATICDetectionAugmentation
+from nrtk.interop import MAITEObjectDetectionAugmentation
 
 from jatic_ri.core._common.nrtk_robustness_capability import (
     NrtkRobustnessBase,
@@ -50,7 +50,7 @@ class NrtkRobustness(NrtkRobustnessBase[od.Dataset, od.Model, od.Metric]):
             props_str = json.dumps(perturber_props, sort_keys=True, default=str)
             augment_id = hashlib.sha256(props_str.encode()).hexdigest()
 
-            augmentation = JATICDetectionAugmentation(augment=perturber, augment_id=augment_id)
+            augmentation = MAITEObjectDetectionAugmentation(augment=perturber, augment_id=augment_id)
             perturbed_metrics, _, _ = evaluate(
                 model=model,
                 dataset=dataset,
