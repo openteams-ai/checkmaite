@@ -42,7 +42,7 @@ class FakeTorchMetric:
         return self._fake_data
 
     def update(self, preds, targets):
-        self._fake_data.update({"preds": preds, "targets": targets})
+        self._fake_data.update({"preds": preds, "targets": targets, "metadata": []})
 
     def reset(self):
         self._fake_data.clear()
@@ -56,7 +56,7 @@ def test_torch_metric_wrapper(dummy_data):
     initial_result = metric_wrapper.compute()
     assert initial_result == fake_torch_metric.compute()
 
-    metric_wrapper.update(preds, targets)
+    metric_wrapper.update(preds, targets, [])
     for result_valz in metric_wrapper._od_metric._fake_data.values():
         for detections in result_valz:
             for torch_valz in detections.values():
@@ -69,13 +69,13 @@ def test_torch_metric_wrapper(dummy_data):
 def test_map50_torch_metric_update(dummy_data):
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
-    map50_torch_metric.update(preds, targets)  # smoke test that this runs without error
+    map50_torch_metric.update(preds, targets, [])  # smoke test that this runs without error
 
 
 def test_map50_torch_metric_compute(dummy_data):
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
-    map50_torch_metric.update(preds, targets)
+    map50_torch_metric.update(preds, targets, [])
     result = map50_torch_metric.compute()
     assert "map_50" in result, "Expected 'map_50' key in result"
     assert 0.0 <= result["map_50"] <= 1.0, "Expected mAP@0.5 to be between 0 and 1"
@@ -84,7 +84,7 @@ def test_map50_torch_metric_compute(dummy_data):
 def test_map50_torch_metric_reset(dummy_data):
     preds, targets = dummy_data
     map50_torch_metric = map50_torch_metric_factory()
-    map50_torch_metric.update(preds, targets)
+    map50_torch_metric.update(preds, targets, [])
     map50_torch_metric.reset()
     # calling compute before update raises warning that this could be an error,
     # but this is deliberate in this test and so we suppress
@@ -103,7 +103,7 @@ def test_map50_torch_metric_reset(dummy_data):
 def test_multiclass_map50_torch_metric_compute(dummy_data):
     preds, targets = dummy_data
     mc_map50_torch_metric = multiclass_map50_torch_metric_factory()
-    mc_map50_torch_metric.update(preds, targets)
+    mc_map50_torch_metric.update(preds, targets, [])
     result = mc_map50_torch_metric.compute()
     print(result)
     assert "map_50_classwise" in result, "Expected 'map_50' key in result"

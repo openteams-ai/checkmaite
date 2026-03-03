@@ -50,11 +50,9 @@ exclude = ["src/jatic_ri/_docs.py"]
 [tool.poetry.dependencies]
 dataeval = ">=1.0.0rc1"
 dataeval-plots = "==0.0.6"                                        # We specify pypi source as dataeval_plots wont be on conda-forge
-maite = "==0.8.2"
-nrtk = "==0.25.0"
-pybsm = ">=0.12.0"                                                 # optional dep for nrtk, required here
-xaitk-saliency = "==0.14.1"
-xaitk-jatic = "==0.8.0"
+maite = "==0.9.2"
+nrtk = { version = "==0.27.1", extras = ["pybsm"] }
+xaitk-jatic = "==0.8.1"
 # external deps
 fsspec = ">=2023.1.0"                                              # arbitrary, required for cloud storage support
 universal_pathlib = ">=0.3.8"                                      # arbitrary, required for cloud storage support

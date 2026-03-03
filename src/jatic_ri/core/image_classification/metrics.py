@@ -81,6 +81,7 @@ class TorchICMulticlassMetric(ic.Metric):
         self,
         preds: Sequence[ic.TargetType],
         targets: Sequence[ic.TargetType],
+        metadatas: Sequence[ic.DatumMetadataType] = [],  # noqa: ARG002
     ) -> None:
         """Add predictions and targets to metric's cache for later calculation.
 

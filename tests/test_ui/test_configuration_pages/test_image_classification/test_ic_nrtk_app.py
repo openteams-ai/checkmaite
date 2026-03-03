@@ -1,10 +1,12 @@
 import pytest
-from nrtk.impls.perturb_image.generic.PIL.enhance import BrightnessPerturber
-from nrtk.impls.perturb_image.pybsm.pybsm_perturber import PybsmPerturber
-from nrtk.impls.perturb_image_factory.generic.linspace_step import LinSpacePerturbImageFactory
-from nrtk.impls.perturb_image_factory.generic.one_step import OneStepPerturbImageFactory
-from nrtk.impls.perturb_image_factory.generic.step import StepPerturbImageFactory
-from nrtk.impls.perturb_image_factory.pybsm import CustomPybsmPerturbImageFactory
+from nrtk.impls.perturb_image.optical import PybsmPerturber
+from nrtk.impls.perturb_image.photometric.enhance import BrightnessPerturber
+from nrtk.impls.perturb_image_factory import (
+    PerturberLinspaceFactory,
+    PerturberMultivariateFactory,
+    PerturberOneStepFactory,
+    PerturberStepFactory,
+)
 
 from jatic_ri.ui.configuration_pages.image_classification.nrtk_app import NRTKAppIC
 
@@ -12,20 +14,20 @@ from jatic_ri.ui.configuration_pages.image_classification.nrtk_app import NRTKAp
 @pytest.mark.parametrize(
     ("perturber_type", "perturber_factory_type", "factory_args"),
     [
-        (BrightnessPerturber, OneStepPerturbImageFactory, {"theta_key": "factor", "theta_value": 10.0}),
+        (BrightnessPerturber, PerturberOneStepFactory, {"theta_key": "factor", "theta_value": 10.0}),
         (
             BrightnessPerturber,
-            StepPerturbImageFactory,
+            PerturberStepFactory,
             {"theta_key": "factor", "start": 1.0, "stop": 30.0, "step": 2.0, "to_int": True},
         ),
         (
             BrightnessPerturber,
-            LinSpacePerturbImageFactory,
-            {"theta_key": "factor", "start": 0.0, "stop": 30.0, "step": 3},
+            PerturberLinspaceFactory,
+            {"theta_key": "factor", "start": 0.0, "stop": 30.0, "num": 3},
         ),
         (
             PybsmPerturber,
-            CustomPybsmPerturbImageFactory,
+            PerturberMultivariateFactory,
             {"theta_keys": ["f", "D"], "thetas": [[0.014, 0.012], [0.001, 0.003]]},
         ),
     ],
@@ -56,21 +58,21 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     nrtk_app.factory_selector.value = perturber_factory_type
     nrtk_app.name_input.value = "TestFactory"
 
-    if perturber_factory_type == OneStepPerturbImageFactory:
+    if perturber_factory_type == PerturberOneStepFactory:
         nrtk_app.theta_key.value = factory_args["theta_key"]
         nrtk_app.theta_value.value = factory_args["theta_value"]
-    elif perturber_factory_type == StepPerturbImageFactory:
+    elif perturber_factory_type == PerturberStepFactory:
         nrtk_app.theta_key.value = factory_args["theta_key"]
         nrtk_app.start.value = factory_args["start"]
         nrtk_app.stop.value = factory_args["stop"]
         nrtk_app.step.value = factory_args["step"]
         nrtk_app.to_int.value = factory_args["to_int"]
-    elif perturber_factory_type == LinSpacePerturbImageFactory:
+    elif perturber_factory_type == PerturberLinspaceFactory:
         nrtk_app.theta_key.value = factory_args["theta_key"]
         nrtk_app.start.value = factory_args["start"]
         nrtk_app.stop.value = factory_args["stop"]
-        nrtk_app.step.value = factory_args["step"]
-    elif perturber_factory_type == CustomPybsmPerturbImageFactory:
+        nrtk_app.num.value = factory_args["num"]
+    elif perturber_factory_type == PerturberMultivariateFactory:
         nrtk_app.theta_keys_input.value = factory_args["theta_keys"]
         nrtk_app.thetas_input.value = factory_args["thetas"]
 
@@ -78,10 +80,10 @@ def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) 
     factory_json = nrtk_app.build_factory_json()
     factory_type_string = f"{perturber_factory_type.__module__}.{perturber_factory_type.__name__}"
     assert factory_json["type"] == factory_type_string
-    if perturber_factory_type == OneStepPerturbImageFactory:
+    if perturber_factory_type == PerturberOneStepFactory:
         assert factory_json[factory_type_string]["theta_key"] == factory_args["theta_key"]
         assert factory_json[factory_type_string]["theta_value"] == factory_args["theta_value"]
-    elif perturber_factory_type == CustomPybsmPerturbImageFactory:
+    elif perturber_factory_type == PerturberMultivariateFactory:
         assert factory_json[factory_type_string]["theta_keys"] == factory_args["theta_keys"]
         assert factory_json[factory_type_string]["thetas"] == factory_args["thetas"]
 

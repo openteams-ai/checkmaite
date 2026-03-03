@@ -6,9 +6,9 @@ from jatic_ri.core.report._gradient import HAS_GRADIENT
 ARGS = {
     "name": "NRTKTestStage Example",
     "perturber_factory": {
-        "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-        "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-            "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.AverageBlurPerturber",
+        "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
+        "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+            "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
             "theta_key": "ksize",
             "start": 1,
             "stop": 10,
@@ -58,9 +58,9 @@ def test_no_cache_hit_same_perturber_different_step(
     config_a = NrtkRobustnessConfig(
         name="cache_test_a",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.AverageBlurPerturber",
+            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+                "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
                 "stop": 3,
@@ -73,9 +73,9 @@ def test_no_cache_hit_same_perturber_different_step(
     config_b = NrtkRobustnessConfig(
         name="cache_test_b",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.AverageBlurPerturber",
+            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+                "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
                 "stop": 4,
@@ -131,9 +131,9 @@ def test_no_cache_hit_different_perturber(
     config_blur = NrtkRobustnessConfig(
         name="cache_test_blur",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.cv2.blur.AverageBlurPerturber",
+            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+                "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
                 "stop": 3,
@@ -145,9 +145,9 @@ def test_no_cache_hit_different_perturber(
     config_brightness = NrtkRobustnessConfig(
         name="cache_test_brightness",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.step.StepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber",
+            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+                "perturber": "nrtk.impls.perturb_image.photometric.enhance.BrightnessPerturber",
                 "theta_key": "factor",
                 "start": 1,
                 "stop": 3,

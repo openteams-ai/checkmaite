@@ -64,9 +64,9 @@ METRIC_LABELS = {
 def _default_perturber_factory() -> PerturbImageFactory:
     return from_config_dict(
         {
-            "type": "nrtk.impls.perturb_image_factory.generic.one_step.OneStepPerturbImageFactory",
-            "nrtk.impls.perturb_image_factory.generic.one_step.OneStepPerturbImageFactory": {
-                "perturber": "nrtk.impls.perturb_image.generic.PIL.enhance.BrightnessPerturber",
+            "type": "nrtk.impls.perturb_image_factory.PerturberOneStepFactory",
+            "nrtk.impls.perturb_image_factory.PerturberOneStepFactory": {
+                "perturber": "nrtk.impls.perturb_image.photometric.enhance.BrightnessPerturber",
                 "theta_key": "factor",
                 "theta_value": 10.0,
             },
