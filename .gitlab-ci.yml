@@ -24,9 +24,8 @@ stages:
   - pyright
   - build
   - test
-  - security-scan
-  - export-sbom
   - docs
+  - dr-compliance
 
 .git_config: &git_config
 # For internal git dependencies
@@ -229,66 +228,14 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
 
 # SECURITY STAGES
 include:
-- template: Jobs/SAST.gitlab-ci.yml
-- template: Jobs/Dependency-Scanning.gitlab-ci.yml
-- template: Jobs/Secret-Detection.gitlab-ci.yml
-
-clam-av:
-  stage: security-scan
-  needs: []
-  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/clamav/clamav:latest
-  script:
-    # update virus definitions
-    - freshclam
-    # run virus scan
-    - clamscan -r . --infected --scan-archive=yes --log virus-scan.txt
-    # determine if there are any infected files
-    - NUM_INFECTED_FILES=$(awk '{if(/Infected files:/) print $3}' < virus-scan.txt)
-    - status=$([ "$NUM_INFECTED_FILES" -gt 0 ] && echo 1 || echo 0)
-    - exit $status
-  artifacts:
-    when: always
-    paths:
-      - virus-scan.txt
-
-semgrep-sast:
-  stage: security-scan
-  needs: []
-  rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-
-gemnasium-python-dependency_scanning:
-  stage: security-scan
-  needs: []
-  rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-
-secret_detection:
-  stage: security-scan
-  needs: []
-  rules:
-    - when: always
-
-# EXPORT-SBOM STAGE
-# NOTE: This job requires the completion of all dependency scanning
-# jobs before executing in order to merge them for export.
-export-merged-sbom:
-  stage: export-sbom
-  image: docker:stable
-  rules:
-    # Only run this rule if on main branch
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - apk add --update jq curl
-  script:
-    - >
-      curl --header "Authorization: Bearer $GITLAB_CI_TOKEN"
-      --output export.sh --url "https://gitlab.jatic.net/api/v4/snippets/7/raw"
-    - /bin/sh export.sh
-  artifacts:
-    paths:
-      - "gl-sbom-merged-*.cdx.json"
-
+  - component: gitlab.jatic.net/jatic/devsecops/components/dr-compliance@0.5.2
+    inputs:
+      stage: dr-compliance
+      sast_excluded_paths: tests
+      sast_search_max_depth: "4"
+      image: harbor.jatic.net:443/platform-team/base-images/python-base-image:3.11
+      full_execution_on_commit: true # set full_execution_on_commit: true to run the component on every pushed commit
+      allow_failure: true
 
 
 #########################################

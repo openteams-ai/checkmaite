@@ -83,7 +83,6 @@ torchvision = ">=0.17.0"                                           # arbitrary, 
 smqtk-core = ">=0.21.0"                                            # necessary lower pin for compatibility with pydantic
 smqtk-detection = ">=0.22.0"                                       # necessary lower pin for running VisDrone model on Mac
 transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
-urllib3 = ">=2.6.3"                                                # security: ensure patched urllib3
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=3.0.0"                             # arbitrary
@@ -104,6 +103,18 @@ mkdocs-jupyter = ">=0.25"                          # arbitrary
 mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
+# these are security patches are not direct dependencies
+# this group is never used directly, but these pins are used  
+# when poetry lock is generated
+[tool.poetry.group.security.dependencies]
+urllib3 = ">=2.6.3"
+cryptography = ">=46.0.5"
+nbconvert = ">=7.17.0"
+pillow = "12.1.1"
+protobuf = "6.33.5"
+bokeh = ">=3.8.2"
+
+
 [project.scripts]
 jatic-ri-serve = "jatic_ri.ui.app:main"
 
@@ -123,8 +134,7 @@ ui = [
     "jupyterlab>=4.3.5",
     "nbconvert>=7.16.6",
     "panel>=1.8.7",
-    "streamz>=0.6.4",
-    "bokeh>=3.8.2"                                 # security patch
+    "streamz>=0.6.4"                              # security patch
 ]
 aws = ["s3fs>=2023.1.0"]
 gcs = ["gcsfs>=2023.1.0"]
