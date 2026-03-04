@@ -30,8 +30,6 @@ stages:
 .git_config: &git_config
 # For internal git dependencies
 - git config --global url."https://gitlab-ci-token:${GITLAB_CI_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
-# Need git LFS for pulling MORSE test stage test data
-- apt-get update && apt-get install -y git-lfs
 
 .python-matrix:
   parallel:
@@ -117,8 +115,6 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    # Pull large files using git-lfs
-    - git lfs pull
     - poetry install --with dev --extras ui
     - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/nrtk_app.py --ci
     - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/xaitk_app.py --ci
@@ -255,7 +251,6 @@ nightly-unsupported:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - git lfs pull
     # Install dev + unsupported groups (poetry group)
     - poetry install --with dev  --extras ui --extras unsupported
     # Run the panel configs that are currently commented out in the regular job
