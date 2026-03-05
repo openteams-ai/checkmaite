@@ -15,10 +15,10 @@ def test_survivor_import_missing():
             original_modules[mod_name] = sys.modules[mod_name]
             to_remove.append(mod_name)
 
-    # Also need to remove jatic_ri.core.image_classification to force re-import
-    if "jatic_ri.core.image_classification" in sys.modules:
-        original_modules["jatic_ri.core.image_classification"] = sys.modules["jatic_ri.core.image_classification"]
-        to_remove.append("jatic_ri.core.image_classification")
+    # Also need to remove checkmaite.core.image_classification to force re-import
+    if "checkmaite.core.image_classification" in sys.modules:
+        original_modules["checkmaite.core.image_classification"] = sys.modules["checkmaite.core.image_classification"]
+        to_remove.append("checkmaite.core.image_classification")
 
     for mod in to_remove:
         del sys.modules[mod]
@@ -37,10 +37,10 @@ def test_survivor_import_missing():
 
     try:
         # This should not raise, just log a debug message
-        import jatic_ri.core.image_classification
+        import checkmaite.core.image_classification
 
         # Survivor should not be available
-        assert not hasattr(jatic_ri.core.image_classification, "Survivor")
+        assert not hasattr(checkmaite.core.image_classification, "Survivor")
     finally:
         # Restore
         builtins.__import__ = original_import

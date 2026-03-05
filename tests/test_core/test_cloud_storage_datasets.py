@@ -16,10 +16,10 @@ import torch
 from PIL import Image
 from upath import UPath
 
-from jatic_ri.core.image_classification.dataset_loaders import (
+from checkmaite.core.image_classification.dataset_loaders import (
     YoloClassificationDataset,
 )
-from jatic_ri.core.object_detection.dataset_loaders import (
+from checkmaite.core.object_detection.dataset_loaders import (
     CocoDetectionDataset,
     DetectionTarget,
     VisdroneDetectionDataset,

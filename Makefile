@@ -37,12 +37,12 @@ format:
 .PHONY: test
 #: Run tests with current python
 test:
-	poetry run pytest tests -vvv --cov=jatic_ri --cov-report term --cov-report xml:coverage_report.xml --cov-fail-under=90
+	poetry run pytest tests -vvv --cov=checkmaite --cov-report term --cov-report xml:coverage_report.xml --cov-fail-under=90
 
 # Conda Lock Targets' Environment Variables
 # Conda backend selection - defaults to conda, set CONDA_LOCK_ARGS to "--micromamba" to use micromamba
 CONDA_LOCK_ARGS ?=
-CONDA_ENV_NAME ?= jatic-ri
+CONDA_ENV_NAME ?= checkmaite
 
 .PHONY: check-conda-lock
 #: Check if conda lockfile is consistent with pyproject.toml

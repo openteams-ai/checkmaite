@@ -1,4 +1,4 @@
-# Setup RI
+# Setup `checkmaite`
 
 ## Clone the project repository
 
@@ -10,7 +10,7 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 
 ## Create environment and install the package
 
-We provide both poetry-based environment and conda-based environment options to setup your environment and install RI.
+We provide both poetry-based environment and conda-based environment options to setup your environment and install `checkmaite`.
 
 ### Option 1: poetry environment
 
@@ -32,14 +32,14 @@ To set up a conda environment, [install `conda`](https://docs.conda.io/projects/
 
 ```bash
 # create env with conda-lock installed
-conda create -n jatic-ri "conda-lock>=3"
+conda create -n checkmaite "conda-lock>=3"
 
 # activate the environment
-conda activate jatic-ri
+conda activate checkmaite
 
 # use conda-lock to install dependencies
-CONDA_ENV_NAME=jatic-ri make conda-env
+CONDA_ENV_NAME=checkmaite make conda-env
 
-# finally, install the reference implementation package
+# finally, install the `checkmaite` package
 pip install .
 ```

@@ -1,6 +1,6 @@
-# RI development
+# checkmaite development
 
-Documentation for RI developers and contributors.
+Documentation for checkmaite developers and contributors.
 
 <div class="grid cards" markdown>
 
@@ -14,11 +14,11 @@ Documentation for RI developers and contributors.
 
 -  [__User persona__ :octicons-arrow-right-24:](persona.md)
 
-    Persona for a typical user of RI, to guide development decisions.
+    Persona for a typical user of checkmaite, to guide development decisions.
 
 -  [__Contribution guidelines__ :octicons-arrow-right-24:](contributing.md)
 
-    Guidelines on contributing to the Reference Implementation project.
+    Guidelines on contributing to the `checkmaite` project.
 
 -  [__Key Concepts: Capabilities, Runs, and caches__ :octicons-arrow-right-24:](key_concepts.md)
 

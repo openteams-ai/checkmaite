@@ -1,6 +1,6 @@
 import pytest
 
-from jatic_ri.ui.configuration_pages.object_detection.heart_od_app import HeartODApp
+from checkmaite.ui.configuration_pages.object_detection.heart_od_app import HeartODApp
 
 
 @pytest.mark.unsupported

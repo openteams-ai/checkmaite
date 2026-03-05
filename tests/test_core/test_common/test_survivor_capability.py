@@ -6,7 +6,7 @@ pytest.importorskip("survivor")
 
 import torch  # noqa: E402
 
-from jatic_ri.core._common.survivor_capability import SurvivorBase, SurvivorConfig  # noqa: E402
+from checkmaite.core._common.survivor_capability import SurvivorBase, SurvivorConfig  # noqa: E402
 
 
 def survivor_metric_factory(dataset_length, total_models):
@@ -74,7 +74,7 @@ def survivor_metric_factory(dataset_length, total_models):
             # than the previous model by an increment of 1/total_models
             return {"fake_survivor_metric": torch.tensor([(model_idx + 1) / total_models])}
 
-        def update(self, preds, targets):
+        def update(self, preds, targets, metadata):
             if self._can_compute:
                 raise ValueError(
                     "FakeSurvivorMetric requires exactly one image. Please call .compute before updating again."

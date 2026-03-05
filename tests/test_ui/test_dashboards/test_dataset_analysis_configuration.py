@@ -10,7 +10,7 @@ import json
 import holoviews  # noqa (fixes issue with lazy holoviews import in Panel)
 import pytest
 
-from jatic_ri.ui.dashboards.combined_app import FullApp
+from checkmaite.ui.dashboards.combined_app import FullApp
 
 
 def _reset_da_config_app(app: FullApp):

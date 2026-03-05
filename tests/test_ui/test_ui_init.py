@@ -1,4 +1,4 @@
-"""Tests for jatic_ri.ui.__init__ module."""
+"""Tests for checkmaite.ui.__init__ module."""
 
 import sys
 
@@ -14,14 +14,14 @@ def test_ui_import_without_panel():
     if "panel" in sys.modules:
         sys.modules["panel"] = None
 
-    # Clear the jatic_ri.ui module if already imported
-    if "jatic_ri.ui" in sys.modules:
-        del sys.modules["jatic_ri.ui"]
+    # Clear the checkmaite.ui module if already imported
+    if "checkmaite.ui" in sys.modules:
+        del sys.modules["checkmaite.ui"]
 
     try:
         # This should raise ImportError
         with pytest.raises(ImportError, match="UI components require the 'ui' extra"):
-            import jatic_ri.ui  # noqa: F401
+            import checkmaite.ui  # noqa: F401
     finally:
         # Restore the original state
         if panel_module is not None:
@@ -36,4 +36,4 @@ def test_ui_import_with_panel():
     pytest.importorskip("panel")
 
     # Should not raise
-    import jatic_ri.ui  # noqa: F401
+    import checkmaite.ui  # noqa: F401

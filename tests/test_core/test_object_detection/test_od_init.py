@@ -15,10 +15,10 @@ def test_survivor_import_missing():
             original_modules[mod_name] = sys.modules[mod_name]
             to_remove.append(mod_name)
 
-    # Also need to remove jatic_ri.core.object_detection to force re-import
-    if "jatic_ri.core.object_detection" in sys.modules:
-        original_modules["jatic_ri.core.object_detection"] = sys.modules["jatic_ri.core.object_detection"]
-        to_remove.append("jatic_ri.core.object_detection")
+    # Also need to remove checkmaite.core.object_detection to force re-import
+    if "checkmaite.core.object_detection" in sys.modules:
+        original_modules["checkmaite.core.object_detection"] = sys.modules["checkmaite.core.object_detection"]
+        to_remove.append("checkmaite.core.object_detection")
 
     for mod in to_remove:
         del sys.modules[mod]
@@ -37,10 +37,10 @@ def test_survivor_import_missing():
 
     try:
         # This should not raise, just log a debug message
-        import jatic_ri.core.object_detection
+        import checkmaite.core.object_detection
 
         # Survivor should not be available
-        assert not hasattr(jatic_ri.core.object_detection, "Survivor")
+        assert not hasattr(checkmaite.core.object_detection, "Survivor")
     finally:
         # Restore
         builtins.__import__ = original_import

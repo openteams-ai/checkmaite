@@ -1,4 +1,4 @@
-from jatic_ri.core._common.maite_evaluation_capability import (
+from checkmaite.core._common.maite_evaluation_capability import (
     MaiteEvaluationConfig,
     MaiteEvaluationOutputs,
     MaiteEvaluationRun,

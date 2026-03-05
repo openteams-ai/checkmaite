@@ -2,7 +2,7 @@ import pytest
 
 
 def test_create_download_link():
-    from jatic_ri.ui.dashboard_utils import create_download_link
+    from checkmaite.ui.dashboard_utils import create_download_link
 
     path = "testfile.txt"
     link_str = create_download_link(path=path)
@@ -25,7 +25,7 @@ def test_create_download_link():
     ],
 )
 def test_get_capability_from_app_config_od(config_fixture_name, request):
-    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
+    from checkmaite.ui.dashboard_utils import get_capability_from_app_config_od
 
     config = request.getfixturevalue(config_fixture_name)
 
@@ -46,7 +46,7 @@ def test_get_capability_from_app_config_od(config_fixture_name, request):
     ],
 )
 def test_get_capability_from_app_config_ic(config_fixture_name, request):
-    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
+    from checkmaite.ui.dashboard_utils import get_capability_from_app_config_ic
 
     config = request.getfixturevalue(config_fixture_name)
 
@@ -54,7 +54,7 @@ def test_get_capability_from_app_config_ic(config_fixture_name, request):
 
 
 def test_get_capability_from_app_config_od_unrecognized():
-    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
+    from checkmaite.ui.dashboard_utils import get_capability_from_app_config_od
 
     heart_config = {
         "TYPE": "HeartTestStage",
@@ -70,7 +70,7 @@ def test_get_capability_from_app_config_od_unrecognized():
 
 
 def test_get_capability_from_app_config_ic_unrecognized():
-    from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
+    from checkmaite.ui.dashboard_utils import get_capability_from_app_config_ic
 
     heart_config = {
         "TYPE": "HeartTestStage",

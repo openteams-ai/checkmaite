@@ -42,7 +42,7 @@ Each tool must implement:
 3. **`Run`** — Contains the `Config`, the `Outputs`, and the `collect_report_consumables()` method for visualization.
 4. **Capability class** — aka the "Runner". Implements `_run(...)`, the actual execution logic. Calls internal helpers (e.g., `maite_evaluate`) to produce outputs.
 
-See the **Baseline Evaluation Capability** for the simplest reference implementation.
+See the **Baseline Evaluation Capability** for the simplest implementation.
 
 ---
 
@@ -94,7 +94,7 @@ capability.run(model=my_model, dataset=my_dataset, use_cache=False)
 
 ## Input Flexibility (Type Coercion)
 
-The RI accepts flexible input types at its public API boundary and normalizes them internally. For example, an image can be passed as:
+The checkmaite accepts flexible input types at its public API boundary and normalizes them internally. For example, an image can be passed as:
 
 - A file path (`str` or `Path`)
 - Raw bytes

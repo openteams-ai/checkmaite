@@ -4,7 +4,7 @@ import pytest
 pytest.importorskip("reallabel")
 
 # Module-level imports after importorskip to prevent collection errors
-from jatic_ri.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp  # noqa: E402
+from checkmaite.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp  # noqa: E402
 
 
 @pytest.mark.parametrize(

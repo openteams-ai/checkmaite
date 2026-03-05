@@ -1,12 +1,12 @@
 import pytest
 
-from jatic_ri.core.image_classification.dataeval_feasibility_capability import (
+from checkmaite.core.image_classification.dataeval_feasibility_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     DataevalFeasibilityOutputs,
     DataevalFeasibilityRun,
 )
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture

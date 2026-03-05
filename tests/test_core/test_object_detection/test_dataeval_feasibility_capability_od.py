@@ -4,13 +4,13 @@ import torch
 from maite.protocols import DatasetMetadata, DatumMetadata
 from maite.protocols import object_detection as od
 
-from jatic_ri.core.object_detection.dataeval_feasibility_capability import (
+from checkmaite.core.object_detection.dataeval_feasibility_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     _extract_instance_crops,
 )
-from jatic_ri.core.object_detection.dataset_loaders import DetectionTarget
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 class FeasibilityTestDataset(od.Dataset):
@@ -173,7 +173,7 @@ class TestDataevalFeasibilityCapability:
     def test_supports_properties(self):
         capability = DataevalFeasibility()
 
-        from jatic_ri.core.capability_core import Number
+        from checkmaite.core.capability_core import Number
 
         assert capability.supports_datasets == Number.ONE
         assert capability.supports_models == Number.ZERO

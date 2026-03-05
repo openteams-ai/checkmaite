@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from jatic_ri.core.image_classification.dataset_loaders import (
+from checkmaite.core.image_classification.dataset_loaders import (
     MissingYoloDataSplitError,
     YoloClassificationDataset,
     load_datasets,

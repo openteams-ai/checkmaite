@@ -66,7 +66,7 @@ def reallabel_config_od():
     panel app"""
     pytest.importorskip("reallabel")
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp as RealLabelAppOD
+    from checkmaite.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp as RealLabelAppOD
 
     reallabel_app = RealLabelAppOD()
     reallabel_app._run_export()
@@ -79,7 +79,7 @@ def survivor_config_od():
     panel app"""
     # import inside the fixture to improve test startup time
     pytest.importorskip("survivor")
-    from jatic_ri.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD
+    from checkmaite.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD
 
     survivor_app = SurvivorAppOD()
     survivor_app._run_export()
@@ -92,7 +92,7 @@ def survivor_config_ic():
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.image_classification.survivor_app import SurvivorAppIC
+    from checkmaite.ui.configuration_pages.image_classification.survivor_app import SurvivorAppIC
 
     survivor_app = SurvivorAppIC()
     survivor_app._run_export()
@@ -102,7 +102,7 @@ def survivor_config_ic():
 @pytest.fixture(scope="session")
 def nrtk_config_od():
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.object_detection.nrtk_app import NRTKAppOD
+    from checkmaite.ui.configuration_pages.object_detection.nrtk_app import NRTKAppOD
 
     nrtk_app = NRTKAppOD()
     nrtk_app.panel()
@@ -119,7 +119,7 @@ def nrtk_config_od():
 @pytest.fixture(scope="session")
 def nrtk_config_ic():
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.image_classification.nrtk_app import NRTKAppIC
+    from checkmaite.ui.configuration_pages.image_classification.nrtk_app import NRTKAppIC
 
     nrtk_app = NRTKAppIC()
     nrtk_app.panel()
@@ -136,7 +136,7 @@ def nrtk_config_ic():
 @pytest.fixture(scope="session")
 def xaitk_config_od():
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.object_detection.xaitk_app import XAITKAppOD
+    from checkmaite.ui.configuration_pages.object_detection.xaitk_app import XAITKAppOD
 
     xaitk_app = XAITKAppOD()
     xaitk_app._run_export()
@@ -146,7 +146,7 @@ def xaitk_config_od():
 @pytest.fixture(scope="session")
 def xaitk_config_ic():
     # import inside the fixture to improve test startup time
-    from jatic_ri.ui.configuration_pages.image_classification.xaitk_app import XAITKAppIC
+    from checkmaite.ui.configuration_pages.image_classification.xaitk_app import XAITKAppIC
 
     xaitk_app = XAITKAppIC()
     xaitk_app._run_export()

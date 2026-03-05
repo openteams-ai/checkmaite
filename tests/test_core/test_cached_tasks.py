@@ -65,7 +65,7 @@ def predict_domain_fixture(
 def test_predict(mocker, predict_domain_fixture):
     from maite import tasks as tasks
 
-    from jatic_ri import cached_tasks
+    from checkmaite import cached_tasks
 
     actual = tasks.predict(model=predict_domain_fixture.model, dataset=predict_domain_fixture.dataset)
     expected = cached_tasks.predict(
@@ -91,7 +91,7 @@ def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_i
     """
     import torch
 
-    from jatic_ri import cached_tasks
+    from checkmaite import cached_tasks
     from tests.conftest import FakeICMetric
 
     # Create two different fake metrics with different return values

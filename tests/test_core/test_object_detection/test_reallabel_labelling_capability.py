@@ -4,7 +4,7 @@ pytest.importorskip("reallabel")
 
 from reallabel import ColumnNameConfig  # noqa: E402
 
-from jatic_ri.core.object_detection.reallabel_labelling_capability import (  # noqa: E402
+from checkmaite.core.object_detection.reallabel_labelling_capability import (  # noqa: E402
     ReallabelLabelling,
     ReallabelLabellingConfig,
 )

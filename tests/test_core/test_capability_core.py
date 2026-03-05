@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from jatic_ri.core.capability_core import (
+from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
     CapabilityOutputsBase,

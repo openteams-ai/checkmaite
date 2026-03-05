@@ -1,8 +1,8 @@
 import polars as pl
 import pytest
 
-from jatic_ri.core.analytics_store._schema import BaseRecord, RunRecord
-from jatic_ri.core.analytics_store._storage._parquet import ParquetBackend
+from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
+from checkmaite.core.analytics_store._storage._parquet import ParquetBackend
 
 
 class MetricRecord(BaseRecord, table_name="metrics"):

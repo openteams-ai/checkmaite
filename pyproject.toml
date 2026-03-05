@@ -3,9 +3,9 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project]
-name = "jatic-ri"
-version = "0.1.6"
-description = "JATIC Reference Implementation"
+name = "checkmaite"
+version = "0.2.0"
+description = "checkmaite - an implementation of T&E tools using maite"
 readme = "README.md"
 license = { text = "TBD" }
 authors = [
@@ -43,9 +43,9 @@ poetry = "==2.1.2"                                 # allow user to still use the
 dataeval-plots = {source = "pypi"}
 
 [tool.poetry]
-packages = [{ include = "jatic_ri", from = "src" }]
-include = ["src/jatic_ri/py.typed"]
-exclude = ["src/jatic_ri/_docs.py"]
+packages = [{ include = "checkmaite", from = "src" }]
+include = ["src/checkmaite/py.typed"]
+exclude = ["src/checkmaite/_docs.py"]
 
 [tool.poetry.dependencies]
 dataeval = ">=1.0.0rc1"
@@ -114,7 +114,7 @@ bokeh = ">=3.8.2"
 
 
 [project.scripts]
-jatic-ri-serve = "jatic_ri.ui.app:main"
+checkmaite-serve = "checkmaite.ui.app:main"
 
 # We use this instead of an optional Poetry group because in our testing we found that conda-lock (v 3.0.4) does not
 # appear to honor optional dependencies when the source is a Git URL... this causes problems at solve time if the solver
@@ -203,7 +203,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
-known-first-party = ["jatic_ri"]
+known-first-party = ["checkmaite"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -246,7 +246,7 @@ xfail_strict = true
 
 # Omit the skipped optional dependencies from coverage report
 [tool.coverage.run]
-source = ["jatic_ri"]
+source = ["checkmaite"]
 omit = [
     "*/heart_adversarial_capability.py",
     "*/reallabel_labelling_capability.py",

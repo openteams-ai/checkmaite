@@ -3,7 +3,7 @@ import json
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
-from jatic_ri.ui.configuration_pages.image_classification.xaitk_app import XAITKAppIC
+from checkmaite.ui.configuration_pages.image_classification.xaitk_app import XAITKAppIC
 
 
 def test_run_export_rise() -> None:

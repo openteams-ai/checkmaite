@@ -1,7 +1,7 @@
 import pytest
 
-from jatic_ri.core.image_classification.maite_evaluation_capability import MaiteEvaluation
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.image_classification.maite_evaluation_capability import MaiteEvaluation
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from jatic_ri.core.object_detection.dataset_loaders import (
+from checkmaite.core.object_detection.dataset_loaders import (
     CocoDetectionDataset,
     DatasetSpecification,
     DetectionTarget,

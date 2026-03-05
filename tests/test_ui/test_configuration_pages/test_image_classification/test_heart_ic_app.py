@@ -1,6 +1,6 @@
 import pytest
 
-from jatic_ri.ui.configuration_pages.image_classification.heart_ic_app import HeartICApp
+from checkmaite.ui.configuration_pages.image_classification.heart_ic_app import HeartICApp
 
 
 @pytest.mark.unsupported

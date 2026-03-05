@@ -3,7 +3,7 @@ import json
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
-from jatic_ri.ui.configuration_pages.object_detection.xaitk_app import XAITKAppOD
+from checkmaite.ui.configuration_pages.object_detection.xaitk_app import XAITKAppOD
 
 
 def test_run_export() -> None:

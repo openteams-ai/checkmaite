@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from jatic_ri.core.report import _gradient as gd
-from jatic_ri.core.report._gradient import HAS_GRADIENT
-from jatic_ri.core.report._plotting_utils import (
+from checkmaite.core.report import _gradient as gd
+from checkmaite.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.report._plotting_utils import (
     create_metric_dataframe_data,
     get_cutoff_values,
     get_optimal_subplot_layout,

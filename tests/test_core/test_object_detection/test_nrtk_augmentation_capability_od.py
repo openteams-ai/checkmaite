@@ -2,8 +2,8 @@ from copy import deepcopy
 
 import pytest
 
-from jatic_ri.core.object_detection.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 ARGS = {
     "name": "NRTKTestStage Example",

@@ -4,7 +4,7 @@ from typing import Optional, Union
 import pydantic
 import pytest
 
-from jatic_ri.core.analytics_store._schema import BaseRecord, RunRecord, _is_scalar
+from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord, _is_scalar
 
 
 class TestIsScalarAcceptsScalarTypes:

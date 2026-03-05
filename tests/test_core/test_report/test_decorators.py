@@ -2,7 +2,7 @@
 
 import pytest
 
-from jatic_ri.core._utils import MissingDependencyWarning, deprecated, requires_optional_dependency
+from checkmaite.core._utils import MissingDependencyWarning, deprecated, requires_optional_dependency
 
 
 def test_deprecated_decorator_basic():

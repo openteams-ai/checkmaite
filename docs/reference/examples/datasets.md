@@ -1,5 +1,5 @@
 # Dataset Wrappers
-`jatic_ri` provides support for loading image classification datasets using MAITE-compliant wrappers.
+`checkmaite` provides support for loading image classification datasets using MAITE-compliant wrappers.
 
 ## YOLO Classification Dataset Wrapper
 The `YoloClassificationDataset` wrapper loads datasets laid out as per the YOLO specification. See the 

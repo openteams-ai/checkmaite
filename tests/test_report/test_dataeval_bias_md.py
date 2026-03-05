@@ -1,6 +1,6 @@
 import numpy as np
 
-from jatic_ri.core._common.dataeval_bias_capability import (
+from checkmaite.core._common.dataeval_bias_capability import (
     DataevalBiasConfig,
     DataevalBiasCoverageOutputs,
     DataevalBiasOutputs,

@@ -1,4 +1,4 @@
-site_name: JATIC Reference Implementation
+site_name: checkmaite
 site_url: https://jatic.pages.jatic.net/reference-implementation/reference-implementation/
 use_directory_urls: false
 theme:
@@ -31,9 +31,9 @@ nav:  # navigation links on sidebar
   - Get started:
     - get-started/index.md
     - Setup: get-started/install_setup.md
-    - Run the RI application interactively: get-started/ri_interactive.md
-    - Object Detection Workflow via API: get-started/ri_api_od.ipynb
-    - Image Classification Workflow via API: get-started/ri_api_ic.ipynb
+    - Run `checkmaite` interactively: get-started/checkmaite_interactive.md
+    - Object Detection Workflow via API: get-started/checkmaite_api_od.ipynb
+    - Image Classification Workflow via API: get-started/checkmaite_api_ic.ipynb
   - Using JATIC tools:
     - tool-usage/index.md
     - Dataset evaluation:
@@ -55,7 +55,7 @@ nav:  # navigation links on sidebar
     - Conventions: reference/conventions.md
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
-  - RI development:
+  - Checkmaite development:
     - development/index.md
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md

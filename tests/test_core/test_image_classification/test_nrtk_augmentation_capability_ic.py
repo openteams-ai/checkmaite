@@ -1,7 +1,7 @@
 import pytest
 
-from jatic_ri.core.image_classification.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.image_classification.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 ARGS = {
     "name": "NRTKTestStage Example",

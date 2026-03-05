@@ -4,11 +4,11 @@ from copy import deepcopy
 import pytest
 from PIL import Image
 
-from jatic_ri.core.capability_core import Number
-from jatic_ri.core.image_classification.dataset_loaders import YoloClassificationDataset
-from jatic_ri.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
-from jatic_ri.core.image_classification.models import TorchvisionICModel
-from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_ic
+from checkmaite.core.capability_core import Number
+from checkmaite.core.image_classification.dataset_loaders import YoloClassificationDataset
+from checkmaite.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
+from checkmaite.core.image_classification.models import TorchvisionICModel
+from checkmaite.ui.dashboard_utils import get_capability_from_app_config_ic
 
 CLASSES = ["cat", "dog"]
 NUM_IMAGES_PER_CLASS = 4

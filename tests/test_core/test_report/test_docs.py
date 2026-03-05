@@ -1,7 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jatic_ri.core.report._markdown import create_markdown_output
+from checkmaite.core.report._markdown import create_markdown_output
 
 
 def _write_dummy_image(path: Path) -> None:

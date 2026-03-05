@@ -7,7 +7,7 @@ import pytest
 import torch
 from PIL import Image
 
-from jatic_ri.core.object_detection.models import TorchvisionODModel, VisdroneODModel
+from checkmaite.core.object_detection.models import TorchvisionODModel, VisdroneODModel
 
 
 @pytest.fixture(scope="session")

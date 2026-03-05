@@ -8,7 +8,7 @@ from nrtk.impls.perturb_image_factory import (
     PerturberStepFactory,
 )
 
-from jatic_ri.ui.configuration_pages.object_detection.nrtk_app import NRTKAppOD
+from checkmaite.ui.configuration_pages.object_detection.nrtk_app import NRTKAppOD
 
 
 @pytest.mark.parametrize(

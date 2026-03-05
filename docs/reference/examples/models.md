@@ -1,6 +1,6 @@
 # Model Wrappers
 
-`jatic_ri` provides access to several common object-detection models using MAITE-compliant wrappers.
+`checkmaite` provides access to several common object-detection models using MAITE-compliant wrappers.
 
 ## `torchvision` Wrappers
 
@@ -33,4 +33,4 @@ This option is recommended for advanced users:
 #### Image Dimensions
 
 - It is assumed that all images passed to the model for prediction have the same height and width.
-- If this assumption does not hold, the wrapper will raise an error. Please contact the RI team if your use case involves images with unequal dimensions.
+- If this assumption does not hold, the wrapper will raise an error. Please contact the checkmaite team if your use case involves images with unequal dimensions.
