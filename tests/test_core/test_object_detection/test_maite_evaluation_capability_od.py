@@ -1,8 +1,8 @@
 import pytest
 
-from jatic_ri.core.object_detection.maite_evaluation_capability import MaiteEvaluation
-from jatic_ri.core.object_detection.metrics import multiclass_map50_torch_metric_factory
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.maite_evaluation_capability import MaiteEvaluation
+from checkmaite.core.object_detection.metrics import multiclass_map50_torch_metric_factory
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture

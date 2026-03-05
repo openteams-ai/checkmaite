@@ -1,4 +1,4 @@
-"""Tests for jatic_ri.core._types module."""
+"""Tests for checkmaite.core._types module."""
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -7,7 +7,7 @@ import torch
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
-from jatic_ri.core._types import DataFrame, Device, Image
+from checkmaite.core._types import DataFrame, Device, Image
 
 
 class ModelWithImage(BaseModel):

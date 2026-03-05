@@ -1,6 +1,6 @@
 # User Personas
 
-The RI has multiple interfaces which can be utilized by several different personas of varying skills. The personas 
+Checkmaite has multiple interfaces which can be utilized by several different personas of varying skills. The personas 
 below represent the core users we support. 
 
 ## Data Scientist
@@ -13,7 +13,7 @@ below represent the core users we support.
 
 ### Key Workflows
 
-* Complete T&E workflows using JATIC tools via the RI on models and datasets
+* Complete T&E workflows using JATIC tools via checkmaite on models and datasets
 * Explore and analyze data using notebooks
 * Use cloud resources when local compute isn't enough
 * Needs to compute a standard set of analyses in a structured manner
@@ -48,7 +48,7 @@ below represent the core users we support.
 ### Key Workflows
 
 * Analyses datasets and models using Python
-* Conducts their own T&E analyses using JATIC tools via the RI 
+* Conducts their own T&E analyses using JATIC tools via checkmaite 
 * Enables Data Scientists by writing code to enable new workflows and simplify tool interactions
 * Maintains model registry
 * Maintains model served on platform

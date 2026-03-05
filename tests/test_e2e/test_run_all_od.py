@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from jatic_ri.core.capability_core import Number
-from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
-from jatic_ri.core.object_detection.metrics import map50_torch_metric_factory
-from jatic_ri.core.object_detection.models import TorchvisionODModel
-from jatic_ri.ui.dashboard_utils import get_capability_from_app_config_od
+from checkmaite.core.capability_core import Number
+from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.object_detection.metrics import map50_torch_metric_factory
+from checkmaite.core.object_detection.models import TorchvisionODModel
+from checkmaite.ui.dashboard_utils import get_capability_from_app_config_od
 
 
 @pytest.fixture(scope="session")

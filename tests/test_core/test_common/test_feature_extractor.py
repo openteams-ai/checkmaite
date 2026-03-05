@@ -2,12 +2,12 @@ import numpy as np
 import torch
 from PIL import Image
 
-from jatic_ri.core._common.feature_extractor import (
+from checkmaite.core._common.feature_extractor import (
     load_feature_extractor,
     pca_projector,
     to_unit_interval_01,
 )
-from jatic_ri.core._types import TorchvisionModelSpec
+from checkmaite.core._types import TorchvisionModelSpec
 
 
 class TestLoadFeatureExtractor:

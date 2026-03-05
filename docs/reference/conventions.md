@@ -1,4 +1,4 @@
-# Reference Implementation (API) Conventions
+# Checkmaite (API) Conventions
 
 ## Overview
 
@@ -6,19 +6,19 @@ The MAITE protocols for metrics, models, and datasets allow for a great deal of 
 
 During the course of testing capability development, and particularly when new testing capabilities are developed or acquired as part of the JATIC program, we will likely identify integrations where the protocols lack the specificity required to smoothly incorporate those new capabilities into our existing test cases (or new ones).
 
-This document serves to declare the specific narrowing of scope that the reference implementation (RI) will use for creating classes and objects that align to MAITE protocol compliant objects.
+This document serves to declare the specific narrowing of scope that the `checkmaite` will use for creating classes and objects that align to MAITE protocol compliant objects.
 
 **Note**: These conventions ensure that the objects comply with the protocols, and any additional specificity required by these protocols must be consistent with the generalized form of the protocols.
 
-As these conventions are incorporated into the reference implementation, they may be absorbed into the MAITE protocols in future releases. If this occurs, the reference implementation team will update the RI to align with the new protocols and remove any redundant sections from this document.
+As these conventions are incorporated into `checkmaite`, they may be absorbed into the MAITE protocols in future releases. If this occurs, the `checkmaite` team will update checkmaite to align with the new protocols and remove any redundant sections from this document.
 
 ## Models
 
 ### Model conventions
 
-- Model classes and wrappers created within the reference implementation (and any models that will be evaluated using the reference implementation) will be built with the underlying model API (pytorch, tensorflow, keras, etc.) object accessible under an attribute called `model`. For example, a thinly wrapped `fasterrcnn_resnet50_fpn` model called `wrapped` will have the underlying `fasterrcnn_resnet50_fpn` model accessible via a call to `wrapped.model`. Because `model` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `model` attribute.
+- Model classes and wrappers created within `checkmaite` (and any models that will be evaluated using `checkmaite`) will be built with the underlying model API (pytorch, tensorflow, keras, etc.) object accessible under an attribute called `model`. For example, a thinly wrapped `fasterrcnn_resnet50_fpn` model called `wrapped` will have the underlying `fasterrcnn_resnet50_fpn` model accessible via a call to `wrapped.model`. Because `model` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `model` attribute.
 
-- Model classes within the reference implementation will have a mapping from the ids to the names of the classes that they predict, under the attribute `index2label`. This class attribute will be of type `dict[int, str]`. Because `index2label` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
+- Model classes within `checkmaite` will have a mapping from the ids to the names of the classes that they predict, under the attribute `index2label`. This class attribute will be of type `dict[int, str]`. Because `index2label` is not an attribute of the protocols for models, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
 
 - Object detection models will return MAITE-compliant object detection [targets](https://gitlab.jatic.net/jatic/cdao/maite/-/blob/main/src/maite/_internals/protocols/object_detection.py?ref_type=heads#L27), which consist of `ArrayLike` of predicted classes, `ArrayLike` of scores, and `ArrayLike` of bounding boxes.
 
@@ -28,7 +28,7 @@ As these conventions are incorporated into the reference implementation, they ma
 
 ### Supported models
 
-In order for users to be able to bring their own models to the reference implementation, without having to write any additional code to support the loading and wrapping of that model into MAITE-compliant objects, we must provide some generalized wrappers for commonly used models. This list contains the set of models that the reference implementation has (or will) support.
+In order for users to be able to bring their own models to `checkmaite`, without having to write any additional code to support the loading and wrapping of that model into MAITE-compliant objects, we must provide some generalized wrappers for commonly used models. This list contains the set of models that `checkmaite` has (or will) support.
 
 #### Object Detection
 - [fasterrcnn_resnet50_fpn](https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html)
@@ -46,7 +46,7 @@ In order for users to be able to bring their own models to the reference impleme
 
 ### Dataset conventions
 
-- Dataset classes and wrappers created within the reference implementation (and any datasets used within the RI) will have the mapping from id to classes accessible under the attribute `index2label`, and will return a `dict[int, str]`. Because `index2label` is not an attribute of the protocols for datasets, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
+- Dataset classes and wrappers created within `checkmaite` (and any datasets used within checkmaite) will have the mapping from id to classes accessible under the attribute `index2label`, and will return a `dict[int, str]`. Because `index2label` is not an attribute of the protocols for datasets, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
 
 - Object detection bounding boxes will be defined as `ArrayLikes` of integers in the `xyxy` format (the top-left and bottom-right corners of the bounding box).
 
@@ -56,7 +56,7 @@ In order for users to be able to bring their own models to the reference impleme
 
 ### Supported dataset annotation formats
 
-In order for users to be able to bring their own datasets to the reference implementation, without having to write any additional code to support the loading and wrapping of that dataset into MAITE-compliant objects, we must provide some generalized wrappers for commonly used annotation formats for loading data. This list contains the set of dataset annotation and storage formats that the reference implementation has (or will) support. This includes the ability to load the datasets from a user-provided location.
+In order for users to be able to bring their own datasets to `checkmaite`, without having to write any additional code to support the loading and wrapping of that dataset into MAITE-compliant objects, we must provide some generalized wrappers for commonly used annotation formats for loading data. This list contains the set of dataset annotation and storage formats that `checkmaite` has (or will) support. This includes the ability to load the datasets from a user-provided location.
 
 * Object detection
     * [COCO](https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/md-coco-overview.html)
@@ -68,7 +68,7 @@ In order for users to be able to bring their own datasets to the reference imple
 
 ### Metric conventions
 
-- Classes for computing metrics within the reference implementation will follow these conventions:
+- Classes for computing metrics within `checkmaite` will follow these conventions:
   - The `Metric` class will have an attribute called `return_key` which describes the top-level performance metric:
     - E.g., for a metric that computes `map_50`, the `return_key` will be `map_50`.
     - Because `return_key` is not an attribute of the protocols for metrics, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportUnknownMemberType]` on those lines that depend on the `return_key` attribute.

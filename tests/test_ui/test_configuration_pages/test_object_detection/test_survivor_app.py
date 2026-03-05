@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("survivor")
 
 # Module-level imports after importorskip to prevent collection errors
-from jatic_ri.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD  # noqa: E402
+from checkmaite.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -131,7 +131,7 @@ def test_run_export(
 
 @pytest.mark.unsupported
 def test_roundtrip() -> None:
-    from jatic_ri.core._common.survivor_capability import SurvivorConfig
+    from checkmaite.core._common.survivor_capability import SurvivorConfig
 
     app = SurvivorAppOD()
     app.panel()  # test constructing the UI even though we can't see it

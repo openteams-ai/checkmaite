@@ -3,13 +3,13 @@ from typing import Any
 
 import pytest
 
-from jatic_ri.core._common.dataeval_shift_capability import (
+from checkmaite.core._common.dataeval_shift_capability import (
     DataevalShiftBase,
     DataevalShiftConfig,
     collect_drift,
     collect_ood,
 )
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture(scope="module")

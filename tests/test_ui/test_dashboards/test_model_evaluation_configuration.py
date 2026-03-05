@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from jatic_ri.ui._common.model_evaluation_configuration import MEConfigurationLandingPage
-from jatic_ri.ui.dashboards.combined_app import FullApp
+from checkmaite.ui._common.model_evaluation_configuration import MEConfigurationLandingPage
+from checkmaite.ui.dashboards.combined_app import FullApp
 
 
 def _reset_me_config_app(app: MEConfigurationLandingPage):

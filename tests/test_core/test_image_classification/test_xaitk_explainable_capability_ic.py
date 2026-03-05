@@ -3,11 +3,11 @@ from typing import Any
 
 import pytest
 
-from jatic_ri.core.image_classification.xaitk_explainable_capability import (
+from checkmaite.core.image_classification.xaitk_explainable_capability import (
     XaitkExplainable,
     XaitkExplainableConfig,
 )
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 RISE_ARGS = {
     "name": "XAITKTestStage RISE Example",

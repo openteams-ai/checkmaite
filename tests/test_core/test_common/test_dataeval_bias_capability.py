@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from jatic_ri.core._common.dataeval_bias_capability import (
+from checkmaite.core._common.dataeval_bias_capability import (
     DataevalBiasBalanceOutputs,
     DataevalBiasBase,
     DataevalBiasConfig,
@@ -13,8 +13,8 @@ from jatic_ri.core._common.dataeval_bias_capability import (
     DataevalBiasOutputs,
     DataevalBiasRun,
 )
-from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 @pytest.fixture

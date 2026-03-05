@@ -1,7 +1,7 @@
 import pytest
 
-from jatic_ri.core.image_classification.dataeval_cleaning_capability import DataevalCleaning
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.image_classification.dataeval_cleaning_capability import DataevalCleaning
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 def ignore_degenerate_data_warnings(test_fn):

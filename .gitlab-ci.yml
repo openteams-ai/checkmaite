@@ -116,9 +116,9 @@ test:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
     - poetry install --with dev --extras ui
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/nrtk_app.py --ci
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/xaitk_app.py --ci
-    - poetry run pytest tests -vvv --cov=jatic_ri --cov-report term-missing $PYTEST_OPTS
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
+    - poetry run pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -136,7 +136,7 @@ dynamic-conda-test:
   stage: test
   needs: []
   script:
-    - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
+    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
 
 # build conda env from conda-lock in the repo and activate it
 conda-lock-test:
@@ -156,7 +156,7 @@ conda-lock-test:
     - pip install . --no-deps
     - micromamba list
   script:
-    - pytest tests -vvv --cov=jatic_ri --cov-report term-missing --cov-report xml:coverage_report.xml
+    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
 
 lint:
   extends: [.shared-setup, .poetry-setup]
@@ -254,15 +254,15 @@ nightly-unsupported:
     # Install dev + unsupported groups (poetry group)
     - poetry install --with dev  --extras ui --extras unsupported
     # Run the panel configs that are currently commented out in the regular job
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/heart_od_app.py --ci
-    - poetry run python src/jatic_ri/ui/configuration_pages/image_classification/heart_ic_app.py --ci
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/reallabel_app.py --ci
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/survivor_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/heart_od_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/image_classification/heart_ic_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/reallabel_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/survivor_app.py --ci
     # The following to apps are also run in MRs as currently supported but rerun them here to save all artifacts together
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/nrtk_app.py --ci
-    - poetry run python src/jatic_ri/ui/configuration_pages/object_detection/xaitk_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
+    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
     # Run pytest including unsupported tests (your default addopts exclude them)
-    - poetry run pytest tests -vvv -m "unsupported or heart" --cov=jatic_ri --cov-report=term-missing $PYTEST_OPTS
+    - poetry run pytest tests -vvv -m "unsupported or heart" --cov=checkmaite --cov-report=term-missing $PYTEST_OPTS
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always

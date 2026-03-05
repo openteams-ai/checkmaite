@@ -1,7 +1,7 @@
 import pytest
 from maite.tasks import evaluate
 
-from jatic_ri.core.image_classification.metrics import (
+from checkmaite.core.image_classification.metrics import (
     InvalidMetricTypeError,
     TorchICMulticlassMetric,
     accuracy_multiclass_torch_metric_factory,

@@ -76,12 +76,12 @@ To set up a conda environment, [install `conda`](https://docs.conda.io/projects/
 
 ```bash
 # create env with conda-lock installed
-conda create -n jatic-ri "conda-lock>=3"
+conda create -n checkmaite "conda-lock>=3"
 # activate the environment
-conda activate jatic-ri
+conda activate checkmaite
 # use conda-lock to install dependencies
-CONDA_ENV_NAME=jatic-ri make conda-env
-# finally, install the reference implementation package
+CONDA_ENV_NAME=checkmaite make conda-env
+# finally, install the `checkmaite` package
 pip install -e . --no-deps
 ```
 
@@ -117,7 +117,7 @@ or
 poetry run pytest tests -svv -m "real_data and unsupported"
 ```
 
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite
 directory to run tests with coverage:
 ```bash
 make test
@@ -133,7 +133,7 @@ Linting and formatting are automated via `pre-commit` hooks. However, if you'd l
 poetry run pre-commit run --all-files --verbose
 ```
 
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned RI directory to run all pre-commit hooks:
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite directory to run all pre-commit hooks:
 
 ```bash
 make format
@@ -149,7 +149,7 @@ poetry run pyright src
 
 (*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
 
-The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. The RI also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
+The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. checkmaite also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
 
 The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
 
@@ -167,7 +167,7 @@ poetry run mkdocs build --site-dir public
 
 The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command.
 
-The RI documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+The checkmaite documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
 
 ## Setting minimum package versions
 
@@ -189,7 +189,7 @@ run the following
 CONDA_ENV_NAME=<env-name> make conda-env
 ```
 
-The CONDA_ENV_NAME environment variable is optional and defaults to `jatic-ri`.
+The CONDA_ENV_NAME environment variable is optional and defaults to `checkmaite`.
 
 ### Updating the lockfile
 
@@ -205,7 +205,7 @@ We use [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local) to run the 
 
 `gitlab-ci-local` can execute jobs via a Docker container or directly on your machine (shell executor). We follow the Docker approach and so you will need to have Docker available locally before you can use the tool.
 
-To run GitLab CI locally, we have created a special file `.gitlab-ci-local-variables.yml`. You should generate a PAT on GitLab (contact the RI team if you do not know how to do this) and then update the `GITLAB_CI_TOKEN:` field in `.gitlab-ci-local-variables.yml` with this value.
+To run GitLab CI locally, we have created a special file `.gitlab-ci-local-variables.yml`. You should generate a PAT on GitLab (contact the checkmaite team if you do not know how to do this) and then update the `GITLAB_CI_TOKEN:` field in `.gitlab-ci-local-variables.yml` with this value.
 
 To run a single job, it's as simple as running `gitlab-ci-local run lint` (you can replace `lint` with any job name from `.gitlab-ci.yml` such as `test` or `pages-branch`). A Docker container should then start and you should be able to replicate the GitLab CI experience locally.
 

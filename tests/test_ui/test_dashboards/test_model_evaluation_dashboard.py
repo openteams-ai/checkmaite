@@ -7,8 +7,8 @@ import pytest
 import torch
 from PIL import Image
 
-from jatic_ri.core.object_detection.models import TorchvisionODModel
-from jatic_ri.ui.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
+from checkmaite.core.object_detection.models import TorchvisionODModel
+from checkmaite.ui.dashboards.model_evaluation_dashboard import ModelEvaluationTestbed
 
 REPORT_PATH = "/report/path"
 REPORT_LINK = "<a href='report-link'>Report Link</a>"
@@ -124,7 +124,7 @@ def test_model_evaluation_dashboard_ic_real_data(json_config_me_ic, artifact_dir
     app.dataset_2_metadata_path.value = "test"
 
     # Set up model
-    from jatic_ri.core.image_classification.models import TorchvisionICModel
+    from checkmaite.core.image_classification.models import TorchvisionICModel
 
     model_name = "resnext50_32x4d"
     model_wrapper = TorchvisionICModel(model_name=model_name)

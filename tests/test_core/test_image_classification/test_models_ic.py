@@ -7,7 +7,7 @@ import pytest
 import torch
 from PIL import Image
 
-from jatic_ri.core.image_classification.models import TorchvisionICModel
+from checkmaite.core.image_classification.models import TorchvisionICModel
 
 ROOT = Path(__file__).parents[2] / "data_for_tests"
 

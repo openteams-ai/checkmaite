@@ -7,7 +7,7 @@ Tests markdown report generation functions.
 import numpy as np
 import pytest
 
-from jatic_ri.core._common.dataeval_cleaning_capability import (
+from checkmaite.core._common.dataeval_cleaning_capability import (
     DataevalCleaningDimensionStatsOutputs,
     DataevalCleaningDuplicatesOutputs,
     DataevalCleaningLabelStatsOutputs,
@@ -23,7 +23,7 @@ from jatic_ri.core._common.dataeval_cleaning_capability import (
     generate_target_property_histograms_report_md,
     generate_target_stats_report_md,
 )
-from jatic_ri.core.report._markdown import MarkdownOutput
+from checkmaite.core.report._markdown import MarkdownOutput
 
 
 @pytest.fixture
@@ -173,7 +173,7 @@ def test_generate_target_outliers_report_md(sample_dimension_stats, sample_visua
 def test_generate_next_steps_report_md():
     """Test generate_next_steps_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
-    generate_next_steps_report_md(md, "jatic_ri")
+    generate_next_steps_report_md(md, "checkmaite")
 
     output = md.render()
     assert len(output) > 0
@@ -211,8 +211,8 @@ def test_generate_target_property_histograms_report_md(sample_dimension_stats, s
 
 def test_dataeval_cleaning_ic_supports():
     """Test DataevalCleaning support specifications."""
-    from jatic_ri.core.capability_core import Number
-    from jatic_ri.core.image_classification.dataeval_cleaning_capability import (
+    from checkmaite.core.capability_core import Number
+    from checkmaite.core.image_classification.dataeval_cleaning_capability import (
         DataevalCleaning,
     )
 

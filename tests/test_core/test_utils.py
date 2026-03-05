@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from jatic_ri.core._utils import CountAndDrop, set_device
+from checkmaite.core._utils import CountAndDrop, set_device
 
 
 @pytest.fixture
@@ -58,14 +58,14 @@ def test_set_device_with_torch_device():
 def test_create_metrics_bar_plot(metric_results, threshold_od):
     from matplotlib.figure import Figure
 
-    from jatic_ri.core.report._plotting_utils import create_metrics_bar_plot
+    from checkmaite.core.report._plotting_utils import create_metrics_bar_plot
 
     fig = create_metrics_bar_plot(metric_results, metric_key="map_50", threshold=threshold_od)
     assert isinstance(fig, Figure)
 
 
 def test_save_figure_to_tempfile(metric_results, threshold_od):
-    from jatic_ri.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
+    from checkmaite.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
 
     fig = create_metrics_bar_plot(metric_results, metric_key="map_50", threshold=threshold_od)
     filename = save_figure_to_tempfile(fig)

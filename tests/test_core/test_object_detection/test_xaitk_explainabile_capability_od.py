@@ -1,8 +1,8 @@
 import pytest
 from torch import as_tensor, equal
 
-from jatic_ri.core.object_detection.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 ARGS = {
     "name": "XaitkExplainable Example",

@@ -18,7 +18,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from jatic_ri.core.report._markdown import (
+from checkmaite.core.report._markdown import (
     MarkdownOutput,
     _build_display_mapping,
     _copy_local_images_and_build_mapping,
@@ -944,7 +944,7 @@ def test_create_markdown_output_saves_and_rewrites(tmp_path: Path, monkeypatch):
     from IPython.display import Markdown
 
     # Patch the display function used by create_markdown_output
-    monkeypatch.setattr("jatic_ri.core.report._markdown._ipy_display", lambda *_a, **_kw: None)
+    monkeypatch.setattr("checkmaite.core.report._markdown._ipy_display", lambda *_a, **_kw: None)
 
     img = tmp_path / "img.png"
     img.write_text("data")

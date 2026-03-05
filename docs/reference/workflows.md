@@ -1,6 +1,6 @@
 # Workflows
 
-The RI supports T&E analyses utilizing JATIC tooling through several different workflows. Each workflow may be appropriate for a different user group or a different usecase. 
+Checkmaite supports T&E analyses utilizing JATIC tooling through several different workflows. Each workflow may be appropriate for a different user group or a different usecase. 
 
 Several aspects of the workflow are under active development.
 

@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("heart_library")
 
-from jatic_ri.core.object_detection.heart_adversarial_capability import HeartAdversarial  # noqa: E402
+from checkmaite.core.object_detection.heart_adversarial_capability import HeartAdversarial  # noqa: E402
 
 
 @pytest.mark.heart

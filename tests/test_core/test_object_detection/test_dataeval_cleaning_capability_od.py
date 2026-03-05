@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from jatic_ri.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
-from jatic_ri.core.object_detection.dataset_loaders import CocoDetectionDataset
-from jatic_ri.core.report._gradient import HAS_GRADIENT
+from checkmaite.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
+from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.report._gradient import HAS_GRADIENT
 
 
 def ignore_degenerate_data_warnings(test_fn):

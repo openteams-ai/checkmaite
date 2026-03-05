@@ -1,10 +1,10 @@
 # Feature Request Template
-<!--Use this template to request the addition of features to the reference implementation.
+<!--Use this template to request the addition of features to `checkmaite`.
 There are two types of feature requests:
 
-1. Features which enhance only a specific use case or require primarily niche familiarity of a JATIC component are to be ***led by the appropriate JATIC team*** (i.e. the requestor's team). The RI team will provide feedback and guidance to the requestor's team in the development of these features. Features of this type are denoted by adding the appropriate JATIC team's tag to the issue.
+1. Features which enhance only a specific use case or require primarily niche familiarity of a JATIC component are to be ***led by the appropriate JATIC team*** (i.e. the requestor's team). The checkmaite team will provide feedback and guidance to the requestor's team in the development of these features. Features of this type are denoted by adding the appropriate JATIC team's tag to the issue.
 
-2. Features determined to be generally applicable to the entire Reference Implementation are prioritized for development ***led by the RI Team itself***. Other JATIC teams may volunteer to support or even lead these efforts. These issues are tracked within the RI Team's usual task workflow.
+2. Features determined to be generally applicable to checkmaite are prioritized for development ***led by the checkmaite team itself***. Other JATIC teams may volunteer to support or even lead these efforts. These issues are tracked within the checkmaite team's usual task workflow.
 -->
 
 ## Feature Description
@@ -12,17 +12,17 @@ There are two types of feature requests:
 * Test Stage if applicable (e.g., object detection, image classification): 
 
 - [ ] Upgrade to a JATIC tool implementation
-- [ ] New RI feature request
+- [ ] New checkmaite feature request
 
 ## Requestor Information
-<!-- Note who is requesting this and whether or not RI team support is required. Features that the requesting team plan to submit will be tracked for completion and progress but will not be worked on by the RI team unless specifically requested. -->
+<!-- Note who is requesting this and whether or not checkmaite team support is required. Features that the requesting team plan to submit will be tracked for completion and progress but will not be worked on by the checkmaite team unless specifically requested. -->
 
 * Requesting team: 
 * Requester slack handle / email: 
 
 - [ ] Requesting team will submit this feature
 - [ ] Requesting team will _not_ submit this feature
-- [ ] RI team meeting requested
+- [ ] checkmaite team meeting requested
 
 ## Risks and dependencies 
 
@@ -32,7 +32,7 @@ There are two types of feature requests:
 
 <!-- (Link other articles, issues, MRs, or code that might be helpful) -->
 
-## For RI Team Use Only
+## For checkmaite team use only
 
 - [ ] If feature will be submitted by a team, tag for corresponding team added to issue
 - [ ] If a meeting is requested, meeting scheduled

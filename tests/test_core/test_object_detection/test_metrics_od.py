@@ -5,7 +5,7 @@ import pytest
 import torch
 from maite.protocols import ArrayLike
 
-from jatic_ri.core.object_detection.metrics import (
+from checkmaite.core.object_detection.metrics import (
     TorchODMetric,
     map50_torch_metric_factory,
     multiclass_map50_torch_metric_factory,
