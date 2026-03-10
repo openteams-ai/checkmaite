@@ -10,9 +10,11 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 from shutil import copy2
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
+import pandas as pd
+import polars as pl
 from IPython.display import Markdown
 from IPython.display import display as _ipy_display
 
@@ -36,7 +38,7 @@ class MarkdownOutput:
     >>> md.add_section(heading="Introduction") \\
     ...   .add_text("This is the introduction.") \\
     ...   .add_section("Results") \\
-    ...   .add_table(["Name", "Value"], [["Accuracy", "0.95"]]) \\
+    ...   .add_table(headers=["Name", "Value"], rows=[["Accuracy", "0.95"]]) \\
     ...   .render()
     """
 
@@ -188,22 +190,34 @@ class MarkdownOutput:
 
     def add_table(
         self,
-        headers: list[str],
-        rows: list[list[Any]],
+        *,
+        headers: list[str] | None = None,
+        rows: list[list[Any]] | None = None,
         align: list[str] | None = None,
+        dataframe: pd.DataFrame | pl.DataFrame | None = None,
     ) -> "MarkdownOutput":
         """Add a markdown table.
 
         Parameters
         ----------
-        headers : list[str]
+        headers : list[str] | None, optional
             Column headers for the table.
-        rows : list[list[Any]]
+        rows : list[list[Any]] | None, optional
             Table rows, where each row is a list of cell values.
         align : list[str] | None, optional
             Column alignment specifications ("left", "right", "center"),
             by default None (left-aligned).
+        dataframe: pd.DataFrame | pl.DataFrame | None, optional
+            Pandas or Polars dataframe. If specified, headers and rows args should be None.
         """
+        if dataframe is not None:
+            if headers is not None or rows is not None:
+                raise ValueError("Either headers/rows or dataframe should be provided and not both")
+            headers = list(dataframe.columns)
+            rows = cast(list[list[Any]], dataframe.to_numpy().tolist())
+        elif headers is None or rows is None:
+            raise ValueError("Either headers/rows or dataframe should be provided")
+
         num_cols = len(headers)
 
         if num_cols == 0:
