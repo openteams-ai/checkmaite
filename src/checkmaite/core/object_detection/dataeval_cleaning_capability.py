@@ -1,5 +1,5 @@
 import maite.protocols.object_detection as od
-from dataeval.core import calculate, calculate_ratios
+from dataeval.core import compute_ratios, compute_stats
 from dataeval.flags import ImageStats
 from dataeval.quality import Duplicates
 
@@ -40,14 +40,14 @@ class DataevalCleaning(DataevalCleaningBase[od.Dataset, od.Model, od.Metric]):
         # boxes stats
         incremented_dataset = dataset
 
-        target_stats_output = calculate(
+        target_stats_output = compute_stats(
             incremented_dataset,
             stats=(ImageStats.DIMENSION | ImageStats.VISUAL | ImageStats.PIXEL_ZEROS | ImageStats.PIXEL_MISSING),
             per_image=False,
             per_target=True,
         )
 
-        dimensional_ratio_stats = calculate_ratios(stats, target_stats_output=target_stats_output)
+        dimensional_ratio_stats = compute_ratios(stats, target_stats_output=target_stats_output)
 
         target_outliers = self._compute_box_outliers(target_stats_output, ratiostats=dimensional_ratio_stats)
 

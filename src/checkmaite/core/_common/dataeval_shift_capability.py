@@ -1,5 +1,4 @@
 import logging
-from functools import partial
 from typing import Any
 
 import numpy as np
@@ -8,7 +7,7 @@ import pydantic
 import torch
 from dataeval import Embeddings
 from dataeval.extractors import TorchExtractor
-from dataeval.shift import DriftMMD, DriftMMDOutput, DriftUnivariate, OODKNeighbors
+from dataeval.shift import DriftMMD, DriftOutput, DriftUnivariate, OODKNeighbors
 from pydantic import Field
 
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector
@@ -52,21 +51,14 @@ class DataevalShiftConfig(CapabilityConfigBase):
     )
 
 
-class DataevalShiftUnivariateOutput(CapabilityOutputsBase):
-    drifted: bool
-    threshold: float
-    p_val: float
-    distance: float
-    feature_drift: np.ndarray
-    feature_threshold: float
-    p_vals: np.ndarray
-    distances: np.ndarray
-
-
 class DataevalShiftDriftOutputs(CapabilityOutputsBase):
-    mmd: DriftMMDOutput
-    cvm: DataevalShiftUnivariateOutput
-    ks: DataevalShiftUnivariateOutput
+    # We can not put DriftOutput[DriftMMD.Stats] type specifications
+    # due dataeval using TypedDict from typing and
+    # Pydantic Error: pydantic.errors.PydanticUserError: Please use `typing_extensions.TypedDict`
+    # instead of `typing.TypedDict` on Python < 3.12.
+    mmd: DriftOutput  #  [DriftMMD.Stats]
+    cvm: DriftOutput  #  [DriftUnivariate.Stats]
+    ks: DriftOutput  #  [DriftUnivariate.Stats]
 
 
 class DataevalShiftOODKNNOutput(CapabilityOutputsBase):
@@ -287,13 +279,12 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
             )
 
         detectors = {
-            "mmd": partial(DriftMMD, device=config.device),
-            "cvm": partial(DriftUnivariate, method="cvm"),
-            "ks": partial(DriftUnivariate, method="ks"),
+            "mmd": DriftMMD(device=config.device),
+            "cvm": DriftUnivariate(method="cvm"),
+            "ks": DriftUnivariate(method="ks"),
         }
-
         return DataevalShiftDriftOutputs.model_validate(
-            {name: detector(data=emb_1).predict(emb_2).data() for name, detector in detectors.items()}
+            {name: detector.fit(emb_1).predict(emb_2).data() for name, detector in detectors.items()}
         )
 
     def _run_ood(
@@ -347,10 +338,10 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
                 f"extractor already outputs {d}-D embeddings. Returning {d}-D embeddings without PCA.",
             )
 
-        detectors = {"ood_knn": OODKNeighbors(k=min(10, n1 - 1), distance_metric="cosine")}
+        detectors = {"ood_knn": OODKNeighbors(k=min(10, n1 - 1), threshold_perc=99, distance_metric="cosine")}
 
         for detector in detectors.values():
-            detector.fit(emb_1, threshold_perc=99)
+            detector.fit(emb_1)
 
         return DataevalShiftOODOutputs.model_validate(
             {name: detector.predict(emb_2).data() for name, detector in detectors.items()}
@@ -525,7 +516,7 @@ def collect_drift_md(
         field_name: {
             "drifted": field_value.drifted,
             "distance": field_value.distance,
-            "p_val": field_value.p_val,
+            "p_val": field_value.details["p_val"],
         }
         for field_name, field_value in drift_outputs
     }
