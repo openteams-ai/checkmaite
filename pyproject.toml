@@ -48,7 +48,7 @@ include = ["src/checkmaite/py.typed"]
 exclude = ["src/checkmaite/_docs.py"]
 
 [tool.poetry.dependencies]
-dataeval = ">=1.0.0rc1"
+dataeval = "==1.0.0rc1"
 dataeval-plots = "==0.0.6"                                        # We specify pypi source as dataeval_plots wont be on conda-forge
 maite = "==0.9.2"
 nrtk = { version = "==0.27.1", extras = ["pybsm"] }
@@ -102,7 +102,7 @@ mkdocs-material = ">=9.6.4"                        # arbitrary
 pymdown-extensions = ">=10.14.3"                   # arbitrary
 
 # these are security patches are not direct dependencies
-# this group is never used directly, but these pins are used  
+# this group is never used directly, but these pins are used
 # when poetry lock is generated
 [tool.poetry.group.security.dependencies]
 urllib3 = ">=2.6.3"
