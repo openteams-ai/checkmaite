@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import pandas as pd
 from dataeval import Metadata
-from dataeval.core import calculate, label_stats
+from dataeval.core import compute_stats, label_stats
 from dataeval.flags import ImageStats
 from dataeval.quality import Outliers
 from dataeval.types import SourceIndex
+from dataeval.utils.thresholds import ZScoreThreshold
 
 if TYPE_CHECKING:
-    from dataeval.core._calculate import CalculationResult
+    from dataeval.core._compute_stats import StatsResult
     from dataeval.core._label_stats import LabelStatsResult
     from dataeval.quality import DuplicatesOutput
 
@@ -64,24 +65,26 @@ def _normalize_duplicates_output(duplicates: "DuplicatesOutput") -> dict[str, Se
     are not supported yet and will raise a `TypeError`.
     """
 
-    exact = duplicates.items.exact
-    near = duplicates.items.near
+    exact = duplicates.exact
+    near = duplicates.near
 
-    if exact is not None:
+    if len(exact) > 0:
+        # exact is Sequence[Sequence[int]]
         if not isinstance(exact[0][0], int):
             raise TypeError("Cross-dataset exact-duplicate checks not currently supported.")
         exact_norm = cast(Sequence[Sequence[int]], [list(group) for group in exact])
     else:
         exact_norm = None
 
-    if near is None:
+    if len(near) == 0:
         near_norm = None
     else:
         near_norm: Sequence[Sequence[int]] | None = []
+        # near is Sequence[tuple[Sequence[int], Sequence[str]]]
         for group in near:
-            if not isinstance(group.indices[0], int):
+            if not isinstance(group[0][0], int):
                 raise TypeError("Cross-dataset near-duplicate checks not currently supported.")
-            indices = cast(Sequence[int], group.indices)
+            indices = cast(Sequence[int], group[0])
             near_norm.append(list(indices))
 
     return {"exact": exact_norm, "near": near_norm}
@@ -469,7 +472,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         """
         return Number.ZERO
 
-    def _run_basic_stats(self, dataset: TDataset) -> tuple["CalculationResult", "LabelStatsResult"]:
+    def _run_basic_stats(self, dataset: TDataset) -> tuple["StatsResult", "LabelStatsResult"]:
         """Compute statistics for the images in the dataset.
 
         Parameters
@@ -479,7 +482,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Returns
         -------
-        tuple[CalculationResult, LabelStatsResult]
+        tuple[StatsResult, LabelStatsResult]
             Type containing hash, dimension, visual, and label statistics.
         """
 
@@ -507,7 +510,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             return "perceptual" in msg and "hash" in msg
 
         with squash_repeated_warnings("dataeval", is_small_perceptual_hash_warning) as filt:
-            stats = calculate(
+            stats = compute_stats(
                 dataset,
                 stats=flags,
                 per_target=False,
@@ -528,7 +531,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         )
         return stats, label_stats_result
 
-    def _compute_basic_outliers(self, stats: "CalculationResult") -> dict[int, dict[str, float]]:
+    def _compute_basic_outliers(self, stats: "StatsResult") -> dict[int, dict[str, float]]:
         """
         Compute z-score-based outliers for selected dimension and visual metrics.
 
@@ -538,7 +541,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        stats : CalculationResult
+        stats : StatsResult
             dataset statistics.
 
         Returns
@@ -546,18 +549,10 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         dict[int, dict[str, float]]
             A dictionary of outliers.
         """
-        # Workaround to failing Outliers.from_stats() on stats with hash values
-        if any("hash" in key for key in stats["stats"]):
-            stats_without_hash = dict(stats)
-            stats_without_hash = cast("CalculationResult", stats_without_hash)
-            stats_without_hash["stats"] = {k: v for k, v in stats_without_hash["stats"].items() if "hash" not in k}
-        else:
-            stats_without_hash = stats
-
-        base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats_without_hash)
+        base_outliers = Outliers(outlier_threshold=ZScoreThreshold(3)).from_stats(stats)
         outliers_dict = defaultdict(dict)
 
-        base_outliers_df = base_outliers.issues[["item_id", "metric_name", "metric_value"]]
+        base_outliers_df = base_outliers[["item_index", "metric_name", "metric_value"]]
         for k, category, value in base_outliers_df.iter_rows():
             if category in DIMENSION_LIST or category in VISUAL_LIST:
                 outliers_dict[k][category] = value
@@ -567,7 +562,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
     def _outlier_at_1(
         self,
         outlier_result: dict[int, dict[str, float]],
-        stats: "CalculationResult",
+        stats: "StatsResult",
         categories: list[str],
     ) -> dict[int, dict[str, float]]:
         """
@@ -584,7 +579,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         ----------
         outlier_result : dict[int, dict[str, float]]
             The dictionary to store outlier results.
-        stats : CalculationResult
+        stats : StatsResult
             Type containing dimension statistics.
         categories : list[str]
             List of categories to check.
@@ -629,7 +624,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
                 dict1[key] = inner
         return dict1
 
-    def _compute_ratio_outliers(self, stats: "CalculationResult") -> dict[int, dict[str, float]]:
+    def _compute_ratio_outliers(self, stats: "StatsResult") -> dict[int, dict[str, float]]:
         """
         Compute z-score-based outliers for selected ratio metrics.
 
@@ -639,7 +634,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        stats : CalculationResult
+        stats : StatsResult
             Type containing dimension statistics.
 
         Returns
@@ -648,19 +643,17 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             A dictionary of outliers.
         """
         outliers_dict = {}
-        base_outliers = Outliers(outlier_method="zscore", outlier_threshold=3).from_stats(stats)
+        base_outliers = Outliers(outlier_threshold=ZScoreThreshold(3)).from_stats(stats)
         outliers_dict = defaultdict(dict)
 
-        base_outliers_df = base_outliers.issues[["item_id", "metric_name", "metric_value"]]
+        base_outliers_df = base_outliers[["item_index", "metric_name", "metric_value"]]
         for k, category, value in base_outliers_df.iter_rows():
             if category in RATIO_LIST:
                 outliers_dict[k][category] = value
 
         return outliers_dict
 
-    def _compute_box_outliers(
-        self, box_stats: "CalculationResult", ratiostats: "CalculationResult"
-    ) -> dict[int, dict[str, float]]:
+    def _compute_box_outliers(self, box_stats: "StatsResult", ratiostats: "StatsResult") -> dict[int, dict[str, float]]:
         """
         Compute outliers related to bounding boxes.
 
@@ -669,9 +662,9 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         Parameters
         ----------
-        box_stats : CalculationResult
+        box_stats : StatsResult
             Bounding box dimension and visual statistics.
-        ratiostats : CalculationResult
+        ratiostats : StatsResult
             Ratio statistics.
 
         Returns
@@ -688,9 +681,9 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         return self._dictionary_merge(box_result, adjusted_ratio_result)
 
-    # Temporary private method to convert CalculationResult into a dict loadable by
+    # Temporary private method to convert StatsResult into a dict loadable by
     # DataevalCleaningDimensionStatsOutputs
-    def _get_common_stats(self, stats: "CalculationResult") -> dict:
+    def _get_common_stats(self, stats: "StatsResult") -> dict:
         return {
             key: stats[key]
             for key in [
@@ -700,7 +693,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             ]
         }
 
-    def _get_dim_stats(self, stats: "CalculationResult") -> dict:
+    def _get_dim_stats(self, stats: "StatsResult") -> dict:
         common_stats = self._get_common_stats(stats)
         return common_stats | {
             key: stats["stats"][key]
@@ -720,9 +713,9 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             ]
         }
 
-    # Temporary private method to convert CalculationResult into local structures
+    # Temporary private method to convert StatsResult into local structures
     # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
-    def _get_img_dim_viz_stats(self, stats: "CalculationResult") -> tuple[dict, dict]:
+    def _get_img_dim_viz_stats(self, stats: "StatsResult") -> tuple[dict, dict]:
         common_img_stats = self._get_common_stats(stats)
         img_dim_stats = common_img_stats | {
             key: stats["stats"][key]
@@ -755,9 +748,9 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
         }
         return img_dim_stats, img_viz_stats
 
-    # Temporary private method to convert CalculationResult into local structures
+    # Temporary private method to convert StatsResult into local structures
     # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
-    def _get_box_dim_viz_stats(self, box_stats: "CalculationResult") -> tuple[dict, dict]:
+    def _get_box_dim_viz_stats(self, box_stats: "StatsResult") -> tuple[dict, dict]:
         common_box_stats = self._get_common_stats(box_stats)
         box_dim_stats = common_box_stats | {
             key: box_stats["stats"][key]

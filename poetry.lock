@@ -1562,14 +1562,14 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataeval"
-version = "1.0.0rc1"
+version = "1.0.2"
 description = "DataEval provides a simple interface to characterize image data and its impact on model performance across classification and object-detection tasks"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "dataeval-1.0.0rc1-py3-none-any.whl", hash = "sha256:52b41be73df4dee5481cb7b04cbd001a3939f1a04111165439c394f1b42ad3d5"},
-    {file = "dataeval-1.0.0rc1.tar.gz", hash = "sha256:444ea7f1185bb1a6e1c9b7def979794823734e239600442c18d6feec9b74ee41"},
+    {file = "dataeval-1.0.2-py3-none-any.whl", hash = "sha256:32fe3488cd8685afd143f838b9f3734138e51d4cbc2ce39375d5706520795641"},
+    {file = "dataeval-1.0.2.tar.gz", hash = "sha256:623d8d6ce30fc28b64707eb36538b981b54b378fd8893fcffaeac5a39614730f"},
 ]
 
 [package.dependencies]
@@ -9497,4 +9497,4 @@ unsupported = ["gradient", "heart-library", "reallabel", "survivor"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.12"
-content-hash = "7a6a214d0540eb790ac6e39e02e74ddc0fbbe4259e8f365de7402e47a386d4b6"
+content-hash = "fd4bce7dbb4c328f85279989c412a39dd16736146ad1ed3ad10de24539253cba"

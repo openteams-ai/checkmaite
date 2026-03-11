@@ -77,8 +77,23 @@ def tmp_cache_path(tmp_path):
 
 DEFAULT_DATASET_LENGTH: int = 6
 
-DEFAULT_OD_DATASET_IMAGES: Sequence[ArrayLike] = [
-    torch.ones(torch.Size([3, 230, 352]), dtype=torch.uint8) for _ in range(DEFAULT_DATASET_LENGTH)
+DEFAULT_OD_DATASET_IMAGES: Sequence[ArrayLike] = [  # exact duplicates
+    torch.ones(torch.Size([3, 230, 352]), dtype=torch.uint8) for _ in range(DEFAULT_DATASET_LENGTH - 2)
+] + [  # Near exact duplicates
+    torch.cat(
+        [
+            2 * torch.ones(torch.Size([3, 230, 200]), dtype=torch.uint8),
+            3 * torch.ones(torch.Size([3, 230, 152]), dtype=torch.uint8),
+        ],
+        dim=-1,
+    ),
+    torch.cat(
+        [
+            2 * torch.ones(torch.Size([3, 230, 180]), dtype=torch.uint8),
+            3 * torch.ones(torch.Size([3, 230, 172]), dtype=torch.uint8),
+        ],
+        dim=-1,
+    ),
 ]
 
 DEFAULT_OD_DATASET_TARGETS: Sequence[od.ObjectDetectionTarget] = [
