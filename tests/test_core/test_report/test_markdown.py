@@ -259,7 +259,7 @@ class TestMarkdownOutputTables:
         md = MarkdownOutput("Report")
         headers = ["Name", "Value"]
         rows = [["Accuracy", "0.95"], ["Precision", "0.92"]]
-        md.add_table(headers, rows)
+        md.add_table(headers=headers, rows=rows)
 
         output = md.render()
         assert "| Name | Value |" in output
@@ -273,7 +273,7 @@ class TestMarkdownOutputTables:
         headers = ["Left", "Center", "Right"]
         rows = [["L", "C", "R"]]
         align = ["left", "center", "right"]
-        md.add_table(headers, rows, align=align)
+        md.add_table(headers=headers, rows=rows, align=align)
 
         output = md.render()
         assert "| :--- | :---: | ---: |" in output
@@ -283,7 +283,7 @@ class TestMarkdownOutputTables:
         md = MarkdownOutput("Report")
         headers = ["Column"]
         rows = [["Value | with | pipes"]]
-        md.add_table(headers, rows)
+        md.add_table(headers=headers, rows=rows)
 
         output = md.render()
         assert r"Value \| with \| pipes" in output
@@ -292,7 +292,7 @@ class TestMarkdownOutputTables:
         """Test that table with no headers raises ValueError."""
         md = MarkdownOutput("Report")
         with pytest.raises(ValueError, match="Table must have at least one header"):
-            md.add_table([], [])
+            md.add_table(headers=[], rows=[])
 
     def test_add_table_mismatched_align_raises_error(self):
         """Test that mismatched align length raises ValueError."""
@@ -302,7 +302,7 @@ class TestMarkdownOutputTables:
         align = ["left"]  # Wrong length
 
         with pytest.raises(ValueError, match="align length .* must match number of headers"):
-            md.add_table(headers, rows, align=align)
+            md.add_table(headers=headers, rows=rows, align=align)
 
     def test_add_table_mismatched_row_length_raises_error(self):
         """Test that rows with wrong column count raise ValueError."""
@@ -311,14 +311,14 @@ class TestMarkdownOutputTables:
         rows = [["1", "2"], ["1"]]  # Second row has wrong length
 
         with pytest.raises(ValueError, match="Row 1 has 1 columns, expected 2"):
-            md.add_table(headers, rows)
+            md.add_table(headers=headers, rows=rows)
 
     def test_add_table_with_different_types(self):
         """Test table with different value types."""
         md = MarkdownOutput("Report")
         headers = ["String", "Int", "Float"]
         rows = [["text", 42, 3.14]]
-        md.add_table(headers, rows)
+        md.add_table(headers=headers, rows=rows)
 
         output = md.render()
         assert "| text | 42 | 3.14 |" in output
@@ -326,8 +326,51 @@ class TestMarkdownOutputTables:
     def test_table_chaining(self):
         """Test that add_table returns self for chaining."""
         md = MarkdownOutput("Report")
-        result = md.add_table(["H"], [["V"]])
+        result = md.add_table(headers=["H"], rows=[["V"]])
         assert result is md
+
+    @pytest.mark.parametrize("df_class", ["pandas", "polars"])
+    def test_add_table_with_dataframe_basic(self, df_class):
+        if df_class == "pandas":
+            import pandas as pd
+
+            df_cls = pd.DataFrame
+        else:
+            import polars as pl
+
+            df_cls = pl.DataFrame
+
+        expected_headers = "| Name | Age |"
+        expected_rows = ["| Alice | 30 |", "| Bob | 25 |"]
+        dframe = df_cls({"Name": ["Alice", "Bob"], "Age": [30, 25]})
+        md = MarkdownOutput("Report")
+        md.add_table(dataframe=dframe)
+
+        output = md.render()
+        assert expected_headers in output
+        for row in expected_rows:
+            assert row in output
+
+    def test_add_table_wrong_inputs(self):
+        import pandas as pd
+
+        md = MarkdownOutput("Report")
+        dframe = pd.DataFrame({"A": [1]})
+
+        with pytest.raises(ValueError, match="Either headers/rows or dataframe should be provided"):
+            md.add_table()
+
+        with pytest.raises(ValueError, match="Either headers/rows or dataframe should be provided and not both"):
+            md.add_table(headers=["A"], rows=[[1]], dataframe=dframe)
+
+        with pytest.raises(ValueError, match="Either headers/rows or dataframe should be provided and not both"):
+            md.add_table(rows=[[1]], dataframe=dframe)
+
+        with pytest.raises(ValueError, match="Either headers/rows or dataframe should be provided and not both"):
+            md.add_table(headers=["A"], dataframe=dframe)
+
+        with pytest.raises(ValueError, match="Either headers/rows or dataframe should be provided"):
+            md.add_table(headers=["A"])
 
 
 class TestMarkdownOutputImages:
@@ -700,7 +743,7 @@ class TestMarkdownOutputChaining:
             .add_text("This is the intro.")
             .add_section("Methods")
             .add_bulleted_list(["Step 1", "Step 2"])
-            .add_table(["Metric", "Value"], [["Accuracy", "0.95"]])
+            .add_table(headers=["Metric", "Value"], rows=[["Accuracy", "0.95"]])
             .add_horizontal_rule()
         )
 
@@ -767,7 +810,7 @@ class TestMarkdownOutputEdgeCases:
     def test_single_column_table(self):
         """Test table with single column."""
         md = MarkdownOutput("Report")
-        md.add_table(["Column"], [["Value1"], ["Value2"]])
+        md.add_table(headers=["Column"], rows=[["Value1"], ["Value2"]])
 
         output = md.render()
         assert "| Column |" in output
@@ -777,7 +820,7 @@ class TestMarkdownOutputEdgeCases:
     def test_table_with_empty_cells(self):
         """Test table with empty cell values."""
         md = MarkdownOutput("Report")
-        md.add_table(["A", "B"], [["value", ""], ["", "value"]])
+        md.add_table(headers=["A", "B"], rows=[["value", ""], ["", "value"]])
 
         output = md.render()
         assert "| value |  |" in output
