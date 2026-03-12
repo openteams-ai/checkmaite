@@ -21,8 +21,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.10, <3.12"
+requires-python = ">=3.10, <3.13"
 
 dynamic = ["dependencies"]
 
@@ -122,10 +123,10 @@ checkmaite-serve = "checkmaite.ui.app:main"
 # dependencies even when they're in an "optional" Poetry group. These will not be included in the conda-lock file.
 [project.optional-dependencies]
 unsupported = [
-    "heart-library==0.7.0",
-    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4",
-    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6",
-    "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2",
+    "heart-library==0.7.0 ; python_version < '3.12'",
+    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4 ; python_version < '3.12'",
+    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6 ; python_version < '3.12'",
+    "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2 ; python_version < '3.12'",
 ]
 ui = [
     "holoviews>=1.20.0",

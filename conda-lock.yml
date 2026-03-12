@@ -2471,7 +2471,7 @@ package:
   category: main
   optional: false
 - name: harfbuzz
-  version: 12.3.2
+  version: 13.1.0
   manager: conda
   platform: linux-64
   dependencies:
@@ -2479,17 +2479,17 @@ package:
     cairo: '>=1.18.4,<2.0a0'
     graphite2: '>=1.3.14,<2.0a0'
     icu: '>=78.2,<79.0a0'
-    libexpat: '>=2.7.3,<3.0a0'
-    libfreetype: '>=2.14.1'
-    libfreetype6: '>=2.14.1'
+    libexpat: '>=2.7.4,<3.0a0'
+    libfreetype: '>=2.14.2'
+    libfreetype6: '>=2.14.2'
     libgcc: '>=14'
-    libglib: '>=2.86.3,<3.0a0'
+    libglib: '>=2.86.4,<3.0a0'
     libstdcxx: '>=14'
     libzlib: '>=1.3.1,<2.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/harfbuzz-12.3.2-h6083320_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/harfbuzz-13.1.0-h6083320_0.conda
   hash:
-    md5: d170a70fc1d5c605fcebdf16851bd54a
-    sha256: 92015faf283f9c0a8109e2761042cd47ae7a4505e24af42a53bc3767cb249912
+    md5: 5baf48da05855be929c5a50f4377794d
+    sha256: 08dc098dcc5c3445331a834f46602b927cb65d2768189f3f032a6e4643f15cd9
   category: main
   optional: false
 - name: hdf5
@@ -2817,7 +2817,7 @@ package:
   category: main
   optional: false
 - name: intel-media-driver
-  version: 26.1.2
+  version: 26.1.4
   manager: conda
   platform: linux-64
   dependencies:
@@ -2826,10 +2826,10 @@ package:
     libgcc: '>=14'
     libstdcxx: '>=14'
     libva: '>=2.23.0,<3.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/intel-media-driver-26.1.2-hecca717_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/intel-media-driver-26.1.4-hecca717_0.conda
   hash:
-    md5: 9472149b7748ee8c2fe229bdd9636768
-    sha256: bbc7049d2f396d8683a0beb9ffda1cf46ca9425fa2a97464bb4c5f6294e9c5d8
+    md5: 85e32c66a890d4eb25bbe95ae4747466
+    sha256: 425388f6dcddf438d15ea5050656ba854aef9025712e61bafb23ed34aff22e88
   category: main
   optional: false
 - name: ipykernel
@@ -3850,7 +3850,7 @@ package:
   category: main
   optional: false
 - name: libcurl
-  version: 8.18.0
+  version: 8.19.0
   manager: conda
   platform: linux-64
   dependencies:
@@ -3862,10 +3862,10 @@ package:
     libzlib: '>=1.3.1,<2.0a0'
     openssl: '>=3.5.5,<4.0a0'
     zstd: '>=1.5.7,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.18.0-hcf29cc6_1.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.19.0-hcf29cc6_0.conda
   hash:
-    md5: 1707cdd636af2ff697b53186572c9f77
-    sha256: c84e8dccb65ad5149c0121e4b54bdc47fa39303fd5f4979b8c44bb51b39a369b
+    md5: d50608c443a30c341c24277d28290f76
+    sha256: a0390fd0536ebcd2244e243f5f00ab8e76ab62ed9aa214cd54470fe7496620f4
   category: main
   optional: false
 - name: libde265
@@ -6541,15 +6541,15 @@ package:
   category: main
   optional: false
 - name: platformdirs
-  version: 4.9.2
+  version: 4.9.4
   manager: conda
   platform: linux-64
   dependencies:
     python: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.2-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.4-pyhcf101f3_0.conda
   hash:
-    md5: 4fefefb892ce9cc1539405bec2f1a6cd
-    sha256: 7f263219cecf0ba6d74c751efa60c4676ce823157ca90aa43ebba5ac615ca0fa
+    md5: 82c1787f2a65c0155ef9652466ee98d6
+    sha256: 0289f0a38337ee201d984f8f31f11f6ef076cfbbfd0ab9181d12d9d1d099bf46
   category: main
   optional: false
 - name: pluggy
