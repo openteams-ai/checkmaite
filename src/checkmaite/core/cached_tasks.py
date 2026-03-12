@@ -1,6 +1,7 @@
 import abc
 import functools
 import hashlib
+import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, TypeVar, cast
@@ -56,13 +57,13 @@ def _make_task_cache(task: str, model_type: type[PModel]) -> PydanticCache[PMode
     return TaskCache()
 
 
-def _get_id(
+def _resolve_id(
     obj: gen.Model | gen.Dataset | gen.Augmentation | gen.Metric | None,
     *,
     id: str | None = None,  # noqa: A002
 ) -> str | None:
     if obj is not None and id is not None:
-        raise ValueError
+        raise ValueError(f"Received object of type {type(obj)} and id; only one should be provided.")
     if obj is not None:
         return obj.metadata["id"]
     if id is not None:
@@ -73,13 +74,14 @@ def _get_id(
 class _ConfigBase(pydantic.BaseModel, abc.ABC):
     @functools.cached_property
     def cache_key(self) -> str | None:
-        if not self.is_valid_for_caching():
+        required_fields = self.cache_key_required_fields()
+        if any(getattr(self, f) is None for f in required_fields):
             return None
 
         return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
 
     @abc.abstractmethod
-    def is_valid_for_caching(self) -> bool: ...
+    def cache_key_required_fields(self) -> set[str]: ...
 
 
 StrictReturnAugmentedData = Literal["all", "targets", "none"]
@@ -98,9 +100,9 @@ class _PredictConfig(_ConfigBase):
     augmentation_id: str | None
     return_augmented_data: StrictReturnAugmentedData
 
-    def is_valid_for_caching(self) -> bool:
+    def cache_key_required_fields(self) -> set[str]:
         # self.augmentation_id is None is a valid use case and should not result in an invalid cache key
-        return not any(id is None for id in [self.model_id, self.dataset_id])  # noqa: A001
+        return {"model_id", "dataset_id"}
 
 
 class _PredictCall(CapabilityOutputsBase):
@@ -140,9 +142,9 @@ def predict(
 ) -> tuple[Sequence[Sequence[T_Target]], Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]]]:
     "Generate predictions using a model and dataset."
 
-    model_id = _get_id(obj=model)
+    model_id = _resolve_id(obj=model)
     model_index2label = getattr(model.metadata, "index2label", {})
-    dataset_id = _get_id(dataset, id=dataset_id)
+    dataset_id = _resolve_id(dataset, id=dataset_id)
     dataset_index2label = getattr(dataset.metadata, "index2label", {}) if dataset is not None else {}
 
     error_msg = f"""
@@ -163,10 +165,15 @@ def predict(
     config = _PredictConfig(
         model_id=model_id,
         dataset_id=dataset_id,
-        augmentation_id=_get_id(augmentation) if augmentation else None,
+        augmentation_id=_resolve_id(augmentation) if augmentation else None,
         return_augmented_data=strict_return_augmented_data,
     )
-
+    if not config.cache_key and use_cache:
+        warnings.warn(
+            "use_cache was requested but caching is disabled because at least one of the following is None:"
+            + str(config.cache_key_required_fields()),
+            stacklevel=2,
+        )
     if config.cache_key is not None and use_cache:
         call = _predict_cache.get(config.cache_key)
         if call is not None:
@@ -206,9 +213,9 @@ class _EvaluateFromPredictionsConfig(_ConfigBase):
     augmentation_id: str | None
     metric_id: str | None
 
-    def is_valid_for_caching(self) -> bool:
+    def cache_key_required_fields(self) -> set[str]:
         # self.augmentation_id is None is a valid use case and should not result in an invalid cache key
-        return not any(id is None for id in [self.model_id, self.dataset_id, self.metric_id])  # noqa: A001
+        return {"model_id", "dataset_id", "metric_id"}
 
 
 class _EvaluateFromPredictionsCall(CapabilityOutputsBase):
@@ -234,11 +241,18 @@ def evaluate_from_predictions(
 ) -> Mapping[str, Any]:
     "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
     config = _EvaluateFromPredictionsConfig(
-        model_id=_get_id(model, id=model_id),
-        dataset_id=_get_id(dataset, id=dataset_id),
-        augmentation_id=_get_id(augmentation, id=augmentation_id),
-        metric_id=_get_id(metric),
+        model_id=_resolve_id(model, id=model_id),
+        dataset_id=_resolve_id(dataset, id=dataset_id),
+        augmentation_id=_resolve_id(augmentation, id=augmentation_id),
+        metric_id=_resolve_id(metric),
     )
+
+    if not config.cache_key and use_cache:
+        warnings.warn(
+            "use_cache was requested but caching is disabled because at least one of the following is None:"
+            + str(config.cache_key_required_fields()),
+            stacklevel=2,
+        )
 
     if config.cache_key is not None and use_cache:
         call = _evaluate_from_predictions_cache.get(config.cache_key)

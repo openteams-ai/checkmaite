@@ -139,3 +139,150 @@ def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_i
 
     assert "metric_2_result" in results_2
     assert results_2["metric_2_result"].item() == 0.75
+
+
+def test_predict_cache_warning_no_model_id(fake_ic_dataset_default):
+    """Test that a warning is emitted when predict() is called with use_cache=True but model has no ID."""
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICModel
+
+    # Create a model without an ID
+    model_no_id = FakeICModel(model_metadata={"index2label": {}, "id": None})
+
+    with pytest.warns(
+        UserWarning,
+        match="use_cache was requested but caching is disabled because at least one of the following is None:",
+    ):
+        cached_tasks.predict(
+            model=model_no_id,
+            dataset=fake_ic_dataset_default,
+            use_cache=True,
+        )
+
+
+def test_predict_cache_warning_no_dataset_id(fake_ic_model_default):
+    """Test that a warning is emitted when predict() is called with use_cache=True but dataset has no ID."""
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICDataset
+
+    # Create a dataset without an ID
+    dataset_no_id = FakeICDataset(dataset_metadata={"index2label": {}, "id": None})
+
+    with pytest.warns(
+        UserWarning,
+        match="use_cache was requested but caching is disabled because at least one of the following is None:",
+    ):
+        cached_tasks.predict(
+            model=fake_ic_model_default,
+            dataset=dataset_no_id,
+            use_cache=True,
+        )
+
+
+def test_predict_no_cache_warning_when_use_cache_false(recwarn, fake_ic_model_default, fake_ic_dataset_default):
+    """Test that no warning is emitted when predict() is called with use_cache=False."""
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICDataset
+
+    # Create a dataset without an ID
+    dataset_no_id = FakeICDataset(dataset_metadata={"index2label": {}, "id": None})
+
+    cached_tasks.predict(
+        model=fake_ic_model_default,
+        dataset=dataset_no_id,
+        use_cache=False,
+    )
+    assert len(recwarn) == 0
+
+
+def test_evaluate_from_predictions_cache_warning_no_metric_id(fake_ic_model_default, fake_ic_dataset_default):
+    """Test that a warning is emitted when evaluate_from_predictions() is called with use_cache=True but metric has no ID."""
+    import torch
+
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICMetric
+
+    # Create a metric without an ID
+    metric_no_id = FakeICMetric(
+        calculated_metrics={"result": torch.Tensor([0.5])},
+        metric_metadata={"id": None},
+        return_key="result",
+    )
+
+    predictions = [[torch.tensor([0, 1, 0])]]
+    targets = [[torch.tensor([0, 1, 1])]]
+
+    with pytest.warns(
+        UserWarning,
+        match="use_cache was requested but caching is disabled because at least one of the following is None:",
+    ):
+        cached_tasks.evaluate_from_predictions(
+            metric=metric_no_id,
+            predictions=predictions,
+            targets=targets,
+            model=fake_ic_model_default,
+            dataset=fake_ic_dataset_default,
+            use_cache=True,
+        )
+
+
+def test_evaluate_from_predictions_cache_warning_no_model_id(fake_ic_dataset_default):
+    """Test that a warning is emitted when evaluate_from_predictions() is called with use_cache=True but model has no ID."""
+    import torch
+
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICMetric, FakeICModel
+
+    metric = FakeICMetric(
+        calculated_metrics={"result": torch.Tensor([0.5])},
+        metric_metadata={"id": "test_metric"},
+        return_key="result",
+    )
+
+    model_no_id = FakeICModel(model_metadata={"index2label": {}, "id": None})
+
+    predictions = [[torch.tensor([0, 1, 0])]]
+    targets = [[torch.tensor([0, 1, 1])]]
+
+    with pytest.warns(
+        UserWarning,
+        match="use_cache was requested but caching is disabled because at least one of the following is None:",
+    ):
+        cached_tasks.evaluate_from_predictions(
+            metric=metric,
+            predictions=predictions,
+            targets=targets,
+            model=model_no_id,
+            dataset=fake_ic_dataset_default,
+            use_cache=True,
+        )
+
+
+def test_evaluate_from_predictions_no_cache_warning_when_use_cache_false(recwarn, fake_ic_model_default):
+    """Test that no warning is emitted when evaluate_from_predictions() is called with use_cache=False, even with a metric that has no ID."""
+
+    import torch
+
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICDataset, FakeICMetric
+
+    metric_no_id = FakeICMetric(
+        calculated_metrics={"result": torch.Tensor([0.5])},
+        metric_metadata={"id": None},  # No ID
+        return_key="result",
+    )
+
+    dataset_no_id = FakeICDataset(dataset_metadata={"index2label": {}, "id": None})
+
+    predictions = [[torch.tensor([0, 1, 0])]]
+    targets = [[torch.tensor([0, 1, 1])]]
+
+    cached_tasks.evaluate_from_predictions(
+        metric=metric_no_id,
+        predictions=predictions,
+        targets=targets,
+        model=fake_ic_model_default,
+        dataset=dataset_no_id,
+        use_cache=False,
+    )
+    assert len(recwarn) == 0
