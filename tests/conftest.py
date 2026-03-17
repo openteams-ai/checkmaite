@@ -438,6 +438,31 @@ DEFAULT_IC_DATASET_TARGETS: Sequence[torch.Tensor] = [
     torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]),
 ]
 
+
+DEFAULT_IC_DATASET_TARGETS2: Sequence[torch.Tensor] = [
+    torch.Tensor([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+    torch.Tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+    torch.Tensor([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    torch.Tensor([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]),
+]
+
+
 # 'Dataset metadata' apply to the entire dataset (e.g. the index2label dictionary)
 DEFAULT_IC_DATASET_METADATA = DatasetMetadata(
     id="fake_id_dataset",
@@ -451,7 +476,7 @@ DEFAULT_IC_DATASET_METADATA = DatasetMetadata(
         7: "grape",
         8: "honeycomb",
         9: "iceberg lettuce",
-        10: "jackfruit",
+        0: "jackfruit",
     },
 )
 
@@ -726,6 +751,14 @@ def fake_ic_dataset_default() -> FakeICDataset:
     data for different scenarios.
     """
     return FakeICDataset()
+
+
+@pytest.fixture
+def fake_ic_dataset_ten_unique_classes() -> FakeICDataset:
+    """
+    Fixture for getting the fake Image Classification dataset with 10 distinct classes
+    """
+    return FakeICDataset(targets=DEFAULT_IC_DATASET_TARGETS2)
 
 
 @pytest.fixture
