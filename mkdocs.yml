@@ -34,6 +34,7 @@ nav:  # navigation links on sidebar
     - Run `checkmaite` interactively: get-started/checkmaite_interactive.md
     - Object Detection Workflow via API: get-started/checkmaite_api_od.ipynb
     - Image Classification Workflow via API: get-started/checkmaite_api_ic.ipynb
+    - Remote Inference with Ray Serve: get-started/checkmaite_ray_serve.ipynb
   - Using JATIC tools:
     - tool-usage/index.md
     - Dataset evaluation:
