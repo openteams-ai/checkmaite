@@ -1,6 +1,10 @@
 import json
 
 import pytest
+from nrtk.impls.perturb_image.photometric.enhance import BrightnessPerturber
+from nrtk.impls.perturb_image_factory import (
+    PerturberOneStepFactory,
+)
 
 from checkmaite.ui._common.model_evaluation_configuration import MEConfigurationLandingPage
 from checkmaite.ui.dashboards.combined_app import FullApp
@@ -128,9 +132,16 @@ def test_route_me_nrtk_only(task):
 
     # go to next stage
     app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
-    app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
+
+    # UI is non-deterministic. Setting these to remove variability
+    app.pipeline._state.perturber_select.value = BrightnessPerturber
+    app.pipeline._state.factory_selector.value = PerturberOneStepFactory
+    app.pipeline._state.name_input.value = "TestFactory"
+    app.pipeline._state.theta_key.value = "factor"
+    app.pipeline._state.theta_value.value = 10.0
+
     # add perturber factory
     app.pipeline._state.add_button.clicks += 1
     # add perturber factory
@@ -138,7 +149,6 @@ def test_route_me_nrtk_only(task):
 
     # go to next stage
     app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
-    app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
 
@@ -177,19 +187,22 @@ def test_route_me_nrtk_xaitk(task):
     assert app.pipeline._next_stage == f"Configure NRTK{app.suffix}"
     # go to next stage
     app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
-    app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"NRTKApp{app.suffix}"
+    # UI is non-deterministic. Setting these to remove variability
+    app.pipeline._state.perturber_select.value = BrightnessPerturber
+    app.pipeline._state.factory_selector.value = PerturberOneStepFactory
+    app.pipeline._state.name_input.value = "TestFactory"
+    app.pipeline._state.theta_key.value = "factor"
+    app.pipeline._state.theta_value.value = 10.0
     # add perturber factory
     app.pipeline._state.add_button.clicks += 1
     # go to next stage
     app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
-    app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == f"XAITKApp{app.suffix}"
     # go to next stage
     app.pipeline._state.ready = True  # to avoid bug where non-display pipelines remain in unready state
-    app.pipeline.next_button.clicks += 1
     # ensure we actually went to the correct page by checking the class name
     assert app.pipeline._state.__class__.__name__ == "ModelEvaluationTestbed"
     final_output = app.pipeline._state.output_test_stages
