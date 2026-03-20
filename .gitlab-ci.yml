@@ -17,6 +17,11 @@ variables:
   SAVE_POETRY_ARTIFACTS:
     value: "false"
     description: "Set to true to save Poetry artifacts after jobs; default is false."
+  # CI resource diagnostics for troubleshooting SIGKILL / OOM runner issues.
+  # Set to "false" once https://gitlab.jatic.net/jatic/devsecops/dev/-/issues/659 is resolved.
+  CI_DIAGNOSTICS:
+    value: "true"
+    description: "Set to true to enable resource diagnostics logging in CI jobs."
 
 
 stages:
@@ -30,6 +35,53 @@ stages:
 .git_config: &git_config
 # For internal git dependencies
 - git config --global url."https://gitlab-ci-token:${GITLAB_CI_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
+
+# Diagnostic logging for investigating CI SIGKILL / OOM issues.
+# Controlled by CI_DIAGNOSTICS variable (default: true).
+# See: https://gitlab.jatic.net/jatic/devsecops/dev/-/issues/659
+.start_diagnostics: &start_diagnostics
+- |
+  if [ "$CI_DIAGNOSTICS" = "true" ]; then
+    mkdir -p artifacts
+    # Snapshot system info once
+    {
+      echo "=== CI DIAGNOSTICS ==="
+      echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      echo "Hostname: $(hostname)"
+      echo "Job: ${CI_JOB_NAME:-unknown}"
+      echo "Runner: ${CI_RUNNER_DESCRIPTION:-unknown}"
+      echo ""
+      echo "=== CPU ==="
+      nproc
+      cat /proc/cpuinfo | grep 'model name' | head -1 || true
+      echo ""
+      echo "=== MEMORY ==="
+      free -m
+      echo ""
+      echo "=== DISK ==="
+      df -h
+      echo ""
+      echo "=== CGROUP MEMORY LIMITS ==="
+      cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || cat /sys/fs/cgroup/memory.max 2>/dev/null || echo "cgroup memory limit: not available"
+      cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || cat /sys/fs/cgroup/memory.current 2>/dev/null || echo "cgroup memory usage: not available"
+      echo ""
+      echo "=== OOM SCORE ==="
+      cat /proc/self/oom_score 2>/dev/null || echo "oom_score: not available"
+      cat /proc/self/oom_score_adj 2>/dev/null || echo "oom_score_adj: not available"
+      echo ""
+      echo "=== KERNEL OOM HISTORY ==="
+      dmesg 2>/dev/null | grep -i -E "oom|killed|out of memory" | tail -20 || echo "dmesg: not available (no permissions)"
+    } > artifacts/ci-diagnostics.txt 2>&1
+    # Start background resource monitor (logs every 30s)
+    (while true; do
+      echo "--- $(date -u +%Y-%m-%dT%H:%M:%SZ) ---"
+      free -m | grep Mem
+      df -h / | tail -1
+      cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null | awk '{printf "cgroup mem: %.0f MB\n", $1/1024/1024}' || true
+    done >> artifacts/resource-monitor.txt 2>&1) &
+    echo $! > /tmp/monitor_pid
+    echo "Diagnostics started (PID: $(cat /tmp/monitor_pid))"
+  fi
 
 .python-matrix:
   parallel:
@@ -52,15 +104,38 @@ stages:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/poetry"
     ARTIFACT_DIR: "artifacts"  # must match test.artifacts.path below
-  cache:
-    key: $CI_COMMIT_REF_SLUG
+  after_script:
+    # Capture final resource state even on SIGKILL/failure
+    - |
+      if [ "$CI_DIAGNOSTICS" = "true" ]; then
+        echo "=== FINAL STATE (after_script) ===" >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        echo "Exit reason: job ended (normal, error, or killed)" >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        free -m >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        df -h >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        echo "=== DMESG (final) ===" >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        dmesg 2>/dev/null | grep -i -E "oom|killed|out of memory" | tail -20 >> artifacts/ci-diagnostics.txt 2>/dev/null || true
+        # Stop monitor
+        kill $(cat /tmp/monitor_pid 2>/dev/null) 2>/dev/null || true
+      fi
+  artifacts:
+    when: always
     paths:
-    - .cache
-    policy: pull
+      - artifacts/*
 
 .conda-setup:
+  # Overrides the image from .python-matrix; Python version is
+  # installed via micromamba create python=$VERSION instead
   image: mambaorg/micromamba:2.5-amazon2023
+  cache:
+    - key:
+        files:
+          - conda-lock.yml
+        prefix: conda-env-py${VERSION}
+      paths:
+        - .conda-env/
   before_script:
+    # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - micromamba --version
     - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git make
@@ -73,13 +148,24 @@ stages:
     - micromamba list
 
 .poetry-setup:
+  cache:
+    - key:
+        files:
+          - poetry.lock
+        prefix: venv-py${VERSION}
+      paths:
+        - .venv/
+    - key: pip-downloads
+      paths:
+        - .cache/pip
   before_script:
     - *git_config
+    - *start_diagnostics
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
     - pip install --user -U poetry==2.1.2
 
-    # openjdk-17-jre isn’t present on all base images, we require it for reallabel and survivor
+    # openjdk-17-jre isn't present on all base images, we require it for reallabel and survivor
     # Adoptium seems to be the preferred build for specific Java runtimes
     # we need to add the Adoptium repo before installing, and we also need the signing key to
     # guarantee supply-chain integrity (at least, this is recommended!). VERSION_CODENAME is
@@ -94,6 +180,7 @@ stages:
     - export PATH="$JAVA_HOME/bin:$PATH"
     - java -version
 
+    - poetry config virtualenvs.in-project true
     - poetry config repositories.gradient https://gitlab.jatic.net/jatic/morse/gradient.git
     - poetry config repositories.reallabel https://gitlab.jatic.net/jatic/morse/reallabel.git
     - poetry config repositories.survivor https://gitlab.jatic.net/jatic/morse/survivor.git
@@ -147,7 +234,15 @@ conda-lock-test:
   stage: test
   needs: []
   image: mambaorg/micromamba:2.5-amazon2023
+  cache:
+    - key:
+        files:
+          - conda-lock.yml
+        prefix: conda-lock-env
+      paths:
+        - .conda-env/
   before_script:
+    # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - micromamba --version
     - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git make
