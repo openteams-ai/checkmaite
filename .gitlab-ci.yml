@@ -59,14 +59,14 @@ stages:
     policy: pull
 
 .conda-setup:
+  image: mambaorg/micromamba:2.5-amazon2023
   before_script:
-    - *git_config
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.12 | tar -xvj bin/micromamba
-    - eval "$(./bin/micromamba shell hook -s posix)"
     - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git make
+    - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
+    - *git_config
     - make conda-lock  # regenerate conda-lock file with latest conda dependencies
     - make conda-env   # create conda env from new conda-lock file
     - pip install . --no-deps
@@ -130,7 +130,10 @@ test:
     paths:
       - artifacts/*
 
-# build fresh conda-lock file, create env from it, and activate it
+# build fresh conda-lock file, create env from it, and activate it.
+# .python-matrix sets the image to python:$VERSION, but .conda-setup overrides
+# it with mambaorg/micromamba:2.5-amazon2023.
+# python is installed via `micromamba create python=$VERSION`
 dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
@@ -143,15 +146,14 @@ conda-lock-test:
   extends: [.shared-setup]
   stage: test
   needs: []
-  image: python:3.11
+  image: mambaorg/micromamba:2.5-amazon2023
   before_script:
-    - *git_config
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.12 | tar -xvj bin/micromamba
-    - eval "$(./bin/micromamba shell hook -s posix)"
     - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git make
+    - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
+    - *git_config
     - make conda-env  # create conda env from conda-lock file
     - pip install . --no-deps
     - micromamba list
