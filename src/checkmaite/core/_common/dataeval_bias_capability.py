@@ -22,6 +22,7 @@ from checkmaite import cache_path
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from checkmaite.core._types import Device, Image, ModelSpec, TorchvisionModelSpec
 from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
+from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -115,9 +116,95 @@ class DataevalBiasOutputs(pydantic.BaseModel):
     coverage: DataevalBiasCoverageOutputs
 
 
+class DataevalBiasRecord(BaseRecord, table_name="dataeval_bias"):
+    """Record for DataevalBias capability results.
+
+    Stores dataset bias summary metrics including coverage, balance,
+    and diversity. Balance and diversity fields are None when the
+    dataset has no usable metadata factors.
+    """
+
+    dataset_id: str
+
+    # Coverage (always present) — identifies under-represented images.
+    coverage_total: int
+    coverage_uncovered_count: int
+    coverage_uncovered_ratio: float
+    coverage_radius: float
+
+    # Balance (None when no metadata factors) — mutual information between metadata and class labels.
+    balance_num_factors: int | None = None
+    balance_mean: float | None = None
+    balance_max: float | None = None
+    balance_factors_above_05: int | None = None
+
+    # Diversity (None when no metadata factors) — how well each factor is sampled.
+    diversity_num_factors: int | None = None
+    diversity_mean: float | None = None
+    diversity_min: float | None = None
+    diversity_factors_below_04: int | None = None
+
+
 class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]):
     config: DataevalBiasConfig
     outputs: DataevalBiasOutputs
+
+    def extract(self) -> list[DataevalBiasRecord]:
+        """Extract summary metrics from this DataevalBias run.
+
+        Returns a single record per dataset with aggregate coverage,
+        balance, and diversity scalars.  Balance and diversity fields
+        are None when the dataset had no usable metadata factors.
+        """
+        outputs = self.outputs
+        coverage = outputs.coverage
+
+        uncovered_count = len(coverage.uncovered_indices)
+
+        # Balance aggregates (optional)
+        balance_num_factors: int | None = None
+        balance_mean: float | None = None
+        balance_max: float | None = None
+        balance_factors_above_05: int | None = None
+
+        if outputs.balance is not None:
+            bal = outputs.balance.balance.astype(float)
+            balance_num_factors = len(bal)
+            balance_mean = float(np.mean(bal))
+            balance_max = float(np.max(bal))
+            balance_factors_above_05 = int(np.sum(bal >= 0.5))
+
+        # Diversity aggregates (optional)
+        diversity_num_factors: int | None = None
+        diversity_mean: float | None = None
+        diversity_min: float | None = None
+        diversity_factors_below_04: int | None = None
+
+        if outputs.diversity is not None:
+            div = outputs.diversity.diversity_index.astype(float)
+            diversity_num_factors = len(div)
+            diversity_mean = float(np.mean(div))
+            diversity_min = float(np.min(div))
+            diversity_factors_below_04 = int(np.sum(div < 0.4))
+
+        return [
+            DataevalBiasRecord(
+                run_uid=self.run_uid,
+                dataset_id=self.dataset_metadata[0]["id"],
+                coverage_total=coverage.total,
+                coverage_uncovered_count=uncovered_count,
+                coverage_uncovered_ratio=uncovered_count / coverage.total if coverage.total > 0 else 0.0,
+                coverage_radius=coverage.coverage_radius,
+                balance_num_factors=balance_num_factors,
+                balance_mean=balance_mean,
+                balance_max=balance_max,
+                balance_factors_above_05=balance_factors_above_05,
+                diversity_num_factors=diversity_num_factors,
+                diversity_mean=diversity_mean,
+                diversity_min=diversity_min,
+                diversity_factors_below_04=diversity_factors_below_04,
+            )
+        ]
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
