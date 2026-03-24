@@ -16,6 +16,13 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 git clone git@gitlab.jatic.net:jatic/reference-implementation/reference-implementation.git
 ```
 
+!!! warning "macOS: SSL certificates for non-Homebrew/non-conda Python"
+    If you installed Python from [python.org](https://www.python.org/) (the framework installer), SSL connections will fail until you run the bundled certificate command:
+    ```bash
+    /Applications/Python\ 3.XX/Install\ Certificates.command
+    ```
+    Replace `3.XX` with your Python version (e.g. `3.12`). This is not needed if you installed Python via Homebrew or conda.
+
 ## Creating an environment
 
 We provide both poetry-based environment and conda-based environment options:

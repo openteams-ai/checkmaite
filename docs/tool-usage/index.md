@@ -36,6 +36,16 @@
 
 </div>
 
+## Results & analysis
+
+<div class="grid cards" markdown >
+
+-   [__Analytics Store__ :octicons-arrow-right-24:](analytics_store_tutorial.ipynb)
+
+    The analytics store persists capability results as queryable records, enabling SQL-based comparison across runs, datasets, and capabilities.
+
+</div>
+
 <!--  Unsupported Tools:
 
 -   :material-hammer-wrench:{ .lg .middle } __RealLabel Tutorial__

@@ -34,4 +34,9 @@ Click on the respective pages below to get stated.
     ---
     API access for workflows that involve remote inference using Ray Serve.
 
+* :material-database-search:{ .lg .middle } [__Saving & Querying Results__ :octicons-arrow-right-24:](../tool-usage/analytics_store_tutorial.ipynb)
+
+    ---
+    Persist capability results to the analytics store and query them via SQL across runs, datasets, and capabilities.
+
 </div>

@@ -45,6 +45,8 @@ nav:  # navigation links on sidebar
     - Model evaluation:
       - NRTK: tool-usage/nrtk_tutorial.ipynb
       - XAITK: tool-usage/xaitk_tutorial.ipynb
+    - Results & analysis:
+      - Analytics Store: tool-usage/analytics_store_tutorial.ipynb
 
     # These tools are not currently supported by JATIC. The notebooks have been archived under `docs/reference/examples`
 
@@ -54,6 +56,7 @@ nav:  # navigation links on sidebar
   - Reference:
     - reference/index.md
     - Conventions: reference/conventions.md
+    - Analytics Store: reference/analytics_store_guide.ipynb
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
   - Checkmaite development:
@@ -72,6 +75,11 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.superfences:  # enables mermaid diagrams in markdown
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
 plugins:
   - mkdocs-jupyter:
