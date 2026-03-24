@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import Any, Literal, cast
 
 import dataeval_plots as dep
 import numpy as np
@@ -12,11 +12,6 @@ from dataeval.bias import Balance, Diversity
 from dataeval.core import coverage_adaptive, coverage_naive
 from dataeval.extractors import TorchExtractor
 from pydantic import Field
-
-if TYPE_CHECKING:
-    from dataeval.bias._balance import BalanceOutput
-    from dataeval.bias._diversity import DiversityOutput
-
 
 from checkmaite import cache_path
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
@@ -43,7 +38,7 @@ logger = logging.getLogger(__name__)
 class DataevalBiasConfig(CapabilityConfigBase):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
-    batch_size: int = Field(default=1, description="Batch size to use when encoding images.")
+    batch_size: int = Field(default=32, description="Batch size to use when encoding images.")
     device: Device = Field(default_factory=lambda: set_device(None))
 
     metadata_to_exclude: list[str] = Field(
@@ -85,20 +80,16 @@ class DataevalBiasConfig(CapabilityConfigBase):
 
 
 class DataevalBiasBalanceOutputs(CapabilityOutputsBase):
-    balance: np.ndarray
-    factors: np.ndarray
-    classwise: np.ndarray
-    factor_names: list[str]
-    class_names: list[str]
+    balance: pl.DataFrame
+    factors: pl.DataFrame
+    classwise: pl.DataFrame
     image_classwise: Image
-    image_metadata: Image
+    image_metadata: Image | None = None
 
 
 class DataevalBiasDiversityOutputs(CapabilityOutputsBase):
-    diversity_index: np.ndarray
-    classwise: np.ndarray
-    factor_names: list[str]
-    class_names: list[str]
+    factors: pl.DataFrame
+    classwise: pl.DataFrame
     image: Image
 
 
@@ -168,7 +159,7 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
         balance_factors_above_05: int | None = None
 
         if outputs.balance is not None:
-            bal = outputs.balance.balance.astype(float)
+            bal = outputs.balance.balance["Balance Score"].to_numpy()
             balance_num_factors = len(bal)
             balance_mean = float(np.mean(bal))
             balance_max = float(np.max(bal))
@@ -181,7 +172,7 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
         diversity_factors_below_04: int | None = None
 
         if outputs.diversity is not None:
-            div = outputs.diversity.diversity_index.astype(float)
+            div = outputs.diversity.factors["Diversity Index"].to_numpy()
             diversity_num_factors = len(div)
             diversity_mean = float(np.mean(div))
             diversity_min = float(np.min(div))
@@ -342,7 +333,7 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         """
         return Number.ZERO
 
-    def _run(
+    def _run(  # noqa: C901
         self,
         models: list[TModel],  # noqa: ARG002
         datasets: list[TDataset],
@@ -360,6 +351,32 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         dataset = datasets[0]
         metadata = Metadata(dataset, exclude=config.metadata_to_exclude)
         class_names = list(metadata.index2label.values())
+
+        # metadata is not empty and hence valid to run balance, diversity, parity
+        if metadata.factor_names:
+            bal_out = Balance(num_neighbors=config.num_neighbors).evaluate(metadata)
+            bal_dict = bal_out.data()
+            if len(bal_dict["factors"]) > 0:
+                bal_dict["image_metadata"] = dep.plot(bal_out, plot_classwise=False)
+            if len(np.unique(metadata.class_labels)) != len(class_names):
+                bal_dict["image_classwise"] = dep.plot(
+                    bal_out, plot_classwise=True, row_labels=np.unique(metadata.class_labels)
+                )
+            else:
+                bal_dict["image_classwise"] = dep.plot(bal_out, plot_classwise=True)
+            # rename columns in balance dataframe. It should done after creating images
+            # otherwise required column names wont be found
+            bal_dict["balance"].columns = ["Factor", "Balance Score"]
+
+            div_out = Diversity(method=config.diversity_method).evaluate(metadata)
+            div_dict = div_out.data()
+            div_dict["image"] = dep.plot(div_out)
+            # rename columns in diversity factors dataframe:
+            div_dict["factors"].columns = ["Factor", "Diversity Index", "Col3"]
+            div_dict["factors"] = div_dict["factors"][["Factor", "Diversity Index"]]
+        else:
+            bal_dict = None
+            div_dict = None
 
         # We need a stable, user-tunable numeric representation of images so that distance-based checks
         # (like coverage) behave sensibly. We therefore (1) load a feature extractor with matching
@@ -400,26 +417,6 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         if embeddings_01.ndim == 1:
             embeddings_01 = embeddings_01[None, :]
 
-        # metadata is not empty and hence valid to run balance, diversity, parity
-        if metadata.factor_names:
-            bal_out = Balance(num_neighbors=config.num_neighbors).evaluate(metadata)
-            bal_dict = self._convert_balance_output(bal_out, metadata)
-            bal_dict["image_metadata"] = dep.plot(bal_out, plot_classwise=False)
-            if len(np.unique(metadata.class_labels)) != len(class_names):
-                bal_dict["image_classwise"] = dep.plot(
-                    bal_out, plot_classwise=True, row_labels=np.unique(metadata.class_labels)
-                )
-            else:
-                bal_dict["image_classwise"] = dep.plot(bal_out, plot_classwise=True)
-
-            div_out = Diversity(method=config.diversity_method).evaluate(metadata)
-            div_dict = self._convert_diversity_output(div_out, metadata)
-            div_dict["image"] = dep.plot(div_out)
-
-        else:
-            bal_dict = None
-            div_dict = None
-
         num_observations = min(max(3, int(np.sqrt(len(dataset)))), 20)
         if num_observations >= len(embeddings_01):
             raise ValueError(
@@ -443,54 +440,6 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
             cov_dict["image"] = dep.plot(dataset, indices=idxs)
 
         return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
-
-    # Temporary method to convert balance output containing pl.DataFrames into expected structure with numpy arrays
-    def _convert_balance_output(self, bal_out: "BalanceOutput", metadata: Metadata) -> dict:
-        bal_dict = bal_out.data()
-
-        # We should convert values for "balance", "factors" and "classwise" keys
-        # from polars.DataFrame into np.array:
-        balance_df = bal_dict["balance"]  # type(balance) == polars.DataFrame
-        bal_dict["balance"] = balance_df["mi_value"].to_numpy()
-        # bal_dict["factor_names"] == ["class_label"] + metadata.factor_names
-        bal_dict["factor_names"] = balance_df["factor_name"].to_list()
-
-        factors_df = bal_dict["factors"]
-        piv = factors_df[["factor1", "factor2", "mi_value"]].pivot(  # noqa: PD010
-            values="mi_value", index="factor1", on="factor2"
-        )
-        keys_df = pl.DataFrame({"factor1": metadata.factor_names}, schema={"factor1": piv["factor1"].dtype})
-        piv = keys_df.join(piv, on="factor1", how="left")
-        piv = piv[metadata.factor_names]
-        piv = piv.fill_null(1.0)
-        bal_dict["factors"] = piv.to_numpy()
-
-        classwise_df = bal_dict["classwise"]
-        piv = classwise_df[["class_name", "factor_name", "mi_value"]].pivot(  # noqa: PD010
-            values="mi_value", index="class_name", on="factor_name"
-        )
-        bal_dict["class_names"] = piv["class_name"].to_list()
-        bal_dict["classwise"] = piv[bal_dict["factor_names"]].to_numpy()
-        return bal_dict
-
-    # Temporary method to convert diversity output containing pl.DataFrames into expected structure with numpy arrays
-    def _convert_diversity_output(self, div_out: "DiversityOutput", metadata: Metadata) -> dict:
-        div_dict = div_out.data()
-
-        # We should convert values for "factors" and "classwise" keys
-        # from polars.DataFrame into np.array:
-        div_dict["factor_names"] = metadata.factor_names
-        factors_df = div_dict["factors"]
-        div_dict["diversity_index"] = factors_df["diversity_value"].to_numpy()
-
-        classwise_df = div_dict["classwise"]
-        piv = classwise_df[["class_name", "factor_name", "diversity_value"]].pivot(  # noqa: PD010
-            values="diversity_value", index="class_name", on="factor_name"
-        )
-        div_dict["classwise"] = piv[div_dict["factor_names"]].to_numpy()
-        div_dict["class_names"] = piv["class_name"].to_list()
-
-        return div_dict
 
 
 def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover
@@ -608,7 +557,7 @@ def report_balance_metadata_factors(
         title=title,
         heading=heading,
         text=text,
-        image_path=temp_image_file(outputs.image_metadata),
+        image_path=temp_image_file(outputs.image_metadata) if outputs.image_metadata is not None else None,
     )
 
 
@@ -835,19 +784,12 @@ def report_balance_metadata_factors_md(md: MarkdownOutput, outputs: DataevalBias
         "to prevent a model from potentially learning a harmful shortcut."
     )
 
-    img_path = temp_image_file(outputs.image_metadata)
-    md.add_image(img_path, alt_text="Balance Metadata Visualization")
+    if outputs.image_metadata is not None:
+        img_path = temp_image_file(outputs.image_metadata)
+        md.add_image(img_path, alt_text="Balance Metadata Visualization")
 
     md.add_subsection(heading="Balance Scores")
-    balance_rows = [
-        [factor_name, f"{outputs.balance[i]:.4f}"]
-        for i, factor_name in enumerate(outputs.factor_names)
-        if i < len(outputs.balance)
-    ]
-    md.add_table(
-        headers=["Factor", "Balance Score"],
-        rows=balance_rows,
-    )
+    md.add_table(dataframe=outputs.balance)
 
 
 def report_balance_classwise_md(md: MarkdownOutput, outputs: DataevalBiasBalanceOutputs) -> None:
@@ -905,14 +847,5 @@ def report_diversity_md(md: MarkdownOutput, outputs: DataevalBiasDiversityOutput
 
     img_path = temp_image_file(outputs.image)
     md.add_image(img_path, alt_text="Diversity Visualization")
-
     md.add_subsection(heading="Diversity Index Scores")
-    diversity_rows = [
-        [factor_name, f"{outputs.diversity_index[i]:.4f}"]
-        for i, factor_name in enumerate(outputs.factor_names)
-        if i < len(outputs.diversity_index)
-    ]
-    md.add_table(
-        headers=["Factor", "Diversity Index"],
-        rows=diversity_rows,
-    )
+    md.add_table(dataframe=outputs.factors)

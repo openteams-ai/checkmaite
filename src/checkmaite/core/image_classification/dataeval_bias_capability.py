@@ -1,6 +1,7 @@
 import maite.protocols.image_classification as ic
 
 from checkmaite.core._common.dataeval_bias_capability import DataevalBiasBase
+from checkmaite.core._common.dataeval_bias_capability import DataevalBiasConfig as DataevalBiasConfig
 
 
 class DataevalBias(DataevalBiasBase[ic.Dataset, ic.Model, ic.Metric]):

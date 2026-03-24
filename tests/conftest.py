@@ -762,6 +762,15 @@ def fake_ic_dataset_ten_unique_classes() -> FakeICDataset:
 
 
 @pytest.fixture
+def fake_ic_dataset_cifar10_metadata() -> FakeICDataset:
+    """
+    Fixture for getting the fake Image Classification dataset with CIFAR10 datum metadata
+    """
+    datum_metadata = [{"id": i, "batch_id": 0} for i in range(20)]
+    return FakeICDataset(datum_metadata=datum_metadata)
+
+
+@pytest.fixture
 def fake_ic_model_default() -> FakeICModel:
     """
     Fixture for getting the default fake Image Classification model with behaviors as described in /tests/fake_ic_classes.py
