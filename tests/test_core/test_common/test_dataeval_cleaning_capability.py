@@ -11,6 +11,7 @@ from checkmaite.core._common.dataeval_cleaning_capability import (
     DataevalCleaningDimensionStatsOutputs,
     DataevalCleaningDuplicatesOutputs,
     DataevalCleaningLabelStatsOutputs,
+    DataevalCleaningStatsOutputs,
     DataevalCleaningVisualStatsOutputs,
     generate_duplicates_report_md,
     generate_image_outliers_report_md,
@@ -33,49 +34,92 @@ def sample_duplicates_output():
 
 
 @pytest.fixture
-def sample_dimension_stats():
+def sample_image_stats():
     """Create sample dimension stats for testing."""
     from dataeval.types import SourceIndex
 
     n = 100
     rng = np.random.default_rng(42)
-    return DataevalCleaningDimensionStatsOutputs(
+    return DataevalCleaningStatsOutputs(
         source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
-        offset_x=rng.random(n),
-        offset_y=rng.random(n),
-        width=rng.random(n) * 100 + 200,
-        height=rng.random(n) * 100 + 200,
-        channels=np.ones(n) * 3,
-        size=rng.random(n) * 10000 + 50000,
-        aspect_ratio=rng.random(n) * 0.5 + 0.75,
-        depth=np.ones(n) * 8,
-        center=rng.random(n),
-        distance_center=rng.random(n),
-        distance_edge=rng.random(n),
-        invalid_box=rng.random(n),
+        invalid_box_count=[],
+        dim_stats=DataevalCleaningDimensionStatsOutputs(
+            offset_x=rng.random(n),
+            offset_y=rng.random(n),
+            width=rng.random(n) * 100 + 200,
+            height=rng.random(n) * 100 + 200,
+            channels=np.ones(n) * 3,
+            size=rng.random(n) * 10000 + 50000,
+            aspect_ratio=rng.random(n) * 0.5 + 0.75,
+            depth=np.ones(n) * 8,
+            center=rng.random(n),
+            distance_center=rng.random(n),
+            distance_edge=rng.random(n),
+            invalid_box=rng.random(n),
+        ),
+        vis_stats=DataevalCleaningVisualStatsOutputs(
+            brightness=rng.random(n) * 255,
+            contrast=rng.random(n) * 100,
+            darkness=rng.random(n) * 255,
+            sharpness=rng.random(n) * 100,
+            percentiles=rng.random((n, 3)) * 255,
+            missing=rng.random(n),
+            zeros=rng.random(n),
+        ),
     )
 
 
 @pytest.fixture
-def sample_visual_stats():
-    """Create sample visual stats for testing."""
+def sample_box_stats():
+    """Create sample dimension stats for testing."""
     from dataeval.types import SourceIndex
 
     n = 100
     rng = np.random.default_rng(42)
-    return DataevalCleaningVisualStatsOutputs(
+    return DataevalCleaningStatsOutputs(
         source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
-        brightness=rng.random(n) * 255,
-        contrast=rng.random(n) * 100,
-        darkness=rng.random(n) * 255,
-        sharpness=rng.random(n) * 100,
-        percentiles=rng.random((n, 3)) * 255,
-        missing=rng.random(n),
-        zeros=rng.random(n),
+        invalid_box_count=[],
+        dim_stats=DataevalCleaningDimensionStatsOutputs(
+            offset_x=rng.random(n),
+            offset_y=rng.random(n),
+            width=rng.random(n) * 100 + 200,
+            height=rng.random(n) * 100 + 200,
+            channels=np.ones(n) * 3,
+            size=rng.random(n) * 10000 + 50000,
+            aspect_ratio=rng.random(n) * 0.5 + 0.75,
+            depth=np.ones(n) * 8,
+            center=rng.random(n),
+            distance_center=rng.random(n),
+            distance_edge=rng.random(n),
+            invalid_box=rng.random(n),
+        ),
+        vis_stats=DataevalCleaningVisualStatsOutputs(
+            brightness=rng.random(n) * 255,
+            contrast=rng.random(n) * 100,
+            darkness=rng.random(n) * 255,
+            sharpness=rng.random(n) * 100,
+            percentiles=rng.random((n, 3)) * 255,
+            missing=rng.random(n),
+            zeros=rng.random(n),
+        ),
+        ratio_stats=DataevalCleaningDimensionStatsOutputs(
+            offset_x=rng.random(n),
+            offset_y=rng.random(n),
+            width=rng.random(n) * 100 + 200,
+            height=rng.random(n) * 100 + 200,
+            channels=np.ones(n) * 3,
+            size=rng.random(n) * 10000 + 50000,
+            aspect_ratio=rng.random(n) * 0.5 + 0.75,
+            depth=np.ones(n) * 8,
+            center=rng.random(n),
+            distance_center=rng.random(n),
+            distance_edge=rng.random(n),
+            invalid_box=rng.random(n),
+        ),
     )
 
 
@@ -124,47 +168,42 @@ def test_generate_duplicates_report_md_no_duplicates():
     assert len(output) > 0
 
 
-def test_generate_image_stats_report_md(sample_dimension_stats, sample_visual_stats, sample_label_stats):
+def test_generate_image_stats_report_md(sample_image_stats, sample_label_stats):
     """Test generate_image_stats_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
-    img_stats = (sample_dimension_stats, sample_visual_stats)
-    generate_image_stats_report_md(md, img_stats, sample_label_stats, {0: "class0", 1: "class1", 2: "class2"})
+    generate_image_stats_report_md(md, sample_image_stats, sample_label_stats, {0: "class0", 1: "class1", 2: "class2"})
 
     output = md.render()
     assert "Label" in output or "Image" in output
     assert len(output) > 0
 
 
-def test_generate_image_outliers_report_md(sample_dimension_stats, sample_visual_stats):
+def test_generate_image_outliers_report_md(sample_image_stats):
     """Test generate_image_outliers_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
     img_outliers = {0: {"width": 0.95}, 1: {"brightness": 0.92}}
-    img_stats = (sample_dimension_stats, sample_visual_stats)
 
-    generate_image_outliers_report_md(md, img_outliers, img_stats, 100)
+    generate_image_outliers_report_md(md, img_outliers, sample_image_stats, 100)
 
     output = md.render()
     assert "Outlier" in output
     assert len(output) > 0
 
 
-def test_generate_target_stats_report_md(sample_dimension_stats, sample_visual_stats):
+def test_generate_target_stats_report_md(sample_box_stats):
     """Test generate_target_stats_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
-    box_stats = (sample_dimension_stats, sample_visual_stats)
-    generate_target_stats_report_md(md, box_stats, sample_dimension_stats)
+    generate_target_stats_report_md(md, sample_box_stats)
 
     output = md.render()
     assert len(output) > 0
 
 
-def test_generate_target_outliers_report_md(sample_dimension_stats, sample_visual_stats):
+def test_generate_target_outliers_report_md(sample_box_stats):
     """Test generate_target_outliers_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
     target_outliers = {0: {"aspect_ratio": 0.95}, 1: {"center": 0.93}}
-    box_stats = (sample_dimension_stats, sample_visual_stats)
-
-    generate_target_outliers_report_md(md, target_outliers, box_stats, 500)
+    generate_target_outliers_report_md(md, target_outliers, sample_box_stats, 500)
 
     output = md.render()
     assert len(output) > 0
@@ -179,11 +218,10 @@ def test_generate_next_steps_report_md():
     assert len(output) > 0
 
 
-def test_generate_image_property_histograms_report_md(sample_dimension_stats, sample_visual_stats):
+def test_generate_image_property_histograms_report_md(sample_image_stats):
     """Test generate_image_property_histograms_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
-    img_stats = (sample_dimension_stats, sample_visual_stats)
-    generate_image_property_histograms_report_md(md, img_stats)
+    generate_image_property_histograms_report_md(md, sample_image_stats)
 
     output = md.render()
     assert len(output) > 0
@@ -199,11 +237,10 @@ def test_generate_label_analysis_report_md(sample_label_stats):
     assert len(output) > 0
 
 
-def test_generate_target_property_histograms_report_md(sample_dimension_stats, sample_visual_stats):
+def test_generate_target_property_histograms_report_md(sample_box_stats):
     """Test generate_target_property_histograms_report_md generates proper markdown."""
     md = MarkdownOutput("Test Report")
-    box_stats = (sample_dimension_stats, sample_visual_stats)
-    generate_target_property_histograms_report_md(md, box_stats, sample_dimension_stats)
+    generate_target_property_histograms_report_md(md, sample_box_stats)
 
     output = md.render()
     assert len(output) > 0

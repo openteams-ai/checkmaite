@@ -33,22 +33,18 @@ class DataevalCleaning(DataevalCleaningBase[ic.Dataset, ic.Model, ic.Metric]):
         stats, label_stats_result = self._run_basic_stats(dataset=dataset)
 
         duplicates = Duplicates().from_stats(stats)
+        image_outliers = self._compute_basic_outliers(stats=stats)
 
-        img_outliers = self._compute_basic_outliers(stats=stats)
-
-        img_dim_stats, img_viz_stats = self._get_img_dim_viz_stats(stats)
+        image_stats = self._get_img_stats(stats)
         label_stats_result = self._convert_label_stats(label_stats_result)
 
         return DataevalCleaningOutputs.model_validate(
             {
                 "duplicates": _normalize_duplicates_output(duplicates),
-                "img_outliers": img_outliers,
-                "img_dim_stats": img_dim_stats,
-                "img_viz_stats": img_viz_stats,
+                "image_outliers": image_outliers,
+                "image_stats": image_stats,
                 "label_stats": label_stats_result,
-                "target_outliers": None,
-                "box_dim_stats": None,
-                "box_viz_stats": None,
-                "box_ratio_stats": None,
+                "box_outliers": None,
+                "box_stats": None,
             }
         )

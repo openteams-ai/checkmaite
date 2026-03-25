@@ -151,9 +151,6 @@ class DataevalCleaningDuplicatesOutputs(CapabilityOutputsBase):
 
 
 class DataevalCleaningDimensionStatsOutputs(CapabilityOutputsBase):
-    source_index: Sequence[SourceIndex]
-    object_count: list[int]
-    image_count: int
     # Dataeval ImageStats.DIMENSION
     offset_x: np.ndarray
     offset_y: np.ndarray
@@ -170,9 +167,6 @@ class DataevalCleaningDimensionStatsOutputs(CapabilityOutputsBase):
 
 
 class DataevalCleaningVisualStatsOutputs(CapabilityOutputsBase):
-    source_index: Sequence[SourceIndex]
-    object_count: list[int]
-    image_count: int
     # Dataeval ImageStats.VISUAL
     brightness: np.ndarray
     contrast: np.ndarray
@@ -184,6 +178,16 @@ class DataevalCleaningVisualStatsOutputs(CapabilityOutputsBase):
     # - mean, std, var, skew, kurt, entropy, histogram
     missing: np.ndarray
     zeros: np.ndarray
+
+
+class DataevalCleaningStatsOutputs(CapabilityOutputsBase):
+    source_index: Sequence[SourceIndex]
+    object_count: list[int]
+    image_count: int
+    invalid_box_count: list[int]
+    dim_stats: DataevalCleaningDimensionStatsOutputs
+    vis_stats: DataevalCleaningVisualStatsOutputs
+    ratio_stats: DataevalCleaningDimensionStatsOutputs | None = None
 
 
 class DataevalCleaningLabelStatsOutputs(CapabilityOutputsBase):
@@ -203,14 +207,13 @@ class DataevalCleaningLabelStatsOutputs(CapabilityOutputsBase):
 
 class DataevalCleaningOutputs(CapabilityOutputsBase):
     duplicates: DataevalCleaningDuplicatesOutputs
-    img_outliers: dict[int, dict[str, float]]
-    img_dim_stats: DataevalCleaningDimensionStatsOutputs
-    img_viz_stats: DataevalCleaningVisualStatsOutputs
+    image_outliers: dict[int, dict[str, float]]
+
+    image_stats: DataevalCleaningStatsOutputs
+
     label_stats: DataevalCleaningLabelStatsOutputs
-    target_outliers: dict[int, dict[str, float]] | None
-    box_dim_stats: DataevalCleaningDimensionStatsOutputs | None
-    box_viz_stats: DataevalCleaningVisualStatsOutputs | None
-    box_ratio_stats: DataevalCleaningDimensionStatsOutputs | None
+    box_outliers: dict[int, dict[str, float]] | None
+    box_stats: DataevalCleaningStatsOutputs | None
 
 
 class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalCleaningOutputs]):
@@ -247,28 +250,23 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         )
         stat_list = generate_stats_report(
             deck=deck,
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            img_stats=outputs.image_stats,
             label_stats=outputs.label_stats,
-            box_stats=(
-                (outputs.box_dim_stats, outputs.box_viz_stats)
-                if outputs.box_dim_stats and outputs.box_viz_stats
-                else None
-            ),
-            ratio_stats=outputs.box_ratio_stats,
+            box_stats=outputs.box_stats if outputs.box_stats is not None else None,
             index2label=index2label,
         )
         image_list = generate_image_outliers_report(
             deck=deck,
-            img_outliers=outputs.img_outliers,
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            img_outliers=outputs.image_outliers,
+            img_stats=outputs.image_stats,
             dataset_size=outputs.label_stats.image_count,
         )
 
-        if outputs.box_dim_stats and outputs.box_viz_stats:
+        if outputs.box_stats is not None:
             target_list = generate_target_outliers_report(
                 deck=deck,
-                target_outliers=outputs.target_outliers,
-                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                target_outliers=outputs.box_outliers,
+                box_stats=outputs.box_stats,
                 total_targets=outputs.label_stats.label_count,
             )
 
@@ -323,14 +321,14 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         md.add_section_divider()
         generate_image_property_histograms_report_md(
             md,
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            img_stats=outputs.image_stats,
         )
 
         md.add_section_divider()
         generate_image_outliers_report_md(
             md,
-            img_outliers=outputs.img_outliers,
-            img_stats=(outputs.img_dim_stats, outputs.img_viz_stats),
+            img_outliers=outputs.image_outliers,
+            img_stats=outputs.image_stats,
             dataset_size=outputs.label_stats.image_count,
         )
 
@@ -341,19 +339,15 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
             index2label=index2label,
         )
 
-        if outputs.box_dim_stats and outputs.box_viz_stats:
+        if outputs.box_stats is not None:
             md.add_section_divider()
-            generate_target_property_histograms_report_md(
-                md,
-                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
-                ratio_stats=outputs.box_ratio_stats,
-            )
+            generate_target_property_histograms_report_md(md, box_stats=outputs.box_stats)
 
             md.add_section_divider()
             generate_target_outliers_report_md(
                 md,
-                target_outliers=outputs.target_outliers,
-                box_stats=(outputs.box_dim_stats, outputs.box_viz_stats),
+                target_outliers=outputs.box_outliers,
+                box_stats=outputs.box_stats,
                 total_targets=outputs.label_stats.label_count,
             )
 
@@ -373,23 +367,23 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         duplicates = outputs.duplicates
         exact_dup_count = sum(len(d) for d in duplicates.exact) if duplicates.exact is not None else 0
         near_dup_count = sum(len(d) for d in duplicates.near) if duplicates.near is not None else 0
-        img_outlier_count = len(outputs.img_outliers)
+        img_outlier_count = len(outputs.image_outliers)
 
         # Handle optional target outliers (for object detection)
         target_outlier_count: int | None = None
         target_outlier_ratio: float | None = None
-        if outputs.target_outliers is not None:
+        if outputs.box_outliers is not None:
             total_targets = outputs.label_stats.label_count
-            target_outlier_count = len(outputs.target_outliers)
+            target_outlier_count = len(outputs.box_outliers)
             target_outlier_ratio = target_outlier_count / total_targets if total_targets > 0 else 0.0
 
-        widths = outputs.img_dim_stats.width.astype(float)
-        heights = outputs.img_dim_stats.height.astype(float)
-        aspect_ratios = outputs.img_dim_stats.aspect_ratio.astype(float)
+        widths = outputs.image_stats.dim_stats.width.astype(float)
+        heights = outputs.image_stats.dim_stats.height.astype(float)
+        aspect_ratios = outputs.image_stats.dim_stats.aspect_ratio.astype(float)
 
-        brightness = outputs.img_viz_stats.brightness.astype(float)
-        contrast = outputs.img_viz_stats.contrast.astype(float)
-        sharpness = outputs.img_viz_stats.sharpness.astype(float)
+        brightness = outputs.image_stats.vis_stats.brightness.astype(float)
+        contrast = outputs.image_stats.vis_stats.contrast.astype(float)
+        sharpness = outputs.image_stats.vis_stats.sharpness.astype(float)
 
         image_counts_per_class = outputs.label_stats.image_counts_per_class
         class_image_counts = list(image_counts_per_class.values()) if image_counts_per_class else [0]
@@ -681,8 +675,6 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
 
         return self._dictionary_merge(box_result, adjusted_ratio_result)
 
-    # Temporary private method to convert StatsResult into a dict loadable by
-    # DataevalCleaningDimensionStatsOutputs
     def _get_common_stats(self, stats: "StatsResult") -> dict:
         return {
             key: stats[key]
@@ -690,112 +682,33 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
                 "source_index",
                 "object_count",
                 "image_count",
+                "invalid_box_count",
             ]
         }
 
-    def _get_dim_stats(self, stats: "StatsResult") -> dict:
-        common_stats = self._get_common_stats(stats)
-        return common_stats | {
-            key: stats["stats"][key]
-            for key in [
-                "offset_x",
-                "offset_y",
-                "width",
-                "height",
-                "channels",
-                "size",
-                "aspect_ratio",
-                "depth",
-                "center",
-                "distance_center",
-                "distance_edge",
-                "invalid_box",
-            ]
-        }
-
-    # Temporary private method to convert StatsResult into local structures
-    # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
-    def _get_img_dim_viz_stats(self, stats: "StatsResult") -> tuple[dict, dict]:
+    def _get_img_stats(self, stats: "StatsResult") -> dict:
         common_img_stats = self._get_common_stats(stats)
-        img_dim_stats = common_img_stats | {
-            key: stats["stats"][key]
-            for key in [
-                "offset_x",
-                "offset_y",
-                "width",
-                "height",
-                "channels",
-                "size",
-                "aspect_ratio",
-                "depth",
-                "center",
-                "distance_center",
-                "distance_edge",
-                "invalid_box",
-            ]
+        return common_img_stats | {
+            "dim_stats": {key: stats["stats"][key] for key in DataevalCleaningDimensionStatsOutputs.model_fields},
+            "vis_stats": {key: stats["stats"][key] for key in DataevalCleaningVisualStatsOutputs.model_fields},
         }
-        img_viz_stats = common_img_stats | {
-            key: stats["stats"][key]
-            for key in [
-                "brightness",
-                "contrast",
-                "darkness",
-                "sharpness",
-                "percentiles",
-                "missing",
-                "zeros",
-            ]
-        }
-        return img_dim_stats, img_viz_stats
 
-    # Temporary private method to convert StatsResult into local structures
-    # convertible to DataevalCleaningDimensionStatsOutputs and DataevalCleaningVisualStatsOutputs
-    def _get_box_dim_viz_stats(self, box_stats: "StatsResult") -> tuple[dict, dict]:
+    def _get_box_stats(self, box_stats: "StatsResult", ratio_stats: "StatsResult") -> dict:
         common_box_stats = self._get_common_stats(box_stats)
-        box_dim_stats = common_box_stats | {
-            key: box_stats["stats"][key]
-            for key in [
-                "offset_x",
-                "offset_y",
-                "width",
-                "height",
-                "channels",
-                "size",
-                "aspect_ratio",
-                "depth",
-                "center",
-                "distance_center",
-                "distance_edge",
-                "invalid_box",
-            ]
+        return common_box_stats | {
+            "dim_stats": {key: box_stats["stats"][key] for key in DataevalCleaningDimensionStatsOutputs.model_fields},
+            "vis_stats": {key: box_stats["stats"][key] for key in DataevalCleaningVisualStatsOutputs.model_fields},
+            "ratio_stats": {
+                key: ratio_stats["stats"][key] for key in DataevalCleaningDimensionStatsOutputs.model_fields
+            },
         }
-        box_viz_stats = common_box_stats | {
-            key: box_stats["stats"][key]
-            for key in [
-                "brightness",
-                "contrast",
-                "darkness",
-                "sharpness",
-                "percentiles",
-                "missing",
-                "zeros",
-            ]
-        }
-        return box_dim_stats, box_viz_stats
 
-    # Temporary private method to convert LabelStatsResult into a dict acceptable by
-    # DataevalCleaningLabelStatsOutputs
     def _convert_label_stats(self, label_stats_result: "LabelStatsResult") -> dict:
-        # remove additional fields
-        keys_to_remove = [
-            "classes_per_image",
-            "empty_image_indices",
-            "empty_image_count",
-        ]
         index2label = label_stats_result["index2label"]
-        output = {key: value for key, value in label_stats_result.items() if key not in keys_to_remove}
-        output["class_names"] = list(index2label.values())
-        return output
+        return {
+            key: list(index2label.values()) if key == "class_names" else label_stats_result[key]
+            for key in DataevalCleaningLabelStatsOutputs.model_fields
+        }
 
 
 def add_slide(
@@ -924,10 +837,9 @@ def generate_duplicates_report(
 
 def generate_stats_report(
     deck: str,
-    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    img_stats: DataevalCleaningStatsOutputs,
     label_stats: DataevalCleaningLabelStatsOutputs,
-    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs] | None,
-    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+    box_stats: DataevalCleaningStatsOutputs | None,
     index2label: dict[int, str],
 ) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for image and target statistics.
@@ -942,8 +854,6 @@ def generate_stats_report(
         Label statistics.
     box_stats
         Bounding box dimension and visual statistics.
-    ratio_stats
-        Ratio statistics.
     index2label
         Mapping from integer labels to corresponding string descriptions.
 
@@ -963,7 +873,7 @@ def generate_stats_report(
     ]
 
     # build gradient slide for image outlier histograms
-    img_hist_list = prepare_histograms(img_stats)
+    img_hist_list = prepare_histograms((img_stats.dim_stats, img_stats.vis_stats))
     dir_ = Path(cache_path() / "cleaning-artifacts")
     dir_.mkdir(parents=True, exist_ok=True)
     title = "Image Property Histograms"
@@ -996,9 +906,9 @@ def generate_stats_report(
         ),
     ]
 
-    if box_stats and ratio_stats:
-        box_hist_list = prepare_histograms(box_stats)
-        box_hist_list = prepare_ratio_histograms(ratio_stats, box_hist_list)
+    if box_stats is not None and box_stats.ratio_stats is not None:
+        box_hist_list = prepare_histograms((box_stats.dim_stats, box_stats.vis_stats))
+        box_hist_list = prepare_ratio_histograms(box_stats.ratio_stats, box_hist_list)
         dir_ = Path(cache_path() / "cleaning-artifacts")
         dir_.mkdir(parents=True, exist_ok=True)
         filepath = dir_ / "box_stats_histogram_plots.png"
@@ -1014,7 +924,7 @@ def generate_stats_report(
 def generate_image_outliers_report(
     deck: str,
     img_outliers: dict[int, dict[str, float]],
-    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    img_stats: DataevalCleaningStatsOutputs,
     dataset_size: int,
 ) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for image outliers.
@@ -1039,8 +949,7 @@ def generate_image_outliers_report(
     # chosen based on expert analysis on what is/isn't most relevant to users
     metrics = DIMENSION_LIST + VISUAL_LIST
 
-    dim_box_output, viz_box_output = img_stats
-    image_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
+    image_source_indices = list(img_stats.source_index)
 
     # construct collection of all bounding boxes with issues
     issues = collect_issues(
@@ -1079,7 +988,7 @@ def generate_image_outliers_report(
 def generate_target_outliers_report(
     deck: str,
     target_outliers: dict[int, dict[str, float]] | None,
-    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    box_stats: DataevalCleaningStatsOutputs,
     total_targets: int,
 ) -> list[dict[str, Any]]:  # pragma: no cover
     """Generate a report for target outliers.
@@ -1107,13 +1016,12 @@ def generate_target_outliers_report(
     outlier_slides = []
     metrics = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
 
-    dim_box_output, viz_box_output = box_stats
-    box_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
-    total_targets = total_targets
-
     # construct collection of all bounding boxes with issues
     issues = collect_issues(
-        outliers=target_outliers, source_indices=box_source_indices, valid_metrics=metrics, use_box_indices=True
+        outliers=target_outliers,
+        source_indices=list(box_stats.source_index),
+        valid_metrics=metrics,
+        use_box_indices=True,
     )
 
     # now construct slides for outlier data
@@ -1260,10 +1168,7 @@ def generate_duplicates_report_md(
 
 def generate_image_stats_report_md(
     md: MarkdownOutput,
-    img_stats: tuple[
-        DataevalCleaningDimensionStatsOutputs,
-        DataevalCleaningVisualStatsOutputs,
-    ],
+    img_stats: DataevalCleaningStatsOutputs,
     label_stats: DataevalCleaningLabelStatsOutputs,
     index2label: dict[int, str],
 ) -> None:
@@ -1278,7 +1183,7 @@ def generate_image_stats_report_md(
 def generate_image_outliers_report_md(
     md: MarkdownOutput,
     img_outliers: dict[int, dict[str, float]],
-    img_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    img_stats: DataevalCleaningStatsOutputs,
     dataset_size: int,
 ) -> None:
     """Format image outliers as Markdown.
@@ -1289,19 +1194,16 @@ def generate_image_outliers_report_md(
         The MarkdownOutput instance to add content to.
     img_outliers : dict[int, dict[str, float]]
         Image outlier data.
-    img_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+    img_stats : DataevalCleaningStatsOutputs
         Image dimension and visual statistics.
     dataset_size : int
         The total size of the dataset.
     """
     metrics = DIMENSION_LIST + VISUAL_LIST
 
-    dim_box_output, viz_box_output = img_stats
-    image_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
-
     issues = collect_issues(
         outliers=img_outliers,
-        source_indices=image_source_indices,
+        source_indices=list(img_stats.source_index),
         valid_metrics=metrics,
         use_box_indices=False,
     )
@@ -1346,23 +1248,19 @@ def generate_image_outliers_report_md(
 
 def generate_target_stats_report_md(
     md: MarkdownOutput,
-    box_stats: tuple[
-        DataevalCleaningDimensionStatsOutputs,
-        DataevalCleaningVisualStatsOutputs,
-    ],
-    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+    box_stats: DataevalCleaningStatsOutputs,
 ) -> None:
     """Format target statistics as Markdown.
 
     Convenience wrapper around target property histograms.
     """
-    generate_target_property_histograms_report_md(md, box_stats=box_stats, ratio_stats=ratio_stats)
+    generate_target_property_histograms_report_md(md, box_stats=box_stats)
 
 
 def generate_target_outliers_report_md(
     md: MarkdownOutput,
     target_outliers: dict[int, dict[str, float]] | None,
-    box_stats: tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs],
+    box_stats: DataevalCleaningStatsOutputs,
     total_targets: int,
 ) -> None:
     """Format target outliers as Markdown.
@@ -1372,8 +1270,8 @@ def generate_target_outliers_report_md(
     md : MarkdownOutput
         The MarkdownOutput instance to add content to.
     target_outliers : dict[int, dict[str, float]] | None
-        Target outlier data.
-    box_stats : tuple[DataevalCleaningDimensionStatsOutputs, DataevalCleaningVisualStatsOutputs]
+        Bounding box outlier data.
+    box_stats : DataevalCleaningStatsOutputs
         Bounding box dimension and visual statistics.
     total_targets : int
         The total number of targets.
@@ -1383,12 +1281,9 @@ def generate_target_outliers_report_md(
 
     metrics = DIMENSION_LIST + VISUAL_LIST + [f"ratio_{cat}" for cat in RATIO_LIST]
 
-    dim_box_output, viz_box_output = box_stats
-    box_source_indices = list(dim_box_output.source_index) + list(viz_box_output.source_index)
-
     issues = collect_issues(
         outliers=target_outliers,
-        source_indices=box_source_indices,
+        source_indices=list(box_stats.source_index),
         valid_metrics=metrics,
         use_box_indices=True,
     )
@@ -1491,10 +1386,7 @@ def generate_next_steps_report_md(
 
 def generate_image_property_histograms_report_md(
     md: MarkdownOutput,
-    img_stats: tuple[
-        DataevalCleaningDimensionStatsOutputs,
-        DataevalCleaningVisualStatsOutputs,
-    ],
+    img_stats: DataevalCleaningStatsOutputs,
 ) -> None:
     """Markdown analogue of the 'Image Property Histograms' slide."""
     md.add_section(heading="Image Property Histograms")
@@ -1504,7 +1396,7 @@ def generate_image_property_histograms_report_md(
         "Values outside of the vertical lines will be flagged as outliers."
     )
 
-    img_hist_list = prepare_histograms(img_stats)
+    img_hist_list = prepare_histograms((img_stats.dim_stats, img_stats.vis_stats))
 
     dir_ = Path(cache_path() / "cleaning-artifacts")
     dir_.mkdir(parents=True, exist_ok=True)
@@ -1554,18 +1446,10 @@ def generate_label_analysis_report_md(
 
 
 def generate_target_property_histograms_report_md(
-    md: MarkdownOutput,
-    box_stats: (
-        tuple[
-            DataevalCleaningDimensionStatsOutputs,
-            DataevalCleaningVisualStatsOutputs,
-        ]
-        | None
-    ),
-    ratio_stats: DataevalCleaningDimensionStatsOutputs | None,
+    md: MarkdownOutput, box_stats: DataevalCleaningStatsOutputs | None
 ) -> None:
     """Markdown analogue of the 'Target Property Histograms' slide."""
-    if box_stats is None or ratio_stats is None:
+    if box_stats is None or box_stats.ratio_stats is None:
         return
 
     md.add_section(heading="Target Property Histograms")
@@ -1575,8 +1459,8 @@ def generate_target_property_histograms_report_md(
         "Values outside of the vertical lines will be flagged as outliers."
     )
 
-    box_hist_list = prepare_histograms(box_stats)
-    box_hist_list = prepare_ratio_histograms(ratio_stats, box_hist_list)
+    box_hist_list = prepare_histograms((box_stats.dim_stats, box_stats.vis_stats))
+    box_hist_list = prepare_ratio_histograms(box_stats.ratio_stats, box_hist_list)
 
     dir_ = Path(cache_path() / "cleaning-artifacts")
     dir_.mkdir(parents=True, exist_ok=True)
