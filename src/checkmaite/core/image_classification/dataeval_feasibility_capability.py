@@ -10,6 +10,7 @@ from dataeval.extractors import TorchExtractor
 from pydantic import Field
 
 from checkmaite.core._common._knn import compute_ber_knn
+from checkmaite.core._common.dataeval_feasibility_record import DataevalFeasibilityRecord
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from checkmaite.core._types import Device, ModelSpec, TorchvisionModelSpec
 from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
@@ -62,6 +63,23 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
     config: DataevalFeasibilityConfig
     outputs: DataevalFeasibilityOutputs
+
+    def extract(self) -> list[DataevalFeasibilityRecord]:
+        """Extract summary metrics from this DataevalFeasibility run.
+
+        Returns a single record per dataset with BER bounds.
+        OD-specific fields are left as None for IC runs.
+        """
+        return [
+            DataevalFeasibilityRecord(
+                run_uid=self.run_uid,
+                dataset_id=self.dataset_metadata[0]["id"],
+                # IC outputs call the upper bound ``ber``; record uses ``ber_upper``
+                # for a unified schema with OD (which uses ``ber_upper`` natively).
+                ber_upper=self.outputs.ber,
+                ber_lower=self.outputs.ber_lower,
+            )
+        ]
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")

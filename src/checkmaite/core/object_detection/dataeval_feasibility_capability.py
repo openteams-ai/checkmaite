@@ -11,6 +11,7 @@ from pydantic import Field
 from torchvision.ops import box_iou
 
 from checkmaite.core._common._knn import compute_ber_and_confusion
+from checkmaite.core._common.dataeval_feasibility_record import DataevalFeasibilityRecord
 from checkmaite.core._common.feature_extractor import (
     FeatureExtractor,
     load_feature_extractor,
@@ -130,6 +131,28 @@ class DataevalFeasibilityOutputs(CapabilityOutputsBase):
 class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, DataevalFeasibilityOutputs]):
     config: DataevalFeasibilityConfig
     outputs: DataevalFeasibilityOutputs
+
+    def extract(self) -> list[DataevalFeasibilityRecord]:
+        """Extract summary metrics from this DataevalFeasibility run.
+
+        Returns a single record per dataset with BER bounds and
+        OD-specific health statistics.
+        """
+        hs = self.outputs.health_stats
+        return [
+            DataevalFeasibilityRecord(
+                run_uid=self.run_uid,
+                dataset_id=self.dataset_metadata[0]["id"],
+                ber_upper=self.outputs.ber_upper,
+                ber_lower=self.outputs.ber_lower,
+                num_instances=self.outputs.num_instances,
+                num_classes=self.outputs.num_classes,
+                small_object_ratio=hs.small_object_ratio,
+                truncated_bbox_ratio=hs.truncated_bbox_ratio,
+                overlap_image_ratio=hs.overlap_image_ratio,
+                health_warning_count=len(hs.warnings),
+            )
+        ]
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
