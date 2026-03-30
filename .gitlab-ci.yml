@@ -148,11 +148,15 @@ stages:
     - micromamba list
 
 .poetry-setup:
+  variables:
+    # Override in jobs that install different dependency groups (e.g. docs)
+    # to avoid sharing a cached .venv across incompatible installs.
+    VENV_CACHE_PREFIX: "venv-dev-py"
   cache:
     - key:
         files:
           - poetry.lock
-        prefix: venv-py${VERSION}
+        prefix: ${VENV_CACHE_PREFIX}${VERSION}
       paths:
         - .venv/
     - key: pip-downloads
@@ -293,6 +297,7 @@ pages-branch:
     - poetry install --with docs
     - poetry run mkdocs build -d public --no-directory-urls
   variables:
+      VENV_CACHE_PREFIX: "venv-docs-py"
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
   rules:
     # If changes are made to an active merge request.
@@ -306,6 +311,8 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   extends: [.shared-setup, .poetry-setup]
   image: python:3.10
   stage: docs
+  variables:
+    VENV_CACHE_PREFIX: "venv-docs-py"
   script:
     - poetry install --with docs
     - poetry run mkdocs build -d public --no-directory-urls
