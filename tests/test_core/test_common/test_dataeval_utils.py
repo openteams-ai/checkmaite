@@ -1,7 +1,7 @@
 import pytest
 from maite.protocols import Dataset
 
-from checkmaite.core._common.dataeval_utils import split_dataset
+from checkmaite.core._common.dataeval_utils import make_subset, split_dataset
 
 
 @pytest.mark.parametrize(
@@ -43,3 +43,11 @@ def test_split_dataset(
     for train_set, val_set in trainval_set:
         assert isinstance(train_set, Dataset)
         assert isinstance(val_set, Dataset)
+
+
+@pytest.mark.parametrize("stratify", [True, False])
+@pytest.mark.parametrize("num_samples", [10, 11, 7])
+def test_make_subset(fake_ic_dataset_default, stratify, num_samples):
+    subset = make_subset(fake_ic_dataset_default, num_samples, stratify=stratify)
+    assert isinstance(subset, Dataset)
+    assert len(subset) == num_samples

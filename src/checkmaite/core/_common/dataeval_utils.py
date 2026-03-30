@@ -1,7 +1,7 @@
-from typing import TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypeVar
 
 import maite.protocols.generic as gen
-from dataeval.selection import Indices, Select
+from dataeval.selection import Indices, Limit, Select, Selection
 from dataeval.utils.data import split_dataset as dataeval_split_dataset
 from maite.protocols import DatasetMetadata
 
@@ -39,9 +39,13 @@ class _MaiteSelectDataset(gen.Dataset[TInput, TTarget, TDatumMetadata]):
     def __init__(
         self,
         dataset: gen.Dataset[TInput, TTarget, TDatumMetadata],
-        indices: list[int],
+        indices: list[int] | None = None,
+        selections: list[Selection[Any]] | None = None,
     ) -> None:
-        self._select = Select(dataset, selections=Indices(indices))
+        if (indices and selections) or not (indices or selections):
+            raise ValueError("Only indices or selections should be provided")
+        sels = Indices(indices) if indices is not None else selections
+        self._select = Select(dataset, selections=sels)
         self.metadata: DatasetMetadata = dataset.metadata
 
     def __getitem__(self, ind: int) -> tuple[TInput, TTarget, TDatumMetadata]:
@@ -86,9 +90,7 @@ def split_dataset(
     Returns
     -------
     subsets
-        Either a list of the train/val subsets or a tuple of list of the train/val
-        subsets and the test subset. The size of list of the train/val subsets is
-        equal to num_folds.
+        SplitDatasetOutput instance.
 
     """
     split_defs = dataeval_split_dataset(
@@ -111,3 +113,48 @@ def split_dataset(
         test_dataset = _MaiteSelectDataset(dataset, test_indices.tolist())
         return output, test_dataset
     return output
+
+
+def make_subset(
+    dataset: gen.Dataset[TInput, TTarget, TDatumMetadata],
+    num_samples: int,
+    stratify: bool = True,
+) -> gen.Dataset[TInput, TTarget, TDatumMetadata]:
+    """Make a subset of the dataset
+
+    Parameters
+    ----------
+    dataset
+        Input dataset
+    num_samples:
+        Number of samples in the output subset
+    stratify:
+        If true, dataset is split such that the class distribution
+        of the entire dataset is preserved within each train/val partition,
+        which is generally recommended.
+
+    Returns
+    -------
+    subset
+        gen.Dataset[TInput, TTarget, TDatumMetadata] instance
+    """
+    if not stratify:
+        selections = Limit(num_samples)
+    else:
+        val_frac = (len(dataset) - num_samples + 1) / len(dataset)
+        split_defs = dataeval_split_dataset(
+            dataset,
+            num_folds=1,
+            stratify=stratify,
+            test_frac=0.0,
+            val_frac=val_frac,
+        )
+        indices = split_defs.folds[0].train.tolist()
+        if len(indices) > num_samples:
+            indices = indices[:num_samples]
+        elif len(indices) < num_samples:
+            others = split_defs.folds[0].val.tolist()
+            num_remaining = num_samples - len(indices)
+            indices = indices + others[:num_remaining]
+        selections = Indices(indices)
+    return _MaiteSelectDataset(dataset, selections=[selections])
