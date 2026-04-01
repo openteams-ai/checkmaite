@@ -13,6 +13,7 @@ from pydantic import Field
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector
 from checkmaite.core._types import Device, ModelSpec, TorchvisionModelSpec
 from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -76,9 +77,95 @@ class DataevalShiftOutputs(pydantic.BaseModel):
     ood: DataevalShiftOODOutputs
 
 
+class DataevalShiftRecord(BaseRecord, table_name="dataeval_shift"):
+    """Record for DataevalShift capability results.
+
+    Stores drift detection and out-of-distribution (OOD) summary metrics.
+    Shift is a two-dataset capability (reference vs evaluation), so it uses
+    ``reference_dataset_id`` and ``evaluation_dataset_id`` instead of the
+    single ``dataset_id`` convention used by single-dataset capabilities.
+    """
+
+    reference_dataset_id: str
+    evaluation_dataset_id: str
+
+    # Drift: MMD (Maximum Mean Discrepancy)
+    mmd_drifted: bool
+    mmd_distance: float
+    mmd_p_val: float
+    mmd_threshold: float
+
+    # Drift: CVM (Cramer-von Mises)
+    cvm_drifted: bool
+    cvm_distance: float
+    cvm_p_val: float
+    cvm_threshold: float
+    cvm_feature_drift_count: int  # number of individually drifted features
+
+    # Drift: KS (Kolmogorov-Smirnov)
+    ks_drifted: bool
+    ks_distance: float
+    ks_p_val: float
+    ks_threshold: float
+    ks_feature_drift_count: int  # number of individually drifted features
+
+    # OOD: KNN summary (aggregated from per-sample arrays)
+    ood_count: int
+    ood_total: int
+    ood_ratio: float
+    ood_mean_instance_score: float
+    ood_std_instance_score: float
+    ood_max_instance_score: float
+
+
 class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutputs]):
     config: DataevalShiftConfig
     outputs: DataevalShiftOutputs
+
+    def extract(self) -> list[DataevalShiftRecord]:
+        """Extract summary metrics from this DataevalShift run.
+
+        Returns a single record with drift test results (MMD, CVM, KS)
+        and aggregated OOD statistics from per-sample arrays.
+        """
+        drift = self.outputs.drift
+        ood_knn = self.outputs.ood.ood_knn
+
+        is_ood = ood_knn.is_ood
+        ood_count = int(np.sum(is_ood))
+        ood_total = len(is_ood)
+
+        return [
+            DataevalShiftRecord(
+                run_uid=self.run_uid,
+                reference_dataset_id=self.dataset_metadata[0]["id"],
+                evaluation_dataset_id=self.dataset_metadata[1]["id"],
+                # MMD
+                mmd_drifted=drift.mmd.drifted,
+                mmd_distance=drift.mmd.distance,
+                mmd_p_val=drift.mmd.details["p_val"],
+                mmd_threshold=drift.mmd.threshold,
+                # CVM
+                cvm_drifted=drift.cvm.drifted,
+                cvm_distance=drift.cvm.distance,
+                cvm_p_val=drift.cvm.details["p_val"],
+                cvm_threshold=drift.cvm.threshold,
+                cvm_feature_drift_count=int(np.sum(drift.cvm.details["feature_drift"])),
+                # KS
+                ks_drifted=drift.ks.drifted,
+                ks_distance=drift.ks.distance,
+                ks_p_val=drift.ks.details["p_val"],
+                ks_threshold=drift.ks.threshold,
+                ks_feature_drift_count=int(np.sum(drift.ks.details["feature_drift"])),
+                # OOD aggregates
+                ood_count=ood_count,
+                ood_total=ood_total,
+                ood_ratio=ood_count / ood_total if ood_total > 0 else 0.0,
+                ood_mean_instance_score=float(np.mean(ood_knn.instance_score)) if ood_total > 0 else 0.0,
+                ood_std_instance_score=float(np.std(ood_knn.instance_score)) if ood_total > 0 else 0.0,
+                ood_max_instance_score=float(np.max(ood_knn.instance_score)) if ood_total > 0 else 0.0,
+            )
+        ]
 
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
     @deprecated(replacement="collect_md_report")
@@ -517,6 +604,7 @@ def collect_drift_md(
             "drifted": field_value.drifted,
             "distance": field_value.distance,
             "p_val": field_value.details["p_val"],
+            "feature_drift": field_value.details.get("feature_drift", None),
         }
         for field_name, field_value in drift_outputs
     }
@@ -550,11 +638,12 @@ def collect_drift_md(
             "Yes" if d["drifted"] else "No",
             f"{d['distance']:.6f}",
             f"{d['p_val']:.6f}",
+            str(int(np.sum(d["feature_drift"]))) if d["feature_drift"] is not None else "N/A",
         ]
         for field_name, d in drift_fields.items()
     ]
     md.add_table(
-        headers=["Method", "Has drifted?", "Test statistic", "P-value"],
+        headers=["Method", "Has drifted?", "Test statistic", "P-value", "Features drifted"],
         rows=rows,
     )
 

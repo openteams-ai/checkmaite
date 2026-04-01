@@ -232,32 +232,41 @@ The analytics store provides persistent, queryable storage for capability result
 
 Each capability can opt in by defining a `Record` class (inheriting from `BaseRecord`) and implementing an `extract()` method on its `Run` class.
 
-<!-- Analytics store diagram notes (2026-03-20):
-     - Only shows capabilities that have extract() on main: DataevalCleaning, MaiteEvaluation
-     - DataevalBias extract() is on branch bgeraci/587-add-dataevel-bias (MR !509)
-       Add it to this diagram once that MR merges
-     - Using <br> instead of \n for mermaid line breaks (cross-renderer compatibility) -->
+<!-- Analytics store diagram: shows all capabilities with extract() support.
+     Using <br> instead of \n for mermaid line breaks (cross-renderer compatibility) -->
 ```mermaid
 flowchart LR
     subgraph "Capability Runs"
         R1["DataevalCleaning Run"]
+        R2["DataevalBias Run"]
         R3["MaiteEvaluation Run"]
+        R4["DataevalFeasibility Run"]
+        R5["DataevalShift Run"]
     end
 
     R1 -->|"extract()"| Rec1["DataevalCleaningRecord<br>(duplicates, outliers, ...)"]
+    R2 -->|"extract()"| Rec2["DataevalBiasRecord<br>(coverage, balance, diversity)"]
     R3 -->|"extract()"| Rec3["MaiteEvaluationRecord<br>(metric key/value pairs)"]
+    R4 -->|"extract()"| Rec4["DataevalFeasibilityRecord<br>(BER bounds, health stats)"]
+    R5 -->|"extract()"| Rec5["DataevalShiftRecord<br>(drift tests, OOD stats)"]
 
     subgraph "AnalyticsStore.write()"
         Rec1 --> W[Auto-populate RunRecord]
+        Rec2 --> W
         Rec3 --> W
+        Rec4 --> W
+        Rec5 --> W
     end
 
     W --> P["StorageBackend"]
 
     subgraph "Storage (Parquet by default)"
         P --> T1["dataeval_cleaning/"]
+        P --> T2["dataeval_bias/"]
         P --> T3["maite_evaluation/"]
-        P --> T4["runs/"]
+        P --> T4["dataeval_feasibility/"]
+        P --> T5["dataeval_shift/"]
+        P --> T6["runs/"]
     end
 ```
 
@@ -265,21 +274,25 @@ Records follow these rules:
 
 - **Scalar fields only** — `str`, `int`, `float`, `bool`, `bytes`, `datetime`, or `Optional` variants. No lists, dicts, or nested models.
 - **One table per capability** — each `Record` subclass declares a `table_name` (e.g., `"dataeval_cleaning"`).
-<!-- SQL example uses tables that exist on main. Update if new capabilities add extract() support. -->
 - **Cross-capability JOINs** — single-dataset capabilities include a `dataset_id` field, enabling queries like:
 
     ```sql
-    SELECT c.exact_duplicate_ratio, m.output_value
+    SELECT c.exact_duplicate_ratio, f.ber_upper, m.output_value
     FROM dataeval_cleaning c
+    JOIN dataeval_feasibility f ON c.dataset_id = f.dataset_id
     JOIN maite_evaluation m ON c.dataset_id = m.dataset_id
     WHERE m.output_key = 'accuracy'
     ```
+
+    Multi-dataset capabilities (e.g., shift) use descriptive ID fields (`reference_dataset_id`, `evaluation_dataset_id`) and can JOIN on either side.
 
 - **Idempotent writes** — records are deduplicated by `run_uid` across write calls.
 - **Append-only** — run results are historical facts; no updates or deletes.
 - **`created_at`** — auto-populated timestamp on every record; no need to add your own.
 
 To add analytics store support to a new capability, define a `BaseRecord` subclass and implement `extract()` on your `Run` class. See the [reference notebook](../reference/analytics_store_guide.ipynb) for detailed implementation guidance.
+
+For a complete list of available tables and their fields, see the [Record Schema Reference](../reference/analytics_store_guide.ipynb) (Part 5).
 
 For hands-on usage examples (creating a store, writing runs, querying via SQL), see the [Analytics Store Tutorial](../tool-usage/analytics_store_tutorial.ipynb).
 
