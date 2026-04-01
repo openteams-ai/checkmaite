@@ -10,7 +10,7 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 
 ## Create environment and install the package
 
-We provide both poetry-based environment and conda-based environment options to setup your environment and install `checkmaite`.
+We provide both a poetry-based environment and conda-based environment option to setup your environment and install `checkmaite`.
 
 ### Option 1: poetry environment
 
@@ -20,7 +20,7 @@ To set up a poetry environment, [install `poetry`](https://python-poetry.org/doc
 poetry install
 ```
 
-JATIC tools which are not under active development have been moved to a poetry extras optional group called `unsupported`. Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future. You can install these with:
+JATIC tools which are not under active development have been moved to a poetry extras optional group called `unsupported`. Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future. It is also worth noting that these optional dependencies are not available publicly. You will need to register and join the [JATIC Gitlab](https://gitlab.jatic.net/jatic/). These optional dependencies can be installed with:
 
 ```bash
 poetry install --extras unsupported
@@ -41,5 +41,5 @@ conda activate checkmaite
 CONDA_ENV_NAME=checkmaite make conda-env
 
 # finally, install the `checkmaite` package
-pip install .
+pip install . --no-deps
 ```

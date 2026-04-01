@@ -77,6 +77,12 @@ This project utilizes `pre-commit` for linting and formatting. **Developers** sh
 poetry run pre-commit install
 ```
 
+**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite directory to install dev dependencies and pre-commit hooks in one step:
+```bash
+make init
+```
+This runs `poetry install --with dev` and `poetry run pre-commit install`. It does not install optional extras (docs, ui, unsupported) — use the poetry commands above for those.
+
 ### Option 2: Setup conda environment
 
 To set up a conda environment, [install `conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) on your machine and build the environment by running:

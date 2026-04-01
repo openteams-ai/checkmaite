@@ -1,21 +1,25 @@
 # Checkmaite
 
-`Checkmaite` is an integration point for AI T&E tooling that is based on the `maite` protocols.
+`Checkmaite` is an integration point for AI T&E tooling for computer vision that is based on the `maite` protocols (see [maite documentation](https://mit-ll-ai-technology.github.io/maite/)).
 
 ## Description
 
 **What is checkmaite?**
-Checkmaite an API and a UI application which makes testing and evaluation of models and datasets straightforward for individuals who are not familar with the JATIC tools and do not have a coding background. To learn more please visit our [published documents](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+Checkmaite is an API and a UI application which makes testing and evaluation of models and datasets straightforward and reproducible. It can be used to run a wide variety of **Model Evaluation** and **Dataset Analysis** investigations for both **Object Detection** and **Image Classification** computer vision problems. 
+
+It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jatic.net/public/) tools and has since expanded focus. Our goal is to make T&E easier for analysts!
+
+To learn more please visit our [published documentation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
 
 ## Installation
 
-For detailed installation please refer to [Setup Guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/community/setup.html)
+For detailed installation instructions please refer to [Setup Guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/community/setup.html)
 
 ## Usage
 
-To learn more about who the targeted users are for `checkmaite` & what the role of the Reference Implemenation Team is, please visit out [quick start guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/index.html#who-are-the-target-users-of-the-reference-implementation).
+To learn how to get started using `checkmaite`, please visit our [quick start guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/index.html#who-are-the-target-users-of-the-reference-implementation).
 
-The `checkmaite` team, has set up [How-to Guides](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/how-tos/index.html) & [Tutorials](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/tutorials/index.html) that will help with set up and usage.
+There are also [How-to Guides](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/how-tos/index.html) & [Tutorials](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/tutorials/index.html) that will help get new users up to speed on the available functionality.
 
 ## Contributing
 
@@ -23,4 +27,4 @@ The `checkmaite` team welcomes contributions of all forms - questions, documenta
 
 ## Authors and acknowledgment
 
-This project has been created and maintained by CDAO JATIC.
+This project was created for [CDAO JATIC](https://cdao.pages.jatic.net/public/) and is maintained by OpenTeams with collaborative community support. 

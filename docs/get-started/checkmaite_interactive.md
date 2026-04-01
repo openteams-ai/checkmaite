@@ -1,14 +1,14 @@
 # Running checkmaite interactively
 
 We've streamlined the process of running `checkmaite`
-interactively. This allows you to explore and utilize the full capabilities of the JATIC tools and workflows through a user-friendly web interface (UI).
+interactively. This allows you to explore and utilize the full capabilities of `checkmaite` workflows through a user-friendly web interface (UI).
 
 To run checkmaite, we recommend setting up a virtual environment and installing
 the necessary dependencies, for detailed instructions, please refer to the [Setup
 Guide](./install_setup.md).
 
 
-Once you have the environment set up, you can start checkmaite by running the
+Once you have the environment set up, you can start `checkmaite` by running the
 following command in your terminal:
 
 ```bash
@@ -26,12 +26,14 @@ python panel serve src/checkmaite/ui/app.py --show
 
 This command will launch checkmaite in your default web browser under
 `http://localhost:5006/app`. If this port is in use, you can also specify the port, for example, `--port 9000`. You can
-then interact with the application, explore the models, and run workflows directly from
+then interact with the application and run workflows directly from
 the web interface.
 
-The first step is to select which Workflow you would like to work with:
+## Interactive UI workflow
 
-- *Model Evaluation (ME)* to analyze model performance, robustness, and explainability using the JATIC tools MAITE, NRTK, and XAITK respectively.
+The first step is to select which workflow you would like to work with:
+
+- *Model Evaluation (ME)* to analyze model performance, robustness, and explainability using the JATIC tools [MAITE](https://mit-ll-ai-technology.github.io/maite/), [NRTK](https://nrtk.readthedocs.io/en/latest/tutorials/testing_and_evaluation_notebooks.html), and XAITK respectively.
 - *Dataset Analysis (DA)* to understand and improve dataset quality by analyzing data biases, feasibility, shift, and cleaning statistics using the JATIC tool Dataeval.
 
 All of these tools are available for both Image Classification (IC) and Object Detection (OD) tasks.

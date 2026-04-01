@@ -1,8 +1,8 @@
 # Get started
 
-We offer two key ways of interactions and access to the JATIC tools and workflows:
+We offer two key ways of executing workflows on `checkmaite`:
 
-* An __Interactive__ web-based user interface (UI)
+* An interactive web-based __user interface__ (UI)
 * An __API__ for programmatic access via Python object interfaces
 
 Click on the respective pages below to get stated.
@@ -12,7 +12,7 @@ Click on the respective pages below to get stated.
 * :material-monitor-arrow-down-variant:{ .lg .middle } [__Setup__ :octicons-arrow-right-24:](install_setup.md)
 
     ---
-    Install and setup checkmaite on your local machine to start using it!
+    Install and setup `checkmaite` on your local machine to start using it!
 
 * :material-tab:{ .lg .middle } [__Interactive Access to `checkmaite`__ :octicons-arrow-right-24:](checkmaite_interactive.md)
 
