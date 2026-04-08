@@ -8,6 +8,7 @@ from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 
 from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -85,9 +86,119 @@ class NrtkRobustnessOutputs(CapabilityOutputsBase):
     return_key: str
 
 
+class NrtkRobustnessRecord(BaseRecord, table_name="nrtk_robustness"):
+    """Record for NrtkRobustness capability results.
+
+    One record is emitted per (theta_value, metric_key) pair, enabling
+    direct SQL reconstruction of robustness curves. The ``is_primary``
+    flag marks rows corresponding to the capability's ``return_key``.
+
+    Attributes
+    ----------
+    dataset_id : str
+        Dataset identifier (cross-capability JOIN key).
+    model_id : str
+        Model identifier.
+    metric_id : str
+        Metric identifier.
+    perturber_class : str
+        Short class name of the perturber (e.g. ``"BrightnessPerturber"``).
+    perturber_type : str
+        Human-readable label (e.g. ``"Brightness Perturber"``).
+    theta_key : str
+        Perturbation parameter name (e.g. ``"factor"``, ``"ksize"``).
+    theta_index : int
+        Ordinal position in the sweep (0-based).
+    theta_value : float
+        Parameter value at this perturbation level.
+    metric_key : str
+        Metric output key (e.g. ``"accuracy"``, ``"f1_score"``).
+    metric_value : float
+        Score at this perturbation level.
+    is_primary : bool
+        True when ``metric_key`` matches the capability's ``return_key``.
+    """
+
+    # Cross-capability JOIN key (single-dataset convention)
+    dataset_id: str
+
+    # Entity identifiers
+    model_id: str
+    metric_id: str
+
+    # Perturber identification
+    perturber_class: str  # e.g. "BrightnessPerturber"
+    perturber_type: str  # e.g. "Brightness Perturber" (human-readable)
+
+    # Perturbation point
+    theta_key: str  # e.g. "factor", "ksize"
+    theta_index: int  # ordinal position in the sweep (0-based)
+    theta_value: float  # parameter value at this point
+
+    # Metric result
+    metric_key: str  # e.g. "accuracy", "f1_score"
+    metric_value: float  # score at this perturbation level
+    is_primary: bool  # True when metric_key == return_key
+
+
 class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOutputs]):
     config: NrtkRobustnessConfig
     outputs: NrtkRobustnessOutputs
+
+    def extract(self) -> list[NrtkRobustnessRecord]:
+        """Extract per-perturbation-point metrics from this NrtkRobustness run.
+
+        Iterates all theta points and metric keys from the perturbation
+        outputs, converting each to a flat scalar record. Tensor values
+        are coerced to Python floats via ``.item()`` with a fallback
+        through ``.detach().cpu().numpy()``.
+        """
+        # Single dataset/model/metric (Number.ONE)
+        dataset_id = self.dataset_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+        metric_id = self.metric_metadata[0]["id"]
+        return_key = self.outputs.return_key
+        thetas = list(self.config.perturber_factory.thetas)
+        theta_key = self.config.perturber_factory.theta_key
+
+        # Extract short class name and split CamelCase into human-readable words
+        # e.g. "nrtk...BrightnessPerturber" -> "BrightnessPerturber" -> "Brightness Perturber"
+        perturbation_classname = self.config.perturber_factory.get_config()["perturber"].split(".")[-1]
+        perturbation_label = " ".join(re.findall(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", perturbation_classname))
+
+        import torch
+
+        records: list[NrtkRobustnessRecord] = []
+        for theta_index, (theta, perturber_output) in enumerate(zip(thetas, self.outputs.perturbations, strict=True)):
+            for metric_key, raw_value in perturber_output.items():
+                # Defensive tensor/numpy conversion (mirrors collect_md_report)
+                if isinstance(raw_value, torch.Tensor):
+                    try:
+                        val = raw_value.item()
+                    except (RuntimeError, TypeError):
+                        val = float(raw_value.detach().cpu().numpy())
+                else:
+                    with contextlib.suppress(TypeError, ValueError, OverflowError):
+                        raw_value = float(raw_value)
+                    val = raw_value
+
+                records.append(
+                    NrtkRobustnessRecord(
+                        run_uid=self.run_uid,
+                        dataset_id=dataset_id,
+                        model_id=model_id,
+                        metric_id=metric_id,
+                        perturber_class=perturbation_classname,
+                        perturber_type=perturbation_label,
+                        theta_key=theta_key,
+                        theta_index=theta_index,
+                        theta_value=float(theta),
+                        metric_key=metric_key,
+                        metric_value=val,
+                        is_primary=(metric_key == return_key),
+                    )
+                )
+        return records
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
