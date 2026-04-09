@@ -64,7 +64,7 @@ def json_config_me_ic(nrtk_config_ic, xaitk_config_ic, baseline_eval_config_ic):
 def reallabel_config_od():
     """Default output configuration settings from the reallabel
     panel app"""
-    pytest.importorskip("reallabel")
+    pytest.importorskip("checkmaite_plugins")
     # import inside the fixture to improve test startup time
     from checkmaite.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp as RealLabelAppOD
 
@@ -78,7 +78,7 @@ def survivor_config_od():
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time
-    pytest.importorskip("survivor")
+    pytest.importorskip("checkmaite_plugins")
     from checkmaite.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD
 
     survivor_app = SurvivorAppOD()
@@ -88,7 +88,7 @@ def survivor_config_od():
 
 @pytest.fixture(scope="session")
 def survivor_config_ic():
-    pytest.importorskip("survivor")
+    pytest.importorskip("checkmaite_plugins")
     """Default output configuration settings from the survivor
     panel app"""
     # import inside the fixture to improve test startup time

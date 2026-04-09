@@ -45,25 +45,3 @@
     The analytics store persists capability results as queryable records, enabling SQL-based comparison across runs, datasets, and capabilities.
 
 </div>
-
-<!--  Unsupported Tools:
-
--   :material-hammer-wrench:{ .lg .middle } __RealLabel Tutorial__
-
-    ---
-
-    RealLabel is a quality assurance tool designed to identify missing or erroneous ground-truth labels in object-detection datasets.
-
-    [:octicons-arrow-right-24: RealLabel Tutorial](reallabel_tutorial.ipynb)
-
--   :material-hammer-wrench:{ .lg .middle } __Survivor Tutorial__
-
-    ---
-
-    Survivor identifies which images in a dataset are most valuable for comparing model performance and provides insight into model performance on dataset subsets.
-
-    [:octicons-arrow-right-24: Survivor Tutorial](survivor_tutorial.ipynb)
-
-</div>
-
--->

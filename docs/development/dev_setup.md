@@ -53,11 +53,15 @@ To contribute to the documentation, install with the docs dependencies:
 poetry install --with docs
 ```
 
-There are also two optional dependency groups, `unsupported` and `ui`. You can install these via poetry:
+There are also optional dependency groups, `ui` and `unsupported`:
 
 ```bash
 poetry install --extras ui
+poetry install --extras unsupported
 ```
+
+The `unsupported` extra installs the separate `checkmaite-plugins` package
+with its own `unsupported` dependencies.
 
 If you want to install all the extras, you can use:
 
@@ -115,19 +119,13 @@ poetry run pytest tests -svv
 ```
 
 This project also contains test markers to flag special test groups. The tests marked `real_data` are
-time consuming tests that utilize real data. The tests marked `unsupported` are dependent on non-active 
-JATIC tools which are not installed in the environment by default. Both of these test groups are skipped
-by default and run nightly in CI. 
+time consuming tests that utilize real data. The `unsupported` capability tests are maintained in the
+`checkmaite-plugins` repository.
 
 You can run them manually with:
 
 ```bash
 poetry run pytest tests -svv -m real_data
-```
-or
-
-```bash
-poetry run pytest tests -svv -m "real_data and unsupported"
 ```
 
 **NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite

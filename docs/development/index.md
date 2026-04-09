@@ -16,6 +16,10 @@ Documentation for checkmaite developers and contributors.
 
     Persona for a typical user of checkmaite, to guide development decisions.
 
+-  [__Plugin system__ :octicons-arrow-right-24:](plugins.md)
+
+    How to create, install, and debug checkmaite plugins.
+
 -  [__Contribution guidelines__ :octicons-arrow-right-24:](contributing.md)
 
     Guidelines on contributing to the `checkmaite` project.

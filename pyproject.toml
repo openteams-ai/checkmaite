@@ -124,10 +124,8 @@ checkmaite-serve = "checkmaite.ui.app:main"
 # dependencies even when they're in an "optional" Poetry group. These will not be included in the conda-lock file.
 [project.optional-dependencies]
 unsupported = [
-    "heart-library==0.7.0 ; python_version < '3.12'",
-    "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4 ; python_version < '3.12'",
-    "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6 ; python_version < '3.12'",
-    "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2 ; python_version < '3.12'",
+    # checkmaite-plugins only supports Python <3.12 due to Java/pyspark dependencies
+    "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main ; python_version < '3.12'",
 ]
 ui = [
     "holoviews>=1.20.0",
@@ -246,11 +244,5 @@ filterwarnings = [
 
 xfail_strict = true
 
-# Omit the skipped optional dependencies from coverage report
 [tool.coverage.run]
 source = ["checkmaite"]
-omit = [
-    "*/heart_adversarial_capability.py",
-    "*/reallabel_labelling_capability.py",
-    "*/survivor_capability.py",
-]

@@ -20,10 +20,24 @@ To set up a poetry environment, [install `poetry`](https://python-poetry.org/doc
 poetry install
 ```
 
-JATIC tools which are not under active development have been moved to a poetry extras optional group called `unsupported`. Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future. It is also worth noting that these optional dependencies are not available publicly. You will need to register and join the [JATIC Gitlab](https://gitlab.jatic.net/jatic/). These optional dependencies can be installed with:
+JATIC tools which are not under active development are distributed through the separate `checkmaite-plugins` package.
+Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future.
 
 ```bash
 poetry install --extras unsupported
+```
+
+You can also install the plugin package directly:
+
+```bash
+pip install "checkmaite-plugins[unsupported]"
+```
+
+If you are developing locally across both repositories:
+
+```bash
+pip install -e /path/to/checkmaite
+pip install -e "/path/to/checkmaite-plugins[unsupported]"
 ```
 
 ### Option 2: conda environment

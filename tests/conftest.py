@@ -119,9 +119,7 @@ DEFAULT_OD_DATASET_METADATA = DatasetMetadata(
 
 # 'Datum metadata' apply to an individual item within the dataset (e.g. an image ID)
 DEFAULT_OD_DATUM_METADATA: Sequence[DatumMetadata] = [
-    # RealLabel test stage cache unit tests fail unless each datum in the dataset has a metadata
-    # ID which is a string.  A numerical ID cast as a string will fail (at some point it must be converted
-    # to int or float and not back).  But the IDs do not have to be unique per image... just any strings.
+    # IDs are strings to satisfy legacy test fixtures and cache assumptions.
     DatumMetadata(id="some_string")
     for _ in range(DEFAULT_DATASET_LENGTH)
 ]
@@ -346,25 +344,6 @@ def fake_od_metric_default() -> FakeODMetric:
     is likely preferable to creating different fake data for different scenarios.
     """
     return FakeODMetric()
-
-
-@pytest.fixture
-def fake_od_dataset_reallabel_only() -> FakeODDataset:
-    """
-    NOTE - We should refactor the RealLabel test stage tests so this isn't necessary.
-    The following tests fail AssertionErrors with the default FakeODDataset if dataset length is not 1
-       * test_reallabel_test_stage_collect_report_consumables
-       * test_reallabel_test_stage_collect_metrics_cached_data
-    This could be just because otherwise valid output calculations are changing, but that assumption needs to be
-    confirmed before changing the tests.
-    Worth noting, too, that some survivor tests fail if dataset length is not 6... but 6 is better default than 1
-    """
-    # To make the tests pass for now, trucate the default dataset to just one item
-    return FakeODDataset(
-        images=DEFAULT_OD_DATASET_IMAGES[:1],
-        targets=DEFAULT_OD_DATASET_TARGETS[:1],
-        datum_metadata=DEFAULT_OD_DATUM_METADATA[:1],
-    )
 
 
 #############################

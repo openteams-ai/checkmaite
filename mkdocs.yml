@@ -48,11 +48,6 @@ nav:  # navigation links on sidebar
     - Results & analysis:
       - Analytics Store: tool-usage/analytics_store_tutorial.ipynb
 
-    # These tools are not currently supported by JATIC. The notebooks have been archived under `docs/reference/examples`
-
-    #- RealLabel Tutorial: tutorials/reallabel_tutorial.ipynb
-    #- Survivor Tutorial: tutorials/survivor_tutorial.ipynb
-
   - Reference:
     - reference/index.md
     - Conventions: reference/conventions.md
@@ -65,6 +60,7 @@ nav:  # navigation links on sidebar
     - Development strategy: development/dev_strategy.md
     - Key concepts: development/key_concepts.md
     - User persona: development/persona.md
+    - Plugin system: development/plugins.md
     - Contributing: development/contributing.md
 markdown_extensions:
   - admonition  # enables callout boxes

@@ -3,8 +3,8 @@ from typing import Any
 import panel as pn
 import pytest
 
-# Skip all tests in this file if survivor isn't available
-pytest.importorskip("survivor")
+# Skip all tests in this file if survivor plugin dependencies aren't available
+pytest.importorskip("checkmaite_plugins")
 
 # Module-level imports after importorskip to prevent collection errors
 from checkmaite.ui.configuration_pages.object_detection.survivor_app import SurvivorAppOD  # noqa: E402
@@ -131,7 +131,7 @@ def test_run_export(
 
 @pytest.mark.unsupported
 def test_roundtrip() -> None:
-    from checkmaite.core._common.survivor_capability import SurvivorConfig
+    from checkmaite_plugins.core._common.survivor_capability import SurvivorConfig
 
     app = SurvivorAppOD()
     app.panel()  # test constructing the UI even though we can't see it

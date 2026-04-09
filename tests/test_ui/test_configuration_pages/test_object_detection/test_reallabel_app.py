@@ -1,7 +1,7 @@
 import pytest
 
 # Skip all tests in this file if reallabel isn't available
-pytest.importorskip("reallabel")
+pytest.importorskip("checkmaite_plugins")
 
 # Module-level imports after importorskip to prevent collection errors
 from checkmaite.ui.configuration_pages.object_detection.reallabel_app import RealLabelApp  # noqa: E402
