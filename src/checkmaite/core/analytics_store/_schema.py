@@ -144,9 +144,9 @@ class RunRecord(BaseRecord, table_name="runs"):
     """A row in the ``runs`` table, emitted automatically by the store.
 
     Maps a ``run_uid`` to the human-readable identifiers that produced it
-    (capability, datasets, models, metrics).  One record is written per
-    (run_uid, entity_type, entity_id) combination so that users can
-    filter on any dimension with plain SQL::
+    (capability, datasets, models, metrics). One record is written per unique
+    ``(run_uid, capability_table, entity_type, entity_id)`` mapping so that
+    users can filter on any dimension with plain SQL::
 
         SELECT c.*
         FROM dataeval_cleaning c

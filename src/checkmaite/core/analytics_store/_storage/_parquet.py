@@ -48,26 +48,76 @@ class ParquetBackend:
     def _table_path(self, table_name: str) -> Path:
         return self._path / table_name
 
-    def write(self, records: Sequence[BaseRecord]) -> None:
-        """Write records to storage, batched by table.
-
-        Records are grouped by table name and written as one Parquet
-        file per table per ``write()`` call.
-        """
-        if not records:
-            return
-
+    @staticmethod
+    def _group_records(records: Sequence[BaseRecord]) -> dict[str, list[dict[str, Any]]]:
         batches: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in records:
             # mode="python" preserves native Python types (e.g. datetime) so that
             # Polars maps them to the correct dtypes (e.g. Datetime instead of Utf8).
             # mode="json" would serialize datetimes to ISO strings, losing type
             # fidelity in the Parquet file and breaking temporal SQL comparisons.
-            row = record.model_dump(mode="python")
-            batches[record.table_name].append(row)
+            batches[record.table_name].append(record.model_dump(mode="python"))
+        return batches
 
-        for table_name, rows in batches.items():
+    @staticmethod
+    def _validate_schema_compatibility(
+        table_name: str,
+        batch: pl.DataFrame,
+        existing_schema: dict[str, pl.DataType],
+    ) -> None:
+        for col_name, new_dtype in batch.schema.items():
+            if (
+                col_name in existing_schema
+                and existing_schema[col_name] != new_dtype
+                and existing_schema[col_name] != pl.Null
+                and new_dtype != pl.Null
+            ):
+                raise TypeError(
+                    f"Schema mismatch for table '{table_name}', column '{col_name}': "
+                    f"existing type is {existing_schema[col_name]}, "
+                    f"new type is {new_dtype}. "
+                    f"Changing column types is not supported."
+                )
+
+    @staticmethod
+    def _dedupe_runs_batch(
+        batch: pl.DataFrame,
+        existing_lf: pl.LazyFrame,
+        existing_schema: dict[str, pl.DataType],
+    ) -> pl.DataFrame:
+        runs_key = ["run_uid", "capability_table", "entity_type", "entity_id"]
+        if all(col in existing_schema for col in runs_key):
+            existing_keys = existing_lf.select(runs_key).unique().collect()
+            batch = batch.join(existing_keys, on=runs_key, how="anti")
+        return batch
+
+    @staticmethod
+    def _dedupe_payload_batch(batch: pl.DataFrame, existing_lf: pl.LazyFrame) -> pl.DataFrame:
+        existing_uids = existing_lf.select("run_uid").unique().collect().to_series().to_list()
+        return batch.filter(~pl.col("run_uid").is_in(existing_uids))
+
+    def write(self, records: Sequence[BaseRecord]) -> None:
+        """Write records to storage, batched by table.
+
+        Records are grouped by table name and written as one Parquet
+        file per table per ``write()`` call.
+
+        Dedupe semantics are table-specific:
+        - capability payload tables are idempotent by ``run_uid`` across
+          repeated write calls,
+        - the ``runs`` table is deduplicated by mapping key
+          ``(run_uid, capability_table, entity_type, entity_id)``.
+        """
+        if not records:
+            return
+
+        for table_name, rows in self._group_records(records).items():
             batch = pl.DataFrame(rows)
+            if table_name == "runs":
+                batch = batch.unique(
+                    subset=["run_uid", "capability_table", "entity_type", "entity_id"],
+                    maintain_order=True,
+                )
 
             output_dir = self._table_path(table_name)
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -76,28 +126,15 @@ class ParquetBackend:
             try:
                 existing_lf = pl.scan_parquet(parquet_glob, missing_columns="insert")
                 existing_schema = existing_lf.collect_schema()
+                self._validate_schema_compatibility(table_name, batch, existing_schema)
 
-                # Schema compatibility check
-                for col_name, new_dtype in batch.schema.items():
-                    if (
-                        col_name in existing_schema
-                        and existing_schema[col_name] != new_dtype
-                        and existing_schema[col_name] != pl.Null
-                        and new_dtype != pl.Null
-                    ):
-                        raise TypeError(
-                            f"Schema mismatch for table '{table_name}', column '{col_name}': "
-                            f"existing type is {existing_schema[col_name]}, "
-                            f"new type is {new_dtype}. "
-                            f"Changing column types is not supported."
-                        )
+                if table_name == "runs":
+                    batch = self._dedupe_runs_batch(batch, existing_lf, existing_schema)
+                elif "run_uid" in existing_schema:
+                    batch = self._dedupe_payload_batch(batch, existing_lf)
 
-                # Deduplicate by run_uid
-                if "run_uid" in existing_schema:
-                    existing_uids = existing_lf.select("run_uid").unique().collect().to_series().to_list()
-                    batch = batch.filter(~pl.col("run_uid").is_in(existing_uids))
-                    if batch.is_empty():
-                        continue
+                if batch.is_empty():
+                    continue
             except (pl.exceptions.ComputeError, pl.exceptions.SchemaError):
                 pass  # No existing files yet
 

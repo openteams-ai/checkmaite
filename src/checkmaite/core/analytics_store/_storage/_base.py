@@ -27,6 +27,12 @@ class StorageBackend(Protocol):
 
         Records are batched by table name for efficiency.
 
+        Backend implementations are expected to preserve analytics-store
+        idempotency semantics across repeated writes:
+        - capability payload tables deduplicate by ``run_uid`` across writes,
+        - the ``runs`` table deduplicates by mapping key
+          ``(run_uid, capability_table, entity_type, entity_id)`` across writes.
+
         Parameters
         ----------
         records

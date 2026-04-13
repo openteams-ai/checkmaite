@@ -15,6 +15,13 @@ class AnalyticsStore:
     "maite_evaluation"), plus an automatic ``runs`` table that maps each
     ``run_uid`` to human-readable identifiers (dataset IDs, model IDs, etc.).
 
+    Write semantics are intentionally idempotent across repeated writes:
+    payload tables are deduplicated by ``run_uid`` across separate write calls,
+    while the ``runs`` table is deduplicated by mapping key
+    ``(run_uid, capability_table, entity_type, entity_id)`` so repeated writes
+    do not create duplicate lookup rows. Distinct entity mappings for the same
+    ``run_uid`` remain valid and are preserved.
+
     The primary query interface is SQL-based via query_sql(), which provides
     maximum flexibility for filtering, joining, and aggregating data.
 
@@ -49,7 +56,13 @@ class AnalyticsStore:
 
     @staticmethod
     def _build_run_records(run: CapabilityRunBase, capability_table: str) -> list[RunRecord]:
-        """Build ``runs`` table rows for a single capability run."""
+        """Build ``runs`` table rows for a single capability run.
+
+        One row is emitted per mapped entity (dataset, model, metric). Repeated
+        writes of the same run should preserve these mappings without creating
+        duplicate rows for the same ``(run_uid, capability_table, entity_type,
+        entity_id)`` combination.
+        """
         run_uid = run.run_uid
         cap_id = run.capability_id
         return [
@@ -92,6 +105,12 @@ class AnalyticsStore:
         1. Emits rows into the ``runs`` table (automatic — maps run_uid
            to dataset/model/metric IDs).
         2. Calls ``run.extract()`` for capability-specific records.
+
+        Repeated writes are expected to be idempotent at the storage-backend
+        layer. Capability payload tables should not accumulate duplicate data
+        for the same ``run_uid`` across separate writes, and the ``runs`` table
+        should not accumulate duplicate mapping rows for the same
+        ``(run_uid, capability_table, entity_type, entity_id)``.
 
         Parameters
         ----------

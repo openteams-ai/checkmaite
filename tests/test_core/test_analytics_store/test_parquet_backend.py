@@ -134,6 +134,62 @@ def test_datetime_preserved(backend: ParquetBackend) -> None:
     assert result.dtypes[0] == pl.Datetime or result.dtypes[0].is_(pl.Datetime)
 
 
+def test_runs_table_deduplicates_same_mapping_across_writes(backend: ParquetBackend) -> None:
+    dataset_row = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+    )
+
+    backend.write([dataset_row])
+    backend.write([dataset_row])
+
+    result = backend.query_sql("SELECT run_uid, entity_type, entity_id FROM runs")
+    assert result.shape[0] == 1
+
+
+def test_runs_table_preserves_distinct_mappings_for_same_run_uid(backend: ParquetBackend) -> None:
+    dataset_row = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+    )
+    model_row = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="model",
+        entity_id="m1",
+    )
+
+    backend.write([dataset_row])
+    backend.write([model_row])
+
+    result = backend.query_sql("SELECT entity_type, entity_id FROM runs ORDER BY entity_type")
+    assert result.shape[0] == 2
+    assert result["entity_type"].to_list() == ["dataset", "model"]
+    assert result["entity_id"].to_list() == ["ds1", "m1"]
+
+
+def test_runs_table_deduplicates_same_mapping_within_single_write(backend: ParquetBackend) -> None:
+    dataset_row = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+    )
+
+    backend.write([dataset_row, dataset_row])
+
+    result = backend.query_sql("SELECT run_uid, entity_type, entity_id FROM runs")
+    assert result.shape[0] == 1
+
+
 def test_deduplication_by_run_uid(backend: ParquetBackend) -> None:
     backend.write([_metric(run_uid="r1", value=0.9)])
     backend.write([_metric(run_uid="r1", value=0.99)])  # same run_uid, different value
