@@ -14,7 +14,7 @@ from torch import Tensor, as_tensor
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
-from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase
+from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
 from checkmaite.core._utils import deprecated, requires_optional_dependency
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
@@ -78,6 +78,49 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
 
     config: XaitkExplainableConfig
     outputs: XaitkExplainableOutputs
+
+    def extract(self) -> list[XaitkExplainableRecord]:
+        """Extract per-detection saliency statistics from this OD XaitkExplainable run.
+
+        Emits one record per detection. Each detection has a saliency map,
+        bounding box, predicted label, and confidence score. Images with
+        no detections are skipped.
+        """
+        # Single dataset/model (Number.ONE), no metrics (Number.ZERO)
+        dataset_id = self.dataset_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+        index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+        # Extract short generator class name, e.g. "DRISEStack"
+        conf_dict = self.config.model_dump()
+        generator_type = conf_dict["saliency_generator"]["type"].split(".")[-1]
+
+        records: list[XaitkExplainableRecord] = []
+        for image_index, datum in enumerate(self.outputs.results):
+            if len(datum.sal_maps) == 0:
+                continue
+
+            for det_idx in range(len(datum.sal_maps)):
+                sal_map = np.asarray(datum.sal_maps[det_idx]).ravel().astype(float)
+
+                records.append(
+                    XaitkExplainableRecord(
+                        run_uid=self.run_uid,
+                        dataset_id=dataset_id,
+                        model_id=model_id,
+                        saliency_generator_type=generator_type,
+                        image_index=image_index,
+                        image_id=str(datum.img_id),
+                        detection_index=det_idx,
+                        predicted_label=index2label[int(datum.labels[det_idx])],
+                        confidence=float(datum.scores[det_idx]),
+                        mean_saliency=float(np.mean(sal_map)),
+                        max_saliency=float(np.max(sal_map)),
+                        std_saliency=float(np.std(sal_map)),
+                        positive_saliency_ratio=float(np.sum(sal_map > 0) / max(len(sal_map), 1)),
+                    )
+                )
+        return records
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")

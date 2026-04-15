@@ -88,3 +88,45 @@ def test_xaitk_temp_dataset(fake_od_dataset_default, fake_od_model_default):
         assert equal(as_tensor(temp_dataset[i][1].scores)[0], dets_i.scores[max_score_i])
 
         assert len(as_tensor(temp_dataset[i][1].boxes)) <= 2
+
+
+@pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
+def test_extract_returns_records(fake_od_model_default, fake_od_dataset_default, test_config) -> None:
+    """extract() returns one XaitkExplainableRecord per detection."""
+    from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableRecord
+
+    capability = XaitkExplainable()
+    run_result = capability.run(
+        use_cache=False,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        config=test_config,
+    )
+    records = run_result.extract()
+    assert len(records) > 0
+    assert all(isinstance(r, XaitkExplainableRecord) for r in records)
+    # OD-specific fields should be populated
+    assert all(r.detection_index is not None for r in records)
+    assert all(r.confidence is not None for r in records)
+    assert all(r.image_id is not None for r in records)
+    assert all(r.predicted_label is not None for r in records)
+    # IC-specific field should be None
+    assert all(r.gt_label is None for r in records)
+
+
+@pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
+def test_extract_saliency_stats_valid(fake_od_model_default, fake_od_dataset_default, test_config) -> None:
+    """extract() produces valid saliency statistics."""
+    capability = XaitkExplainable()
+    run_result = capability.run(
+        use_cache=False,
+        models=[fake_od_model_default],
+        datasets=[fake_od_dataset_default],
+        config=test_config,
+    )
+    records = run_result.extract()
+    for r in records:
+        assert r.mean_saliency == r.mean_saliency  # not NaN
+        assert 0.0 <= r.positive_saliency_ratio <= 1.0
+        assert r.std_saliency >= 0.0
+        assert r.confidence >= 0.0

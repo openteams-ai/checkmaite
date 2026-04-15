@@ -145,3 +145,33 @@ def test_xaitk_capability_mc_rise_unfixed_model(fake_ic_dataset_default, fake_ic
 
     _ = run.collect_report_consumables(threshold=0.5)
     assert run.collect_md_report(threshold=0.5)
+
+
+def test_extract_returns_records(test_run_rise) -> None:
+    """extract() returns one XaitkExplainableRecord per image."""
+    from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableRecord
+
+    records = test_run_rise.extract()
+    assert len(records) > 0
+    assert all(isinstance(r, XaitkExplainableRecord) for r in records)
+    assert all(r.gt_label is not None for r in records)
+    # OD-specific fields should be None
+    assert all(r.detection_index is None for r in records)
+    assert all(r.confidence is None for r in records)
+    assert all(r.image_id is None for r in records)
+
+
+def test_extract_saliency_stats_valid(test_run_rise) -> None:
+    """extract() produces valid saliency statistics."""
+    records = test_run_rise.extract()
+    for r in records:
+        assert r.mean_saliency == r.mean_saliency  # not NaN
+        assert 0.0 <= r.positive_saliency_ratio <= 1.0
+        assert r.std_saliency >= 0.0
+
+
+def test_extract_image_index_sequential(test_run_rise) -> None:
+    """extract() assigns sequential image indices."""
+    records = test_run_rise.extract()
+    indices = [r.image_index for r in records]
+    assert indices == list(range(len(records)))

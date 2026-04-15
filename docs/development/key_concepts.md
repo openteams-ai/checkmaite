@@ -243,6 +243,7 @@ flowchart LR
         R4["DataevalFeasibility Run"]
         R5["DataevalShift Run"]
         R6["NrtkRobustness Run"]
+        R7["XaitkExplainable Run"]
     end
 
     R1 -->|"extract()"| Rec1["DataevalCleaningRecord<br>(duplicates, outliers, ...)"]
@@ -251,6 +252,7 @@ flowchart LR
     R4 -->|"extract()"| Rec4["DataevalFeasibilityRecord<br>(BER bounds, health stats)"]
     R5 -->|"extract()"| Rec5["DataevalShiftRecord<br>(drift tests, OOD stats)"]
     R6 -->|"extract()"| Rec6["NrtkRobustnessRecord<br>(per-theta metric values)"]
+    R7 -->|"extract()"| Rec7["XaitkExplainableRecord<br>(saliency stats per map)"]
 
     subgraph "AnalyticsStore.write()"
         Rec1 --> W[Auto-populate RunRecord]
@@ -259,6 +261,7 @@ flowchart LR
         Rec4 --> W
         Rec5 --> W
         Rec6 --> W
+        Rec7 --> W
     end
 
     W --> P["StorageBackend"]
@@ -270,6 +273,7 @@ flowchart LR
         P --> T4["dataeval_feasibility/"]
         P --> T5["dataeval_shift/"]
         P --> T6["nrtk_robustness/"]
+        P --> T7["xaitk_explainable/"]
         P --> T7["runs/"]
     end
 ```

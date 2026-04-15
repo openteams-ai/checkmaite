@@ -11,7 +11,7 @@ from torchvision.transforms.v2.functional import rgb_to_grayscale
 from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
-from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase
+from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
 from checkmaite.core._utils import deprecated, requires_optional_dependency
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from checkmaite.core.report._markdown import MarkdownOutput
@@ -62,6 +62,52 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
 
     config: XaitkExplainableConfig
     outputs: XaitkExplainableOutputs
+
+    def extract(self) -> list[XaitkExplainableRecord]:
+        """Extract per-image saliency statistics from this IC XaitkExplainable run.
+
+        Emits one record per image. Saliency statistics are computed from
+        the first class map (index 0) of each image's saliency array.
+        For RISE the shape is ``(Cl, H, W)``; for MC-RISE it is
+        ``(X, Cl, H, W)`` — we use the first color channel in that case.
+        """
+        # Single dataset/model (Number.ONE), no metrics (Number.ZERO)
+        dataset_id = self.dataset_metadata[0]["id"]
+        model_id = self.model_metadata[0]["id"]
+
+        # Extract short generator class name, e.g. "RISEStack"
+        conf_dict = self.config.model_dump()
+        generator_type = conf_dict["saliency_generator"]["type"].split(".")[-1]
+
+        records: list[XaitkExplainableRecord] = []
+        for image_index, (sal_maps, gt_label) in enumerate(
+            zip(self.outputs.results, self.outputs.gt_labels, strict=True)
+        ):
+            # Select the first saliency map:
+            # RISE: (Cl, H, W) -> use index 0
+            # MC-RISE: (X, Cl, H, W) -> use [0][0]
+            sal_map = np.asarray(sal_maps)
+            if sal_map.ndim == 4:
+                sal_map = sal_map[0][0]
+            elif sal_map.ndim == 3:
+                sal_map = sal_map[0]
+
+            flat = sal_map.ravel().astype(float)
+            records.append(
+                XaitkExplainableRecord(
+                    run_uid=self.run_uid,
+                    dataset_id=dataset_id,
+                    model_id=model_id,
+                    saliency_generator_type=generator_type,
+                    image_index=image_index,
+                    gt_label=gt_label,
+                    mean_saliency=float(np.mean(flat)),
+                    max_saliency=float(np.max(flat)),
+                    std_saliency=float(np.std(flat)),
+                    positive_saliency_ratio=float(np.sum(flat > 0) / max(len(flat), 1)),
+                )
+            )
+        return records
 
     # The order is important
     @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
