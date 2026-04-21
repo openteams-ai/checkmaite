@@ -2,12 +2,13 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 import polars as pl
+from upath import UPath
 
 from checkmaite.core.analytics_store._schema import BaseRecord
+from checkmaite.core.analytics_store._storage._base import StorageWriteReceipt
 
 
 class ParquetBackend:
@@ -33,19 +34,22 @@ class ParquetBackend:
 
     Parameters
     ----------
-    path
-        Base directory for storing parquet files.
+    uri
+        Base directory or object-store prefix for storing parquet files.
+    storage_options
+        Optional Polars storage options passed through to parquet I/O.
     """
 
-    def __init__(self, path: str) -> None:
-        self._path = Path(path).expanduser().resolve()
+    def __init__(self, uri: str, storage_options: dict[str, Any] | None = None) -> None:
+        self._path = UPath(uri)
+        self._storage_options = dict(storage_options or {})
 
     @property
-    def path(self) -> Path:
-        """The base directory where parquet files are stored."""
+    def path(self) -> UPath:
+        """The base directory or object-store prefix where parquet files are stored."""
         return self._path
 
-    def _table_path(self, table_name: str) -> Path:
+    def _table_path(self, table_name: str) -> UPath:
         return self._path / table_name
 
     @staticmethod
@@ -96,20 +100,11 @@ class ParquetBackend:
         existing_uids = existing_lf.select("run_uid").unique().collect().to_series().to_list()
         return batch.filter(~pl.col("run_uid").is_in(existing_uids))
 
-    def write(self, records: Sequence[BaseRecord]) -> None:
-        """Write records to storage, batched by table.
-
-        Records are grouped by table name and written as one Parquet
-        file per table per ``write()`` call.
-
-        Dedupe semantics are table-specific:
-        - capability payload tables are idempotent by ``run_uid`` across
-          repeated write calls,
-        - the ``runs`` table is deduplicated by mapping key
-          ``(run_uid, capability_table, entity_type, entity_id)``.
-        """
+    def _write_impl(self, records: Sequence[BaseRecord]) -> StorageWriteReceipt:
         if not records:
-            return
+            return StorageWriteReceipt()
+
+        run_table_files: dict[str, dict[str, str]] = defaultdict(dict)
 
         for table_name, rows in self._group_records(records).items():
             batch = pl.DataFrame(rows)
@@ -124,7 +119,11 @@ class ParquetBackend:
 
             parquet_glob = str(output_dir / "*.parquet")
             try:
-                existing_lf = pl.scan_parquet(parquet_glob, missing_columns="insert")
+                existing_lf = pl.scan_parquet(
+                    parquet_glob,
+                    missing_columns="insert",
+                    storage_options=(self._storage_options or None),
+                )
                 existing_schema = existing_lf.collect_schema()
                 self._validate_schema_compatibility(table_name, batch, existing_schema)
 
@@ -135,19 +134,79 @@ class ParquetBackend:
 
                 if batch.is_empty():
                     continue
-            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError):
+            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
                 pass  # No existing files yet
 
             timestamp = int(time.time() * 1000)
             output_file = output_dir / f"{timestamp}_{uuid.uuid4().hex[:8]}.parquet"
-            batch.write_parquet(output_file)
+            output_file_str = str(output_file)
+            batch.write_parquet(output_file_str, storage_options=(self._storage_options or None))
+
+            if table_name != "runs" and "run_uid" in batch.columns:
+                run_uids = batch.get_column("run_uid").drop_nulls().unique().to_list()
+                for run_uid in run_uids:
+                    run_table_files[str(run_uid)][table_name] = output_file_str
+
+        return StorageWriteReceipt(
+            run_table_files={run_uid: dict(table_map) for run_uid, table_map in run_table_files.items()},
+        )
+
+    def write(self, records: Sequence[BaseRecord]) -> None:
+        """Write records to storage, batched by table.
+
+        Records are grouped by table name and written as one Parquet
+        file per table per ``write()`` call.
+
+        Dedupe semantics are table-specific:
+        - capability payload tables are idempotent by ``run_uid`` across
+          repeated write calls,
+        - the ``runs`` table is deduplicated by mapping key
+          ``(run_uid, capability_table, entity_type, entity_id)``.
+        """
+        _ = self._write_impl(records)
+
+    def write_with_receipt(self, records: Sequence[BaseRecord]) -> StorageWriteReceipt:
+        """Write records to storage and return concrete write metadata."""
+        return self._write_impl(records)
 
     def list_tables(self) -> list[str]:
         """List available tables in the store."""
-        if not self._path.exists():
+        try:
+            if not self._path.exists():
+                return []
+            return [d.name for d in self._path.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        except (FileNotFoundError, OSError):
             return []
 
-        return [d.name for d in self._path.iterdir() if d.is_dir() and not d.name.startswith(".")]
+    def get_run_uri(self, run_uid: str) -> str:
+        """Return concrete parquet file path for payload data associated with ``run_uid``."""
+        tables = [table_name for table_name in self.list_tables() if table_name != "runs"]
+        if not tables:
+            raise ValueError(f"Run UID {run_uid!r} not found: parquet store {str(self._path)!r} has no payload tables")
+
+        for table_name in tables:
+            parquet_glob = str(self._table_path(table_name) / "*.parquet")
+            try:
+                lf = pl.scan_parquet(
+                    parquet_glob,
+                    missing_columns="insert",
+                    include_file_paths="__file_path",
+                    storage_options=(self._storage_options or None),
+                )
+                schema = lf.collect_schema()
+                if "run_uid" not in schema or "__file_path" not in schema:
+                    continue
+
+                match = lf.filter(pl.col("run_uid") == run_uid).select("__file_path").unique().collect()
+            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
+                continue
+
+            if match.is_empty():
+                continue
+
+            return str(match["__file_path"][0])
+
+        raise ValueError(f"Run UID {run_uid!r} not found in parquet store {str(self._path)!r}")
 
     def describe_table(self, table_name: str) -> dict[str, str]:
         """Get schema information for a table.
@@ -175,7 +234,11 @@ class ParquetBackend:
         parquet_glob = str(table_path / "*.parquet")
 
         try:
-            lf = pl.scan_parquet(parquet_glob, missing_columns="insert")
+            lf = pl.scan_parquet(
+                parquet_glob,
+                missing_columns="insert",
+                storage_options=(self._storage_options or None),
+            )
             schema = lf.collect_schema()
             return {name: str(dtype) for name, dtype in schema.items()}
         except Exception as e:
@@ -186,9 +249,6 @@ class ParquetBackend:
 
         All available tables are registered with their table names.
         """
-        if not self._path.exists():
-            return pl.DataFrame()
-
         tables = self.list_tables()
         if not tables:
             return pl.DataFrame()
@@ -197,15 +257,22 @@ class ParquetBackend:
 
         for table_name in tables:
             table_path = self._table_path(table_name)
-            files = sorted(table_path.glob("*.parquet"))
+            files = sorted(table_path.glob("*.parquet"), key=str)
             if not files:
                 continue
 
             try:
-                frames = [pl.scan_parquet(f) for f in files]
+                frames = [
+                    pl.scan_parquet(
+                        str(f),
+                        missing_columns="insert",
+                        storage_options=(self._storage_options or None),
+                    )
+                    for f in files
+                ]
                 lf = pl.concat(frames, how="diagonal_relaxed") if len(frames) > 1 else frames[0]
                 ctx.register(table_name, lf)
-            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, OSError):
+            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
                 continue
 
         registered = ctx.tables()

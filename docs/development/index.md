@@ -26,6 +26,14 @@ Documentation for checkmaite developers and contributors.
 
 -  [__Key Concepts: Capabilities, Runs, and caches__ :octicons-arrow-right-24:](key_concepts.md)
 
-    An overview of the core abstractions that underpin how evaluations are defined and executed..
+    An overview of the core abstractions that underpin how evaluations are defined and executed.
+
+-  [__Job submission and cluster execution__ :octicons-arrow-right-24:](job_submission/index.md)
+
+    Architecture docs for the jobs protocol, Ray backend, worker environments, and distributed analytics-store behavior.
+
+-  [__Job Submission Walkthrough (Maintainers)__ :octicons-arrow-right-24:](job_submission_walkthrough.ipynb)
+
+    Executable walkthrough of the current asynchronous job submission framework.
 
 </div>

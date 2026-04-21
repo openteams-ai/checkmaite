@@ -2,6 +2,7 @@ import polars as pl
 import pytest
 
 from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
+from checkmaite.core.analytics_store._storage import StorageWriteReceipt
 from checkmaite.core.analytics_store._storage._parquet import ParquetBackend
 
 
@@ -117,13 +118,16 @@ def test_run_records_queryable(backend: ParquetBackend) -> None:
     backend.write([_metric(run_uid="r1"), run_rec])
 
     result = backend.query_sql("""
-        SELECT m.metric_value
+        SELECT m.metric_value, r.capability_id, r.entity_type, r.entity_id
         FROM metrics m
         JOIN runs r ON m.run_uid = r.run_uid
         WHERE r.entity_id = 'ds1'
     """)
     assert result.shape[0] == 1
     assert result["metric_value"][0] == 0.95
+    assert result["capability_id"][0] == "cap1"
+    assert result["entity_type"][0] == "dataset"
+    assert result["entity_id"][0] == "ds1"
 
 
 def test_datetime_preserved(backend: ParquetBackend) -> None:
@@ -284,6 +288,79 @@ def test_idempotent_write_with_optional_none_does_not_raise(backend: ParquetBack
 
     result = backend.query_sql("SELECT * FROM cleaning")
     assert result.shape[0] == 1
+
+
+def test_get_run_uri(backend: ParquetBackend) -> None:
+    backend.write([_metric(run_uid="abc123")])
+
+    uri = backend.get_run_uri("abc123")
+    assert uri.endswith(".parquet")
+    assert "#" not in uri
+
+
+def test_write_with_receipt_tracks_run_table_files(backend: ParquetBackend) -> None:
+    receipt = backend.write_with_receipt([_metric(run_uid="abc123")])
+
+    assert hasattr(receipt, "table_files") is False
+    assert set(receipt.run_table_files) == {"abc123"}
+    resolved = receipt.resolve_run_uri("abc123")
+    assert resolved is not None
+    assert resolved.endswith(".parquet")
+    assert "#" not in resolved
+
+
+def test_write_with_receipt_excludes_runs_table_from_run_uri_resolution(backend: ParquetBackend) -> None:
+    receipt = backend.write_with_receipt(
+        [
+            _metric(run_uid="abc123"),
+            RunRecord(
+                run_uid="abc123",
+                capability_id="cap1",
+                capability_table="metrics",
+                entity_type="dataset",
+                entity_id="ds1",
+            ),
+        ]
+    )
+
+    assert receipt.run_table_files == {"abc123": {"metrics": receipt.resolve_run_uri("abc123")}}
+
+
+def test_storage_write_receipt_resolve_run_uri_returns_none_for_runs_only_entry() -> None:
+    receipt = StorageWriteReceipt(run_table_files={"abc123": {}})
+
+    assert receipt.resolve_run_uri("abc123") is None
+
+
+def test_storage_write_receipt_resolve_run_uri_raises_for_multiple_payload_tables() -> None:
+    receipt = StorageWriteReceipt(
+        run_table_files={
+            "abc123": {
+                "metrics": "file:///tmp/metrics.parquet",
+                "cleaning": "file:///tmp/cleaning.parquet",
+            }
+        }
+    )
+
+    with pytest.raises(ValueError, match="multiple payload tables present"):
+        receipt.resolve_run_uri("abc123")
+
+
+def test_get_run_uri_ignores_runs_table_only_data(backend: ParquetBackend) -> None:
+    backend.write(
+        [
+            RunRecord(
+                run_uid="abc123",
+                capability_id="cap1",
+                capability_table="metrics",
+                entity_type="dataset",
+                entity_id="ds1",
+            )
+        ]
+    )
+
+    with pytest.raises(ValueError, match="no payload tables"):
+        backend.get_run_uri("abc123")
 
 
 def test_list_tables_empty(backend: ParquetBackend) -> None:

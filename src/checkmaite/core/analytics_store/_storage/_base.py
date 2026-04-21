@@ -1,11 +1,47 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import polars as pl
 
 from checkmaite.core.analytics_store._schema import BaseRecord
+
+
+@dataclass(frozen=True)
+class StorageWriteReceipt:
+    """Metadata emitted by a single storage ``write()`` call.
+
+    Attributes
+    ----------
+    run_table_files
+        Mapping of ``run_uid`` to payload-table file/object URIs written by the
+        call. The auto-generated ``runs`` table is intentionally excluded.
+    """
+
+    run_table_files: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def resolve_run_uri(self, run_uid: str) -> str | None:
+        """Resolve the payload storage URI for ``run_uid`` from this receipt.
+
+        Returns
+        -------
+        str | None
+            The payload file/object URI written for this run when present in
+            this receipt, else ``None``.
+        """
+        table_to_file = self.run_table_files.get(run_uid)
+        if not table_to_file:
+            return None
+
+        if len(table_to_file) > 1:
+            raise ValueError(
+                f"Ambiguous run URI resolution for run_uid {run_uid!r}: "
+                f"multiple payload tables present {sorted(table_to_file)!r}"
+            )
+
+        return next(iter(table_to_file.values()))
 
 
 class StorageBackend(Protocol):
@@ -41,6 +77,14 @@ class StorageBackend(Protocol):
         """
         ...
 
+    def write_with_receipt(self, records: Sequence[BaseRecord]) -> StorageWriteReceipt:
+        """Write records to storage and return concrete write metadata.
+
+        This is the receipt-aware variant used by callers that need exact file
+        or object URIs for the data written by this call.
+        """
+        ...
+
     def list_tables(self) -> list[str]:
         """List available tables in the store.
 
@@ -49,6 +93,10 @@ class StorageBackend(Protocol):
         list[str]
             List of table names.
         """
+        ...
+
+    def get_run_uri(self, run_uid: str) -> str:
+        """Return a concrete payload-data URI for ``run_uid``."""
         ...
 
     def describe_table(self, table_name: str) -> dict[str, str]:

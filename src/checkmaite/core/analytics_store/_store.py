@@ -3,7 +3,7 @@ from __future__ import annotations
 import polars as pl
 
 from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
-from checkmaite.core.analytics_store._storage import StorageBackend
+from checkmaite.core.analytics_store._storage import StorageBackend, StorageWriteReceipt
 from checkmaite.core.capability_core import CapabilityRunBase
 
 
@@ -55,7 +55,10 @@ class AnalyticsStore:
         self._backend = backend
 
     @staticmethod
-    def _build_run_records(run: CapabilityRunBase, capability_table: str) -> list[RunRecord]:
+    def _build_run_records(
+        run: CapabilityRunBase,
+        capability_table: str,
+    ) -> list[RunRecord]:
         """Build ``runs`` table rows for a single capability run.
 
         One row is emitted per mapped entity (dataset, model, metric). Repeated
@@ -98,7 +101,29 @@ class AnalyticsStore:
             ],
         ]
 
-    def write(self, runs: list[CapabilityRunBase]) -> list[BaseRecord]:
+    def _collect_records(self, runs: list[CapabilityRunBase]) -> list[BaseRecord]:
+        all_records: list[BaseRecord] = []
+
+        for run in runs:
+            # Capability-specific records (extracted first so we know the table name)
+            extracted = list(run.extract())
+            all_records.extend(extracted)
+
+            # Auto-populate the runs table (only if extract produced records)
+            if extracted:
+                capability_tables = {record.table_name for record in extracted}
+                if len(capability_tables) != 1:
+                    raise ValueError(
+                        "AnalyticsStore.write() expects extract() to emit records "
+                        f"for exactly one payload table, got {sorted(capability_tables)!r}"
+                    )
+
+                capability_table = next(iter(capability_tables))
+                all_records.extend(self._build_run_records(run, capability_table))
+
+        return all_records
+
+    def write(self, runs: list[CapabilityRunBase]) -> None:
         """Write capability runs to storage.
 
         For each run, this method:
@@ -116,32 +141,19 @@ class AnalyticsStore:
         ----------
         runs
             List of capability runs to write.
+        """
+        _ = self.write_with_receipt(runs)
 
-        Returns
-        -------
-        list[BaseRecord]
-            The capability-specific records that were written.
+    def write_with_receipt(self, runs: list[CapabilityRunBase]) -> StorageWriteReceipt:
+        """Write capability runs to storage and return concrete write metadata.
+
+        This is the receipt-aware variant used by job-submission paths that need
+        to resolve exact storage locations for newly written runs.
         """
         if not runs:
-            return []
+            return StorageWriteReceipt()
 
-        all_records: list[BaseRecord] = []
-        capability_records: list[BaseRecord] = []
-
-        for run in runs:
-            # Capability-specific records (extracted first so we know the table name)
-            extracted = list(run.extract())
-            capability_records.extend(extracted)
-            all_records.extend(extracted)
-
-            # Auto-populate the runs table (only if extract produced records)
-            if extracted:
-                capability_table = extracted[0].table_name
-                all_records.extend(self._build_run_records(run, capability_table))
-
-        self._backend.write(all_records)
-
-        return capability_records
+        return self._backend.write_with_receipt(self._collect_records(runs))
 
     def list_tables(self) -> list[str]:
         """List available tables in the store.
@@ -152,6 +164,10 @@ class AnalyticsStore:
             List of table names (e.g., ["dataeval_cleaning", "maite_evaluation"]).
         """
         return self._backend.list_tables()
+
+    def get_run_uri(self, run_uid: str) -> str:
+        """Return a concrete URI for ``run_uid`` in this store."""
+        return self._backend.get_run_uri(run_uid)
 
     def describe_table(self, table_name: str) -> dict[str, str]:
         """Get schema information for a table.

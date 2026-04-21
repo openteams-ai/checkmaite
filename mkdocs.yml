@@ -59,6 +59,14 @@ nav:  # navigation links on sidebar
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md
     - Key concepts: development/key_concepts.md
+    - Job submission:
+      - development/job_submission/index.md
+      - Backend configuration: development/job_submission/configure_backend.md
+      - Protocol and lifecycle: development/job_submission/protocol.md
+      - Ray backend: development/job_submission/ray_backend.md
+      - Worker environments: development/job_submission/worker_environments.md
+      - Distributed analytics store: development/job_submission/analytics_store.md
+      - Walkthrough notebook: development/job_submission_walkthrough.ipynb
     - User persona: development/persona.md
     - Plugin system: development/plugins.md
     - Contributing: development/contributing.md

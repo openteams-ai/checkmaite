@@ -87,7 +87,7 @@ class MyCapabilityRun(CapabilityRunBase[MyConfig, MyOutputs]):
 """
 
 from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
-from checkmaite.core.analytics_store._storage import ParquetBackend, StorageBackend
+from checkmaite.core.analytics_store._storage import ParquetBackend, StorageBackend, StorageWriteReceipt
 from checkmaite.core.analytics_store._store import AnalyticsStore
 
 __all__ = [
@@ -96,4 +96,5 @@ __all__ = [
     "ParquetBackend",
     "RunRecord",
     "StorageBackend",
+    "StorageWriteReceipt",
 ]
