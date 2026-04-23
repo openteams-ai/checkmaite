@@ -276,6 +276,17 @@ def test_extract_returns_one_record(bias_run_with_all_outputs):
     assert isinstance(records[0], DataevalBiasRecord)
 
 
+def test_run_with_cache_roundtrip_with_polars_outputs(fake_ic_dataset_cifar10_metadata):
+    capability = DataevalBiasBase()
+
+    first = capability.run(use_cache=True, datasets=[fake_ic_dataset_cifar10_metadata])
+    cached = capability.run(use_cache=True, datasets=[fake_ic_dataset_cifar10_metadata])
+
+    assert cached.outputs.balance is not None
+    assert isinstance(cached.outputs.balance.balance, pl.DataFrame)
+    assert cached.outputs.balance.balance.to_dicts() == first.outputs.balance.balance.to_dicts()
+
+
 def test_extract_fields(bias_run_with_all_outputs):
     record = bias_run_with_all_outputs.extract()[0]
     assert record.dataset_id == "fake_id_dataset"

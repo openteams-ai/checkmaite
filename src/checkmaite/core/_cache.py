@@ -10,6 +10,7 @@ from typing import Any, Generic, TypeVar
 import numpy as np
 import pandas as pd
 import PIL.Image
+import polars as pl
 import pydantic
 import torch
 
@@ -216,6 +217,17 @@ def _deserialize_pandas_df(v: bytes) -> pd.DataFrame:
         return pd.read_parquet(b)
 
 
+def _serialize_polars_df(v: pl.DataFrame) -> bytes:
+    with io.BytesIO() as b:
+        v.write_parquet(b)
+        return b.getvalue()
+
+
+def _deserialize_polars_df(v: bytes) -> pl.DataFrame:
+    with io.BytesIO(v) as b:
+        return pl.read_parquet(b)
+
+
 def _serialize_torch_tensor(v: torch.Tensor) -> bytes:
     with io.BytesIO() as b:
         torch.save(v, b)
@@ -344,6 +356,12 @@ binary_de_serializer = _BinaryDeSerializer(
         cls=pd.DataFrame,
         serialize=_serialize_pandas_df,
         deserialize=_deserialize_pandas_df,
+    ),
+    _BinaryDeSerializeConfig(
+        name="polars_df",
+        cls=pl.DataFrame,
+        serialize=_serialize_polars_df,
+        deserialize=_deserialize_polars_df,
     ),
     _BinaryDeSerializeConfig(
         name="torch_tensor",
