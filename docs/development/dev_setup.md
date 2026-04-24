@@ -47,6 +47,8 @@ If you plan to contribute to the project or need development tools, install with
 poetry install --with dev
 ```
 
+`dev` and `docs` are Poetry groups (not `pip` extras), so `pip install .[dev]` is not a supported path.
+
 To contribute to the documentation, install with the docs dependencies:
 
 ```bash
@@ -85,7 +87,6 @@ poetry run pre-commit install
 ```bash
 make init
 ```
-This runs `poetry install --with dev` and `poetry run pre-commit install`. It does not install optional extras (docs, ui, unsupported) — use the poetry commands above for those.
 
 ### Option 2: Setup conda environment
 

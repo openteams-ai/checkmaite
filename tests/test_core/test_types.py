@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 import torch
 from PIL import Image as PILImage
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from checkmaite.core._types import DataFrame, Device, Image
 
@@ -120,29 +120,11 @@ def test_device_from_none():
     assert model.device.type in ["cpu", "cuda", "mps"]
 
 
-def test_dataframe_from_spark():
-    """Test DataFrame annotation converts PySpark DataFrame to pandas."""
-    from unittest.mock import MagicMock
+def test_dataframe_rejects_non_pandas_input():
+    """Test DataFrame annotation enforces a pandas-only boundary."""
 
-    pytest.importorskip("pyspark")
+    class FakeSparkDataFrame:
+        pass
 
-    # Create a mock PySpark DataFrame
-    mock_spark_df = MagicMock()
-    mock_spark_df.__class__.__module__ = "pyspark.sql.dataframe"
-    mock_spark_df.__class__.__name__ = "DataFrame"
-
-    # Make it pass isinstance check
-    import pyspark.sql
-
-    mock_spark_df.__class__ = pyspark.sql.DataFrame
-
-    # Mock the toPandas method to return a pandas DataFrame
-    expected_df = pd.DataFrame({"id": [1, 2], "value": ["a", "b"]})
-    mock_spark_df.toPandas.return_value = expected_df
-
-    # Use the model with mocked PySpark DataFrame
-    model = ModelWithDataFrame(data=mock_spark_df)
-
-    # Should be converted to pandas
-    assert isinstance(model.data, pd.DataFrame)
-    assert model.data.equals(expected_df)
+    with pytest.raises(ValidationError):
+        ModelWithDataFrame(data=FakeSparkDataFrame())

@@ -34,7 +34,6 @@ platforms = ['linux-64']
 [tool.conda-lock.dependencies]
 # conda only dependencies (usually system dependencies)
 python = ">=3.10,<3.12"                            # required by SDP
-openjdk = "=17"                                    # pyspark 3.x suports Java 8/11/17
 cudatoolkit = "*"                                  # necessary to suppress conda-lock warning
 timm = ">=1.0.7"
 libgl = "*"
@@ -87,7 +86,6 @@ transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary l
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=3.0.0"                             # arbitrary
 pyright = {extras = ["nodejs"], version = ">=1.1.400,!=1.1.401"}  # necessary, typechecker will fail for some versions, https://github.com/microsoft/pyright/issues/10487
-pyspark = ">=3.5.3"                                # arbitrary
 pytest = ">=8.3.0"                                 # necessary lower pin for compatibility
 pytest-cov = ">=4.0.0"                             # arbitrary
 pytest-mock = ">=3.6.1"                            # arbitrary

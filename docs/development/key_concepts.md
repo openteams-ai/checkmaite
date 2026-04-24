@@ -209,7 +209,8 @@ The checkmaite accepts flexible input types at its public API boundary and norma
 
 Internally, all images are normalized to PIL `Image` objects before any processing occurs. This coercion is handled automatically via Pydantic validators and follows [Postel's Law](https://en.wikipedia.org/wiki/Robustness_principle): *be flexible in what you accept, strict in what you emit*.
 
-Similarly, PySpark DataFrames are automatically converted to pandas DataFrames at the boundary.
+For tabular inputs, core capabilities accept pandas DataFrames at the API boundary.
+PySpark-dependent paths live in the optional `checkmaite-plugins` package.
 
 This means internal code never needs to check input types — it can always assume inputs are in the canonical internal format.
 

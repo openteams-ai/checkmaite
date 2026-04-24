@@ -10,7 +10,23 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 
 ## Create environment and install the package
 
-We provide both a poetry-based environment and conda-based environment option to setup your environment and install `checkmaite`.
+For most end users, the supported install path is `pip`:
+
+```bash
+pip install .
+```
+
+Optional extras for end users:
+
+```bash
+pip install ".[ui]"           # UI dependencies
+pip install ".[cloud]"        # cloud storage dependencies (aws+gcs+azure)
+pip install ".[unsupported]"  # installs checkmaite-plugins (includes Java/PySpark deps, Python <3.12)
+```
+
+`dev`/`docs` dependencies are Poetry dependency groups, not `pip` extras.
+
+We also provide poetry-based and conda-based environment setup options below.
 
 ### Option 1: poetry environment
 

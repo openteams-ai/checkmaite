@@ -7,7 +7,6 @@ import matplotlib.figure
 import pandas as pd
 import PIL.Image
 import pydantic
-import pyspark.sql
 import torch
 from pydantic import BeforeValidator, PlainSerializer
 
@@ -50,29 +49,7 @@ def _to_image(v: Any) -> Any:
 Image = Annotated[PIL.Image.Image, BeforeValidator(_to_image)]
 
 
-def _to_pandas(v: Any) -> Any:
-    """Convert input to a pandas DataFrame if possible.
-
-    Specifically handles conversion from PySpark DataFrame to pandas DataFrame.
-
-    Parameters
-    ----------
-    v : Any
-        The input value to convert.
-
-    Returns
-    -------
-    Any
-        A pandas.DataFrame object if conversion is successful (i.e., input was
-        a PySpark DataFrame), otherwise the original input `v`.
-    """
-    if isinstance(v, pyspark.sql.DataFrame):
-        v = v.toPandas()
-
-    return v
-
-
-DataFrame = Annotated[pd.DataFrame, BeforeValidator(_to_pandas)]
+DataFrame = pd.DataFrame
 
 Device = Annotated[torch.device, BeforeValidator(set_device), PlainSerializer(str)]
 
