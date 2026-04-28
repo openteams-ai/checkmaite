@@ -7,7 +7,7 @@ from typing import Literal, TypedDict
 import torch
 import yaml
 from maite.protocols import ArrayLike, DatasetMetadata
-from maite.protocols.object_detection import Dataset, DatumMetadataType
+from maite.protocols.object_detection import DatumMetadataType, FieldwiseDataset
 from PIL import Image
 from torchvision.ops.boxes import box_convert
 from torchvision.transforms.functional import pil_to_tensor
@@ -39,7 +39,7 @@ class DetectionTarget:
     scores: ArrayLike
 
 
-class CocoDetectionDataset(Dataset):
+class CocoDetectionDataset(FieldwiseDataset):
     """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the an object detection dataset returns a `Tuple` of
@@ -274,7 +274,7 @@ class CocoDetectionDataset(Dataset):
             ) from e
 
 
-class YoloDetectionDataset(Dataset):
+class YoloDetectionDataset(FieldwiseDataset):
     """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the an object detection dataset returns a `Tuple` of
@@ -516,7 +516,7 @@ class YoloDetectionDataset(Dataset):
         return {"id": index}
 
 
-class VisdroneDetectionDataset(Dataset):
+class VisdroneDetectionDataset(FieldwiseDataset):
     """A dataset protocol for object detection ML subproblem providing datum-level data access.
 
     Indexing into or iterating over the object detection dataset returns a `Tuple` of

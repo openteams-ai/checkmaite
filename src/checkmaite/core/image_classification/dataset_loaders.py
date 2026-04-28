@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import numpy as np
 from maite.protocols import DatasetMetadata, DatumMetadata
+from maite.protocols.image_classification import FieldwiseDataset
 from PIL import Image
 from upath import UPath
 
@@ -23,7 +24,7 @@ class MissingYoloDataSplitError(ClassificationDatasetWrapperError):
     pass
 
 
-class YoloClassificationDataset:
+class YoloClassificationDataset(FieldwiseDataset):
     """A dataset handler for YOLO image classification datasets.
 
     This class is designed to load datasets formatted as per the YOLO image
@@ -86,7 +87,7 @@ class YoloClassificationDataset:
         # Generate dataset_id if not provided
         if dataset_id is None:
             dataset_id = f"yolo_classification_{id_hash(root_dir=root_dir, split=split)}"
-        self._metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
+        self.metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
 
     @staticmethod
     def _get_filepaths_by_split(dataset_split: UPath) -> list[UPath]:
@@ -105,16 +106,6 @@ class YoloClassificationDataset:
             if class_dir.is_dir():
                 filepaths.extend([filepath for filepath in class_dir.iterdir() if filepath.is_file()])
         return filepaths
-
-    @property
-    def metadata(self) -> DatasetMetadata:
-        """Dataset metadata.
-
-        Returns
-        -------
-        Typed dictionary with dataset metadata.
-        """
-        return self._metadata
 
     def __len__(self) -> int:
         """Length of the dataset.
