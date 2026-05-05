@@ -43,11 +43,11 @@ def print_serve_status() -> None:
             print(f"  Status: {app_info.status}")
 
             for deployment_name, dep_info in app_info.deployments.items():
-                replica_count = len(dep_info.replica_states)
-                healthy_replicas = sum(1 for s in dep_info.replica_states.values() if "healthy" in str(s).lower())
+                total_replicas = sum(dep_info.replica_states.values())
 
                 print(f"\n  Deployment: {deployment_name}")
-                print(f"    Replicas: {replica_count} total, {healthy_replicas} healthy")
+                print(f"    Status: {dep_info.status.value}")
+                print(f"    Replicas: {total_replicas}")
 
             print()
 
