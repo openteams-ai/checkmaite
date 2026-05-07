@@ -3,11 +3,39 @@ import json
 from smqtk_core.configuration import from_config_dict
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
+from checkmaite.ui.configuration_pages.object_detection import xaitk_app as xaitk_od_module
 from checkmaite.ui.configuration_pages.object_detection.xaitk_app import XAITKAppOD
 
 
-def test_run_export() -> None:
+class _FakeHuggingFaceDetector:
+    def __init__(self, **_kwargs) -> None:
+        pass
+
+    @property
+    def index2label(self) -> dict[int, str]:
+        return {0: "person"}
+
+
+class _FakeJATICDetector:
+    def __init__(self, **_kwargs) -> None:
+        pass
+
+
+def _stub_xaitk_od_detector(monkeypatch) -> None:
+    """Avoid loading and running DETR in export-only tests.
+
+    The dynamic conda full-suite failure timed out while an export test was doing incidental DETR setup. The
+    DETR-backed saliency test passes when run directly, so keep real model coverage there and isolate these export
+    config checks from heavyweight model loading/inference.
+    """
+    monkeypatch.setattr(xaitk_od_module, "HuggingFaceDetector", _FakeHuggingFaceDetector)
+    monkeypatch.setattr(xaitk_od_module, "JATICDetector", _FakeJATICDetector)
+    monkeypatch.setattr(XAITKAppOD, "get_top_10_detections", lambda _self: {"0 : Person_1.00000": 0})
+
+
+def test_run_export(monkeypatch) -> None:
     """Test calling the XAITKApp's _run_export method with default DRISE stack"""
+    _stub_xaitk_od_detector(monkeypatch)
     xaitk_app = XAITKAppOD()
     # run through visualization
     # it can't be viewed this way, but it will allow us to catch some errors
@@ -64,8 +92,9 @@ def test_saliency_generation() -> None:
     assert xaitk_app.status_source.current_value == "Saliency generation test completed"
 
 
-def test_random_grid_export() -> None:
+def test_random_grid_export(monkeypatch) -> None:
     """Test parameters when setting stack to RandomGrid the XAITKApp's _run_export method"""
+    _stub_xaitk_od_detector(monkeypatch)
     xaitk_app = XAITKAppOD()
     xaitk_app.panel()
     xaitk_app.stack_select.value = "RandomGrid"
