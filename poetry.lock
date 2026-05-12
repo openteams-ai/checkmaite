@@ -1153,10 +1153,6 @@ develop = false
 
 [package.dependencies]
 adversarial-robustness-toolbox = ">=1.20.1"
-checkmaite = [
-    {version = ">=0.2.0"},
-    {git = "https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git", rev = "main", optional = true},
-]
 gradient = {git = "https://gitlab.jatic.net/jatic/morse/gradient.git", rev = "0.12.2", optional = true}
 heart-library = "==0.7.0"
 maite = "==0.9.2"
@@ -1173,13 +1169,14 @@ survivor = {git = "https://gitlab.jatic.net/jatic/morse/survivor.git", rev = "0.
 torch = ">=2.2.0"
 
 [package.extras]
-unsupported = ["checkmaite @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git@main", "gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2", "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4", "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6"]
+test = ["checkmaite @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git@main"]
+unsupported = ["gradient @ git+https://gitlab.jatic.net/jatic/morse/gradient.git@0.12.2", "reallabel @ git+https://gitlab.jatic.net/jatic/morse/reallabel.git@0.6.4", "survivor @ git+https://gitlab.jatic.net/jatic/morse/survivor.git@0.4.6"]
 
 [package.source]
 type = "git"
 url = "https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git"
 reference = "main"
-resolved_reference = "89f46a0f7801a28f37a0c0dcdeb44e61749de6d2"
+resolved_reference = "3a24f3631b06b0084be7a0c1e2721e2550cc2732"
 
 [[package]]
 name = "click"

@@ -35,6 +35,8 @@ stages:
 .git_config: &git_config
 # For internal git dependencies
 - git config --global url."https://gitlab-ci-token:${GITLAB_CI_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
+# Trust the GitLab checkout for build backends that call git to derive package metadata.
+- git config --global --add safe.directory "$CI_PROJECT_DIR"
 
 # Diagnostic logging for investigating CI SIGKILL / OOM issues.
 # Controlled by CI_DIAGNOSTICS variable (default: true).
