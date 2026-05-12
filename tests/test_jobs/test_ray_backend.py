@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import polars as pl
@@ -46,6 +48,13 @@ def local_ray(tmp_path: Path):
 
 def _store(path: Path) -> AnalyticsStore:
     return AnalyticsStore(ParquetBackend(str(path)))
+
+
+@dataclass
+class _ListedJob:
+    job_id: str
+    created_at: datetime
+    status: JobStatus
 
 
 def test_submit_capability_returns_ref_and_writes_store(local_ray: Path) -> None:
@@ -119,6 +128,46 @@ def test_submit_capability_does_not_check_local_cache_before_submission(local_ra
     assert result.shape[0] == 1
     assert result["run_uid"][0] == cached_run.run_uid
     assert result["payload"][0] == "cached"
+
+
+def test_list_jobs_status_filter_rejects_non_job_status(local_ray: Path) -> None:
+    backend = RayBackend(analytics_store={"backend": "parquet", "uri": str(local_ray)})
+
+    with pytest.raises(TypeError, match="status_filter must be a JobStatus"):
+        backend.list_jobs(status_filter="completed")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "status_filter",
+    [JobStatus.COMPLETED, [JobStatus.COMPLETED, JobStatus.FAILED]],
+)
+def test_list_jobs_status_filter_accepts_job_status_values(
+    local_ray: Path,
+    status_filter: JobStatus | list[JobStatus],
+) -> None:
+    backend = RayBackend(analytics_store={"backend": "parquet", "uri": str(local_ray)})
+
+    assert backend.list_jobs(status_filter=status_filter) == []
+
+
+def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
+    backend = object.__new__(RayBackend)
+    now = datetime.now(timezone.utc)
+    old = _ListedJob("old", now - timedelta(seconds=20), JobStatus.COMPLETED)
+    middle = _ListedJob("middle", now - timedelta(seconds=10), JobStatus.FAILED)
+    new = _ListedJob("new", now - timedelta(seconds=1), JobStatus.COMPLETED)
+    backend._jobs = {job.job_id: job for job in (old, middle, new)}
+
+    assert [job.job_id for job in backend.list_jobs()] == ["new", "middle", "old"]
+    assert [job.job_id for job in backend.list_jobs(limit=2)] == ["new", "middle"]
+    assert [job.job_id for job in backend.list_jobs(status_filter=JobStatus.COMPLETED)] == ["new", "old"]
+    assert [
+        job.job_id
+        for job in backend.list_jobs(
+            status_filter=[JobStatus.COMPLETED, JobStatus.FAILED],
+            submitted_before_ts=(now - timedelta(seconds=5)).timestamp(),
+        )
+    ] == ["middle", "old"]
 
 
 def test_resource_resolution_priority(local_ray: Path) -> None:

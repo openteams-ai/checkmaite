@@ -242,8 +242,23 @@ class Backend(Protocol):
         """
         ...
 
-    def list_jobs(self) -> Sequence[Job[CapabilityRunRef]]:
-        """Return all capability-submission jobs tracked by this backend."""
+    def list_jobs(
+        self,
+        limit: int | None = None,
+        status_filter: JobStatus | Sequence[JobStatus] | None = None,
+        submitted_before_ts: float | None = None,
+    ) -> Sequence[Job[CapabilityRunRef]]:
+        """Return recent capability-submission jobs tracked by this backend.
+
+        Parameters
+        ----------
+        limit
+            Maximum number of jobs to return, ordered newest first. ``None`` returns all tracked jobs.
+        status_filter
+            Optional status or sequence of statuses to include.
+        submitted_before_ts
+            Optional Unix timestamp cursor. When provided, only jobs submitted before this timestamp are returned.
+        """
         ...
 
     def get_job(self, job_id: str) -> Job[CapabilityRunRef]:

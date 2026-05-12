@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any
@@ -250,8 +251,35 @@ class RayBackend:
         self._jobs[job_id] = job
         return job
 
-    def list_jobs(self) -> list[RayJob]:
-        return list(self._jobs.values())
+    @staticmethod
+    def _status_filter_values(status_filter: JobStatus | Sequence[JobStatus]) -> set[JobStatus]:
+        """Normalize a non-None status filter into a set of JobStatus values."""
+        if isinstance(status_filter, JobStatus):
+            return {status_filter}
+
+        try:
+            statuses = set(status_filter)
+        except TypeError as exc:
+            raise TypeError("status_filter must be a JobStatus or a sequence of JobStatus values") from exc
+
+        if not all(isinstance(status, JobStatus) for status in statuses):
+            raise TypeError("status_filter must be a JobStatus or a sequence of JobStatus values")
+        return statuses
+
+    def list_jobs(
+        self,
+        limit: int | None = None,
+        status_filter: JobStatus | Sequence[JobStatus] | None = None,
+        submitted_before_ts: float | None = None,
+    ) -> list[RayJob]:
+        jobs = list(self._jobs.values())
+        if status_filter is not None:
+            statuses = self._status_filter_values(status_filter)
+            jobs = [job for job in jobs if job.status in statuses]
+        if submitted_before_ts is not None:
+            jobs = [job for job in jobs if job.created_at.timestamp() < submitted_before_ts]
+        jobs.sort(key=lambda job: (job.created_at, job.job_id), reverse=True)
+        return jobs if limit is None else jobs[: max(0, int(limit))]
 
     def get_job(self, job_id: str) -> RayJob:
         try:

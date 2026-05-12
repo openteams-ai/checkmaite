@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     import maite.protocols.generic as gen
 
     from checkmaite.core.capability_core import CapabilityConfigBase
-    from checkmaite.jobs.protocol import Backend, CapabilityRunRef, CapabilityType, Job
+    from checkmaite.jobs.protocol import Backend, CapabilityRunRef, CapabilityType, Job, JobStatus
+
+DEFAULT_LIST_JOBS_LIMIT = 100
 
 _active_backend: Backend | None = None
 
@@ -73,11 +75,34 @@ def submit_capability(
     return _require_backend().submit_capability(capability, **run_kwargs)
 
 
-def list_jobs() -> Sequence[Job[CapabilityRunRef]]:
-    """List jobs tracked by the active backend."""
+def list_jobs(
+    limit: int | None = DEFAULT_LIST_JOBS_LIMIT,
+    status_filter: JobStatus | Sequence[JobStatus] | None = None,
+    submitted_before_ts: float | None = None,
+) -> Sequence[Job[CapabilityRunRef]]:
+    """List recent jobs tracked by the active backend.
+
+    Parameters
+    ----------
+    limit
+        Maximum number of jobs to return, ordered newest first. ``None`` returns all tracked jobs.
+    status_filter
+        Optional status or sequence of statuses to include.
+    submitted_before_ts
+        Optional Unix timestamp cursor. When provided, only jobs submitted before this timestamp are returned.
+
+    Returns
+    -------
+    Sequence[Job[CapabilityRunRef]]
+        Matching jobs tracked by the active backend, or an empty sequence when no backend is configured.
+    """
     if _active_backend is None:
         return []
-    return _active_backend.list_jobs()
+    return _active_backend.list_jobs(
+        limit=limit,
+        status_filter=status_filter,
+        submitted_before_ts=submitted_before_ts,
+    )
 
 
 def get_job(job_id: str) -> Job[CapabilityRunRef]:
