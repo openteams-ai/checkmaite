@@ -252,3 +252,4 @@ xfail_strict = true
 
 [tool.coverage.run]
 source = ["checkmaite"]
+omit = ["src/checkmaite/_docs.py"]

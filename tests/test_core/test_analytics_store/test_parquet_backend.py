@@ -363,8 +363,18 @@ def test_get_run_uri_ignores_runs_table_only_data(backend: ParquetBackend) -> No
         backend.get_run_uri("abc123")
 
 
+def test_get_run_uri_skips_tables_without_run_uid(backend: ParquetBackend) -> None:
+    table_dir = backend.path / "external"
+    table_dir.mkdir(parents=True)
+    pl.DataFrame({"value": [1]}).write_parquet(str(table_dir / "data.parquet"))
+
+    with pytest.raises(ValueError, match="not found in parquet store"):
+        backend.get_run_uri("abc123")
+
+
 def test_list_tables_empty(backend: ParquetBackend) -> None:
     assert backend.list_tables() == []
+    assert backend.path.name == "store"
 
 
 def test_list_tables_after_write(backend: ParquetBackend) -> None:
@@ -386,6 +396,13 @@ def test_describe_table_nonexistent_raises(backend: ParquetBackend) -> None:
         backend.describe_table("no_such_table")
 
 
+def test_describe_table_empty_directory_raises(backend: ParquetBackend) -> None:
+    (backend.path / "empty").mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="Could not read schema"):
+        backend.describe_table("empty")
+
+
 def test_write_empty_list(backend: ParquetBackend) -> None:
     """Writing an empty list is a no-op."""
     backend.write([])
@@ -396,6 +413,14 @@ def test_query_empty_store(backend: ParquetBackend) -> None:
     """Querying before any writes returns an empty DataFrame."""
     result = backend.query_sql("SELECT 1")
     assert result.is_empty()
+
+
+def test_query_ignores_empty_table_directories(backend: ParquetBackend) -> None:
+    (backend.path / "empty").mkdir(parents=True)
+
+    result = backend.query_sql("SELECT 1 AS value")
+
+    assert result["value"].to_list() == [1]
 
 
 def test_query_invalid_sql_raises(backend: ParquetBackend) -> None:

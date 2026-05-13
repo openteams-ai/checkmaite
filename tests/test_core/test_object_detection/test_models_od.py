@@ -1,6 +1,8 @@
 import json
 import re
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -35,6 +37,44 @@ def test_visdrone_invalid_arch_name():
         VisdroneODModel(arch="invalid_arch", device="cpu")
 
 
+class _FakeStreamResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def raise_for_status(self):
+        pass
+
+    def iter_bytes(self):
+        yield b"weights"
+
+
+class _FakeCenterNetVisdrone:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+
+def test_visdrone_downloads_missing_default_weights(tmp_path, monkeypatch):
+    """Cover the missing-weights download path.
+
+    This is mainly here to boost test coverage and is a bit brittle; if it starts
+    failing, it may be easiest to disable rather than heavily maintain it.
+    """
+    monkeypatch.setitem(
+        sys.modules,
+        "smqtk_detection.impls.detect_image_objects.centernet",
+        SimpleNamespace(CenterNetVisdrone=_FakeCenterNetVisdrone),
+    )
+    monkeypatch.setattr("httpx.stream", lambda *args, **kwargs: _FakeStreamResponse())
+
+    model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=tmp_path)
+
+    assert model.name == "visdrone-centernet-centernet-resnet18"
+    assert (tmp_path / "centernet-resnet18.pth").exists()
+
+
 def test_visdrone_valid_model_initialization(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
@@ -57,6 +97,29 @@ def test_visdrone_call_invalid_shape(fake_model_location):
     invalid_batch = torch.randn(224, 224, 3)  # HWC instead of CHW
     with pytest.raises(ValueError):
         model(input_batch=[invalid_batch])
+
+
+class _FakeBBox:
+    min_vertex = (1.0, 2.0)
+    max_vertex = (3.0, 4.0)
+
+
+class _FakeDetector:
+    def detect_objects(self, array_batch):
+        assert array_batch[0].shape == (5, 7, 3)
+        return [[(_FakeBBox(), {"car": 0.8, "bus": 0.2})], []]
+
+
+def test_visdrone_wrapper_returns_one_detection_target_per_input(fake_model_location):
+    dir_, fname = fake_model_location
+    model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
+    model.model = _FakeDetector()
+
+    outputs = model([np.zeros((3, 5, 7), dtype=np.uint8), np.ones((3, 5, 7), dtype=np.uint8)])
+
+    assert len(outputs) == 2
+    assert len(outputs[0].boxes) == 1
+    assert len(outputs[1].boxes) == 0
 
 
 def test_torchvision_integration_coco_dataset():
@@ -148,6 +211,19 @@ def test_torchvision_missing_config(tmpdir):
         )
 
 
+def test_torchvision_invalid_user_weights_raise_runtime_error(tmpdir):
+    config_path = tmpdir / "config.json"
+    pickle_path = tmpdir / "bad_pickle.pt"
+    with open(config_path, "w") as f:
+        json.dump({"index2label": {"0": "background", "1": "object"}, "num_classes": 2}, f)
+    pickle_path.write_text("not a torch state dict", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Error loading data"):
+        TorchvisionODModel(
+            model_name="ssdlite320_mobilenet_v3_large", weights_path=pickle_path, config_path=config_path
+        )
+
+
 def test_torchvision_valid_model_initialization():
     device = "cpu"
     model = TorchvisionODModel(model_name="ssdlite320_mobilenet_v3_large", device=device)
@@ -157,6 +233,20 @@ def test_torchvision_valid_model_initialization():
 def test_torchvision_invalid_model_name():
     with pytest.raises(ValueError):
         TorchvisionODModel(model_name="invalid_model", device="cpu")
+
+
+def test_torchvision_import_error_is_reported(monkeypatch):
+    import checkmaite.core.object_detection.models as models_module
+
+    def raise_import_error(name):
+        if name == "torchvision.models.detection":
+            raise ImportError("missing torchvision detection")
+        return __import__(name)
+
+    monkeypatch.setattr(models_module.importlib, "import_module", raise_import_error)
+
+    with pytest.raises(ImportError, match="error importing"):
+        TorchvisionODModel(model_name="ssdlite320_mobilenet_v3_large", device="cpu")
 
 
 def test_torchvision_call_invalid_shape():

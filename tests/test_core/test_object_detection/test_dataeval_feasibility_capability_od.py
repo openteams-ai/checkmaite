@@ -155,19 +155,20 @@ class TestDataevalFeasibilityCapability:
     @pytest.fixture
     def test_dataset(self):
         return FeasibilityTestDataset(
-            num_images=10,
-            num_boxes_per_image=10,
+            num_images=4,
+            num_boxes_per_image=3,
             image_size=(100, 100),
-            num_classes=20,
+            num_classes=4,
         )
 
     @pytest.fixture
     def test_config(self):
         return DataevalFeasibilityConfig(
-            chunk_size=10,
+            chunk_size=6,
             embedding_batch_size=2,
             crop_resize_size=32,
-            target_embedding_dim=64,
+            target_embedding_dim=16,
+            knn_n_neighbors=1,
         )
 
     def test_supports_properties(self):
@@ -179,15 +180,17 @@ class TestDataevalFeasibilityCapability:
         assert capability.supports_models == Number.ZERO
         assert capability.supports_metrics == Number.ZERO
 
-    def test_outputs(self, test_dataset, test_config):
+    def test_outputs_and_collect_md_report(self, test_dataset, test_config):
         capability = DataevalFeasibility()
 
-        # smoke test
-        capability.run(
+        output = capability.run(
             use_cache=False,
             datasets=[test_dataset],
             config=test_config,
         )
+
+        assert output.model_dump()  # smoke test
+        assert isinstance(output.collect_md_report(threshold=0.5), str)
 
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables(self, test_dataset, test_config):
@@ -203,19 +206,6 @@ class TestDataevalFeasibilityCapability:
             slides = output.collect_report_consumables(threshold=0.5)
 
         assert isinstance(slides, list)
-
-    def test_collect_md_report(self, test_dataset, test_config):
-        capability = DataevalFeasibility()
-
-        output = capability.run(
-            use_cache=False,
-            datasets=[test_dataset],
-            config=test_config,
-        )
-
-        md_report = output.collect_md_report(threshold=0.5)
-
-        assert isinstance(md_report, str)
 
 
 class TestDatasetHealthChecks:

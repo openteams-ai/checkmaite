@@ -1,11 +1,18 @@
 import copy
 from typing import Any
 
+import numpy as np
 import pytest
+from dataeval.shift import DriftOutput
 
 from checkmaite.core._common.dataeval_shift_capability import (
     DataevalShiftBase,
     DataevalShiftConfig,
+    DataevalShiftDriftOutputs,
+    DataevalShiftOODKNNOutput,
+    DataevalShiftOODOutputs,
+    DataevalShiftOutputs,
+    DataevalShiftRun,
     collect_drift,
     collect_ood,
 )
@@ -34,8 +41,31 @@ def test_run(dummy_shift_capability, fake_od_dataset_default) -> Any:
     return capability.run(use_cache=False, datasets=[dev_dataset, op_dataset])  # smoke test
 
 
-def test_collect_md_report(test_run):
-    md = test_run.collect_md_report(threshold=0.0)
+def test_collect_md_report(fake_od_dataset_default, test_config):
+    outputs = DataevalShiftOutputs(
+        drift=DataevalShiftDriftOutputs(
+            mmd=DriftOutput(False, 0.5, 0.1, "mmd", {"p_val": 0.9}),
+            cvm=DriftOutput(False, 0.5, 0.1, "cvm", {"p_val": 0.9, "feature_drift": np.array([False])}),
+            ks=DriftOutput(False, 0.5, 0.1, "ks", {"p_val": 0.9, "feature_drift": np.array([False])}),
+        ),
+        ood=DataevalShiftOODOutputs(
+            ood_knn=DataevalShiftOODKNNOutput(
+                is_ood=np.array([False, True]),
+                instance_score=np.array([0.1, 0.9]),
+                feature_score=None,
+            )
+        ),
+    )
+    run = DataevalShiftRun(
+        capability_id="DataevalShift",
+        config=test_config,
+        dataset_metadata=[fake_od_dataset_default.metadata, fake_od_dataset_default.metadata],
+        model_metadata=[],
+        metric_metadata=[],
+        outputs=outputs,
+    )
+
+    md = run.collect_md_report(threshold=0.0)
     assert md  # smoke test for non-empty markdown report
 
 
