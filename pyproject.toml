@@ -216,12 +216,13 @@ convention = "numpy"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra --tb=short -m 'not (real_data or unsupported)'"
+addopts = "-ra --tb=short -m 'not (real_data or unsupported or ray)'"
 testpaths = ["tests"]
 markers = [
     "real_data",
     "unsupported",
-    "heart"
+    "heart",
+    "ray: tests that require a live Ray runtime",
 ]
 filterwarnings = [
     # For full details on warnings suppression, see:

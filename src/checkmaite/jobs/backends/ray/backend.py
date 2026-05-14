@@ -206,7 +206,8 @@ class RayBackend:
         self._max_retries = max_retries
         self._jobs: dict[str, RayJob] = {}
 
-    def _resolve_resources(self, capability: CapabilityType, run_kwargs: dict[str, Any]) -> dict[str, float | int]:
+    @staticmethod
+    def _resolve_resources(capability: CapabilityType, run_kwargs: dict[str, Any]) -> dict[str, float | int]:
         resources = run_kwargs.get("resources") or {}
         config = run_kwargs.get("config")
 

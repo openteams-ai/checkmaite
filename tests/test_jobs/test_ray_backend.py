@@ -57,6 +57,7 @@ class _ListedJob:
     status: JobStatus
 
 
+@pytest.mark.ray
 def test_submit_capability_returns_ref_and_writes_store(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -83,6 +84,7 @@ def test_submit_capability_returns_ref_and_writes_store(local_ray: Path) -> None
     assert result["payload"][0] == "hello"
 
 
+@pytest.mark.ray
 def test_result_timeout_and_cancel(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -98,6 +100,7 @@ def test_result_timeout_and_cancel(local_ray: Path) -> None:
         job.result(timeout=10)
 
 
+@pytest.mark.ray
 def test_failure_is_mapped_to_job_failed_error(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -110,6 +113,7 @@ def test_failure_is_mapped_to_job_failed_error(local_ray: Path) -> None:
     assert job.exception() is not None
 
 
+@pytest.mark.ray
 def test_submit_capability_does_not_check_local_cache_before_submission(local_ray: Path) -> None:
     capability = TinyCapability()
     config = TinyConfig(text="cached")
@@ -130,11 +134,9 @@ def test_submit_capability_does_not_check_local_cache_before_submission(local_ra
     assert result["payload"][0] == "cached"
 
 
-def test_list_jobs_status_filter_rejects_non_job_status(local_ray: Path) -> None:
-    backend = RayBackend(analytics_store={"backend": "parquet", "uri": str(local_ray)})
-
+def test_list_jobs_status_filter_rejects_non_job_status() -> None:
     with pytest.raises(TypeError, match="status_filter must be a JobStatus"):
-        backend.list_jobs(status_filter="completed")  # type: ignore[arg-type]
+        RayBackend._status_filter_values("completed")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -142,12 +144,11 @@ def test_list_jobs_status_filter_rejects_non_job_status(local_ray: Path) -> None
     [JobStatus.COMPLETED, [JobStatus.COMPLETED, JobStatus.FAILED]],
 )
 def test_list_jobs_status_filter_accepts_job_status_values(
-    local_ray: Path,
     status_filter: JobStatus | list[JobStatus],
 ) -> None:
-    backend = RayBackend(analytics_store={"backend": "parquet", "uri": str(local_ray)})
-
-    assert backend.list_jobs(status_filter=status_filter) == []
+    assert RayBackend._status_filter_values(status_filter) == set(
+        status_filter if isinstance(status_filter, list) else [status_filter]
+    )
 
 
 def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
@@ -170,9 +171,7 @@ def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
     ] == ["middle", "old"]
 
 
-def test_resource_resolution_priority(local_ray: Path) -> None:
-    backend = RayBackend(analytics_store={"backend": "parquet", "uri": str(local_ray)})
-
+def test_resource_resolution_priority() -> None:
     class DefaultHintCapability(TinyCapability):
         default_num_cpus = 8
         default_num_gpus = 0.75
@@ -183,7 +182,7 @@ def test_resource_resolution_priority(local_ray: Path) -> None:
         num_cpus = 4
         num_gpus = 0.5
 
-    explicit = backend._resolve_resources(
+    explicit = RayBackend._resolve_resources(
         capability,
         {
             "resources": {"num_cpus": 2, "num_gpus": 1.5},
@@ -192,16 +191,17 @@ def test_resource_resolution_priority(local_ray: Path) -> None:
     )
     assert explicit == {"num_cpus": 2, "num_gpus": 1.5}
 
-    from_config = backend._resolve_resources(capability, {"config": ConfigHints()})
+    from_config = RayBackend._resolve_resources(capability, {"config": ConfigHints()})
     assert from_config == {"num_cpus": 4, "num_gpus": 0.5}
 
-    from_capability_defaults = backend._resolve_resources(capability, {})
+    from_capability_defaults = RayBackend._resolve_resources(capability, {})
     assert from_capability_defaults == {"num_cpus": 8, "num_gpus": 0.75}
 
-    from_fallback = backend._resolve_resources(object(), {})
+    from_fallback = RayBackend._resolve_resources(object(), {})
     assert from_fallback == {"num_cpus": 1, "num_gpus": 0.0}
 
 
+@pytest.mark.ray
 def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -214,6 +214,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path)
     assert ref.summary["md_report"] == "inflight:0.5"
 
 
+@pytest.mark.ray
 def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(local_ray: Path) -> None:
     capability = TinyCapability()
     env_key = "CHECKMAITE_TEST_RECONFIG_ENV"
@@ -255,6 +256,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(local_ray
     assert ref_two.summary["md_report"] == "two:0.5"
 
 
+@pytest.mark.ray
 def test_store_write_failure_raises_by_default(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -282,6 +284,7 @@ def test_submit_requires_explicit_backend_configuration() -> None:
         submit_capability(TinyCapability(), config=TinyConfig(text="no-backend"), use_cache=False)
 
 
+@pytest.mark.ray
 def test_repeated_submissions_with_matching_local_cache_do_not_duplicate_runs_mapping_rows(
     local_ray: Path, fake_ic_dataset_default
 ) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 from checkmaite.core.analytics_store import BaseRecord
@@ -26,6 +27,8 @@ class TinyConfig(CapabilityConfigBase):
     env_key: str | None = None
     num_cpus: int | None = None
     num_gpus: float | None = None
+    start_marker_path: str | None = None
+    finish_marker_path: str | None = None
 
 
 class TinyOutputs(CapabilityOutputsBase):
@@ -75,6 +78,11 @@ class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
     ) -> TinyOutputs:
         del models, datasets, metrics, use_prediction_and_evaluation_cache
 
+        if config.start_marker_path is not None:
+            start_marker = Path(config.start_marker_path)
+            start_marker.parent.mkdir(parents=True, exist_ok=True)
+            start_marker.write_text("started")
+
         if config.sleep_s:
             time.sleep(config.sleep_s)
 
@@ -82,9 +90,40 @@ class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
             raise RuntimeError("tiny capability failure")
 
         if config.env_key is not None:
-            return TinyOutputs(text=os.environ.get(config.env_key, ""))
+            output_text = os.environ.get(config.env_key, "")
+        else:
+            output_text = config.text
 
-        return TinyOutputs(text=config.text)
+        if config.finish_marker_path is not None:
+            finish_marker = Path(config.finish_marker_path)
+            finish_marker.parent.mkdir(parents=True, exist_ok=True)
+            finish_marker.write_text("finished")
+
+        return TinyOutputs(text=output_text)
+
+
+class AppendMarkerCapability(TinyCapability):
+    """Tiny capability variant that appends to ``start_marker_path`` on every execution.
+
+    Used by Ray worker tests that need to distinguish a cached local run from a
+    fresh worker execution with the same run identity.
+    """
+
+    def _run(
+        self,
+        models: list[Any],
+        datasets: list[Any],
+        metrics: list[Any],
+        config: TinyConfig,
+        use_prediction_and_evaluation_cache: bool,
+    ) -> TinyOutputs:
+        if config.start_marker_path is not None:
+            marker = Path(config.start_marker_path)
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            with marker.open("a") as file:
+                file.write("run\n")
+            config = config.model_copy(update={"start_marker_path": None})
+        return super()._run(models, datasets, metrics, config, use_prediction_and_evaluation_cache)
 
 
 class TinyDatasetCapability(TinyCapability):

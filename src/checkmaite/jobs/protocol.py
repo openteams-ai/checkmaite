@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, TypedDict, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -51,6 +51,24 @@ class JobStatus(enum.Enum):
     def is_terminal(self) -> bool:
         """Whether this status is terminal (and therefore immutable)."""
         return self in (self.COMPLETED, self.FAILED, self.CANCELLED)
+
+
+class CapabilityRunRefPayload(TypedDict):
+    """Plain serialized form of ``CapabilityRunRef`` used at storage boundaries.
+
+    ``CapabilityRunRef`` is the validated public API object returned to users.
+    Backends store and pass this payload form in registries, actor messages, and
+    future durable metadata stores so job records stay JSON-compatible plain
+    data instead of long-lived Pydantic/Python objects. Convert models to this
+    shape with ``CapabilityRunRef.model_dump(mode="json")`` and validate it back
+    with ``CapabilityRunRef.model_validate(...)`` before returning it to users.
+    """
+
+    run_uid: str
+    capability_id: str
+    store_uri: str
+    outputs_uri: str | None
+    summary: dict[str, Any]
 
 
 class CapabilityRunRef(BaseModel):

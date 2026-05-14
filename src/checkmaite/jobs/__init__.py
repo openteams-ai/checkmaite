@@ -6,9 +6,12 @@ from checkmaite.jobs._api import (
     submit_capability,
 )
 from checkmaite.jobs._store import AnalyticsStoreConfig
+from checkmaite.jobs.backends.ray import RayBackend, RayJob
+from checkmaite.jobs.backends.ray_simple import RaySimpleBackend, RaySimpleJob
 from checkmaite.jobs.protocol import (
     Backend,
     CapabilityRunRef,
+    CapabilityRunRefPayload,
     Job,
     JobCancelledError,
     JobError,
@@ -17,12 +20,12 @@ from checkmaite.jobs.protocol import (
     JobTimeoutError,
     RunArtifactNotAvailableError,
 )
-from checkmaite.jobs.ray_backend import RayBackend, RayJob
 
 __all__ = [
     "AnalyticsStoreConfig",
     "Backend",
     "CapabilityRunRef",
+    "CapabilityRunRefPayload",
     "Job",
     "JobCancelledError",
     "JobError",
@@ -31,6 +34,8 @@ __all__ = [
     "JobTimeoutError",
     "RayBackend",
     "RayJob",
+    "RaySimpleBackend",
+    "RaySimpleJob",
     "RunArtifactNotAvailableError",
     "configure_backend",
     "get_job",

@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from checkmaite.jobs._store import AnalyticsStoreConfig
-from checkmaite.jobs.ray_backend import RayBackend
+from checkmaite.jobs.backends.ray import RayBackend
+from checkmaite.jobs.backends.ray_simple import RaySimpleBackend
 
 if TYPE_CHECKING:
     import maite.protocols.generic as gen
@@ -48,6 +49,9 @@ def configure_backend(
 
     if kind == "ray":
         _active_backend = RayBackend(analytics_store=analytics_store, **kwargs)
+        return
+    if kind == "ray-simple":
+        _active_backend = RaySimpleBackend(analytics_store=analytics_store, **kwargs)
         return
 
     raise ValueError(f"Unknown backend: {kind!r}")
