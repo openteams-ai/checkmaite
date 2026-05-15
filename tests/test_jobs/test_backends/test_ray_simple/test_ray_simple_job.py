@@ -7,7 +7,7 @@ import pytest
 import ray
 
 from checkmaite.jobs import CapabilityRunRef, JobFailedError, JobStatus
-from checkmaite.jobs.backends.ray_simple.backend import RaySimpleJob
+from checkmaite.jobs.backends.ray_simple.job_backend import RaySimpleJob
 
 
 def _ref(text: str = "ok") -> CapabilityRunRef:

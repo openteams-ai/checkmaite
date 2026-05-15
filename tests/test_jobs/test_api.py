@@ -6,7 +6,7 @@ from checkmaite.jobs import JobStatus, _api
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
 
 
-class RecordingBackend:
+class RecordingJobBackend:
     def __init__(self) -> None:
         self.submissions = []
         self.list_calls = []
@@ -31,22 +31,22 @@ class RecordingBackend:
 
 
 @pytest.fixture(autouse=True)
-def _reset_active_backend():
-    previous = _api._active_backend
-    _api._active_backend = None
+def _reset_active_job_backend():
+    previous = _api._active_job_backend
+    _api._active_job_backend = None
     try:
         yield
     finally:
-        if _api._active_backend is not None:
-            _api._active_backend.shutdown(wait=False)
-        _api._active_backend = previous
+        if _api._active_job_backend is not None:
+            _api._active_job_backend.shutdown(wait=False)
+        _api._active_job_backend = previous
 
 
 def test_submit_and_get_require_configured_backend() -> None:
-    with pytest.raises(RuntimeError, match="No active jobs backend"):
+    with pytest.raises(RuntimeError, match="No active job backend"):
         _api.submit_capability(TinyCapability(), config=TinyConfig())
 
-    with pytest.raises(RuntimeError, match="No active jobs backend"):
+    with pytest.raises(RuntimeError, match="No active job backend"):
         _api.get_job("missing")
 
 
@@ -54,9 +54,9 @@ def test_list_jobs_returns_empty_without_configured_backend() -> None:
     assert _api.list_jobs() == []
 
 
-def test_api_helpers_forward_to_active_backend() -> None:
-    backend = RecordingBackend()
-    _api._active_backend = backend
+def test_api_helpers_forward_to_active_job_backend() -> None:
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
     capability = TinyCapability()
     config = TinyConfig(text="forward")
 
@@ -98,23 +98,23 @@ def test_api_helpers_forward_to_active_backend() -> None:
     assert backend.get_calls == ["job-1"]
 
 
-def test_shutdown_backend_noops_when_unconfigured_and_clears_active_backend() -> None:
-    _api.shutdown_backend(wait=True)
+def test_shutdown_job_backend_noops_when_unconfigured_and_clears_active_job_backend() -> None:
+    _api.shutdown_job_backend(wait=True)
 
-    backend = RecordingBackend()
-    _api._active_backend = backend
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
 
-    _api.shutdown_backend(wait=False)
+    _api.shutdown_job_backend(wait=False)
 
     assert backend.shutdown_calls == [False]
-    assert _api._active_backend is None
+    assert _api._active_job_backend is None
 
 
-def test_configure_backend_rejects_unknown_backend_after_shutting_down_existing_backend(tmp_path) -> None:
-    backend = RecordingBackend()
-    _api._active_backend = backend
+def test_configure_job_backend_rejects_unknown_backend_after_shutting_down_existing_backend(tmp_path) -> None:
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
 
-    with pytest.raises(ValueError, match="Unknown backend"):
-        _api.configure_backend("unknown", analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")})
+    with pytest.raises(ValueError, match="Unknown job backend"):
+        _api.configure_job_backend("unknown", analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")})
 
     assert backend.shutdown_calls == [False]

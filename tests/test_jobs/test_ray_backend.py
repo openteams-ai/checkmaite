@@ -15,12 +15,12 @@ from checkmaite.jobs import (
     JobFailedError,
     JobStatus,
     JobTimeoutError,
-    RayBackend,
     RayJob,
-    configure_backend,
+    RayJobBackend,
+    configure_job_backend,
     get_job,
     list_jobs,
-    shutdown_backend,
+    shutdown_job_backend,
     submit_capability,
 )
 from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
@@ -30,10 +30,10 @@ from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapabil
 def local_ray(tmp_path: Path):
     store_path = tmp_path / "analytics-store"
 
-    shutdown_backend(wait=False)
+    shutdown_job_backend(wait=False)
     ray.shutdown()
 
-    configure_backend(
+    configure_job_backend(
         "ray",
         address="local",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
@@ -42,7 +42,7 @@ def local_ray(tmp_path: Path):
     try:
         yield store_path
     finally:
-        shutdown_backend(wait=False)
+        shutdown_job_backend(wait=False)
         ray.shutdown()
 
 
@@ -136,7 +136,7 @@ def test_submit_capability_does_not_check_local_cache_before_submission(local_ra
 
 def test_list_jobs_status_filter_rejects_non_job_status() -> None:
     with pytest.raises(TypeError, match="status_filter must be a JobStatus"):
-        RayBackend._status_filter_values("completed")  # type: ignore[arg-type]
+        RayJobBackend._status_filter_values("completed")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -146,13 +146,13 @@ def test_list_jobs_status_filter_rejects_non_job_status() -> None:
 def test_list_jobs_status_filter_accepts_job_status_values(
     status_filter: JobStatus | list[JobStatus],
 ) -> None:
-    assert RayBackend._status_filter_values(status_filter) == set(
+    assert RayJobBackend._status_filter_values(status_filter) == set(
         status_filter if isinstance(status_filter, list) else [status_filter]
     )
 
 
 def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
-    backend = object.__new__(RayBackend)
+    backend = object.__new__(RayJobBackend)
     now = datetime.now(timezone.utc)
     old = _ListedJob("old", now - timedelta(seconds=20), JobStatus.COMPLETED)
     middle = _ListedJob("middle", now - timedelta(seconds=10), JobStatus.FAILED)
@@ -182,7 +182,7 @@ def test_resource_resolution_priority() -> None:
         num_cpus = 4
         num_gpus = 0.5
 
-    explicit = RayBackend._resolve_resources(
+    explicit = RayJobBackend._resolve_resources(
         capability,
         {
             "resources": {"num_cpus": 2, "num_gpus": 1.5},
@@ -191,13 +191,13 @@ def test_resource_resolution_priority() -> None:
     )
     assert explicit == {"num_cpus": 2, "num_gpus": 1.5}
 
-    from_config = RayBackend._resolve_resources(capability, {"config": ConfigHints()})
+    from_config = RayJobBackend._resolve_resources(capability, {"config": ConfigHints()})
     assert from_config == {"num_cpus": 4, "num_gpus": 0.5}
 
-    from_capability_defaults = RayBackend._resolve_resources(capability, {})
+    from_capability_defaults = RayJobBackend._resolve_resources(capability, {})
     assert from_capability_defaults == {"num_cpus": 8, "num_gpus": 0.75}
 
-    from_fallback = RayBackend._resolve_resources(object(), {})
+    from_fallback = RayJobBackend._resolve_resources(object(), {})
     assert from_fallback == {"num_cpus": 1, "num_gpus": 0.0}
 
 
@@ -208,7 +208,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path)
     job = submit_capability(capability, config=TinyConfig(text="inflight", sleep_s=1.5), use_cache=False)
 
     # Default reconfigure path should be non-blocking and not tear down runtime.
-    configure_backend("ray", analytics_store={"backend": "parquet", "uri": str(local_ray)})
+    configure_job_backend("ray", analytics_store={"backend": "parquet", "uri": str(local_ray)})
 
     ref = job.result(timeout=30)
     assert ref.summary["md_report"] == "inflight:0.5"
@@ -219,7 +219,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(local_ray
     capability = TinyCapability()
     env_key = "CHECKMAITE_TEST_RECONFIG_ENV"
 
-    configure_backend(
+    configure_job_backend(
         "ray",
         address="local",
         force_reinit=True,
@@ -237,7 +237,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(local_ray
     ).result(timeout=30)
     assert ref_one.summary["md_report"] == "one:0.5"
 
-    configure_backend(
+    configure_job_backend(
         "ray",
         address="local",
         force_reinit=True,
@@ -264,7 +264,7 @@ def test_store_write_failure_raises_by_default(local_ray: Path) -> None:
     bad_store_root = local_ray.parent / "not-a-directory"
     bad_store_root.write_text("this is a file")
 
-    configure_backend(
+    configure_job_backend(
         "ray",
         address="local",
         force_reinit=True,
@@ -277,10 +277,10 @@ def test_store_write_failure_raises_by_default(local_ray: Path) -> None:
 
 
 def test_submit_requires_explicit_backend_configuration() -> None:
-    shutdown_backend(wait=False)
+    shutdown_job_backend(wait=False)
     ray.shutdown()
 
-    with pytest.raises(RuntimeError, match="configure_backend"):
+    with pytest.raises(RuntimeError, match="configure_job_backend"):
         submit_capability(TinyCapability(), config=TinyConfig(text="no-backend"), use_cache=False)
 
 

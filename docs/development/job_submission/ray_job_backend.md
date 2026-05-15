@@ -1,8 +1,8 @@
-# Ray backend
+# Ray job backend
 
 The current job backend uses **Ray Core**.
 
-This page explains why Ray is a good fit, how the backend maps onto Ray's execution model, and how to use it from `checkmaite`.
+This page explains why Ray is a good fit, how the job backend maps onto Ray's execution model, and how to use it from `checkmaite`.
 
 ## Why Ray
 
@@ -49,37 +49,37 @@ Ray Core is a good baseline here because it gives us:
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Backend as RayBackend
+    participant JobBackend as RayJobBackend
     participant Ray as Ray runtime
     participant Worker as Ray worker
     participant Store as AnalyticsStore
 
-    Client->>Backend: submit_capability(...)
-    Backend->>Ray: ray.remote(_execute_capability_ref).remote(...)
-    Backend-->>Client: RayJob
+    Client->>JobBackend: submit_capability(...)
+    JobBackend->>Ray: ray.remote(_execute_capability_ref).remote(...)
+    JobBackend-->>Client: RayJob
     Ray->>Worker: execute _execute_capability_ref
     Worker->>Worker: capability.run(..., use_cache=False)
     Worker->>Store: write_with_receipt([run])
     Store-->>Worker: payload URI
     Worker-->>Ray: CapabilityRunRef
-    Client->>Backend: job.result(timeout=...)
-    Backend->>Ray: ray.get(ObjectRef)
-    Backend-->>Client: CapabilityRunRef
+    Client->>JobBackend: job.result(timeout=...)
+    JobBackend->>Ray: ray.get(ObjectRef)
+    JobBackend-->>Client: CapabilityRunRef
 ```
 
 Two details matter here:
 
 1. job submission does **not** consult the notebook process' local cache before submission;
-2. worker execution currently forces `use_cache=False`, because the backend does not yet assume a remote/shared cache that every worker can safely read.
+2. worker execution currently forces `use_cache=False`, because the job backend does not yet assume a remote/shared cache that every worker can safely read.
 
 ## Public usage
 
-### 1. Configure the backend
+### 1. Configure the job backend
 
 ```python
-from checkmaite.jobs import configure_backend
+from checkmaite.jobs import configure_job_backend
 
-configure_backend(
+configure_job_backend(
     "ray",
     address="local",
     analytics_store={"backend": "parquet", "uri": "./analytics_store"},
@@ -126,7 +126,7 @@ The returned object is `CapabilityRunRef`, not a full `CapabilityRunBase`.
 
 ## Resource scheduling
 
-The backend resolves CPU/GPU requirements in the following order:
+The job backend resolves CPU/GPU requirements in the following order:
 
 1. explicit `resources={...}` passed at submission time,
 2. hints on the config object (`config.num_cpus`, `config.num_gpus`),
@@ -175,19 +175,19 @@ Notes:
 
 ## Reconfiguration semantics
 
-`configure_backend(...)` supports non-blocking handoff by default.
+`configure_job_backend(...)` supports non-blocking handoff by default.
 
 ### Default behavior
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     address="local",
     analytics_store={...},
 )
 ```
 
-If a backend is already active, `configure_backend(...)` calls `shutdown(wait=False)` on it first. That means:
+If a backend is already active, `configure_job_backend(...)` calls `shutdown(wait=False)` on it first. That means:
 
 - the call does **not** block on tracked jobs,
 - the current Ray runtime is not torn down,
@@ -196,7 +196,7 @@ If a backend is already active, `configure_backend(...)` calls `shutdown(wait=Fa
 ### Force a true reconnect
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
     runtime_env={...},

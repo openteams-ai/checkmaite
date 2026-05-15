@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from checkmaite.core.analytics_store import AnalyticsStore
-from checkmaite.jobs.backends.ray_simple.backend import (
+from checkmaite.jobs.backends.ray_simple.job_backend import (
     _collect_md_report,
     _execute_capability_ref,
     _get_worker_store,

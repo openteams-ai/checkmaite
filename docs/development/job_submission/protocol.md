@@ -10,7 +10,7 @@ Instead of coupling notebooks and higher-level APIs directly to Ray primitives, 
 - error mapping,
 - and result payloads.
 
-That contract is implemented today by the Ray backend, but it is deliberately phrased as a protocol so other backends can adopt the same semantics later.
+That contract is implemented today by the Ray job backend, but it is deliberately phrased as a protocol so other backends can adopt the same semantics later.
 
 ## Why a protocol is useful
 
@@ -117,7 +117,7 @@ In distributed job submission, those responsibilities split across machines:
 That is why the current API requires explicit analytics-store configuration at backend setup time:
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     analytics_store={"backend": "parquet", "uri": "./analytics_store"},
 )

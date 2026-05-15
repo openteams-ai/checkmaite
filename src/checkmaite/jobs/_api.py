@@ -4,30 +4,30 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from checkmaite.jobs._store import AnalyticsStoreConfig
-from checkmaite.jobs.backends.ray import RayBackend
-from checkmaite.jobs.backends.ray_simple import RaySimpleBackend
+from checkmaite.jobs.backends.ray import RayJobBackend
+from checkmaite.jobs.backends.ray_simple import RaySimpleJobBackend
 
 if TYPE_CHECKING:
     import maite.protocols.generic as gen
 
     from checkmaite.core.capability_core import CapabilityConfigBase
-    from checkmaite.jobs.protocol import Backend, CapabilityRunRef, CapabilityType, Job, JobStatus
+    from checkmaite.jobs.protocol import CapabilityRunRef, CapabilityType, Job, JobBackend, JobStatus
 
 DEFAULT_LIST_JOBS_LIMIT = 100
 
-_active_backend: Backend | None = None
+_active_job_backend: JobBackend | None = None
 
 
-def _require_backend() -> Backend:
-    if _active_backend is None:
+def _require_job_backend() -> JobBackend:
+    if _active_job_backend is None:
         raise RuntimeError(
-            "No active jobs backend. Call configure_backend(..., analytics_store=...) before submitting jobs."
+            "No active job backend. Call configure_job_backend(..., analytics_store=...) before submitting jobs."
         )
 
-    return _active_backend
+    return _active_job_backend
 
 
-def configure_backend(
+def configure_job_backend(
     kind: str = "ray",
     *,
     analytics_store: AnalyticsStoreConfig | dict[str, Any],
@@ -42,19 +42,19 @@ def configure_backend(
     ``analytics_store`` is required and is forwarded to all worker tasks so
     writes target an explicit client-chosen durable location.
     """
-    global _active_backend
+    global _active_job_backend
 
-    if _active_backend is not None:
-        _active_backend.shutdown(wait=False)
+    if _active_job_backend is not None:
+        _active_job_backend.shutdown(wait=False)
 
     if kind == "ray":
-        _active_backend = RayBackend(analytics_store=analytics_store, **kwargs)
+        _active_job_backend = RayJobBackend(analytics_store=analytics_store, **kwargs)
         return
     if kind == "ray-simple":
-        _active_backend = RaySimpleBackend(analytics_store=analytics_store, **kwargs)
+        _active_job_backend = RaySimpleJobBackend(analytics_store=analytics_store, **kwargs)
         return
 
-    raise ValueError(f"Unknown backend: {kind!r}")
+    raise ValueError(f"Unknown job backend: {kind!r}")
 
 
 def submit_capability(
@@ -76,7 +76,7 @@ def submit_capability(
     }
     run_kwargs.update(kwargs)
 
-    return _require_backend().submit_capability(capability, **run_kwargs)
+    return _require_job_backend().submit_capability(capability, **run_kwargs)
 
 
 def list_jobs(
@@ -100,9 +100,9 @@ def list_jobs(
     Sequence[Job[CapabilityRunRef]]
         Matching jobs tracked by the active backend, or an empty sequence when no backend is configured.
     """
-    if _active_backend is None:
+    if _active_job_backend is None:
         return []
-    return _active_backend.list_jobs(
+    return _active_job_backend.list_jobs(
         limit=limit,
         status_filter=status_filter,
         submitted_before_ts=submitted_before_ts,
@@ -111,15 +111,15 @@ def list_jobs(
 
 def get_job(job_id: str) -> Job[CapabilityRunRef]:
     """Fetch a tracked job by ID."""
-    return _require_backend().get_job(job_id)
+    return _require_job_backend().get_job(job_id)
 
 
-def shutdown_backend(wait: bool = True) -> None:
+def shutdown_job_backend(wait: bool = True) -> None:
     """Shutdown the active backend, if configured."""
-    global _active_backend
+    global _active_job_backend
 
-    if _active_backend is None:
+    if _active_job_backend is None:
         return
 
-    _active_backend.shutdown(wait=wait)
-    _active_backend = None
+    _active_job_backend.shutdown(wait=wait)
+    _active_job_backend = None

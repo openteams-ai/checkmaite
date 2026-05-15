@@ -15,7 +15,7 @@ The job-submission subsystem addresses both problems:
 
 <div class="grid cards" markdown>
 
-- [__Backend configuration (`configure_backend`)__ :octicons-arrow-right-24:](configure_backend.md)
+- [__Job backend configuration (`configure_job_backend`)__ :octicons-arrow-right-24:](configure_job_backend.md)
 
   Why explicit `analytics_store` config is required in distributed execution and how that config is forwarded from client to worker.
 
@@ -23,7 +23,7 @@ The job-submission subsystem addresses both problems:
 
   Why the jobs protocol exists, why `result()` is reference-first, and how lifecycle semantics work.
 
-- [__Ray backend__ :octicons-arrow-right-24:](ray_backend.md)
+- [__Ray job backend__ :octicons-arrow-right-24:](ray_job_backend.md)
 
   Why Ray was chosen, how the backend maps onto Ray Core, and how to use it end-to-end.
 
@@ -37,7 +37,7 @@ The job-submission subsystem addresses both problems:
 
 - [__Walkthrough notebook__ :octicons-arrow-right-24:](../job_submission_walkthrough.ipynb)
 
-  Executable maintainer walkthrough showing the current backend behavior in practice.
+  Executable maintainer walkthrough showing the current job backend behavior in practice.
 
 </div>
 
@@ -47,7 +47,7 @@ Today the jobs subsystem is intentionally narrow:
 
 - backend: **Ray Core**
 - result type: **`CapabilityRunRef`**
-- durable store configuration: **explicitly required** via `configure_backend(..., analytics_store=...)`
+- durable store configuration: **explicitly required** via `configure_job_backend(..., analytics_store=...)`
 - artifact hydration: **not implemented yet** (`outputs_uri` is expected to be `None`)
 
 These pages document the current code, not a future architecture sketch.

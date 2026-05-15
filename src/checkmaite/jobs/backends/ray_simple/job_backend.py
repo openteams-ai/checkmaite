@@ -180,7 +180,7 @@ class RaySimpleJob(Job[CapabilityRunRef]):
         return None
 
 
-class RaySimpleBackend:
+class RaySimpleJobBackend:
     """Ray Core backend for asynchronous capability execution."""
 
     def __init__(

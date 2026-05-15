@@ -61,9 +61,9 @@ nav:  # navigation links on sidebar
     - Key concepts: development/key_concepts.md
     - Job submission:
       - development/job_submission/index.md
-      - Backend configuration: development/job_submission/configure_backend.md
+      - Job backend configuration: development/job_submission/configure_job_backend.md
       - Protocol and lifecycle: development/job_submission/protocol.md
-      - Ray backend: development/job_submission/ray_backend.md
+      - Ray job backend: development/job_submission/ray_job_backend.md
       - Worker environments: development/job_submission/worker_environments.md
       - Distributed analytics store: development/job_submission/analytics_store.md
       - Walkthrough notebook: development/job_submission_walkthrough.ipynb

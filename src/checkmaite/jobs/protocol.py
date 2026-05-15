@@ -133,7 +133,7 @@ T = TypeVar("T", covariant=True)
 
 
 class Job(Protocol, Generic[T]):
-    """Backend-agnostic handle for an asynchronous submission.
+    """JobBackend-agnostic handle for an asynchronous submission.
 
     A ``Job`` represents one submitted unit of work and exposes a minimal,
     notebook-friendly lifecycle API shared across backends.
@@ -230,8 +230,8 @@ class Job(Protocol, Generic[T]):
         ...
 
 
-class Backend(Protocol):
-    """Backend protocol for capability job submission.
+class JobBackend(Protocol):
+    """JobBackend protocol for capability job submission.
 
     Implementations are responsible for mapping backend-native execution state
     to the shared :class:`JobStatus` lifecycle and exception contracts.

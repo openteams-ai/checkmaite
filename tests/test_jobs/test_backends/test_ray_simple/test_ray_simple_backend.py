@@ -13,27 +13,27 @@ from checkmaite.jobs import (
     JobFailedError,
     JobStatus,
     JobTimeoutError,
-    configure_backend,
+    configure_job_backend,
     get_job,
     list_jobs,
-    shutdown_backend,
+    shutdown_job_backend,
     submit_capability,
 )
-from checkmaite.jobs.backends.ray_simple import RaySimpleBackend, RaySimpleJob
+from checkmaite.jobs.backends.ray_simple import RaySimpleJob, RaySimpleJobBackend
 from tests.test_jobs.fakes import AppendMarkerCapability, TinyCapability, TinyConfig
 
 
 @pytest.fixture(name="ray_simple_runtime")
 def _ray_simple_runtime():
     """Function-scoped local Ray runtime for ray-simple integration tests."""
-    shutdown_backend(wait=False)
+    shutdown_job_backend(wait=False)
     ray.shutdown()
     ray.init(address="local")
 
     try:
         yield
     finally:
-        shutdown_backend(wait=False)
+        shutdown_job_backend(wait=False)
         ray.shutdown()
 
 
@@ -41,8 +41,8 @@ def _ray_simple_runtime():
 def local_ray_simple(ray_simple_runtime, tmp_path: Path):
     store_path = tmp_path / "analytics-store"
 
-    shutdown_backend(wait=False)
-    configure_backend(
+    shutdown_job_backend(wait=False)
+    configure_job_backend(
         "ray-simple",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
     )
@@ -50,7 +50,7 @@ def local_ray_simple(ray_simple_runtime, tmp_path: Path):
     try:
         yield store_path
     finally:
-        shutdown_backend(wait=False)
+        shutdown_job_backend(wait=False)
 
 
 def _store(path: Path) -> AnalyticsStore:
@@ -62,10 +62,10 @@ def test_ray_simple_backend_smoke_contract_exercises_default_backend_coverage(tm
     store_path = tmp_path / "analytics-store"
     backend = None
 
-    shutdown_backend(wait=False)
+    shutdown_job_backend(wait=False)
 
     try:
-        backend = RaySimpleBackend(
+        backend = RaySimpleJobBackend(
             address=None,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
         )
@@ -123,7 +123,7 @@ def _listed_job(job_id: str, created_at: datetime, status: JobStatus) -> RaySimp
 )
 def test_status_filter_values_rejects_non_job_status(status_filter) -> None:
     with pytest.raises(TypeError, match="status_filter must be a JobStatus"):
-        RaySimpleBackend._status_filter_values(status_filter)  # type: ignore[arg-type]
+        RaySimpleJobBackend._status_filter_values(status_filter)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -134,11 +134,11 @@ def test_status_filter_values_rejects_non_job_status(status_filter) -> None:
     ],
 )
 def test_status_filter_values_accepts_job_status_values(status_filter, expected) -> None:
-    assert RaySimpleBackend._status_filter_values(status_filter) == expected
+    assert RaySimpleJobBackend._status_filter_values(status_filter) == expected
 
 
 def test_get_job_rejects_unknown_job_id() -> None:
-    backend = object.__new__(RaySimpleBackend)
+    backend = object.__new__(RaySimpleJobBackend)
     backend._jobs = {}
 
     with pytest.raises(KeyError, match="No job with ID"):
@@ -146,7 +146,7 @@ def test_get_job_rejects_unknown_job_id() -> None:
 
 
 def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
-    backend = object.__new__(RaySimpleBackend)
+    backend = object.__new__(RaySimpleJobBackend)
     now = datetime.now(timezone.utc)
     old = _listed_job("old", now - timedelta(seconds=20), JobStatus.COMPLETED)
     middle = _listed_job("middle", now - timedelta(seconds=10), JobStatus.FAILED)
@@ -166,7 +166,7 @@ def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
 
 
 def test_resource_resolution_priority() -> None:
-    backend = object.__new__(RaySimpleBackend)
+    backend = object.__new__(RaySimpleJobBackend)
 
     class DefaultHintCapability(TinyCapability):
         default_num_cpus = 8
@@ -311,7 +311,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray_simple
     job = submit_capability(capability, config=TinyConfig(text="inflight", sleep_s=1.5), use_cache=False)
 
     # Default reconfigure path should be non-blocking and not tear down runtime.
-    configure_backend(
+    configure_job_backend(
         "ray-simple",
         analytics_store={"backend": "parquet", "uri": str(local_ray_simple)},
     )
@@ -322,7 +322,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray_simple
 
 @pytest.mark.ray
 def test_shutdown_wait_false_leaves_ray_initialized(ray_simple_runtime, tmp_path: Path) -> None:
-    backend = RaySimpleBackend(analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")})
+    backend = RaySimpleJobBackend(analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")})
 
     backend.shutdown(wait=False)
 
@@ -333,7 +333,7 @@ def test_shutdown_wait_false_leaves_ray_initialized(ray_simple_runtime, tmp_path
 def test_shutdown_wait_true_waits_for_jobs_and_shuts_down_ray(ray_simple_runtime, tmp_path: Path) -> None:
     store_path = tmp_path / "analytics-store"
     finish_marker = tmp_path / "shutdown-finished.txt"
-    backend = RaySimpleBackend(
+    backend = RaySimpleJobBackend(
         analytics_store={"backend": "parquet", "uri": str(store_path)},
     )
 
@@ -359,7 +359,7 @@ def test_store_write_failure_raises_by_default(local_ray_simple: Path) -> None:
     bad_store_root = local_ray_simple.parent / "not-a-directory"
     bad_store_root.write_text("this is a file")
 
-    configure_backend(
+    configure_job_backend(
         "ray-simple",
         analytics_store={"backend": "parquet", "uri": str(bad_store_root)},
     )

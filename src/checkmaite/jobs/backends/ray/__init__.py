@@ -1,5 +1,5 @@
 """Ray task-based jobs backend."""
 
-from checkmaite.jobs.backends.ray.backend import RayBackend, RayJob
+from checkmaite.jobs.backends.ray.job_backend import RayJob, RayJobBackend
 
-__all__ = ["RayBackend", "RayJob"]
+__all__ = ["RayJobBackend", "RayJob"]

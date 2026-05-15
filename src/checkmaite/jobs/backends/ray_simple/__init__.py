@@ -1,5 +1,5 @@
 """Simple process-local Ray job backend."""
 
-from .backend import RaySimpleBackend, RaySimpleJob
+from .job_backend import RaySimpleJob, RaySimpleJobBackend
 
-__all__ = ["RaySimpleBackend", "RaySimpleJob"]
+__all__ = ["RaySimpleJob", "RaySimpleJobBackend"]

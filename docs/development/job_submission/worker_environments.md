@@ -15,7 +15,7 @@ The short version is:
 For local development, Ray workers run from the developer's current Python environment.
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     address="local",
     analytics_store={"backend": "parquet", "uri": "./analytics_store"},
@@ -66,7 +66,7 @@ Use `runtime_env` for smaller, faster-changing overlays such as:
 Example:
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
     runtime_env={
@@ -88,7 +88,7 @@ configure_backend(
 
 The job backend accepts:
 
-- Ray connection and environment options through `configure_backend(..., **kwargs)`
+- Ray connection and environment options through `configure_job_backend(..., **kwargs)`
 - analytics-store configuration through the explicit `analytics_store=...` argument
 
 Those concerns are separate on purpose:
@@ -165,7 +165,7 @@ The important point is not the exact YAML. It is that the **platform image and c
 The current jobs analytics-store configuration supports the Parquet backend with a URI and optional storage options.
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
     analytics_store={

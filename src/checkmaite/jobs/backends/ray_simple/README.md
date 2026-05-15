@@ -1,33 +1,33 @@
-# Ray Simple Backend
+# Ray simple job backend
 
-`ray-simple` is the lightweight Ray backend for `checkmaite` jobs:
+`ray-simple` is the lightweight Ray job backend for `checkmaite` jobs:
 
 ```python
-from checkmaite.jobs import configure_backend
+from checkmaite.jobs import configure_job_backend
 
-configure_backend(
+configure_job_backend(
     "ray-simple",
     analytics_store={"backend": "parquet", "uri": "./job-results"},
 )
 ```
 
 It submits one Ray task for each capability run and returns a local `RaySimpleJob`
-handle. It is intentionally much simpler than the default `ray` backend.
+handle. It is intentionally much simpler than the default `ray` job backend.
 
 Use it when you want something easy to understand, easy to debug, and good enough
 for local development, demos, notebooks, or simple single-driver workflows. Do
 not use it as a durable shared job service.
 
 > [!IMPORTANT]
-> `ray-simple` trades durability for simplicity. It is often the easiest backend
+> `ray-simple` trades durability for simplicity. It is often the easiest job backend
 > to use for demos and local notebooks, but the submitting client is responsible
 > for duplicate-submission policy, crash recovery, and keeping job handles alive.
-> If those responsibilities are not acceptable, use the default `ray` backend.
+> If those responsibilities are not acceptable, use the default `ray` job backend.
 
 ## Practical guidance
 
-For demos and local notebooks, `ray-simple` is often the easiest backend to start
-with. It has fewer moving parts than the default `ray` backend because it does
+For demos and local notebooks, `ray-simple` is often the easiest job backend to start
+with. It has fewer moving parts than the default `ray` job backend because it does
 not create a shared registry actor or per-job controller actors. That makes it
 easier to debug basic worker execution, analytics-store writes, and job result
 handling.
@@ -42,7 +42,7 @@ The tradeoff is that operational responsibilities move to the user:
   URI, object-store reference, or other external storage reference would be more
   appropriate.
 
-If those tradeoffs are unacceptable, use the default `ray` backend instead.
+If those tradeoffs are unacceptable, use the default `ray` job backend instead.
 
 ## When to use `ray-simple`
 
@@ -51,15 +51,15 @@ If those tradeoffs are unacceptable, use the default `ray` backend instead.
 - one Python process or notebook submits and watches the jobs;
 - losing job handles after the client exits is acceptable;
 - duplicate submissions are acceptable or are handled by your own code;
-- you want less backend machinery while developing or debugging;
+- you want less job backend machinery while developing or debugging;
 - you are running demos or small experiments where operational simplicity matters
   more than durability.
 
-Prefer the default `ray` backend when:
+Prefer the default `ray` job backend when:
 
 - jobs must survive notebook or driver restarts;
 - another client must list, cancel, or reconnect to existing jobs;
-- duplicate submissions must be suppressed by the backend;
+- duplicate submissions must be suppressed by the job backend;
 - multiple users or processes share the same Ray cluster;
 - you need production-style job tracking on KubeRay or a long-running Ray cluster.
 
@@ -68,12 +68,12 @@ Prefer the default `ray` backend when:
 ### 1. Job tracking lives only in the submitting process
 
 `ray-simple` keeps submitted jobs in an in-memory dictionary on the
-`RaySimpleBackend` instance.
+`RaySimpleJobBackend` instance.
 
 That means:
 
-- `list_jobs()` only lists jobs submitted through that backend object;
-- `get_job(job_id)` only works for jobs still remembered by that backend object;
+- `list_jobs()` only lists jobs submitted through that job backend object;
+- `get_job(job_id)` only works for jobs still remembered by that job backend object;
 - if the notebook, driver, or Python process exits, the job handles are lost;
 - a new client cannot recreate a `RaySimpleJob` from an old job id.
 
@@ -103,7 +103,7 @@ recover the local job handles.
 
 If you need to recover from a client crash, use one of these patterns instead:
 
-- use the default `ray` backend, which is designed around shared job metadata;
+- use the default `ray` job backend, which is designed around shared job metadata;
 - store your own application-level submission records;
 - design capabilities so repeating a submission is safe;
 - write outputs to durable external storage and treat the analytics store as the
@@ -152,7 +152,7 @@ bound how long the caller waits.
 
 ### 6. Ray runtime lifecycle is shared with the process
 
-`RaySimpleBackend` initializes Ray when needed. Its shutdown behavior is simple:
+`RaySimpleJobBackend` initializes Ray when needed. Its shutdown behavior is simple:
 
 - `shutdown(wait=True)` waits for known jobs and then calls `ray.shutdown()`;
 - `shutdown(wait=False)` returns immediately and does not shut down Ray.

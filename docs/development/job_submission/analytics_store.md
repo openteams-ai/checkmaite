@@ -22,10 +22,10 @@ In distributed job submission, those responsibilities are split:
 - the **worker** needs that information so it can persist results,
 - and the **client** later needs a stable way to find the payload data that the worker wrote.
 
-That is why `configure_backend(...)` requires explicit analytics-store configuration:
+That is why `configure_job_backend(...)` requires explicit analytics-store configuration:
 
 ```python
-configure_backend(
+configure_job_backend(
     "ray",
     analytics_store={
         "backend": "parquet",
@@ -34,22 +34,22 @@ configure_backend(
 )
 ```
 
-The backend forwards that store configuration to worker tasks. Workers then build their own `AnalyticsStore` instance from the forwarded config rather than guessing a local default.
+The job backend forwards that store configuration to worker tasks. Workers then build their own `AnalyticsStore` instance from the forwarded config rather than guessing a local default.
 
-For a focused `configure_backend(...)` reference (including the producer/consumer handoff path), see [Backend configuration](configure_backend.md).
+For a focused `configure_job_backend(...)` reference (including the producer/consumer handoff path), see [Job job backend configuration](configure_job_backend.md).
 
 ## Current end-to-end store flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Backend as RayBackend
+    participant JobBackend as RayJobBackend
     participant Worker
     participant Store as AnalyticsStore
 
-    Client->>Backend: configure_backend(..., analytics_store=...)
-    Client->>Backend: submit_capability(...)
-    Backend->>Worker: send task + analytics_store config
+    Client->>JobBackend: configure_job_backend(..., analytics_store=...)
+    Client->>JobBackend: submit_capability(...)
+    JobBackend->>Worker: send task + analytics_store config
     Worker->>Store: build store from forwarded config
     Worker->>Store: write_with_receipt([run])
     Store-->>Worker: payload URI or receipt metadata
