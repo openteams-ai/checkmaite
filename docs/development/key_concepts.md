@@ -299,9 +299,9 @@ Records follow these rules:
 - **Append-only** — run results are historical facts; no updates or deletes.
 - **`created_at`** — auto-populated timestamp on every record; no need to add your own.
 
-To add analytics store support to a new capability, define a `BaseRecord` subclass and implement `extract()` on your `Run` class. See the [reference notebook](../reference/analytics_store_guide.ipynb) for detailed implementation guidance.
+To add analytics store support to a new capability, define a `BaseRecord` subclass and implement `extract()` on your `Run` class. See the [reference notebook](analytics_store_guide.ipynb) for detailed implementation guidance.
 
-For a complete list of available tables and their fields, see the [Record Schema Reference](../reference/analytics_store_guide.ipynb) (Part 5).
+For a complete list of available tables and their fields, see the [Record Schema Reference](analytics_store_guide.ipynb) (Part 5).
 
 For hands-on usage examples (creating a store, writing runs, querying via SQL), see the [Analytics Store Tutorial](../tool-usage/analytics_store_tutorial.ipynb).
 

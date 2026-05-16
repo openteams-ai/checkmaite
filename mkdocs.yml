@@ -51,7 +51,6 @@ nav:  # navigation links on sidebar
   - Reference:
     - reference/index.md
     - Conventions: reference/conventions.md
-    - Analytics Store: reference/analytics_store_guide.ipynb
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
   - Checkmaite development:
@@ -59,6 +58,7 @@ nav:  # navigation links on sidebar
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md
     - Key concepts: development/key_concepts.md
+    - Analytics store guide: development/analytics_store_guide.ipynb
     - Job submission:
       - development/job_submission/index.md
       - Job backend configuration: development/job_submission/configure_job_backend.md

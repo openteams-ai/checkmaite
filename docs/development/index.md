@@ -28,6 +28,10 @@ Documentation for checkmaite developers and contributors.
 
     An overview of the core abstractions that underpin how evaluations are defined and executed.
 
+-  [__Analytics Store Guide__ :octicons-arrow-right-24:](analytics_store_guide.ipynb)
+
+    Developer guide for analytics-store architecture, schemas, and adding store support to capabilities.
+
 -  [__Job submission and cluster execution__ :octicons-arrow-right-24:](job_submission/index.md)
 
     Architecture docs for the jobs protocol, Ray job backend, worker environments, and distributed analytics-store behavior.

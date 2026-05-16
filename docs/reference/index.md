@@ -14,8 +14,4 @@
 
     Model, dataset, and metrics conventions.
 
--  [__Analytics Store (Developer Reference)__ :octicons-arrow-right-24:](analytics_store_guide.ipynb)
-
-    Deep technical reference for the analytics store: architecture, backend protocol, schema evolution, and extending the store for new capabilities.
-
 </div>
