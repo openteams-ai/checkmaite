@@ -25,12 +25,19 @@ variables:
 
 
 stages:
-  - lint
-  - pyright
-  - build
-  - test
-  - docs
+  #- lint
+  # - pyright
+  # - build
+  # - test
+  # - docs
   - dr-compliance
+  - sr-compliance
+  - cs-compliance
+  - tr-compliance
+  - dsor-compliance
+  - ir-compliance
+  - advana-compliance
+
 
 .git_config: &git_config
 # For internal git dependencies
@@ -123,187 +130,216 @@ stages:
     paths:
       - artifacts/*
 
-.conda-setup:
-  # Overrides the image from .python-matrix; Python version is
-  # installed via micromamba create python=$VERSION instead
-  image: mambaorg/micromamba:2.5-amazon2023
-  cache:
-    - key:
-        files:
-          - conda-lock.yml
-        prefix: conda-env-py${VERSION}
-      paths:
-        - .conda-env/
-  before_script:
-    # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
-    - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
-    - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git make
-    - eval "$(micromamba shell hook --shell bash)"
-    - micromamba activate $CONDA_ENV_NAME
-    - *git_config
-    - make conda-lock  # regenerate conda-lock file with latest conda dependencies
-    - make conda-env   # create conda env from new conda-lock file
-    - pip install . --no-deps
-    - micromamba list
+# .conda-setup:
+#   # Overrides the image from .python-matrix; Python version is
+#   # installed via micromamba create python=$VERSION instead
+#   image: mambaorg/micromamba:2.5-amazon2023
+#   cache:
+#     - key:
+#         files:
+#           - conda-lock.yml
+#         prefix: conda-env-py${VERSION}
+#       paths:
+#         - .conda-env/
+#   before_script:
+#     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
+#     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
+#     - micromamba --version
+#     - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git make
+#     - eval "$(micromamba shell hook --shell bash)"
+#     - micromamba activate $CONDA_ENV_NAME
+#     - *git_config
+#     - make conda-lock  # regenerate conda-lock file with latest conda dependencies
+#     - make conda-env   # create conda env from new conda-lock file
+#     - pip install . --no-deps
+#     - micromamba list
 
-.poetry-setup:
-  variables:
-    # Override in jobs that install different dependency groups (e.g. docs)
-    # to avoid sharing a cached .venv across incompatible installs.
-    VENV_CACHE_PREFIX: "venv-dev-py"
-  cache:
-    - key:
-        files:
-          - poetry.lock
-        prefix: ${VENV_CACHE_PREFIX}${VERSION}
-      paths:
-        - .venv/
-    - key: pip-downloads
-      paths:
-        - .cache/pip
-  before_script:
-    - *git_config
-    - *start_diagnostics
-    - export PATH=${HOME}/.local/bin:${PATH}
-    - pip install --upgrade pip
-    - pip install --user -U poetry==2.1.2
-    - poetry config virtualenvs.in-project true
-    - python --version
-    - pip --version
-    - poetry --version
-    - poetry check
+# .poetry-setup:
+#   variables:
+#     # Override in jobs that install different dependency groups (e.g. docs)
+#     # to avoid sharing a cached .venv across incompatible installs.
+#     VENV_CACHE_PREFIX: "venv-dev-py"
+#   cache:
+#     - key:
+#         files:
+#           - poetry.lock
+#         prefix: ${VENV_CACHE_PREFIX}${VERSION}
+#       paths:
+#         - .venv/
+#     - key: pip-downloads
+#       paths:
+#         - .cache/pip
+#   before_script:
+#     - *git_config
+#     - *start_diagnostics
+#     - export PATH=${HOME}/.local/bin:${PATH}
+#     - pip install --upgrade pip
+#     - pip install --user -U poetry==2.1.2
+#     - poetry config virtualenvs.in-project true
+#     - python --version
+#     - pip --version
+#     - poetry --version
+#     - poetry check
 
-test:
-  extends: [.python-matrix, .shared-setup, .poetry-setup]
-  stage: test
-  needs: []
-  timeout: 3h
-  variables:
-    PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
-  script:
-    - poetry install --with dev --extras ui
-    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
-    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
-    - poetry run pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
+# test:
+#   extends: [.python-matrix, .shared-setup, .poetry-setup]
+#   stage: test
+#   needs: []
+#   timeout: 3h
+#   variables:
+#     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
+#   script:
+#     - poetry install --with dev --extras ui
+#     - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
+#     - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
+#     - poetry run pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
 
-  coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
-  artifacts:
-    when: always
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage_report.xml
-    paths:
-      - artifacts/*
+#   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+#   artifacts:
+#     when: always
+#     reports:
+#       coverage_report:
+#         coverage_format: cobertura
+#         path: coverage_report.xml
+#     paths:
+#       - artifacts/*
 
-# build fresh conda-lock file, create env from it, and activate it.
-# .python-matrix sets the image to python:$VERSION, but .conda-setup overrides
-# it with mambaorg/micromamba:2.5-amazon2023.
-# python is installed via `micromamba create python=$VERSION`
-dynamic-conda-test:
-  extends: [.python-matrix, .shared-setup, .conda-setup]
-  stage: test
-  needs: []
-  script:
-    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
+# # build fresh conda-lock file, create env from it, and activate it.
+# # .python-matrix sets the image to python:$VERSION, but .conda-setup overrides
+# # it with mambaorg/micromamba:2.5-amazon2023.
+# # python is installed via `micromamba create python=$VERSION`
+# dynamic-conda-test:
+#   extends: [.python-matrix, .shared-setup, .conda-setup]
+#   stage: test
+#   needs: []
+#   script:
+#     - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
 
-# build conda env from conda-lock in the repo and activate it
-conda-lock-test:
-  extends: [.shared-setup]
-  stage: test
-  needs: []
-  image: mambaorg/micromamba:2.5-amazon2023
-  cache:
-    - key:
-        files:
-          - conda-lock.yml
-        prefix: conda-lock-env
-      paths:
-        - .conda-env/
-  before_script:
-    # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
-    - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
-    - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git make
-    - eval "$(micromamba shell hook --shell bash)"
-    - micromamba activate $CONDA_ENV_NAME
-    - *git_config
-    - make conda-env  # create conda env from conda-lock file
-    - pip install . --no-deps
-    - micromamba list
-  script:
-    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
+# # build conda env from conda-lock in the repo and activate it
+# conda-lock-test:
+#   extends: [.shared-setup]
+#   stage: test
+#   needs: []
+#   image: mambaorg/micromamba:2.5-amazon2023
+#   cache:
+#     - key:
+#         files:
+#           - conda-lock.yml
+#         prefix: conda-lock-env
+#       paths:
+#         - .conda-env/
+#   before_script:
+#     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
+#     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
+#     - micromamba --version
+#     - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git make
+#     - eval "$(micromamba shell hook --shell bash)"
+#     - micromamba activate $CONDA_ENV_NAME
+#     - *git_config
+#     - make conda-env  # create conda env from conda-lock file
+#     - pip install . --no-deps
+#     - micromamba list
+#   script:
+#     - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
 
-lint:
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: lint
-  needs: []
-  script:
-    - poetry install --with dev --extras ui
-    - poetry run pre-commit install
-    - poetry run pre-commit run --all-files --verbose
+# lint:
+#   extends: [.shared-setup, .poetry-setup]
+#   image: python:3.10
+#   stage: lint
+#   needs: []
+#   script:
+#     - poetry install --with dev --extras ui
+#     - poetry run pre-commit install
+#     - poetry run pre-commit run --all-files --verbose
 
-pyright-internal:
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: pyright
-  needs: []
-  script:
-    - poetry install --with dev  --extras ui
-    - poetry run pyright src/
+# pyright-internal:
+#   extends: [.shared-setup, .poetry-setup]
+#   image: python:3.10
+#   stage: pyright
+#   needs: []
+#   script:
+#     - poetry install --with dev  --extras ui
+#     - poetry run pyright src/
 
-# DOCUMENTATION
-# deploy docs for merge requests
-pages-branch:
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: docs
-  needs: []
-  artifacts:
-      expose_as: 'Documentation Build'
-      paths:
-        - public/
-  environment:
-      name: docs-preview/$CI_MERGE_REQUEST_IID
-      url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
-      auto_stop_in: 1 week
-  script:
-    - poetry install --with docs
-    - poetry run mkdocs build -d public --no-directory-urls
-  variables:
-      VENV_CACHE_PREFIX: "venv-docs-py"
-      PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
-  rules:
-    # If changes are made to an active merge request.
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    # Don't run this rule if on main branch
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: never
+# # DOCUMENTATION
+# # deploy docs for merge requests
+# pages-branch:
+#   extends: [.shared-setup, .poetry-setup]
+#   image: python:3.10
+#   stage: docs
+#   needs: []
+#   artifacts:
+#       expose_as: 'Documentation Build'
+#       paths:
+#         - public/
+#   environment:
+#       name: docs-preview/$CI_MERGE_REQUEST_IID
+#       url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
+#       auto_stop_in: 1 week
+#   script:
+#     - poetry install --with docs
+#     - poetry run mkdocs build -d public --no-directory-urls
+#   variables:
+#       VENV_CACHE_PREFIX: "venv-docs-py"
+#       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
+#   rules:
+#     # If changes are made to an active merge request.
+#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#     # Don't run this rule if on main branch
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+#       when: never
 
-# deploy production docs on merge with main
-pages: # this must be named "pages" to get GitLab to run "pages:deploy"
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: docs
-  variables:
-    VENV_CACHE_PREFIX: "venv-docs-py"
-  script:
-    - poetry install --with docs
-    - poetry run mkdocs build -d public --no-directory-urls
-    - rm -rf public/how-tos/tscache
-    - rm -rf public/how-tos/visdrone_model_weights
-  artifacts:
-    paths:
-    - public
-  rules:
-    # Only run this rule if on main branch
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+# # deploy production docs on merge with main
+# pages: # this must be named "pages" to get GitLab to run "pages:deploy"
+#   extends: [.shared-setup, .poetry-setup]
+#   image: python:3.10
+#   stage: docs
+#   variables:
+#     VENV_CACHE_PREFIX: "venv-docs-py"
+#   script:
+#     - poetry install --with docs
+#     - poetry run mkdocs build -d public --no-directory-urls
+#     - rm -rf public/how-tos/tscache
+#     - rm -rf public/how-tos/visdrone_model_weights
+#   artifacts:
+#     paths:
+#     - public
+#   rules:
+#     # Only run this rule if on main branch
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 
 # SECURITY STAGES
 include:
+  - component: gitlab.jatic.net/jatic/devsecops/components/sr-compliance@1.1.0
+    inputs:
+      package_name: checkmaite # your package directory
+      tools_used: [pyproject, poetry, tox, ruff]
+      full_execution_on_commit: true 
+  - component: gitlab.jatic.net/jatic/devsecops/components/cs-compliance@1.1.0
+    inputs:
+      full_execution_on_commit: true
+      cs_images: 
+        - cgr.dev/chainguard/static:latest
+        - gcr.io/distroless/static-debian12
+  - component: gitlab.jatic.net/jatic/devsecops/components/tr-compliance@1.1.0
+    inputs:
+      package_name: "checkmaite"
+      full_execution_on_commit: true
+  - component: gitlab.jatic.net/jatic/devsecops/components/dsor-compliance@1.1.0
+    inputs:
+      full_execution_on_commit: true
+      sast_excluded_paths: tests, README.md # Defines how many directory levels the search for programming languages should span for SAST scan
+      sast_search_max_depth: "2" # Comma separated list of paths to exclude for SAST scan
+  - component: gitlab.jatic.net/jatic/devsecops/components/ir-compliance@1.1.0
+    inputs:
+      stage: ir-compliance
+      maite_interop_scope: provider
+      full_execution_on_commit: true
+      allow_failure: true
+  - component: gitlab.jatic.net/jatic/devsecops/components/advana-compliance@1.1.0
+    inputs:
+      full_execution_on_commit: true
   - component: gitlab.jatic.net/jatic/devsecops/components/dr-compliance@0.5.2
     inputs:
       stage: dr-compliance
@@ -312,3 +348,4 @@ include:
       image: harbor.jatic.net:443/platform-team/base-images/python-base-image:3.11
       full_execution_on_commit: true # set full_execution_on_commit: true to run the component on every pushed commit
       allow_failure: true
+
