@@ -12,36 +12,7 @@ It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jat
 
 ## Quick start
 
-<div class="grid cards" markdown>
-
--   :material-monitor-arrow-down-variant:{ .lg .middle } [__Setup__ :octicons-arrow-right-24:](get-started/install_setup.md)
-
-    ---
-    Get your machine set up to run checkmaite.
-
-
--   :material-rocket-launch-outline:{ .lg .middle } [__Interactive Access to `checkmaite`__ :octicons-arrow-right-24:](get-started/checkmaite_interactive.md)
-
-    ---
-    Run the checkmaite dashboards locally or deploy on a server.
-
--  :material-connection:{ .lg .middle } [__Object Detection Workflow via API__ :octicons-arrow-right-24:](get-started/checkmaite_api_od.html)
-
-    ---
-    API access for Object Detection workflows.
-
--  :material-connection:{ .lg .middle } [__Image Classification Workflow via API__ :octicons-arrow-right-24:](get-started/checkmaite_api_ic.html)
-
-    ---
-    API access for Image Classification workflows.
-
--   :material-bookshelf:{ .lg .middle } [__Explore JATIC tools__ :octicons-arrow-right-24:](tool-usage/index.md)
-
-    ---
-    Learn to use the JATIC tools via checkmaite
-
-
-</div>
+New to Checkmaite? Start with the [Get started guide](get-started/index.md) for setup, interactive UI access, API workflows, remote inference, and saving or querying results.
 
 ## About the JATIC program and CDAO
 
