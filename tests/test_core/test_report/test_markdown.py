@@ -27,6 +27,7 @@ from checkmaite.core.report._markdown import (
     _rewrite_markdown_paths,
     _unique_destination,
     create_markdown_output,
+    create_pdf_output,
 )
 
 
@@ -1020,3 +1021,30 @@ def test_create_markdown_output_no_display_returns_none(tmp_path: Path, monkeypa
     saved = (out_dir / "report.md").read_text(encoding="utf-8")
     assert "(images/img.png)" in saved
     assert (out_dir / "images" / "img.png").exists()
+
+
+def test_create_pdf_output_writes_pdf(tmp_path: Path, monkeypatch):
+    """Smoke test: render a markdown report (with table + image) to a PDF file."""
+    pytest.importorskip("xhtml2pdf")
+    pypdf = pytest.importorskip("pypdf")
+    from PIL import Image
+
+    monkeypatch.chdir(tmp_path)
+
+    img = tmp_path / "img.png"
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(img)
+
+    md = "# Title\n\n| col |\n| --- |\n| val |\n\n![alt](img.png)\n"
+    out_dir = tmp_path / "report"
+
+    pdf_path = create_pdf_output(md, out_dir)
+
+    assert pdf_path == out_dir / "report.pdf"
+    assert pdf_path.exists()
+    assert pdf_path.read_bytes().startswith(b"%PDF-")
+    assert (out_dir / "images" / "img.png").exists()
+
+    # Verify the image was actually embedded in the PDF, not just copied to the staging dir.
+    reader = pypdf.PdfReader(str(pdf_path))
+    xobjects = reader.pages[0]["/Resources"]["/XObject"]
+    assert any(xobjects[name]["/Subtype"] == "/Image" for name in xobjects)

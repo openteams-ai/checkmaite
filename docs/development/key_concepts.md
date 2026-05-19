@@ -222,8 +222,9 @@ Each Run exposes a `collect_md_report()` method that prepares outputs for report
 
 - **Gradient-based reports** (legacy, optional dependency) — generates visual outputs using the Gradient library. Will emit a deprecation warning if used.
 - **Markdown reports** — generates a structured `.md` file summarizing outputs. This is the recommended approach going forward.
+- **PDF reports** — converts a markdown report (the same string returned by `collect_md_report`) into a PDF via `create_pdf_output()`. Requires the optional `reporting` extra (`pip install ".[reporting]"`).
 
-Both are available as separate functions on the Run object, so end users can choose the format appropriate to their context.
+These are available as separate functions, so end users can choose the format appropriate to their context.
 
 ---
 

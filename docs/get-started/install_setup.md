@@ -20,6 +20,7 @@ Optional extras for end users:
 
 ```bash
 pip install ".[ui]"           # UI dependencies
+pip install ".[reporting]"    # PDF report export (markdown + xhtml2pdf)
 pip install ".[cloud]"        # cloud storage dependencies (aws+gcs+azure)
 pip install ".[unsupported]"  # installs checkmaite-plugins (includes Java/PySpark deps, Python <3.12)
 ```

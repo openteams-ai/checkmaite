@@ -711,6 +711,74 @@ def _build_display_mapping(saved_md: str, *, out_dir: Path) -> dict[str, str]:
     return mapping
 
 
+def create_pdf_output(
+    md_report: str,
+    path: str | Path,
+    pdf_filename: str = "report.pdf",
+) -> Path:
+    """Render a markdown report to PDF, copying local images into ``<path>/images/``.
+
+    Requires the optional ``reporting`` extra (``pip install ".[reporting]"`` or
+    ``poetry install --extras reporting``), which pulls in ``markdown`` and ``xhtml2pdf``.
+
+    Trust model
+    -----------
+    The markdown -> HTML -> PDF pipeline assumes the input ``md_report`` is
+    trusted content produced by checkmaite itself (``CapabilityRunBase.collect_md_report``).
+    ``xhtml2pdf`` has historically had CVEs in its HTML/CSS parsing path;
+    user-supplied strings that reach the report (dataset/model/metric IDs,
+    ``index2label`` values, datum metadata, plugin-emitted text) are treated as
+    trusted under this assumption. Do **not** call this function on report
+    content sourced from third parties.
+
+    Parameters
+    ----------
+    md_report : str
+        The markdown content (e.g. from ``CapabilityRunBase.collect_md_report``).
+    path : str | Path
+        Output directory. Created if missing. Local images referenced by the
+        markdown are copied into ``<path>/images/`` so the PDF can resolve them.
+    pdf_filename : str, optional
+        Filename for the generated PDF, by default ``"report.pdf"``.
+
+    Returns
+    -------
+    Path
+        Path to the generated PDF file.
+    """
+    try:
+        import markdown as _markdown_lib
+        from xhtml2pdf import pisa
+    except ImportError as e:
+        raise ImportError(
+            "PDF report rendering requires the 'reporting' extra. Install with:\n"
+            '    pip install ".[reporting]"\n'
+            "or:\n"
+            "    poetry install --extras reporting"
+        ) from e
+
+    out_dir = Path(path)
+    images_dir = _ensure_output_dirs(out_dir)
+    mapping = _copy_local_images_and_build_mapping(md_report, images_dir, source_root=Path.cwd())
+    rewritten_md = _rewrite_markdown_paths(md_report, mapping)
+
+    html = _markdown_lib.markdown(rewritten_md, extensions=["tables", "fenced_code", "toc"])
+    pdf_path = out_dir / pdf_filename
+
+    def _resolve_image(uri: str, _rel: str) -> str:
+        # xhtml2pdf calls this for every <img src=...>. Image paths in `html` are
+        # relative to `out_dir` (e.g. "images/foo.png") because we already rewrote them.
+        if uri.startswith(("http://", "https://", "data:")):
+            return uri
+        return str((out_dir / uri).resolve())
+
+    with pdf_path.open("wb") as f:
+        pisa_status = pisa.CreatePDF(html, dest=f, link_callback=_resolve_image)
+    if pisa_status.err:
+        raise RuntimeError(f"PDF generation failed with {pisa_status.err} error(s).")
+    return pdf_path
+
+
 def create_markdown_output(
     md_report: str, path: str | Path, md_filename: str = "report.md", display: bool = False
 ) -> Any:

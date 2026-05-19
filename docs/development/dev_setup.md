@@ -55,10 +55,11 @@ To contribute to the documentation, install with the docs dependencies:
 poetry install --with docs
 ```
 
-There are also optional dependency groups, `ui` and `unsupported`:
+There are also optional dependency groups, `ui`, `reporting`, and `unsupported`:
 
 ```bash
 poetry install --extras ui
+poetry install --extras reporting   # PDF report export (markdown + xhtml2pdf)
 poetry install --extras unsupported
 ```
 
