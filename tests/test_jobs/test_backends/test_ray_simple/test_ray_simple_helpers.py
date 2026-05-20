@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from checkmaite.core.analytics_store import AnalyticsStore
 from checkmaite.jobs.backends.ray_simple.job_backend import (
     _collect_md_report,
@@ -45,7 +47,7 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
         TinyCapability(),
         {
             "config": TinyConfig(text="worker", start_marker_path=str(marker)),
-            "use_cache": True,
+            "use_cache": False,
             "report_threshold": 0.75,
             "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
         },
@@ -55,3 +57,15 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
     assert ref.capability_id == TinyCapability().id
     assert ref.store_uri.endswith(".parquet")
     assert ref.summary["md_report"] == "worker:0.75"
+
+
+def test_execute_capability_ref_rejects_cache_in_job_submission(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="use_cache=True is not supported"):
+        _execute_capability_ref(
+            TinyCapability(),
+            {
+                "config": TinyConfig(text="worker"),
+                "use_cache": True,
+                "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+            },
+        )

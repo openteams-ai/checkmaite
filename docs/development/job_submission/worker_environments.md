@@ -6,18 +6,21 @@ The short version is:
 
 - `checkmaite` does **not** build worker environments for you,
 - the platform owns the worker image and cluster spec,
-- and the backend can only supply a Ray `runtime_env` overlay at connection time.
+- and the job backend can only supply a Ray `runtime_env` overlay at connection time.
+
+Both `"ray"` and `"ray-simple"` use Ray workers and the same `runtime_env` mechanics. The default `"ray"` job backend also runs registry/controller actors, while `"ray-simple"` submits direct Ray tasks from one driver.
 
 ## Two practical modes
 
 ### Local development mode
 
-For local development, Ray workers run from the developer's current Python environment.
+For local development, Ray workers run from the developer's current Python environment. Use `"ray"` when you want registry-backed reattach behavior, or `"ray-simple"` when a process-local direct Ray task-based job backend is enough.
 
 ```python
 configure_job_backend(
     "ray",
     address="local",
+    idempotency_scope="local-dev",
     analytics_store={"backend": "parquet", "uri": "./analytics_store"},
 )
 ```
@@ -69,6 +72,7 @@ Example:
 configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
+    idempotency_scope="team-a-prod-evals",
     runtime_env={
         "working_dir": ".",
         "pip": ["my-small-lib==0.3.1"],
@@ -86,7 +90,7 @@ configure_job_backend(
 
 ## How this maps to the current code
 
-The job backend accepts:
+Both Ray job backends accept:
 
 - Ray connection and environment options through `configure_job_backend(..., **kwargs)`
 - analytics-store configuration through the explicit `analytics_store=...` argument
@@ -118,47 +122,7 @@ For a production cluster, make sure workers can:
    - CPU and GPU resources must be visible to Ray,
    - and the cluster should be sized for the expected capability mix.
 
-## Example: KubeRay-style deployment model
-
-The exact cluster YAML belongs to the platform repository, not to `checkmaite`, but the model usually looks like this:
-
-```yaml
-apiVersion: ray.io/v1
-kind: RayCluster
-spec:
-  headGroupSpec:
-    template:
-      spec:
-        containers:
-          - name: ray-head
-            image: registry.example.com/checkmaite-ray:2026-04-14
-  workerGroupSpecs:
-    - groupName: cpu-workers
-      replicas: 2
-      template:
-        spec:
-          containers:
-            - name: ray-worker
-              image: registry.example.com/checkmaite-ray:2026-04-14
-              resources:
-                limits:
-                  cpu: "8"
-                  memory: "32Gi"
-    - groupName: gpu-workers
-      replicas: 1
-      template:
-        spec:
-          containers:
-            - name: ray-worker
-              image: registry.example.com/checkmaite-ray-gpu:2026-04-14
-              resources:
-                limits:
-                  nvidia.com/gpu: "1"
-                  cpu: "8"
-                  memory: "64Gi"
-```
-
-The important point is not the exact YAML. It is that the **platform image and cluster definition live outside `checkmaite`**, while the backend connects to that cluster and submits tasks into it.
+The default `"ray"` job backend also needs the worker image to import the registry/controller code. The `"ray-simple"` job backend only needs the worker task code and submitted capability dependencies.
 
 ## Example: object-store analytics store
 
@@ -168,6 +132,7 @@ The current jobs analytics-store configuration supports the Parquet backend with
 configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
+    idempotency_scope="team-a-prod-evals",
     analytics_store={
         "backend": "parquet",
         "uri": "s3://team-checkmaite/results",
@@ -210,7 +175,7 @@ The client serializes capability objects and expects workers to import compatibl
 
 ## Current limitations
 
-The current backend deliberately stops short of becoming a packaging system.
+The current job backend deliberately stops short of becoming a packaging system.
 
 It does **not**:
 

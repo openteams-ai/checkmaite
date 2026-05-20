@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from checkmaite.jobs._store import AnalyticsStoreConfig
+from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
 from checkmaite.jobs.backends.ray import RayJobBackend
 from checkmaite.jobs.backends.ray_simple import RaySimpleJobBackend
 
@@ -63,10 +64,11 @@ def submit_capability(
     datasets: Sequence[gen.Dataset[Any, Any, Any]] | None = None,
     metrics: Sequence[gen.Metric[Any, Any]] | None = None,
     config: CapabilityConfigBase | None = None,
-    use_cache: bool = True,
+    use_cache: bool = False,
     **kwargs: Any,
 ) -> Job[CapabilityRunRef]:
     """Submit a capability run as an asynchronous job."""
+    backend = _require_job_backend()
     run_kwargs: dict[str, Any] = {
         "models": models,
         "datasets": datasets,
@@ -75,8 +77,9 @@ def submit_capability(
         "use_cache": use_cache,
     }
     run_kwargs.update(kwargs)
+    run_kwargs = prepare_job_submission_run_kwargs(run_kwargs)
 
-    return _require_job_backend().submit_capability(capability, **run_kwargs)
+    return backend.submit_capability(capability, **run_kwargs)
 
 
 def list_jobs(
@@ -84,7 +87,7 @@ def list_jobs(
     status_filter: JobStatus | Sequence[JobStatus] | None = None,
     submitted_before_ts: float | None = None,
 ) -> Sequence[Job[CapabilityRunRef]]:
-    """List recent jobs tracked by the active backend.
+    """List recent jobs tracked by the active job backend.
 
     Parameters
     ----------
@@ -98,7 +101,7 @@ def list_jobs(
     Returns
     -------
     Sequence[Job[CapabilityRunRef]]
-        Matching jobs tracked by the active backend, or an empty sequence when no backend is configured.
+        Matching jobs tracked by the active job backend, or an empty sequence when no job backend is configured.
     """
     if _active_job_backend is None:
         return []
@@ -115,7 +118,7 @@ def get_job(job_id: str) -> Job[CapabilityRunRef]:
 
 
 def shutdown_job_backend(wait: bool = True) -> None:
-    """Shutdown the active backend, if configured."""
+    """Shutdown the active job backend, if configured."""
     global _active_job_backend
 
     if _active_job_backend is None:

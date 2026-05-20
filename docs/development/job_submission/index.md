@@ -8,46 +8,38 @@
 The job-submission subsystem addresses both problems:
 
 - it gives users a **non-blocking job handle**,
-- it lets the same API target **local or distributed Ray execution**,
-- and it returns a **lightweight reference** to durable results rather than bouncing the full run object back through the client.
+- it lets the same API target **local or distributed job-submission backends**.
 
 ## What to read next
 
 <div class="grid cards" markdown>
 
-- [__Job backend configuration (`configure_job_backend`)__ :octicons-arrow-right-24:](configure_job_backend.md)
-
-  Why explicit `analytics_store` config is required in distributed execution and how that config is forwarded from client to worker.
-
 - [__Protocol and lifecycle__ :octicons-arrow-right-24:](protocol.md)
 
-  Why the jobs protocol exists, why `result()` is reference-first, and how lifecycle semantics work.
+  The shared job handle contract, lifecycle states, reference-first results, and error semantics.
+
+- [__Job backend configuration (`configure_job_backend`)__ :octicons-arrow-right-24:](configure_job_backend.md)
+
+  What backend-level settings must be configured before submission, including execution target, worker environment, storage, and shared job identity.
 
 - [__Ray job backend__ :octicons-arrow-right-24:](ray_job_backend.md)
 
-  Why Ray was chosen, how the backend maps onto Ray Core, and how to use it end-to-end.
+  The default registry/controller-backed Ray job backend for reattachable jobs.
+
+- [__Ray simple job backend__ :octicons-arrow-right-24:](ray_simple_job_backend.md)
+
+  The direct process-local Ray task-based job backend for simple single-driver workflows.
 
 - [__Worker environments__ :octicons-arrow-right-24:](worker_environments.md)
 
   Guidance for platform teams on container images, Ray worker setup, and `runtime_env` overlays.
 
+- [__Kubernetes and KubeRay__ :octicons-arrow-right-24:](kubernetes.md)
+
+  Kubernetes-specific guidance for KubeRay placement, detached actors, autoscaling, and durability boundaries.
+
 - [__Distributed analytics store__ :octicons-arrow-right-24:](analytics_store.md)
 
-  Why durable writes are more subtle in distributed execution and how the current implementation handles idempotency and URI resolution.
-
-- [__Walkthrough notebook__ :octicons-arrow-right-24:](../job_submission_walkthrough.ipynb)
-
-  Executable maintainer walkthrough showing the current job backend behavior in practice.
+  Why durable result writes are more subtle in distributed execution and what job submission expects from the configured store.
 
 </div>
-
-## Current implementation scope
-
-Today the jobs subsystem is intentionally narrow:
-
-- backend: **Ray Core**
-- result type: **`CapabilityRunRef`**
-- durable store configuration: **explicitly required** via `configure_job_backend(..., analytics_store=...)`
-- artifact hydration: **not implemented yet** (`outputs_uri` is expected to be `None`)
-
-These pages document the current code, not a future architecture sketch.

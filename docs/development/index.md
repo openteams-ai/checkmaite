@@ -34,10 +34,6 @@ Documentation for checkmaite developers and contributors.
 
 -  [__Job submission and cluster execution__ :octicons-arrow-right-24:](job_submission/index.md)
 
-    Architecture docs for the jobs protocol, Ray job backend, worker environments, and distributed analytics-store behavior.
-
--  [__Job Submission Walkthrough (Maintainers)__ :octicons-arrow-right-24:](job_submission_walkthrough.ipynb)
-
-    Executable walkthrough of the current asynchronous job submission framework.
+    Developer docs for asynchronous job submission, backend configuration, Ray execution, worker environments, and Kubernetes deployment notes.
 
 </div>

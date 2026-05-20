@@ -47,6 +47,9 @@ nav:  # navigation links on sidebar
       - XAITK: tool-usage/xaitk_tutorial.ipynb
     - Results & analysis:
       - Analytics Store: tool-usage/analytics_store_tutorial.ipynb
+    - Job submission:
+      - Ray Simple Job Submission: tool-usage/ray_simple_job_submission_tutorial.ipynb
+      - Ray Job Submission: tool-usage/ray_job_submission_tutorial.ipynb
 
   - Reference:
     - reference/index.md
@@ -64,9 +67,10 @@ nav:  # navigation links on sidebar
       - Job backend configuration: development/job_submission/configure_job_backend.md
       - Protocol and lifecycle: development/job_submission/protocol.md
       - Ray job backend: development/job_submission/ray_job_backend.md
+      - Ray simple job backend: development/job_submission/ray_simple_job_backend.md
       - Worker environments: development/job_submission/worker_environments.md
+      - Kubernetes and KubeRay: development/job_submission/kubernetes.md
       - Distributed analytics store: development/job_submission/analytics_store.md
-      - Walkthrough notebook: development/job_submission_walkthrough.ipynb
     - User persona: development/persona.md
     - Plugin system: development/plugins.md
     - Contributing: development/contributing.md

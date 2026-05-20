@@ -30,6 +30,18 @@ class RecordingJobBackend:
         self.shutdown_calls.append(wait)
 
 
+class FakeRayJobBackend(RecordingJobBackend):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+        self.kwargs = kwargs
+
+
+class FakeRaySimpleJobBackend(RecordingJobBackend):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+        self.kwargs = kwargs
+
+
 @pytest.fixture(autouse=True)
 def _reset_active_job_backend():
     previous = _api._active_job_backend
@@ -98,6 +110,25 @@ def test_api_helpers_forward_to_active_job_backend() -> None:
     assert backend.get_calls == ["job-1"]
 
 
+def test_submit_capability_defaults_to_no_cache_for_job_submission() -> None:
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
+
+    _api.submit_capability(TinyCapability(), config=TinyConfig())
+
+    assert backend.submissions[0][1]["use_cache"] is False
+
+
+def test_submit_capability_rejects_cache_for_job_submission() -> None:
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
+
+    with pytest.raises(ValueError, match="use_cache=True is not supported"):
+        _api.submit_capability(TinyCapability(), config=TinyConfig(), use_cache=True)
+
+    assert backend.submissions == []
+
+
 def test_shutdown_job_backend_noops_when_unconfigured_and_clears_active_job_backend() -> None:
     _api.shutdown_job_backend(wait=True)
 
@@ -118,3 +149,42 @@ def test_configure_job_backend_rejects_unknown_backend_after_shutting_down_exist
         _api.configure_job_backend("unknown", analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")})
 
     assert backend.shutdown_calls == [False]
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_backend_type"),
+    [
+        ("ray", FakeRayJobBackend),
+        ("ray-simple", FakeRaySimpleJobBackend),
+    ],
+)
+def test_configure_job_backend_instantiates_requested_backend(
+    monkeypatch,
+    tmp_path,
+    kind,
+    expected_backend_type,
+) -> None:
+    monkeypatch.setattr(_api, "RayJobBackend", FakeRayJobBackend)
+    monkeypatch.setattr(_api, "RaySimpleJobBackend", FakeRaySimpleJobBackend)
+
+    store = {"backend": "parquet", "uri": str(tmp_path / "store")}
+
+    _api.configure_job_backend(kind, analytics_store=store, option="value")
+
+    backend = _api._active_job_backend
+    assert isinstance(backend, expected_backend_type)
+    assert backend.kwargs == {"analytics_store": store, "option": "value"}
+
+
+def test_configure_job_backend_shuts_down_existing_job_backend(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(_api, "RayJobBackend", FakeRayJobBackend)
+    previous = RecordingJobBackend()
+    _api._active_job_backend = previous
+
+    _api.configure_job_backend(
+        "ray",
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+    )
+
+    assert previous.shutdown_calls == [False]
+    assert isinstance(_api._active_job_backend, FakeRayJobBackend)

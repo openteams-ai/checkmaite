@@ -58,7 +58,7 @@ def _store(path: Path) -> AnalyticsStore:
 
 
 @pytest.mark.usefixtures("_jobs_smoke_ray_runtime")
-def test_ray_simple_backend_smoke_contract_exercises_default_backend_coverage(tmp_path: Path) -> None:
+def test_ray_simple_job_backend_smoke_contract_exercises_default_backend_coverage(tmp_path: Path) -> None:
     store_path = tmp_path / "analytics-store"
     backend = None
 
@@ -275,20 +275,18 @@ def test_wait_timeout_does_not_cancel_task(local_ray_simple: Path) -> None:
 
 
 @pytest.mark.ray
-def test_worker_execution_ignores_local_cache(local_ray_simple: Path) -> None:
+def test_worker_execution_rejects_local_cache(local_ray_simple: Path) -> None:
     capability = AppendMarkerCapability()
     marker = local_ray_simple.parent / "cache-marker.txt"
-    config = TinyConfig(text="cache-ignored", start_marker_path=str(marker))
+    config = TinyConfig(text="cache-rejected", start_marker_path=str(marker))
 
-    cached_run = capability.run(config=config, use_cache=True)
+    capability.run(config=config, use_cache=True)
     assert marker.read_text().splitlines() == ["run"]
 
-    job = submit_capability(capability, config=config, use_cache=True)
-    ref = job.result(timeout=30)
+    with pytest.raises(ValueError, match="use_cache=True is not supported"):
+        submit_capability(capability, config=config, use_cache=True)
 
-    assert ref.run_uid == cached_run.run_uid
-    assert ref.summary["md_report"] == "cache-ignored:0.5"
-    assert marker.read_text().splitlines() == ["run", "run"]
+    assert marker.read_text().splitlines() == ["run"]
 
 
 @pytest.mark.ray
@@ -374,8 +372,8 @@ def test_repeated_submissions_are_independent_jobs(local_ray_simple: Path) -> No
     capability = TinyCapability()
     config = TinyConfig(text="repeat-simple")
 
-    job1 = submit_capability(capability, config=config, use_cache=True)
-    job2 = submit_capability(capability, config=config, use_cache=True)
+    job1 = submit_capability(capability, config=config, use_cache=False)
+    job2 = submit_capability(capability, config=config, use_cache=False)
 
     assert isinstance(job1, RaySimpleJob)
     assert isinstance(job2, RaySimpleJob)

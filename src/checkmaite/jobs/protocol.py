@@ -29,7 +29,7 @@ class JobStatus(enum.Enum):
     Transition notes
     ----------------
     - ``PENDING`` usually transitions to ``RUNNING`` or ``CANCELLED``.
-      Some backends may also report ``FAILED`` from ``PENDING`` when
+      Some job backends may also report ``FAILED`` from ``PENDING`` when
       queue/wait timeout policies are enforced.
     - ``RUNNING`` transitions to ``COMPLETED``, ``FAILED``, or ``CANCELLED``.
       In distributed schedulers, ``RUNNING`` may transiently return to
@@ -57,7 +57,7 @@ class CapabilityRunRefPayload(TypedDict):
     """Plain serialized form of ``CapabilityRunRef`` used at storage boundaries.
 
     ``CapabilityRunRef`` is the validated public API object returned to users.
-    Backends store and pass this payload form in registries, actor messages, and
+    Job backends store and pass this payload form in registries, actor messages, and
     future durable metadata stores so job records stay JSON-compatible plain
     data instead of long-lived Pydantic/Python objects. Convert models to this
     shape with ``CapabilityRunRef.model_dump(mode="json")`` and validate it back
@@ -125,6 +125,10 @@ class JobTimeoutError(JobError, TimeoutError):
         super().__init__(job_id, f"timed out after {timeout:.3f}s")
 
 
+class BackpressureError(RuntimeError):
+    """Raised when a job backend rejects control-plane calls under load."""
+
+
 class RunArtifactNotAvailableError(JobError):
     """Raised when requested run artifacts are unavailable."""
 
@@ -133,10 +137,10 @@ T = TypeVar("T", covariant=True)
 
 
 class Job(Protocol, Generic[T]):
-    """JobBackend-agnostic handle for an asynchronous submission.
+    """Job-backend-agnostic handle for an asynchronous submission.
 
     A ``Job`` represents one submitted unit of work and exposes a minimal,
-    notebook-friendly lifecycle API shared across backends.
+    notebook-friendly lifecycle API shared across job backends.
 
     Status observations follow :class:`JobStatus` semantics. Terminal states
     (``COMPLETED``, ``FAILED``, ``CANCELLED``) are immutable.
@@ -148,7 +152,7 @@ class Job(Protocol, Generic[T]):
 
     @property
     def job_id(self) -> str:
-        """Unique identifier for this submission in the active backend."""
+        """Unique identifier for this submission in the active job backend."""
         ...
 
     @property
@@ -180,7 +184,7 @@ class Job(Protocol, Generic[T]):
         Returns
         -------
         T
-            The backend result payload for this job when status reaches
+            The job backend result payload for this job when status reaches
             ``COMPLETED``.
 
         Raises
@@ -205,7 +209,7 @@ class Job(Protocol, Generic[T]):
         Notes
         -----
         If ``timeout`` expires, implementations typically return the latest
-        non-terminal status (commonly ``PENDING`` or ``RUNNING``). Backends
+        non-terminal status (commonly ``PENDING`` or ``RUNNING``). Job backends
         with explicit timeout policies may instead surface ``FAILED``.
         """
         ...
@@ -214,7 +218,7 @@ class Job(Protocol, Generic[T]):
         """Return the captured failure exception when available.
 
         Returns ``None`` for non-failed jobs or when no exception has been
-        resolved yet by the backend wrapper.
+        resolved yet by the job backend wrapper.
         """
         ...
 
@@ -231,12 +235,12 @@ class Job(Protocol, Generic[T]):
 
 
 class JobBackend(Protocol):
-    """JobBackend protocol for capability job submission.
+    """Job backend protocol for capability job submission.
 
-    Implementations are responsible for mapping backend-native execution state
-    to the shared :class:`JobStatus` lifecycle and exception contracts.
+    Implementations are responsible for mapping their native execution state to
+    the shared :class:`JobStatus` lifecycle and exception contracts.
 
-    For capability submission, backends should follow reference-first results
+    For capability submission, job backends should follow reference-first results
     and return :class:`CapabilityRunRef` via :meth:`Job.result`.
     """
 
@@ -250,7 +254,7 @@ class JobBackend(Protocol):
             ``Capability.run(...)``).
         **kwargs
             Submission/run arguments (models, datasets, metrics, config,
-            cache flags, backend-specific options).
+            cache flags, job-backend-specific options).
 
         Returns
         -------
@@ -266,7 +270,7 @@ class JobBackend(Protocol):
         status_filter: JobStatus | Sequence[JobStatus] | None = None,
         submitted_before_ts: float | None = None,
     ) -> Sequence[Job[CapabilityRunRef]]:
-        """Return recent capability-submission jobs tracked by this backend.
+        """Return recent capability-submission jobs tracked by this job backend.
 
         Parameters
         ----------
@@ -285,12 +289,12 @@ class JobBackend(Protocol):
         Raises
         ------
         KeyError
-            If the backend does not track ``job_id``.
+            If the job backend does not track ``job_id``.
         """
         ...
 
     def shutdown(self, wait: bool = True) -> None:
-        """Shut down backend resources/tracking state.
+        """Shut down job backend resources/tracking state.
 
         Parameters
         ----------

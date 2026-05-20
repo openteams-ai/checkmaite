@@ -45,3 +45,17 @@
     The analytics store persists capability results as queryable records, enabling SQL-based comparison across runs, datasets, and capabilities.
 
 </div>
+
+## Job submission
+
+<div class="grid cards" markdown >
+
+-   [__Ray Simple Job Submission__ :octicons-arrow-right-24:](ray_simple_job_submission_tutorial.ipynb)
+
+    Run a capability asynchronously with the lightweight process-local Ray task backend.
+
+-   [__Ray Job Submission__ :octicons-arrow-right-24:](ray_job_submission_tutorial.ipynb)
+
+    Run a capability asynchronously with the registry-backed Ray backend for tracked and reattachable jobs.
+
+</div>

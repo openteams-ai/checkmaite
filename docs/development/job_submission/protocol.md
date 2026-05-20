@@ -2,7 +2,7 @@
 
 The jobs protocol gives `checkmaite` a small, backend-agnostic contract for asynchronous execution.
 
-Instead of coupling notebooks and higher-level APIs directly to Ray primitives, the codebase defines a common shape for:
+Instead of coupling notebooks and higher-level APIs directly to backend-specific primitives, the codebase defines a common shape for:
 
 - submission,
 - lifecycle status,
@@ -10,7 +10,7 @@ Instead of coupling notebooks and higher-level APIs directly to Ray primitives, 
 - error mapping,
 - and result payloads.
 
-That contract is implemented today by the Ray job backend, but it is deliberately phrased as a protocol so other backends can adopt the same semantics later.
+That contract is implemented today by the available job backends, but it is deliberately phrased as a protocol so other backends can adopt the same semantics later.
 
 ## Why a protocol is useful
 
@@ -18,7 +18,7 @@ A protocol buys us three things.
 
 ### 1. Stable user-facing semantics
 
-Notebook code can work with `Job[CapabilityRunRef]` rather than backend-specific objects. That means callers can rely on:
+Notebook code can work with `Job[CapabilityRunRef]` rather than job-backend-specific objects. That means callers can rely on:
 
 - `job.status`
 - `job.wait(timeout=...)`
@@ -28,13 +28,13 @@ Notebook code can work with `Job[CapabilityRunRef]` rather than backend-specific
 
 without knowing how those behaviors are implemented underneath.
 
-### 2. Thin backend wrappers
+### 2. Thin job backend wrappers
 
-The backend only needs to map its native state model onto the shared `JobStatus` and exception contracts. The public API remains small enough to implement without building a custom scheduler abstraction.
+The job backend only needs to map its native state model onto the shared `JobStatus` and exception contracts. The public API remains small enough to implement without building a custom scheduler abstraction.
 
-### 3. Room for additional backends later
+### 3. Room for additional job backends later
 
-The current code uses Ray Core, but the protocol is what makes future implementations plausible:
+The current code uses Ray-backed implementations, but the protocol is what makes future implementations plausible:
 
 - a different Ray submission style,
 - a platform-specific scheduler,
@@ -53,8 +53,8 @@ In distributed execution, returning the full `CapabilityRunBase` payload by defa
 
 So the current contract is intentionally **reference-first**:
 
-- the worker runs the capability,
-- the worker writes analytics-store records,
+- the backend runs the capability asynchronously,
+- result data is persisted outside the job handle,
 - the job returns a small `CapabilityRunRef`,
 - and any future full-payload loading can be added explicitly rather than implicitly.
 
@@ -65,6 +65,21 @@ In practice, `CapabilityRunRef` contains:
 - `store_uri`
 - `outputs_uri` (`None` today)
 - `summary` (small human-readable data such as markdown report content)
+
+Storage semantics and URI resolution are documented in [Distributed analytics store](analytics_store.md).
+
+## Cache semantics
+
+Job submission intentionally disables capability-local cache usage. Calls with
+`use_cache=True` are rejected before work is submitted, and workers execute
+capabilities with `use_cache=False`. A worker may be a short-lived process on a
+different node or container, so its local cache is not a reliable shared cache
+for clients or other workers.
+
+For repeated submitted work, rely on backend-level idempotency/dedupe (where the
+backend supports it) and durable analytics-store outputs. Any future shared cache
+support should be configured as an explicit remote cache backend rather than by
+using worker-local cache state.
 
 ## Lifecycle
 
@@ -95,34 +110,6 @@ The protocol also standardizes how failures are exposed:
 - `JobTimeoutError` — the caller waited too long
 - `JobCancelledError` — the job was cancelled
 - `JobFailedError` — the remote work failed
+- `BackpressureError` — the backend control plane is overloaded and the caller should retry with backoff
 
-This lets notebook code write one error-handling path even if execution backends change.
-
-## Why analytics-store handling is harder in distributed execution
-
-The analytics store is the part of the protocol that becomes more subtle once compute moves off the client machine.
-
-In the single-machine synchronous case, the same process can:
-
-1. run the capability,
-2. decide where to write records,
-3. and immediately know where those records live.
-
-In distributed job submission, those responsibilities split across machines:
-
-- the **client** chooses the durable store location,
-- the **worker** needs that configuration so it knows where to write,
-- and the **client** later needs a stable way to find the data that the worker wrote.
-
-That is why the current API requires explicit analytics-store configuration at backend setup time:
-
-```python
-configure_job_backend(
-    "ray",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
-)
-```
-
-The worker receives that store configuration, writes the run, and returns a `store_uri` pointing at the payload object that now contains the run's durable data.
-
-If you want the code-level walkthrough that exercises all of this behavior, see the [Job Submission Walkthrough notebook](../job_submission_walkthrough.ipynb).
+This lets notebook code write one error-handling path even if job backends change.

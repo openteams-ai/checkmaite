@@ -9,6 +9,7 @@ from checkmaite.jobs._store import AnalyticsStoreConfig
 from checkmaite.jobs.backends.ray import RayJob, RayJobBackend
 from checkmaite.jobs.backends.ray_simple import RaySimpleJob, RaySimpleJobBackend
 from checkmaite.jobs.protocol import (
+    BackpressureError,
     CapabilityRunRef,
     CapabilityRunRefPayload,
     Job,
@@ -23,6 +24,7 @@ from checkmaite.jobs.protocol import (
 
 __all__ = [
     "AnalyticsStoreConfig",
+    "BackpressureError",
     "CapabilityRunRef",
     "CapabilityRunRefPayload",
     "Job",

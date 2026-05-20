@@ -14,6 +14,7 @@ from ray.exceptions import GetTimeoutError, TaskCancelledError
 from checkmaite.core.analytics_store import AnalyticsStore
 from checkmaite.core.capability_core import CapabilityRunBase
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
+from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
 from checkmaite.jobs.protocol import (
     CapabilityRunRef,
     CapabilityType,
@@ -53,11 +54,10 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
     it on a worker, where it runs the capability, writes analytics-store data,
     and returns a lightweight :class:`CapabilityRunRef` to the client.
     """
-    run_kwargs = dict(run_kwargs)
     # TODO: Future work should support a remote/shared cache backend
     # (for example object storage) that workers can read from. At that point,
     # worker execution can safely opt into cache usage.
-    run_kwargs["use_cache"] = False
+    run_kwargs = prepare_job_submission_run_kwargs(run_kwargs)
 
     report_threshold = float(run_kwargs.pop("report_threshold", 0.5))
     raw_store_config = run_kwargs.pop("_analytics_store")
@@ -226,7 +226,7 @@ class RaySimpleJobBackend:
         return {"num_gpus": float(num_gpus), "num_cpus": int(num_cpus)}
 
     def submit_capability(self, capability: CapabilityType, **kwargs: Any) -> RaySimpleJob:
-        run_kwargs = dict(kwargs)
+        run_kwargs = prepare_job_submission_run_kwargs(kwargs)
         job_id = uuid.uuid4().hex
         created_at = datetime.now(timezone.utc)
 
