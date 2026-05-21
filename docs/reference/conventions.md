@@ -54,6 +54,17 @@ In order for users to be able to bring their own models to `checkmaite`, without
 
 - Other datum-level metadata will be stored as strings in `DatumMetadata`.
 
+### `index2label` relationship between models and datasets
+
+Both model and dataset wrappers should expose `index2label` metadata.
+Models need this mapping so model-only consumers, such as XAITK saliency workflows, can label predictions.
+Datasets need this mapping because labels in targets are integer ids and models trained from datasets inherit the dataset's class-id mapping.
+
+A model and dataset used together do not need to have identical `index2label` dictionaries, but any overlap must agree.
+If both mappings contain an index, that index should refer to the same class label in both places.
+If both mappings contain a class label, that label should have the same index in both places.
+It is acceptable for one mapping to be a superset of the other, but users and metric authors should account for the resulting behavior; for example, a model whose mapping omits dataset classes cannot predict those classes.
+
 ### COCO metadata convention
 
 For COCO object detection datasets, `checkmaite` treats COCO metadata as follows:
