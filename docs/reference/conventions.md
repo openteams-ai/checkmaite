@@ -54,6 +54,17 @@ In order for users to be able to bring their own models to `checkmaite`, without
 
 - Other datum-level metadata will be stored as strings in `DatumMetadata`.
 
+### COCO metadata convention
+
+For COCO object detection datasets, `checkmaite` treats COCO metadata as follows:
+
+- `categories` define dataset-level class metadata and are exposed as `DatasetMetadata.index2label`.
+- Each entry in `images` is returned as datum-level metadata for that image. Extra user-defined fields in an `images` entry are preserved.
+- Extra fields in `annotations` are considered annotation-level metadata and are not currently surfaced by `CocoDetectionDataset`.
+- Extra fields in `info`, `licenses`, or `categories` are not currently surfaced, except for the category id/name mapping used to build `index2label`.
+
+If annotation-level metadata becomes necessary for downstream tools, `checkmaite` should expose it through an explicit typed metadata structure rather than merging it ambiguously into image-level datum metadata.
+
 ### Supported dataset annotation formats
 
 In order for users to be able to bring their own datasets to `checkmaite`, without having to write any additional code to support the loading and wrapping of that dataset into MAITE-compliant objects, we must provide some generalized wrappers for commonly used annotation formats for loading data. This list contains the set of dataset annotation and storage formats that `checkmaite` has (or will) support. This includes the ability to load the datasets from a user-provided location.

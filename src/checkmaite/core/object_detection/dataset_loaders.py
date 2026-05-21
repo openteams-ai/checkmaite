@@ -77,8 +77,9 @@ class CocoDetectionDataset(FieldwiseDataset):
 
     Notes
     -----
-    The checkmaite team follows the convention of using the `image` field to store all relevant metadata.
-    If your dataset includes custom metadata fields, ensure they are placed inside the `image` field.
+    COCO `categories` are exposed as dataset-level `index2label` metadata.
+    Each COCO `images` entry is returned as datum-level metadata, including any extra user-defined fields.
+    Extra fields in `annotations`, `info`, `licenses`, or `categories` are not otherwise surfaced.
 
     """
 
