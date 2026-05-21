@@ -32,6 +32,8 @@ from checkmaite.ui.configuration_pages.image_classification.nrtk_app import NRTK
         ),
     ],
 )
+# PyBSM may emit these warnings for some optical parameter combinations during its internal OTF calculation.
+# This test only verifies NRTK UI configuration plumbing, so the numerical warning is irrelevant here.
 @pytest.mark.filterwarnings("ignore:invalid value encountered in (arccos|sqrt):RuntimeWarning")
 def test_base_app_widgets(perturber_type, perturber_factory_type, factory_args) -> None:
     """This tests the basic functionality provided in the base class"""
