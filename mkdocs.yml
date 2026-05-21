@@ -1,5 +1,5 @@
 site_name: checkmaite
-site_url: https://jatic.pages.jatic.net/reference-implementation/reference-implementation/
+site_url: !ENV [MKDOCS_SITE_URL, "https://jatic.pages.jatic.net/reference-implementation/reference-implementation/"]
 use_directory_urls: false
 theme:
   name: material
