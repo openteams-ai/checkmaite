@@ -22,6 +22,9 @@ variables:
   CI_DIAGNOSTICS:
     value: "true"
     description: "Set to true to enable resource diagnostics logging in CI jobs."
+  RELEASE_TAG:
+    value: ""
+    description: "Tag to publish to PyPI from a manually triggered web pipeline."
 
 
 stages:
@@ -31,6 +34,7 @@ stages:
   - test
   - docs
   - dr-compliance
+  - publish
 
 .git_config: &git_config
 # For internal git dependencies
@@ -285,6 +289,111 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
     # Only run this rule if on main branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+
+.publish-python-package:
+  stage: publish
+  image: python:3.10
+  retry: 0
+  interruptible: false
+  artifacts:
+    when: always
+    paths:
+      - dist/
+    expire_in: never
+  variables:
+    GIT_DEPTH: "0"
+    TWINE_USERNAME: "__token__"
+  before_script:
+    - *git_config
+    - export PATH=${HOME}/.local/bin:${PATH}
+    - pip install --upgrade pip
+    - pip install --user "poetry==2.1.2" "twine==5.1.1"
+    - python --version
+    - poetry --version
+    - twine --version
+  script:
+    - |
+      set -euo pipefail
+
+      if [ -z "${RELEASE_TAG:-}" ]; then
+        echo "RELEASE_TAG must be set in the 'Run pipeline' form (CI/CD -> Pipelines -> Run pipeline)."
+        exit 1
+      fi
+
+      RELEASE_TAG="$(printf '%s' "$RELEASE_TAG" | tr -d '[:space:]')"
+      if ! [[ "$RELEASE_TAG" =~ ^[0-9]+[.][0-9]+[.][0-9]+([.-][A-Za-z0-9.]+)?$ ]]; then
+        echo "RELEASE_TAG '$RELEASE_TAG' must match X.Y.Z with no 'v' prefix."
+        exit 1
+      fi
+
+      if [ -z "${TWINE_PASSWORD:-}" ]; then
+        echo "TWINE_PASSWORD is not configured for this publish job."
+        exit 1
+      fi
+
+      echo "Publish to ${PYPI_ENVIRONMENT_NAME} triggered by ${GITLAB_USER_LOGIN:-unknown} (${GITLAB_USER_EMAIL:-unknown}) at $(date -u +%FT%TZ)."
+
+      git fetch --prune origin "${CI_DEFAULT_BRANCH}:refs/remotes/origin/${CI_DEFAULT_BRANCH}"
+
+      REMOTE_TAG_OBJECT="$(git ls-remote --tags --refs origin "refs/tags/${RELEASE_TAG}" | awk 'NF {print $1; exit}')"
+      if [ -z "$REMOTE_TAG_OBJECT" ]; then
+        echo "RELEASE_TAG '$RELEASE_TAG' not found on origin."
+        exit 1
+      fi
+
+      if git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"; then
+        LOCAL_TAG_OBJECT="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}")"
+        if [ "$LOCAL_TAG_OBJECT" != "$REMOTE_TAG_OBJECT" ]; then
+          echo "Tag '$RELEASE_TAG' on origin ($REMOTE_TAG_OBJECT) does not match local ($LOCAL_TAG_OBJECT); refusing to publish."
+          exit 1
+        fi
+      else
+        git fetch --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+      fi
+
+      TAG_COMMIT="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+      echo "Publishing ${RELEASE_TAG} (${TAG_COMMIT}) to ${PYPI_ENVIRONMENT_NAME}."
+
+      if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/${CI_DEFAULT_BRANCH}"; then
+        echo "RELEASE_TAG ${RELEASE_TAG} (${TAG_COMMIT}) is not on origin/${CI_DEFAULT_BRANCH}."
+        exit 1
+      fi
+
+      rm -rf dist/
+      git checkout --detach "$TAG_COMMIT"
+      poetry build
+      twine check dist/*
+      twine upload --non-interactive --disable-progress-bar dist/*
+
+publish-testpypi:
+  extends: .publish-python-package
+  environment:
+    name: pypi-test
+    url: https://test.pypi.org/project/checkmaite/
+  variables:
+    PYPI_ENVIRONMENT_NAME: "TestPyPI"
+    TWINE_PASSWORD: "$TEST_PYPI_API_TOKEN"
+    TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: false
+    - when: never
+
+publish-pypi:
+  extends: .publish-python-package
+  environment:
+    name: pypi-production
+    url: https://pypi.org/project/checkmaite/
+  variables:
+    PYPI_ENVIRONMENT_NAME: "PyPI"
+    TWINE_PASSWORD: "$PYPI_API_TOKEN"
+    TWINE_REPOSITORY_URL: "https://upload.pypi.org/legacy/"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: false
+    - when: never
 
 # SECURITY STAGES
 include:
