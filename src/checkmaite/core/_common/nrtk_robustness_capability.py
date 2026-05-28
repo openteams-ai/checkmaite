@@ -7,7 +7,11 @@ from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
 from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 
-from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
@@ -201,7 +205,7 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
         return records
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Access the in-depth data needed by Gradient to produce a report generated in the run method or in the

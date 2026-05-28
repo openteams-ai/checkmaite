@@ -19,7 +19,12 @@ from checkmaite.core._common.feature_extractor import (
     to_unit_interval_01,
 )
 from checkmaite.core._types import Device, ModelSpec, TorchvisionModelSpec
-from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+    set_device,
+)
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -155,7 +160,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         ]
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
         """Create slides for Gradient report.
@@ -192,7 +197,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             gd.Text(t)
             for t in (
                 [gd.SubText("Result:", bold=True)],
-                f"{'Feasible' if is_feasible else 'Challenging'} " f"for threshold {threshold}",
+                f"{'Feasible' if is_feasible else 'Challenging'} for threshold {threshold}",
                 [gd.SubText("Interpretation:", bold=True)],
                 " * Low BER -> classes are well-separated in embedding space",
                 " * High BER -> class ambiguity, label noise, or insufficient visual evidence",
@@ -247,9 +252,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         md.add_blank_line()
 
         md.add_text(
-            f"**Result:** Problem is likely "
-            f"{'feasible' if is_feasible else 'NOT feasible'} "
-            f"for threshold {threshold}."
+            f"**Result:** Problem is likely {'feasible' if is_feasible else 'NOT feasible'} for threshold {threshold}."
         )
         md.add_blank_line()
 
@@ -319,7 +322,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         hs = results.health_stats
         md.add_section(heading="Dataset Health Statistics")
         md.add_text(
-            "The threshold value represents instance crop classification accuracy " "(1 − BER), not detection mAP."
+            "The threshold value represents instance crop classification accuracy (1 − BER), not detection mAP."
         )
         md.add_table(
             headers=["Statistic", "Value"],
@@ -549,8 +552,7 @@ def _build_health_stats(
     health_warnings: list[str] = []
     if small_object_ratio > config.small_object_warn_ratio:
         msg = (
-            f"High fraction of small objects: {small_object_ratio:.1%} "
-            f"(threshold {config.small_object_warn_ratio:.1%})"
+            f"High fraction of small objects: {small_object_ratio:.1%} (threshold {config.small_object_warn_ratio:.1%})"
         )
         logger.warning(msg)
         health_warnings.append(msg)

@@ -12,7 +12,11 @@ from pydantic import Field
 
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector
 from checkmaite.core._types import Device, ModelSpec, TorchvisionModelSpec
-from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
@@ -167,7 +171,7 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
             )
         ]
 
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Convert results from drift and OOD detection into a Gradient-consumable list of slides.
@@ -455,7 +459,11 @@ def collect_drift(
     drift analysis text and a corresponding DataFrame.
     """
     drift_fields = {
-        field_name: {"drifted": field_value.drifted, "distance": field_value.distance, "p_val": field_value.p_val}
+        field_name: {
+            "drifted": field_value.drifted,
+            "distance": field_value.distance,
+            "p_val": field_value.details["p_val"],
+        }
         for field_name, field_value in drift_outputs
     }
 

@@ -1,5 +1,5 @@
 """Check if conda lockfile is consistent with pyproject.toml.
-Conda lock does not include unsupported and ui optional dependencies
+Conda lock does not include optional dependency extras.
 """
 
 import logging

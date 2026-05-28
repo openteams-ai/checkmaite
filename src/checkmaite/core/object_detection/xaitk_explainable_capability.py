@@ -15,7 +15,11 @@ from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
 from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
-from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+)
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 from checkmaite.core.report._markdown import MarkdownOutput
@@ -123,7 +127,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
         return records
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Access the in-depth data needed by Gradient to produce a report
@@ -190,7 +194,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     "deck": self.capability_id,
                     "layout_name": "TwoItem",
                     "layout_arguments": {
-                        "title": (f"Xai Saliency Map -- " f"Image ID: {datum.img_id}, " f"Detection: {sal_idx}"),
+                        "title": (f"Xai Saliency Map -- Image ID: {datum.img_id}, Detection: {sal_idx}"),
                         "left_item": Path(save_figure_to_tempfile(fig)),
                         "right_item": (
                             f"**Model:** {model_id}\n"

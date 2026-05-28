@@ -20,7 +20,12 @@ if TYPE_CHECKING:
 
 
 from checkmaite import cache_path
-from checkmaite.core._utils import deprecated, requires_optional_dependency, squash_repeated_warnings
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+    squash_repeated_warnings,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
@@ -220,7 +225,7 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
     config: DataevalCleaningConfig
     outputs: DataevalCleaningOutputs
 
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Collect reports for duplicates and outliers for image and target data.

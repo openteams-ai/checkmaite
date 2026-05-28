@@ -127,15 +127,7 @@ bokeh = ">=3.8.2"
 [project.scripts]
 checkmaite-serve = "checkmaite.ui.app:main"
 
-# We use this instead of an optional Poetry group because in our testing we found that conda-lock (v 3.0.4) does not
-# appear to honor optional dependencies when the source is a Git URL... this causes problems at solve time if the solver
-# does not have a valid token for gitlab.jatic.net, and at install time since it appears to pip install the git-sourced
-# dependencies even when they're in an "optional" Poetry group. These will not be included in the conda-lock file.
 [project.optional-dependencies]
-unsupported = [
-    # checkmaite-plugins only supports Python <3.12 due to Java/pyspark dependencies
-    "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main ; python_version < '3.12'",
-]
 ui = [
     "holoviews>=1.20.0",
     "jupyterlab>=4.3.5",

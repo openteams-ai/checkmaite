@@ -22,7 +22,6 @@ Optional extras for end users:
 pip install ".[ui]"           # UI dependencies
 pip install ".[reporting]"    # PDF report export (markdown + xhtml2pdf)
 pip install ".[cloud]"        # cloud storage dependencies (aws+gcs+azure)
-pip install ".[unsupported]"  # installs checkmaite-plugins (includes Java/PySpark deps, Python <3.12)
 ```
 
 `dev`/`docs` dependencies are Poetry dependency groups, not `pip` extras.
@@ -39,15 +38,11 @@ poetry install
 
 JATIC tools which are not under active development are distributed through the separate `checkmaite-plugins` package.
 Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future.
+`checkmaite-plugins` supports Python `<3.12` and is installed directly from GitLab instead of through a
+`checkmaite` extra so that the PyPI package metadata remains valid.
 
 ```bash
-poetry install --extras unsupported
-```
-
-You can also install the plugin package directly:
-
-```bash
-pip install "checkmaite-plugins[unsupported]"
+poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
 If you are developing locally across both repositories:

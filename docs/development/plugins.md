@@ -93,16 +93,11 @@ The [`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interope
 - **ReallabelLabelling** (object detection) — labelling via RealLabel + PySpark
 - **Survivor** (object detection + image classification) — survivability analysis
 
-Install via the `unsupported` extra in checkmaite:
+Install the plugin package directly from GitLab. It supports Python `<3.12` and is intentionally kept out of
+`checkmaite` package metadata so that PyPI accepts checkmaite releases:
 
 ```bash
-poetry install --extras unsupported
-```
-
-Or directly:
-
-```bash
-pip install "checkmaite-plugins[unsupported]"
+poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
 ## Creating a Plugin

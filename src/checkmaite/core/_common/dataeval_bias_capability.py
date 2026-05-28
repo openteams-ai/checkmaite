@@ -16,7 +16,12 @@ from pydantic import Field
 from checkmaite import cache_path
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from checkmaite.core._types import Device, Image, ModelSpec, TorchvisionModelSpec
-from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+    set_device,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.capability_core import (
     Capability,
@@ -198,7 +203,7 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
         ]
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002  # pragma: no cover
         """Collect consumables for the report.
@@ -491,7 +496,11 @@ def report_coverage(deck: str, coverage: DataevalBiasCoverageOutputs) -> dict[st
     uncovered_percent = round(uncovered_count / coverage.total, 2)
 
     cov_df = pd.DataFrame(
-        {"Potentially under-represented images": [f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)"]},
+        {
+            "Potentially under-represented images": [
+                f"{uncovered_count} of {coverage.total} ({uncovered_percent * 100}%)"
+            ]
+        },
     )
 
     content = gd.Text(
@@ -592,7 +601,7 @@ def report_balance_classwise(deck: str, outputs: DataevalBiasBalanceOutputs) -> 
         ],
         [
             gd.SubText(
-                "Values approaching or exceeding 0.5 in the heat map should be further " "investigated.",
+                "Values approaching or exceeding 0.5 in the heat map should be further investigated.",
                 fontsize=20,
             )
         ],
@@ -751,7 +760,7 @@ def report_coverage_md(md: MarkdownOutput, coverage: DataevalBiasCoverageOutputs
         rows=[
             [
                 "Potentially under-represented images",
-                f"{uncovered_count} of {coverage.total} ({uncovered_percent*100}%)",
+                f"{uncovered_count} of {coverage.total} ({uncovered_percent * 100}%)",
             ],
             ["Coverage radius", f"{coverage.coverage_radius:.4f}"],
         ],

@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 P = ParamSpec("P")
 R = TypeVar("R")
 
+CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT = (
+    "pip install 'checkmaite-plugins[unsupported] @ "
+    "git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main'"
+)
+
 
 class MissingDependencyWarning(UserWarning):
     """Optional dependency missing for a code path."""
@@ -284,9 +289,7 @@ def requires_optional_dependency(
             except ImportError:
                 hint = f"\nInstall: {install_hint}" if install_hint else ""
                 msg = (
-                    f"'{func.__qualname__}' requires optional dependency '{module_name}', "
-                    "which is not installed."
-                    f"{hint}"
+                    f"'{func.__qualname__}' requires optional dependency '{module_name}', which is not installed.{hint}"
                 )
                 raise ImportError(msg) from None
             return func(*args, **kwargs)

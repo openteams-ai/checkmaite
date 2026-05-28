@@ -55,18 +55,22 @@ To contribute to the documentation, install with the docs dependencies:
 poetry install --with docs
 ```
 
-There are also optional dependency groups, `ui`, `reporting`, and `unsupported`:
+There are also optional dependency groups, `ui` and `reporting`:
 
 ```bash
 poetry install --extras ui
 poetry install --extras reporting   # PDF report export (markdown + xhtml2pdf)
-poetry install --extras unsupported
 ```
 
-The `unsupported` extra installs the separate `checkmaite-plugins` package
-with its own `unsupported` dependencies.
+JATIC tools which are not under active development are distributed through the separate
+`checkmaite-plugins` package. It supports Python `<3.12` and is installed directly from GitLab instead of
+through a `checkmaite` extra so that the PyPI package metadata remains valid:
 
-If you want to install all the extras, you can use:
+```bash
+poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
+```
+
+If you want to install all the checkmaite extras, you can use:
 
 ```bash
 poetry install --all-extras

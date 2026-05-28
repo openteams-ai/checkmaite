@@ -6,7 +6,11 @@ import numpy as np
 import pydantic
 from matplotlib.figure import Figure
 
-from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.cached_tasks import evaluate
 from checkmaite.core.capability_core import (
@@ -72,7 +76,7 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
     outputs: MaiteEvaluationOutputs
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
         """Access data for Gradient report generation.

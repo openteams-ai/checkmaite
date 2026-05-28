@@ -12,7 +12,11 @@ from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
 
 from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
-from checkmaite.core._utils import deprecated, requires_optional_dependency
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+)
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import save_figure_to_tempfile
@@ -110,7 +114,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
         return records
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002 # pragma: no cover
         """Access the in-depth data needed by Gradient to produce a report
@@ -198,12 +202,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                         "layout_name": "OneImageText",
                         "layout_arguments": {
                             "title": f"**XAITK Saliency Map**: {sal_idx} \n",
-                            "text": (
-                                f"Model: {model_id}\n"
-                                f"Image: {i}\n"
-                                f"GT: {gt_label}\n"
-                                f"Pred: {index2label[sal_idx]}"
-                            ),
+                            "text": (f"Model: {model_id}\nImage: {i}\nGT: {gt_label}\nPred: {index2label[sal_idx]}"),
                             "image_path": Path(save_figure_to_tempfile(fig)),
                         },
                     }

@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-_GRADIENT_INSTALL_HINT = "pip install checkmaite[unsupported]"
+from checkmaite.core._utils import CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT
+
+_GRADIENT_INSTALL_HINT = CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT
 
 
 def _missing_gradient_error() -> ImportError:

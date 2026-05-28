@@ -13,7 +13,12 @@ from checkmaite.core._common._knn import compute_ber_knn
 from checkmaite.core._common.dataeval_feasibility_record import DataevalFeasibilityRecord
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from checkmaite.core._types import Device, ModelSpec, TorchvisionModelSpec
-from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+    set_device,
+)
 from checkmaite.core.capability_core import Capability, CapabilityConfigBase, CapabilityRunBase, Number
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
@@ -82,7 +87,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
         ]
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:
         results = self.outputs

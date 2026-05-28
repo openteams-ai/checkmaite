@@ -26,7 +26,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 
 from checkmaite.core._types import Device, Image
-from checkmaite.core._utils import deprecated, requires_optional_dependency, set_device
+from checkmaite.core._utils import (
+    CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
+    deprecated,
+    requires_optional_dependency,
+    set_device,
+)
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
@@ -106,7 +111,7 @@ class DataevalSufficiencyConfig(CapabilityConfigBase):
 
         if has_epochs and has_iters:
             raise ValueError(
-                "Cannot specify both 'num_epochs' and 'num_iters'. " "Please provide exactly one of these parameters."
+                "Cannot specify both 'num_epochs' and 'num_iters'. Please provide exactly one of these parameters."
             )
 
         if not has_epochs and not has_iters:
@@ -130,7 +135,7 @@ class DataevalSufficiencyRun(CapabilityRunBase[DataevalSufficiencyConfig, Dataev
     outputs: DataevalSufficiencyOutputs
 
     # The order is important
-    @requires_optional_dependency("gradient", install_hint="pip install '.[unsupported]'")
+    @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # noqa: ARG002  # pragma: no cover
         """Collect consumables for the report.
