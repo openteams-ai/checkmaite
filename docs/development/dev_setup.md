@@ -84,11 +84,6 @@ This project utilizes `pre-commit` for linting and formatting. **Developers** sh
 poetry run pre-commit install
 ```
 
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite directory to install dev dependencies and pre-commit hooks in one step:
-```bash
-make init
-```
-
 ### Option 2: Setup conda environment
 
 To set up a conda environment, [install `conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) on your machine and build the environment by running:
@@ -99,7 +94,7 @@ conda create -n checkmaite "conda-lock>=3"
 # activate the environment
 conda activate checkmaite
 # use conda-lock to install dependencies
-CONDA_ENV_NAME=checkmaite make conda-env
+conda-lock install -n checkmaite conda-lock.yml
 # finally, install the `checkmaite` package
 pip install -e . --no-deps
 ```
@@ -130,12 +125,6 @@ You can run them manually with:
 poetry run pytest tests -svv -m real_data
 ```
 
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite
-directory to run tests with coverage:
-```bash
-make test
-```
-
 ## Linting and formatting
 
 (*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
@@ -144,12 +133,6 @@ Linting and formatting are automated via `pre-commit` hooks. However, if you'd l
 
 ```bash
 poetry run pre-commit run --all-files --verbose
-```
-
-**NOTE** If you have a poetry environment installed, you can also use this bash command from the root of your cloned checkmaite directory to run all pre-commit hooks:
-
-```bash
-make format
 ```
 
 Type checking is performed by `pyright`. This can be run using:
@@ -199,17 +182,15 @@ an issue with cross-compatibility arises).
 
 run the following
 ```bash
-CONDA_ENV_NAME=<env-name> make conda-env
+conda-lock install -n <env-name> conda-lock.yml
 ```
-
-The CONDA_ENV_NAME environment variable is optional and defaults to `checkmaite`.
 
 ### Updating the lockfile
 
 To update the lockfile (e.g. after changing pyproject.yaml), run the following:
 
 ```bash
-make conda-lock
+conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml
 ```
 
 ## Running the GitLab CI locally

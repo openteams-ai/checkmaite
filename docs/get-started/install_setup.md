@@ -69,7 +69,7 @@ conda create -n checkmaite "conda-lock>=3"
 conda activate checkmaite
 
 # use conda-lock to install dependencies
-CONDA_ENV_NAME=checkmaite make conda-env
+conda-lock install -n checkmaite conda-lock.yml
 
 # finally, install the `checkmaite` package
 pip install . --no-deps

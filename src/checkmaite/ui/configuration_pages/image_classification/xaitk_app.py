@@ -179,13 +179,13 @@ class XAITKAppIC(BaseXAITKApp):
 
         self.sample_image = pn.pane.Matplotlib(self.create_sample_image(), tight=True)
 
-    def stack_select_callback(self, target: object, _event: object) -> None:  # noqa ARG001
+    def stack_select_callback(self, _target: object, _event: object) -> None:
         """
         Callback for stack_select widget. Updates the saliency_widget.
 
         Parameters
         ----------
-        target : object
+        _target : object
             The object that triggered the event.
         _event : object
             The event object.

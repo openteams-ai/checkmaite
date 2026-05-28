@@ -64,8 +64,8 @@ if TYPE_CHECKING:  # # pragma: no cover
     class TwoItem:
         ArgKeys: Any
 
-    def create_deck(*args: Any, **kwargs: Any) -> Any: ...  # noqa: ARG001
-    def parse_lines(*args: Any, **kwargs: Any) -> Any: ...  # noqa: ARG001
+    def create_deck(*args: Any, **kwargs: Any) -> Any: ...
+    def parse_lines(*args: Any, **kwargs: Any) -> Any: ...
 
 else:
     try:  # pragma: no cover

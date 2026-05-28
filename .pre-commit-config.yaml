@@ -1,12 +1,18 @@
+# Pre-commit configuration aligned with the DevSecOps pattern
+# (https://gitlab.jatic.net/jatic/devsecops/example-package/-/blob/main/.pre-commit-config.yaml).
+#
+# Philosophy: pre-commit handles only fast, auto-fixable formatting/linting via
+# ruff. Broader checks live in the DevSecOps compliance components:
+#   - SAST / security  -> dsor-compliance
+#   - pyproject.toml / poetry / conda installability -> sr-compliance
+#
+# Project-specific gap-fillers (check-conda-lock, check-linter-ignore) remain
+# here because no DevSecOps component covers them. Both are configured to be
+# self-contained so they run inside the pre-commit component's minimal
+# python-base-image on system python (no project poetry env required).
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
-    hooks:
-      - id: mixed-line-ending
-        args: [--fix=lf]
-      - id: end-of-file-fixer
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.0
+    rev: v0.8.6  # matches the version of Ruff in the DevSecOps Team's base images
     hooks:
       # Run the linter
       - id: ruff
@@ -25,14 +31,30 @@ repos:
     - id: poetry-check
   - repo: local
     hooks:
-      - id: check-conda-lock
-        name: check conda-lock
-        language: system
-        entry: make check-conda-lock
-      
-      - id: check-linter-ignore
-        name: 'Check for non-specific linter ignores'
-        entry: poetry run python scripts/check_bare_pyright_ignore.py
-        types: [python]
-        language: system
-        exclude: check_bare_pyright_ignore.py|test_check_bare_pyright_ignore.py
+       - id: check-conda-lock
+         name: check conda-lock      
+         language: python
+         entry: python scripts/check_conda_lock.py
+         pass_filenames: false
+         additional_dependencies: ['conda-lock>=3,<5']
+
+       # NOTE: invoked as plain `python`, NOT `poetry run python`. This is to avoid
+       # a RACE CONDITION -- it is not a problem with poetry itself. pre-commit runs
+       # this hook over parallel file batches. `poetry run` only *creates* a venv if
+       # one doesn't already exist; in the DevSecOps minimal python-base-image there
+       # is no project venv, so every parallel `poetry run` tries to build `.venv`
+       # at the same time and the concurrent builds clobber each other mid-install
+       # (FileNotFoundError on pip vendor files). If the venv already exists -- e.g.
+       # after `poetry install --with dev` (see dev_setup.md) --
+       # `poetry run` just reuses it and works fine, which is exactly why this never
+       # fails locally and only the cold CI runner trips the race. The script is
+       # pure-stdlib (re/sys/tokenize/dataclasses) and needs nothing from the project
+       # env, so plain `python` is correct and creates no venv to race on. If this
+       # script ever grows real dependencies, add them via `language: python` +
+       # `additional_dependencies` (see check-conda-lock above), not `poetry run`.
+       - id: check-linter-ignore
+         name: 'Check for non-specific linter ignores'
+         entry: python scripts/check_bare_pyright_ignore.py
+         types: [python]
+         language: system
+         exclude: check_bare_pyright_ignore.py|test_check_bare_pyright_ignore.py

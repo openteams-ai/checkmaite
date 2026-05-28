@@ -28,7 +28,7 @@ variables:
 
 
 stages:
-  - lint
+  - pre-commit
   - pyright
   - build
   - test
@@ -142,12 +142,14 @@ stages:
     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git make
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge python=$VERSION conda-lock=3 git
     - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
     - *git_config
-    - make conda-lock  # regenerate conda-lock file with latest conda dependencies
-    - make conda-env   # create conda env from new conda-lock file
+    # Regenerate conda-lock.yml from pyproject.toml so dynamic-conda-test
+    # exercises a freshly resolved lockfile (catches upstream dep drift).
+    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras --extras dev -p linux-64 --lockfile conda-lock.yml
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
 
@@ -216,25 +218,15 @@ conda-lock-test:
     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
     - micromamba --version
-    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git make
+    - micromamba create -y -n $CONDA_ENV_NAME -c conda-forge conda-lock=3 git
     - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
     - *git_config
-    - make conda-env  # create conda env from conda-lock file
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
   script:
-    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
-
-lint:
-  extends: [.shared-setup, .poetry-setup]
-  image: python:3.10
-  stage: lint
-  needs: []
-  script:
-    - poetry install --with dev --extras ui
-    - poetry run pre-commit install
-    - poetry run pre-commit run --all-files --verbose
+    - pytest tests -vvv --cov=checkmaite --cov-report term-missing
 
 pyright-internal:
   extends: [.shared-setup, .poetry-setup]
@@ -261,7 +253,7 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - poetry install --with docs --extras reporting
+    - poetry install --with docs --no-cache  # remove --extras reporting
     - poetry run mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
@@ -278,7 +270,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   image: python:3.10
   stage: docs
   script:
-    - poetry install --with docs --extras reporting
+    - poetry install --with docs --no-cache  # remove --extras reporting
     - poetry run mkdocs build -d public --no-directory-urls
     - rm -rf public/how-tos/tscache
     - rm -rf public/how-tos/visdrone_model_weights
@@ -288,7 +280,6 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   rules:
     # Only run this rule if on main branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
 
 .publish-python-package:
   stage: publish
@@ -397,6 +388,12 @@ publish-pypi:
 
 # SECURITY STAGES
 include:
+  - component: gitlab.jatic.net/jatic/devsecops/components/pre-commit@1.1.0
+    inputs:
+      stage: pre-commit
+      project_path: "jatic/orchestration-interoperability/checkmaite"
+      allow_failure: false
+
   - component: gitlab.jatic.net/jatic/devsecops/components/dr-compliance@0.5.2
     inputs:
       stage: dr-compliance

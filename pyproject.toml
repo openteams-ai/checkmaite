@@ -38,7 +38,7 @@ libgl = "*"
 libopengl = "*"                                    # patch for a missing dependency from something (opencv?) in conda-forge
 pip = "*"                                          # ensure pip is available for conda-lock
 git = "*"                                          # required by poetry-dynamic-versioning during package builds
-poetry = "==2.1.2"                                 # allow user to still use the `make check-conda` pre-commit hook
+poetry = "==2.1.2"                                 # required for the poetry-check pre-commit hook
 dataeval-plots = {source = "pypi"}
 
 [tool.poetry]

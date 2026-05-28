@@ -96,7 +96,8 @@ def main() -> bool:
         logger.exception(
             f"{CONDA_LOCKFILE_PATH.name} is missing packages required "
             f"by {PYPROJECT_TOML_PATH.name}: {missing_packages}. "
-            "Run `make conda-lock` to update the lockfile."
+            "Run `conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml`"
+            " to update the lockfile."
         )
         return False
 
@@ -105,7 +106,8 @@ def main() -> bool:
         extra_packages = lockfile_root_packages - lock_spec_packages
         logger.exception(
             f"{CONDA_LOCKFILE_PATH.name} contains packages not required by the lockspec: {extra_packages} "
-            "Run `make conda-lock` to update the lockfile."
+            "Run `conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml`"
+            " to update the lockfile."
         )
         return False
 

@@ -191,7 +191,7 @@ class NRTKBaseApp(BaseApp):
 
         self._pybsm_parameter_init()
 
-        def single_perturber_callback(target: object, _event: object) -> None:  # noqa ARG001
+        def single_perturber_callback(target: object, _event: object) -> None:  # noqa: ARG001
             self.all_widgets = [
                 pn.Card(
                     self.add_perturber_config_widget(),
@@ -586,7 +586,7 @@ class NRTKBaseApp(BaseApp):
         plt.close()
         return fig
 
-    def test_perturber_button_callback(self, _event: object) -> None:  # noqa PT019
+    def test_perturber_button_callback(self, _event: object) -> None:  # noqa: PT019
         """Callback for the 'Test Perturber Settings' button.
 
         Runs the configured perturber factory on a sample image and displays
