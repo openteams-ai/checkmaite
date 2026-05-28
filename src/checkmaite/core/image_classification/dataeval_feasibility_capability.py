@@ -19,7 +19,13 @@ from checkmaite.core._utils import (
     requires_optional_dependency,
     set_device,
 )
-from checkmaite.core.capability_core import Capability, CapabilityConfigBase, CapabilityRunBase, Number
+from checkmaite.core.capability_core import (
+    Capability,
+    CapabilityConfigBase,
+    CapabilityOutputsBase,
+    CapabilityRunBase,
+    Number,
+)
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 
@@ -56,7 +62,7 @@ class DataevalFeasibilityConfig(CapabilityConfigBase):
     )
 
 
-class DataevalFeasibilityOutputs(pydantic.BaseModel):
+class DataevalFeasibilityOutputs(CapabilityOutputsBase):
     """Container for the Feasibility capability outputs"""
 
     ber: float

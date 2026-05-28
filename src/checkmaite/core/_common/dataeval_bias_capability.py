@@ -106,7 +106,7 @@ class DataevalBiasCoverageOutputs(CapabilityOutputsBase):
     image: Image | None = None
 
 
-class DataevalBiasOutputs(pydantic.BaseModel):
+class DataevalBiasOutputs(CapabilityOutputsBase):
     balance: DataevalBiasBalanceOutputs | None = None
     diversity: DataevalBiasDiversityOutputs | None = None
     coverage: DataevalBiasCoverageOutputs

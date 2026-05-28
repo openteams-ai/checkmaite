@@ -3,19 +3,19 @@ import enum
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import maite.protocols.generic as gen
-from maite.protocols import DatasetMetadata, MetricMetadata, ModelMetadata
 from pydantic import (
     BaseModel,
     ConfigDict,
     field_serializer,
     field_validator,
 )
+from typing_extensions import NotRequired, TypedDict
 
 from checkmaite import cache_path
 from checkmaite.core._cache import PydanticCache, binary_de_serializer
@@ -28,7 +28,7 @@ TDataset = TypeVar("TDataset", bound=gen.Dataset[Any, Any, Any])
 TMetric = TypeVar("TMetric", bound=gen.Metric[Any, Any])
 
 TConfig = TypeVar("TConfig", bound="CapabilityConfigBase")
-TOutputs = TypeVar("TOutputs", bound=BaseModel)
+TOutputs = TypeVar("TOutputs", bound="CapabilityOutputsBase")
 
 
 class CapabilityConfigBase(BaseModel):
@@ -61,6 +61,20 @@ class CapabilityOutputsBase(BaseModel):
         return cls._traverse(v, binary_de_serializer.deserialize)
 
 
+class RunDatasetMetadata(TypedDict):
+    id: str
+    index2label: NotRequired[dict[int, str]]
+
+
+class RunModelMetadata(TypedDict):
+    id: str
+    index2label: NotRequired[dict[int, str]]
+
+
+class RunMetricMetadata(TypedDict):
+    id: str
+
+
 class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
     """Abstract base class representing the results of an immutable capability run.
 
@@ -82,24 +96,33 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
     outputs
         The specific results produced by the run, with type defined
         by the generic parameter `TOutputs`.
+
+    Notes
+    -----
+    The metadata fields intentionally use local TypedDicts instead of MAITE's
+    ``DatasetMetadata``, ``ModelMetadata``, and ``MetricMetadata`` types. MAITE
+    annotates those types with ``ReadOnly`` qualifiers, which are static-only;
+    Pydantic inspects TypedDict annotations at runtime and warns that it cannot
+    enforce ``ReadOnly``. These local types preserve the runtime schema without
+    requiring installation of a process-wide warning filter.
     """
 
     model_config = ConfigDict(frozen=True)
 
     capability_id: str
     config: TConfig
-    dataset_metadata: list[DatasetMetadata]
-    model_metadata: list[ModelMetadata]
-    metric_metadata: list[MetricMetadata]
+    dataset_metadata: list[RunDatasetMetadata]
+    model_metadata: list[RunModelMetadata]
+    metric_metadata: list[RunMetricMetadata]
     outputs: TOutputs
 
     @staticmethod
     def compute_uid(
         capability_id: str,
         config: TConfig,
-        dataset_metadata: list[DatasetMetadata],
-        model_metadata: list[ModelMetadata],
-        metric_metadata: list[MetricMetadata],
+        dataset_metadata: Sequence[Mapping[str, Any]],
+        model_metadata: Sequence[Mapping[str, Any]],
+        metric_metadata: Sequence[Mapping[str, Any]],
     ) -> str:
         """Compute a unique identifier (SHA-256 hash) for a run configuration.
 
@@ -249,7 +272,7 @@ def _check_cardinality(owner_id: str, label: str, required: Number, n: int) -> N
         raise TypeError(f"{owner_id} requires exactly {expected} {label}{s_expected}, but got {n} {label}{s_got}.")
 
 
-class Capability(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
+class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
     """Base class for a capability.
 
     Attributes
@@ -348,9 +371,9 @@ class Capability(Generic[TOutputs, TDataset, TModel, TMetric, TConfig], ABC):
         _check_cardinality(owner_id=self.id, label="model", required=self.supports_models, n=len(models))
         _check_cardinality(owner_id=self.id, label="metric", required=self.supports_metrics, n=len(metrics))
 
-        dataset_metadata = [d.metadata for d in datasets]
-        model_metadata = [m.metadata for m in models]
-        metric_metadata = [m.metadata for m in metrics]
+        dataset_metadata = cast(list[RunDatasetMetadata], [d.metadata for d in datasets])
+        model_metadata = cast(list[RunModelMetadata], [m.metadata for m in models])
+        metric_metadata = cast(list[RunMetricMetadata], [m.metadata for m in metrics])
 
         uid = self._RUN_TYPE.compute_uid(
             capability_id=self.id,

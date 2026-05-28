@@ -3,7 +3,6 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pydantic
 from matplotlib.figure import Figure
 
 from checkmaite.core._utils import (
@@ -16,6 +15,7 @@ from checkmaite.core.cached_tasks import evaluate
 from checkmaite.core.capability_core import (
     Capability,
     CapabilityConfigBase,
+    CapabilityOutputsBase,
     CapabilityRunBase,
     Number,
     TDataset,
@@ -61,7 +61,7 @@ class MaiteEvaluationConfig(CapabilityConfigBase):
     pass
 
 
-class MaiteEvaluationOutputs(pydantic.BaseModel):
+class MaiteEvaluationOutputs(CapabilityOutputsBase):
     overall_metric_name: str
     result: dict[str, float]
     class_metrics: dict[str, float | None] | None

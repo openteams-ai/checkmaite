@@ -76,7 +76,7 @@ class DataevalShiftOODOutputs(CapabilityOutputsBase):
     ood_knn: DataevalShiftOODKNNOutput
 
 
-class DataevalShiftOutputs(pydantic.BaseModel):
+class DataevalShiftOutputs(CapabilityOutputsBase):
     drift: DataevalShiftDriftOutputs
     ood: DataevalShiftOODOutputs
 

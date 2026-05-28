@@ -12,11 +12,10 @@ import maite.tasks
 import pydantic
 from maite.protocols import ArrayLike
 from maite.protocols import generic as gen
-from maite.protocols.image_classification import DatumMetadataType as ImageClassificationDatumMetadataType
 from maite.protocols.image_classification import InputType as ImageClassificationInputType
 from maite.protocols.image_classification import TargetType as ImageClassificationTargetType
-from maite.protocols.object_detection import DatumMetadataType as ObjectDetectionDatumMetadataType
 from maite.protocols.object_detection import InputType as ObjectDetectionInputType
+from typing_extensions import TypedDict
 
 from checkmaite import (
     cache_path,
@@ -35,6 +34,10 @@ SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType
 T_Input = TypeVar("T_Input", bound=SomeInputType)
 T_Target = TypeVar("T_Target", bound=SomeTargetType)
 T_Metadata = TypeVar("T_Metadata", bound=SomeMetadataType)
+
+
+class CachedDatumMetadata(TypedDict):
+    id: int | str
 
 
 # this is required so that Pydantic knows how to de/serialize the object detection TargetType
@@ -112,7 +115,7 @@ class _PredictCall(CapabilityOutputsBase):
         tuple[
             Sequence[ObjectDetectionInputType] | Sequence[ImageClassificationInputType],
             PydanticCompatTargetBatchType,
-            Sequence[ObjectDetectionDatumMetadataType] | Sequence[ImageClassificationDatumMetadataType],
+            Sequence[CachedDatumMetadata],
         ]
     ]
 
