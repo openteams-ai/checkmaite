@@ -20,6 +20,10 @@ Documentation for checkmaite developers and contributors.
 
     How to create, install, and debug checkmaite plugins.
 
+-  [__ONNX model wrappers__ :octicons-arrow-right-24:](onnx_model_wrappers.md)
+
+    Developer notes for the JATIC_ONNX model wrapper assumptions and extension points.
+
 -  [__Contribution guidelines__ :octicons-arrow-right-24:](contributing.md)
 
     Guidelines on contributing to the `checkmaite` project.

@@ -186,7 +186,7 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - poetry install --with dev --extras ui
+    - poetry install --with dev --extras "ui onnx"
     - *install_checkmaite_plugins
     - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
     - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
@@ -265,7 +265,7 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - poetry install --with docs --no-cache  # remove --extras reporting
+    - poetry install --with docs --extras onnx --no-cache
     - poetry run mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/reference-implementation/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
@@ -282,7 +282,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   image: python:3.10
   stage: docs
   script:
-    - poetry install --with docs --no-cache  # remove --extras reporting
+    - poetry install --with docs --extras onnx --no-cache
     - poetry run mkdocs build -d public --no-directory-urls
     - rm -rf public/how-tos/tscache
     - rm -rf public/how-tos/visdrone_model_weights

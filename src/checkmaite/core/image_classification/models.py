@@ -9,13 +9,19 @@ from maite.protocols import image_classification as ic
 from typing_extensions import NotRequired
 
 from checkmaite.core._utils import (
+    IMAGE_CLASSIFICATION_INTERFACE,
+    ONNX_INSTALL_HINT,
     get_default_index2label,
     get_index2label_from_model_config,
+    get_onnx_providers,
     id_hash,
+    load_jatic_onnx_metadata,
     maybe_download_weights,
+    prepare_jatic_onnx_image_batch,
     set_device,
     to_torch_batch,
     validate_input_batch,
+    validate_jatic_onnx_session,
 )
 
 if TYPE_CHECKING:
@@ -26,8 +32,10 @@ SUPPORTED_TORCHVISION_MODELS = {
     "resnext50_32x4d": "ResNeXt50_32X4D_Weights",
 }
 
+SUPPORTED_ONNX_MODELS = {"jatic_onnx"}
+
 # list of all available model wrappers
-SUPPORTED_MODELS = SUPPORTED_TORCHVISION_MODELS
+SUPPORTED_MODELS = {**SUPPORTED_TORCHVISION_MODELS, "jatic_onnx": "JATIC_ONNX"}
 
 
 DEFAULT_TORCHVISION_CONFIG_PATH = "config.json"
@@ -149,6 +157,94 @@ class TorchvisionICModel:
         return self._model_name
 
 
+class OnnxICModel:
+    """A MAITE-compliant wrapper for JATIC_ONNX image classification models."""
+
+    def __init__(
+        self,
+        *,
+        weights_path: str | Path,
+        config_path: str | Path,
+        device: str | torch.device | None = None,
+        index2label_key: str = "index2label",
+        model_id: str | None = None,
+        batch_size: int | None = None,
+        image_height: int | None = None,
+        image_width: int | None = None,
+        validate_onnx: bool = False,
+    ) -> None:
+        """Initialize a JATIC_ONNX image classification model.
+
+        Args:
+            weights_path: Path to the ONNX model file.
+            config_path: Path to JATIC_ONNX metadata JSON, including ``index2label``.
+            device: Device/provider request (``cpu``, ``cuda``, or ``mps``/CoreML).
+            index2label_key: Metadata key for mapping class indices to labels.
+            model_id: Optional model identifier.
+            batch_size: Optional batch-size override.
+            image_height: Optional input-height override.
+            image_width: Optional input-width override.
+            validate_onnx: If ``True``, run ``onnx.checker.check_model`` before creating the ONNX Runtime session.
+                This parses the model separately from ONNX Runtime, so it is disabled by default for large models.
+        """
+        try:
+            import onnxruntime as ort
+        except ImportError:
+            raise ImportError(
+                f"JATIC_ONNX model wrappers require optional dependency 'onnxruntime'. {ONNX_INSTALL_HINT}"
+            ) from None
+
+        if validate_onnx:
+            try:
+                import onnx
+            except ImportError:
+                raise ImportError(
+                    f"validate_onnx=True requires optional dependency 'onnx'. {ONNX_INSTALL_HINT}"
+                ) from None
+            onnx.checker.check_model(str(weights_path))
+
+        self.device, providers = get_onnx_providers(device)
+        self.model = ort.InferenceSession(str(weights_path), providers=providers)
+        validate_jatic_onnx_session(self.model, expected_outputs={"scores"})
+
+        self.config, self.index2label = load_jatic_onnx_metadata(
+            config_path,
+            expected_io_interface=IMAGE_CLASSIFICATION_INTERFACE,
+            index2label_key=index2label_key,
+        )
+        n_classes = self.config.get("io", {}).get("output", {}).get("nClasses")
+        if n_classes is not None and int(n_classes) != len(self.index2label):
+            raise ValueError(
+                f"ONNX metadata io.output.nClasses={n_classes} does not match len(index2label)={len(self.index2label)}."
+            )
+
+        self._model_name = "jatic_onnx"
+        self._batch_size = batch_size
+        self._image_height = image_height
+        self._image_width = image_width
+        if model_id is None:
+            model_id = f"{self._model_name}_{id_hash(weights_path=weights_path, config_path=config_path)}"
+        self.metadata = {"id": model_id, "index2label": self.index2label}
+
+    def __call__(self, input_batch: Sequence[ic.InputType]) -> Sequence[ic.TargetType]:
+        """Make image-classification predictions for a CHW image batch."""
+        batch, _ = prepare_jatic_onnx_image_batch(
+            input_batch,
+            self.config,
+            batch_size=self._batch_size,
+            image_height=self._image_height,
+            image_width=self._image_width,
+        )
+        outputs = self.model.run(["scores"], {"image": batch})
+        scores = torch.as_tensor(outputs[0], dtype=torch.float32)
+        return [row.detach().cpu() for row in scores]
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for JATIC_ONNX image classification model."""
+        return self._model_name
+
+
 class ModelSpecification(TypedDict):
     """Model metadata required for loading models via checkmaite wrappers"""
 
@@ -161,13 +257,14 @@ class ModelSpecification(TypedDict):
     model_type: Literal[
         "alexnet",
         "resnext50_32x4d",
+        "jatic_onnx",
     ]
 
 
 def load_models(
     models: dict[str, ModelSpecification],
     **kwargs: Any,
-) -> dict[str, TorchvisionICModel]:  # pragma: no cover
+) -> dict[str, TorchvisionICModel | OnnxICModel]:  # pragma: no cover
     """Simplified programmatic loading of models from a dictionary of
     ModelSpecifications."""
     loaded = {}
@@ -180,9 +277,19 @@ def load_models(
                 config_path=meta_dict.get("model_config_path"),
                 **kwargs,
             )
-
-            loaded[name] = wrapper
+        elif meta_dict["model_type"] in SUPPORTED_ONNX_MODELS:
+            weights_path = meta_dict.get("model_weights_path")
+            config_path = meta_dict.get("model_config_path")
+            if weights_path is None or config_path is None:
+                raise ValueError("JATIC_ONNX models require model_weights_path and model_config_path.")
+            wrapper = OnnxICModel(
+                weights_path=weights_path,
+                config_path=config_path,
+                **kwargs,
+            )
         else:
             raise RuntimeError(f"Model type not yet supported {meta_dict['model_type']}")
+
+        loaded[name] = wrapper
 
     return loaded

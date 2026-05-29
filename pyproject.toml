@@ -74,6 +74,8 @@ ipython = ">=8.13,<9.0"                                            # necessary, 
 matplotlib = ">=3.8.4,< 3.10.8"                                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
 nbconvert = { version = ">=7.16.6", optional = true }              # arbitrary, required for serving panel notebooks via CLI
 numba = ">=0.60.0"                                                 # arbitrary, needed to run visdrone model
+onnx = { version = ">=1.14.0", optional = true }                       # arbitrary, required for ONNX model validation
+onnxruntime = { version = ">=1.14.0,<1.24.0", optional = true }       # necessary upper pin, 1.24.x lacks cp310 wheels
 opencv-python-headless = ">=4.9.0.80"                              # necessary lower pin, required by nrtk usage here
 pandas = ">=2"                                                     # arbitrary, required for data handling
 panel = { version = ">=1.8.7", optional = true }                   # necessary for FileDropper widget, and for progression of dashboards
@@ -138,6 +140,14 @@ ui = [
 reporting = [
     "markdown>=3.5",
     "xhtml2pdf>=0.2.16",
+]
+onnx = [
+    "onnx>=1.14.0",
+    "onnxruntime>=1.14.0,<1.24.0", # 1.24.x lacks CPython 3.10 wheels
+]
+onnx-cuda = [
+    "onnx>=1.14.0",
+    "onnxruntime-gpu>=1.14.0,<1.24.0", # 1.24.x lacks CPython 3.10 wheels
 ]
 aws = ["s3fs>=2023.1.0"]
 gcs = ["gcsfs>=2023.1.0"]

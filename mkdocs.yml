@@ -46,6 +46,7 @@ nav:  # navigation links on sidebar
     - Model evaluation:
       - NRTK: tool-usage/nrtk_tutorial.ipynb
       - XAITK: tool-usage/xaitk_tutorial.ipynb
+      - ONNX object detection wrapper: tool-usage/onnx_object_detection_wrapper.ipynb
     - Results & analysis:
       - Analytics Store: tool-usage/analytics_store_tutorial.ipynb
     - Job submission:
@@ -75,6 +76,7 @@ nav:  # navigation links on sidebar
     - User persona: development/persona.md
     - Plugin system: development/plugins.md
     - Releasing: RELEASING.md
+    - ONNX model wrappers: development/onnx_model_wrappers.md
     - Contributing: development/contributing.md
 markdown_extensions:
   - admonition  # enables callout boxes

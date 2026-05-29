@@ -34,6 +34,10 @@
 
     The Explainable AI Toolkit for saliency (XAITK - Saliency) is an open source framework for visual saliency algorithm interfaces and implementations.
 
+-  [__ONNX object detection wrapper__ :octicons-arrow-right-24:](onnx_object_detection_wrapper.ipynb)
+
+    Load a JATIC_ONNX object detection model and convert its outputs into checkmaite detection targets.
+
 </div>
 
 ## Results & analysis

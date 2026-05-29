@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import re
 import sys
@@ -9,7 +10,12 @@ import pytest
 import torch
 from PIL import Image
 
-from checkmaite.core.object_detection.models import TorchvisionODModel, VisdroneODModel
+from checkmaite.core.object_detection.models import OnnxODModel, TorchvisionODModel, VisdroneODModel
+from checkmaite.core.object_detection.models import load_models as load_od_models
+
+ROOT = Path(__file__).parents[2] / "data_for_tests"
+JATIC_ONNX_OD_FIXTURE = ROOT / "jatic_onnx_od"
+HAS_ONNX_DEPS = importlib.util.find_spec("onnx") is not None and importlib.util.find_spec("onnxruntime") is not None
 
 
 @pytest.fixture(scope="session")
@@ -120,6 +126,51 @@ def test_visdrone_wrapper_returns_one_detection_target_per_input(fake_model_loca
     assert len(outputs) == 2
     assert len(outputs[0].boxes) == 1
     assert len(outputs[1].boxes) == 0
+
+
+@pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
+def test_onnx_od_model_converts_jatic_outputs_to_detection_targets():
+    """Check conversion from the deterministic JATIC_ONNX fixture to DetectionTarget.
+
+    The fixture model at ``tests/data_for_tests/jatic_onnx_od/constant_detector.onnx`` was created with ONNX helper
+    APIs. It has the required ``image`` input, but ignores the image contents and returns two fixed normalized boxes plus
+    fixed per-class score tensors from ONNX ``Constant`` nodes. The paired ``model-metadata.json`` declares the
+    JATIC_ONNX object-detection interface, RGB ``10 x 20`` input size, two boxes, three classes, and ``index2label``.
+    This lets the test focus on wrapper behavior: loading metadata, running ONNX Runtime, converting normalized boxes to
+    pixel coordinates, and reducing class scores to one label/score per box.
+    """
+    model = OnnxODModel(
+        weights_path=JATIC_ONNX_OD_FIXTURE / "constant_detector.onnx",
+        config_path=JATIC_ONNX_OD_FIXTURE / "model-metadata.json",
+        device="cpu",
+    )
+    (prediction,) = model([np.zeros((3, 10, 20), dtype=np.uint8)])
+
+    np.testing.assert_allclose(prediction.boxes, np.array([[0.0, 1.0, 10.0, 10.0], [10.0, 5.0, 20.0, 10.0]]))
+    np.testing.assert_array_equal(prediction.labels, np.array([1, 2]))
+    np.testing.assert_allclose(prediction.scores, np.array([0.9, 0.7]))
+
+
+@pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
+def test_onnx_od_load_models_dispatch():
+    """Check that object-detection ``load_models`` dispatches to the ONNX wrapper.
+
+    This uses the same deterministic ONNX fixture as the direct-wrapper test. The model was intentionally generated as a
+    tiny constant-output graph rather than a trained detector so that the dispatch path can be tested without external
+    downloads, model-zoo dependencies, or non-deterministic predictions.
+    """
+    loaded = load_od_models(
+        {
+            "onnx_model": {
+                "model_type": "jatic_onnx",
+                "model_weights_path": JATIC_ONNX_OD_FIXTURE / "constant_detector.onnx",
+                "model_config_path": JATIC_ONNX_OD_FIXTURE / "model-metadata.json",
+            }
+        },
+        device="cpu",
+    )
+
+    assert isinstance(loaded["onnx_model"], OnnxODModel)
 
 
 def test_torchvision_integration_coco_dataset():

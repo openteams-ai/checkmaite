@@ -12,13 +12,19 @@ from maite.protocols import object_detection as od
 from typing_extensions import NotRequired
 
 from checkmaite.core._utils import (
+    IMAGE_OBJECT_DETECTION_INTERFACE,
+    ONNX_INSTALL_HINT,
     get_default_index2label,
     get_index2label_from_model_config,
+    get_onnx_providers,
     id_hash,
+    load_jatic_onnx_metadata,
     maybe_download_weights,
+    prepare_jatic_onnx_image_batch,
     set_device,
     to_torch_batch,
     validate_input_batch,
+    validate_jatic_onnx_session,
 )
 from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 
@@ -46,8 +52,10 @@ SUPPORTED_VISDRONE_MODELS = {
     "resnet18": "ResNet18_Weights",
 }
 
+SUPPORTED_ONNX_MODELS = {"jatic_onnx"}
+
 # list of all available model wrappers
-SUPPORTED_MODELS = {**SUPPORTED_TORCHVISION_MODELS, **SUPPORTED_VISDRONE_MODELS}
+SUPPORTED_MODELS = {**SUPPORTED_TORCHVISION_MODELS, **SUPPORTED_VISDRONE_MODELS, "jatic_onnx": "JATIC_ONNX"}
 
 DEFAULT_TORCHVISION_CONFIG_PATH = "config.json"
 
@@ -360,6 +368,106 @@ class VisdroneODModel:
         return f"visdrone-centernet-{self._model_name}"
 
 
+class OnnxODModel:
+    """A MAITE-compliant wrapper for JATIC_ONNX object detection models."""
+
+    def __init__(
+        self,
+        *,
+        weights_path: str | Path,
+        config_path: str | Path,
+        device: str | torch.device | None = None,
+        index2label_key: str = "index2label",
+        model_id: str | None = None,
+        batch_size: int | None = None,
+        image_height: int | None = None,
+        image_width: int | None = None,
+        validate_onnx: bool = False,
+    ) -> None:
+        """Initialize a JATIC_ONNX object detection model.
+
+        Args:
+            weights_path: Path to the ONNX model file.
+            config_path: Path to JATIC_ONNX metadata JSON, including ``index2label``.
+            device: Device/provider request (``cpu``, ``cuda``, or ``mps``/CoreML).
+            index2label_key: Metadata key for mapping class indices to labels.
+            model_id: Optional model identifier.
+            batch_size: Optional batch-size override.
+            image_height: Optional input-height override.
+            image_width: Optional input-width override.
+            validate_onnx: If ``True``, run ``onnx.checker.check_model`` before creating the ONNX Runtime session.
+                This parses the model separately from ONNX Runtime, so it is disabled by default for large models.
+        """
+        try:
+            import onnxruntime as ort
+        except ImportError:
+            raise ImportError(
+                f"JATIC_ONNX model wrappers require optional dependency 'onnxruntime'. {ONNX_INSTALL_HINT}"
+            ) from None
+
+        if validate_onnx:
+            try:
+                import onnx
+            except ImportError:
+                raise ImportError(
+                    f"validate_onnx=True requires optional dependency 'onnx'. {ONNX_INSTALL_HINT}"
+                ) from None
+            onnx.checker.check_model(str(weights_path))
+
+        self.device, providers = get_onnx_providers(device)
+        self.model = ort.InferenceSession(str(weights_path), providers=providers)
+        validate_jatic_onnx_session(self.model, expected_outputs={"boxes", "scores"})
+
+        self.config, self.index2label = load_jatic_onnx_metadata(
+            config_path,
+            expected_io_interface=IMAGE_OBJECT_DETECTION_INTERFACE,
+            index2label_key=index2label_key,
+        )
+        output_meta = self.config.get("io", {}).get("output", {})
+        n_classes = output_meta.get("nClasses")
+        if n_classes is not None and int(n_classes) != len(self.index2label):
+            raise ValueError(
+                f"ONNX metadata io.output.nClasses={n_classes} does not match len(index2label)={len(self.index2label)}."
+            )
+
+        self._model_name = "jatic_onnx"
+        self._batch_size = batch_size
+        self._image_height = image_height
+        self._image_width = image_width
+        if model_id is None:
+            model_id = f"{self._model_name}_{id_hash(weights_path=weights_path, config_path=config_path)}"
+        self.metadata = {"id": model_id, "index2label": self.index2label}
+
+    def __call__(self, input_batch: Sequence[od.InputType]) -> Sequence[od.TargetType]:
+        """Make object-detection predictions for a CHW image batch."""
+        batch, original_sizes = prepare_jatic_onnx_image_batch(
+            input_batch,
+            self.config,
+            batch_size=self._batch_size,
+            image_height=self._image_height,
+            image_width=self._image_width,
+        )
+        outputs = self.model.run(["boxes", "scores"], {"image": batch})
+        boxes_batch = np.asarray(outputs[0], dtype=np.float32)
+        scores_batch = np.asarray(outputs[1], dtype=np.float32)
+
+        output_batch = []
+        for boxes, class_scores, (height, width) in zip(boxes_batch, scores_batch, original_sizes, strict=True):
+            labels = np.argmax(class_scores, axis=-1).astype(np.int64)
+            scores = np.max(class_scores, axis=-1).astype(np.float32)
+            pixel_boxes = np.asarray(boxes, dtype=np.float32).copy()
+            pixel_boxes[:, [0, 2]] *= float(width)
+            pixel_boxes[:, [1, 3]] *= float(height)
+            output_batch.append(DetectionTarget(boxes=pixel_boxes, labels=labels, scores=scores))
+
+        return output_batch
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for JATIC_ONNX object detection model."""
+        return self._model_name
+
+
 class ModelSpecification(TypedDict):
     """Model metadata required for loading models via checkmaite wrappers"""
 
@@ -386,13 +494,14 @@ class ModelSpecification(TypedDict):
         "res2net50",
         "resnet50",
         "resnet18",
+        "jatic_onnx",
     ]
 
 
 def load_models(
     models: dict[str, ModelSpecification],
     **kwargs: Any,
-) -> dict[str, TorchvisionODModel]:  # pragma: no cover
+) -> dict[str, TorchvisionODModel | VisdroneODModel | OnnxODModel]:  # pragma: no cover
     """Simplified programmatic loading of models from a dictionary of
     ModelSpecifications."""
     loaded = {}
@@ -405,16 +514,26 @@ def load_models(
                 **kwargs,
             )
 
-            loaded[name] = wrapper
-
         elif meta_dict["model_type"] in SUPPORTED_VISDRONE_MODELS:
             wrapper = VisdroneODModel(
                 arch=meta_dict["model_type"],
                 model_pickle_dir=meta_dict.get("model_weights_path"),
             )
-            loaded[name] = wrapper
+
+        elif meta_dict["model_type"] in SUPPORTED_ONNX_MODELS:
+            weights_path = meta_dict.get("model_weights_path")
+            config_path = meta_dict.get("model_config_path")
+            if weights_path is None or config_path is None:
+                raise ValueError("JATIC_ONNX models require model_weights_path and model_config_path.")
+            wrapper = OnnxODModel(
+                weights_path=weights_path,
+                config_path=config_path,
+                **kwargs,
+            )
 
         else:
             raise RuntimeError(f"Model type not yet supported {meta_dict['model_type']}")
+
+        loaded[name] = wrapper
 
     return loaded
