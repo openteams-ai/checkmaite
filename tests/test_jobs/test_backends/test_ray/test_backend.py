@@ -23,13 +23,14 @@ from checkmaite.jobs import (
 )
 from checkmaite.jobs.backends.ray import RegistryStatus
 from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
+from tests.test_jobs.ray_test_utils import init_local_ray
 
 
 @pytest.fixture(scope="module", name="ray_runtime")
 def _ray_runtime():
     shutdown_job_backend(wait=False)
     ray.shutdown()
-    ray.init(address="local")
+    init_local_ray()
 
     try:
         yield
@@ -44,7 +45,7 @@ def local_ray(ray_runtime, tmp_path: Path):
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     configure_job_backend(
         "ray",
@@ -65,10 +66,10 @@ def isolated_local_ray(tmp_path: Path):
 
     shutdown_job_backend(wait=False)
     ray.shutdown()
+    init_local_ray()
 
     configure_job_backend(
         "ray",
-        address="local",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,
@@ -368,49 +369,54 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path)
 
 
 @pytest.mark.ray
-def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(isolated_local_ray: Path) -> None:
+def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(tmp_path: Path) -> None:
     capability = TinyCapability()
     env_key = "CHECKMAITE_TEST_RECONFIG_ENV"
+    store_path = tmp_path / "analytics-store"
 
-    configure_job_backend(
-        "ray",
-        address="local",
-        force_reinit=True,
-        analytics_store={"backend": "parquet", "uri": str(isolated_local_ray)},
-        idempotency_scope=f"scope-{uuid4().hex}",
-        controller_num_cpus=0.0,
-        runtime_env={
-            "env_vars": {
-                env_key: "one",
-            }
-        },
-    )
-    ref_one = submit_capability(
-        capability,
-        config=TinyConfig(env_key=env_key),
-        use_cache=False,
-    ).result(timeout=30)
-    assert ref_one.summary["md_report"] == "one:0.5"
+    try:
+        configure_job_backend(
+            "ray",
+            address="local",
+            force_reinit=True,
+            analytics_store={"backend": "parquet", "uri": str(store_path)},
+            idempotency_scope=f"scope-{uuid4().hex}",
+            controller_num_cpus=0.0,
+            runtime_env={
+                "env_vars": {
+                    env_key: "one",
+                }
+            },
+        )
+        ref_one = submit_capability(
+            capability,
+            config=TinyConfig(env_key=env_key),
+            use_cache=False,
+        ).result(timeout=30)
+        assert ref_one.summary["md_report"] == "one:0.5"
 
-    configure_job_backend(
-        "ray",
-        address="local",
-        force_reinit=True,
-        analytics_store={"backend": "parquet", "uri": str(isolated_local_ray)},
-        idempotency_scope=f"scope-{uuid4().hex}",
-        controller_num_cpus=0.0,
-        runtime_env={
-            "env_vars": {
-                env_key: "two",
-            }
-        },
-    )
-    ref_two = submit_capability(
-        capability,
-        config=TinyConfig(env_key=env_key),
-        use_cache=False,
-    ).result(timeout=30)
-    assert ref_two.summary["md_report"] == "two:0.5"
+        configure_job_backend(
+            "ray",
+            address="local",
+            force_reinit=True,
+            analytics_store={"backend": "parquet", "uri": str(store_path)},
+            idempotency_scope=f"scope-{uuid4().hex}",
+            controller_num_cpus=0.0,
+            runtime_env={
+                "env_vars": {
+                    env_key: "two",
+                }
+            },
+        )
+        ref_two = submit_capability(
+            capability,
+            config=TinyConfig(env_key=env_key),
+            use_cache=False,
+        ).result(timeout=30)
+        assert ref_two.summary["md_report"] == "two:0.5"
+    finally:
+        shutdown_job_backend(wait=False)
+        ray.shutdown()
 
 
 @pytest.mark.ray
@@ -425,8 +431,6 @@ def test_store_write_failure_raises_by_default(isolated_local_ray: Path) -> None
 
     configure_job_backend(
         "ray",
-        address="local",
-        force_reinit=True,
         analytics_store={"backend": "parquet", "uri": str(bad_store_root)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,

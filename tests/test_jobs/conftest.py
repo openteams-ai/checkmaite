@@ -4,6 +4,7 @@ import pytest
 import ray
 
 from checkmaite.jobs import shutdown_job_backend
+from tests.test_jobs.ray_test_utils import init_local_ray
 
 
 @pytest.fixture
@@ -16,7 +17,7 @@ def _jobs_smoke_ray_runtime():
     """
     shutdown_job_backend(wait=False)
     ray.shutdown()
-    ray.init(address="local")
+    init_local_ray()
 
     try:
         yield

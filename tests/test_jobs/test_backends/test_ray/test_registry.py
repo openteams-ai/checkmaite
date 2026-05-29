@@ -38,13 +38,14 @@ from checkmaite.jobs.backends.ray import (
 from checkmaite.jobs.backends.ray.controller import _update_registry_terminal_best_effort
 from checkmaite.jobs.backends.ray.registry import JobRegistry
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
+from tests.test_jobs.ray_test_utils import init_local_ray
 
 
 @pytest.fixture(scope="module", name="ray_registry_runtime")
 def _ray_registry_runtime():
     shutdown_job_backend(wait=False)
     ray.shutdown()
-    ray.init(address="local")
+    init_local_ray()
 
     try:
         yield
@@ -62,7 +63,7 @@ def local_ray_registry(ray_registry_runtime, tmp_path: Path):
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     configure_job_backend(
         "ray",
@@ -112,7 +113,7 @@ def _configure_registry_backend(
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[4]
 
 
 def _subprocess_env() -> dict[str, str]:
@@ -285,17 +286,8 @@ def test_registry_get_job_can_reattach_after_restart(local_ray_registry) -> None
 @pytest.mark.ray
 def test_registry_job_survives_submitter_process_exit(local_ray_registry) -> None:
     """Executable acceptance test for true kernel/client restart reattach semantics."""
-    repo_root = Path(__file__).resolve().parents[2]
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        str(path)
-        for path in [
-            repo_root / "src",
-            repo_root,
-            env.get("PYTHONPATH", ""),
-        ]
-        if str(path)
-    )
+    repo_root = _repo_root()
+    env = _subprocess_env()
 
     start_marker = local_ray_registry["store_path"].parent / "driver-exit-started.txt"
     submitter = subprocess.run(  # noqa: S603
@@ -348,7 +340,8 @@ print(json.dumps({"job_id": job.job_id}), flush=True)
     )
     assert submitter.returncode == 0, submitter.stderr
 
-    job_id = json.loads(submitter.stdout.strip().splitlines()[-1])["job_id"]
+    job_line = next(line for line in reversed(submitter.stdout.splitlines()) if line.strip().startswith("{"))
+    job_id = json.loads(job_line)["job_id"]
     reattached = get_job(job_id)
     ref = reattached.result(timeout=60)
 
@@ -475,7 +468,7 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     @ray.remote
     class SlowFirstGetRegistry:
@@ -683,7 +676,7 @@ def test_expired_submitting_reservation_cannot_start_controller_work(tmp_path: P
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     try:
         registry = get_or_create_registry_actor(
@@ -745,7 +738,7 @@ def test_cancel_after_controller_attach_before_start_commits_cancelled(tmp_path:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     try:
         registry = get_or_create_registry_actor(
@@ -913,7 +906,7 @@ def test_ray_job_commits_controller_terminal_state_before_returning_result(tmp_p
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     @ray.remote
     class CompletedController:
@@ -990,7 +983,7 @@ def test_ray_job_status_and_result_use_bounded_controller_reads() -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     @ray.remote
     class SlowController:
@@ -1041,7 +1034,7 @@ def test_ray_job_read_and_cancel_do_not_fail_missing_controller() -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     try:
         registry = get_or_create_registry_actor(
@@ -1095,7 +1088,7 @@ def test_registry_get_and_list_sweep_stale_running_jobs() -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     try:
         registry = get_or_create_registry_actor(
@@ -1146,7 +1139,7 @@ def test_controller_heartbeat_keeps_running_job_from_being_swept(tmp_path: Path)
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     backend = RayJobBackend(
         address="local",
@@ -1188,7 +1181,7 @@ def test_cancel_records_cancelling_when_ack_times_out() -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     @ray.remote
     class SlowCancelController:
@@ -1282,7 +1275,7 @@ def test_registry_sweeps_retained_terminal_job_records(tmp_path: Path) -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     backend = RayJobBackend(
         address="local",
@@ -1317,7 +1310,7 @@ def test_controller_retries_terminal_registry_commit(tmp_path: Path) -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     @ray.remote
     class FlakyTerminalRegistry:
@@ -1410,7 +1403,7 @@ def test_registry_sweeps_retained_terminal_controllers(tmp_path: Path) -> None:
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     backend = RayJobBackend(
         address="local",
@@ -1602,7 +1595,7 @@ def test_registry_actor_sweep_expired_submissions_marks_failed(tmp_path: Path) -
 
     shutdown_job_backend(wait=False)
     if not ray.is_initialized():
-        ray.init(address="local")
+        init_local_ray()
 
     registry = get_or_create_registry_actor(
         name=actor_name,
