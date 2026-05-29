@@ -79,7 +79,7 @@ sequenceDiagram
     JobBackend-->>Client: RaySimpleJob (local handle)
     Ray->>Worker: execute _execute_capability_ref
     Worker->>Worker: capability.run(..., use_cache=False)
-    Worker->>Store: write_with_receipt([run])
+    Worker->>Store: write_with_receipt([run], provenance=...)
     Store-->>Worker: payload URI
     Worker-->>Ray: CapabilityRunRef or exception
     Client->>JobBackend: job.status / wait() / result() / cancel()
@@ -104,7 +104,26 @@ configure_job_backend(
 )
 ```
 
-### 2. Submit work
+### 2. Configure provenance defaults, if needed
+
+```python
+from checkmaite import configure_provenance
+
+configure_provenance(user_id="alice@company.com", workspace_id="local-demo")
+```
+
+On submission, `ray-simple` reads these defaults from the client process with
+`get_provenance_defaults()`, adds dynamic job metadata (`job_id`,
+`backend="ray-simple"`, `submitted_at`, and `run_event_id=job_id`), and sends
+that resolved provenance directly with the Ray task.
+
+There is no controller in this backend. After `capability.run(...)` finishes,
+the worker adds `completed_at` and passes the final provenance explicitly to
+`write_with_receipt(...)`. The worker does not recompute client defaults from its
+own environment. The auto-generated `runs` rows then persist those values as flat
+columns.
+
+### 3. Submit work
 
 ```python
 from checkmaite.jobs import submit_capability
@@ -125,7 +144,7 @@ uses `use_cache=False`. Durable reuse should be handled through your analytics
 store or by using the registry-backed `ray` backend's idempotent submission
 semantics.
 
-### 3. Inspect lifecycle and retrieve the result reference
+### 4. Inspect lifecycle and retrieve the result reference
 
 ```python
 print(job.job_id)
@@ -137,7 +156,7 @@ print(ref.run_uid)
 print(ref.store_uri)
 ```
 
-### 4. List remembered jobs
+### 5. List remembered jobs
 
 ```python
 from checkmaite.jobs import JobStatus, list_jobs

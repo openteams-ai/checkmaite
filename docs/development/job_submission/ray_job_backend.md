@@ -57,7 +57,7 @@ sequenceDiagram
         JobBackend-->>Client: RayJob
         Ray->>Worker: execute _execute_capability_ref
         Worker->>Worker: capability.run(..., use_cache=False)
-        Worker->>Store: write_with_receipt([run])
+        Worker->>Store: write_with_receipt([run], provenance=...)
         Store-->>Worker: payload URI
         Worker-->>Controller: CapabilityRunRef or exception
         Controller->>Registry: update_terminal(..., result_ref/error)
@@ -100,8 +100,39 @@ Important:
 - submission is deduplicated by `(idempotency_scope, scoped_run_key)`, and
   `get_job(job_id)` / `list_jobs()` can reattach across client restarts as
   long as the same actor identity and scope are reused.
+- worker-side analytics-store writes include provenance resolved on the
+  submitter plus dynamic job metadata: `job_id`, `backend="ray"`,
+  `submitted_at`, `completed_at`, and `run_event_id=job_id`.
 
-### 2. Submit work
+### 2. Configure provenance defaults, if needed
+
+```python
+from checkmaite import configure_provenance
+
+configure_provenance(
+    user_id="alice@company.com",
+    workspace_id="team-a-notebooks",
+    environment="ray-cluster-prod",
+    executor="ray",
+    cluster_id="cluster-42",
+    request_id="req-123",
+)
+```
+
+These defaults are optional and process-wide. On submission, the Ray backend
+reads them from the client process with `get_provenance_defaults()`, merges in
+registry-assigned job metadata (`job_id`, `submitted_at`) plus backend metadata
+(`backend="ray"`, `run_event_id=job_id`), and includes that resolved provenance
+in the kwargs sent to the controller.
+
+The controller passes that provenance to the worker task with the rest of the
+submission payload. It may add or carry controller/job metadata, but it does not
+ask the worker to recompute client defaults. After `capability.run(...)`
+finishes, the worker adds `completed_at` and passes the final provenance
+explicitly to `write_with_receipt(...)`. The auto-generated `runs` rows then
+persist those values as flat columns.
+
+### 3. Submit work
 
 ```python
 from checkmaite.jobs import submit_capability
@@ -122,7 +153,7 @@ client or other workers. Reuse in this backend comes from registry dedupe for th
 same `(idempotency_scope, scoped_run_key)` and durable analytics-store writes;
 future shared-cache support would need an explicit remote cache backend.
 
-### 3. Inspect lifecycle and retrieve the result reference
+### 4. Inspect lifecycle and retrieve the result reference
 
 ```python
 print(job.job_id)
@@ -137,7 +168,7 @@ print(ref.outputs_uri)  # None today
 
 The returned object is `CapabilityRunRef`, not a full `CapabilityRunBase`.
 
-### 4. List jobs
+### 5. List jobs
 
 ```python
 from checkmaite.jobs import JobStatus, list_jobs

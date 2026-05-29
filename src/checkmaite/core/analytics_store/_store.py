@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import polars as pl
 
+from checkmaite.core.analytics_store._provenance import Provenance, ProvenanceLike
 from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
 from checkmaite.core.analytics_store._storage import StorageBackend, StorageWriteReceipt
 from checkmaite.core.capability_core import CapabilityRunBase
@@ -15,12 +16,13 @@ class AnalyticsStore:
     "maite_evaluation"), plus an automatic ``runs`` table that maps each
     ``run_uid`` to human-readable identifiers (dataset IDs, model IDs, etc.).
 
-    Write semantics are intentionally idempotent across repeated writes:
+    Write semantics distinguish payload artifacts from run-event history:
     payload tables are deduplicated by ``run_uid`` across separate write calls,
-    while the ``runs`` table is deduplicated by mapping key
-    ``(run_uid, capability_table, entity_type, entity_id)`` so repeated writes
-    do not create duplicate lookup rows. Distinct entity mappings for the same
-    ``run_uid`` remain valid and are preserved.
+    while the ``runs`` table is deduplicated by the mapping key
+    ``(run_uid, capability_table, entity_type, entity_id)`` unless callers
+    provide an explicit ``run_event_id``. Run event IDs let separate jobs or
+    other explicit run events preserve distinct run-history rows even when they
+    reference the same deduplicated payload artifacts.
 
     The primary query interface is SQL-based via query_sql(), which provides
     maximum flexibility for filtering, joining, and aggregating data.
@@ -58,16 +60,17 @@ class AnalyticsStore:
     def _build_run_records(
         run: CapabilityRunBase,
         capability_table: str,
+        provenance: Provenance,
     ) -> list[RunRecord]:
         """Build ``runs`` table rows for a single capability run.
 
         One row is emitted per mapped entity (dataset, model, metric). Repeated
-        writes of the same run should preserve these mappings without creating
-        duplicate rows for the same ``(run_uid, capability_table, entity_type,
-        entity_id)`` combination.
+        writes of the same run remain idempotent unless callers provide
+        distinct explicit ``run_event_id`` values.
         """
         run_uid = run.run_uid
         cap_id = run.capability_id
+        provenance_kwargs = provenance.model_dump(mode="python", exclude_none=True)
         return [
             *[
                 RunRecord(
@@ -76,6 +79,7 @@ class AnalyticsStore:
                     capability_table=capability_table,
                     entity_type="dataset",
                     entity_id=ds["id"],
+                    **provenance_kwargs,
                 )
                 for ds in run.dataset_metadata
             ],
@@ -86,6 +90,7 @@ class AnalyticsStore:
                     capability_table=capability_table,
                     entity_type="model",
                     entity_id=m["id"],
+                    **provenance_kwargs,
                 )
                 for m in run.model_metadata
             ],
@@ -96,13 +101,20 @@ class AnalyticsStore:
                     capability_table=capability_table,
                     entity_type="metric",
                     entity_id=mt["id"],
+                    **provenance_kwargs,
                 )
                 for mt in run.metric_metadata
             ],
         ]
 
-    def _collect_records(self, runs: list[CapabilityRunBase]) -> list[BaseRecord]:
+    def _collect_records(
+        self,
+        runs: list[CapabilityRunBase],
+        *,
+        provenance: ProvenanceLike | None = None,
+    ) -> list[BaseRecord]:
         all_records: list[BaseRecord] = []
+        base_provenance = Provenance.from_optional(provenance)
 
         for run in runs:
             # Capability-specific records (extracted first so we know the table name)
@@ -119,11 +131,16 @@ class AnalyticsStore:
                     )
 
                 capability_table = next(iter(capability_tables))
-                all_records.extend(self._build_run_records(run, capability_table))
+                all_records.extend(self._build_run_records(run, capability_table, base_provenance))
 
         return all_records
 
-    def write(self, runs: list[CapabilityRunBase]) -> None:
+    def write(
+        self,
+        runs: list[CapabilityRunBase],
+        *,
+        provenance: ProvenanceLike | None = None,
+    ) -> None:
         """Write capability runs to storage.
 
         For each run, this method:
@@ -131,20 +148,32 @@ class AnalyticsStore:
            to dataset/model/metric IDs).
         2. Calls ``run.extract()`` for capability-specific records.
 
-        Repeated writes are expected to be idempotent at the storage-backend
-        layer. Capability payload tables should not accumulate duplicate data
-        for the same ``run_uid`` across separate writes, and the ``runs`` table
-        should not accumulate duplicate mapping rows for the same
-        ``(run_uid, capability_table, entity_type, entity_id)``.
+        Repeated writes are expected to be idempotent for payload tables at the
+        storage-backend layer: capability payload tables should not accumulate
+        duplicate data for the same ``run_uid`` across separate writes. The
+        ``runs`` table preserves old idempotent mapping semantics unless callers
+        provide explicit ``run_event_id`` values, as job backends do.
 
         Parameters
         ----------
         runs
             List of capability runs to write.
+        provenance
+            Optional explicit provenance values applied to every generated
+            ``runs`` row. Process defaults are not read automatically; pass
+            ``get_provenance_defaults()`` if you want to use configured defaults.
         """
-        _ = self.write_with_receipt(runs)
+        _ = self.write_with_receipt(
+            runs,
+            provenance=provenance,
+        )
 
-    def write_with_receipt(self, runs: list[CapabilityRunBase]) -> StorageWriteReceipt:
+    def write_with_receipt(
+        self,
+        runs: list[CapabilityRunBase],
+        *,
+        provenance: ProvenanceLike | None = None,
+    ) -> StorageWriteReceipt:
         """Write capability runs to storage and return concrete write metadata.
 
         This is the receipt-aware variant used by job-submission paths that need
@@ -153,7 +182,12 @@ class AnalyticsStore:
         if not runs:
             return StorageWriteReceipt()
 
-        return self._backend.write_with_receipt(self._collect_records(runs))
+        return self._backend.write_with_receipt(
+            self._collect_records(
+                runs,
+                provenance=provenance,
+            )
+        )
 
     def list_tables(self) -> list[str]:
         """List available tables in the store.

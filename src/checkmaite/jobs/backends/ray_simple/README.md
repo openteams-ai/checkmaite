@@ -130,7 +130,19 @@ Prefer passing large data through:
 Use the analytics store for completed run records and use external storage for
 large artifacts.
 
-### 5. Status and cancellation are best-effort Ray observations
+### 5. Analytics-store provenance is submitted with the task
+
+At submission time, `ray-simple` resolves provenance defaults in the submitting
+process with `get_provenance_defaults()`, adds dynamic job metadata (`job_id`,
+`backend="ray-simple"`, `submitted_at`, and `run_event_id=job_id`), and sends
+that provenance with the Ray task.
+
+The worker does not infer provenance from its own environment. After the
+capability finishes, the worker adds `completed_at` and passes the resolved
+provenance explicitly to the analytics-store write. Those values are persisted as
+columns on the auto-generated `runs` table.
+
+### 6. Status and cancellation are best-effort Ray observations
 
 `ray-simple` maps Ray task state into the `checkmaite.jobs.JobStatus` protocol:
 
@@ -150,7 +162,7 @@ or external side effects may already have run.
 Timeouts passed to `result()` or `wait()` do not cancel the Ray task. They only
 bound how long the caller waits.
 
-### 6. Ray runtime lifecycle is shared with the process
+### 7. Ray runtime lifecycle is shared with the process
 
 `RaySimpleJobBackend` initializes Ray when needed. Its shutdown behavior is simple:
 

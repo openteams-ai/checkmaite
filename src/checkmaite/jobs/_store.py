@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
-from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend, ProvenanceLike
 
 if TYPE_CHECKING:
     from checkmaite.core.capability_core import CapabilityRunBase
@@ -36,9 +36,11 @@ def build_analytics_store(config: AnalyticsStoreConfig | dict[str, Any]) -> Anal
 def write_run_and_get_store_uri(
     store: AnalyticsStore,
     run: CapabilityRunBase[Any, Any],
+    *,
+    provenance: ProvenanceLike | None = None,
 ) -> str:
     """Persist a run in the analytics store and return a concrete payload URI."""
-    receipt = store.write_with_receipt([run])
+    receipt = store.write_with_receipt([run], provenance=provenance)
 
     store_uri = receipt.resolve_run_uri(run.run_uid)
     if store_uri is not None:

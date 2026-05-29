@@ -30,6 +30,12 @@ So the backend needs explicit configuration for the execution environment and co
 - actor pending-call limits (`registry_max_pending_calls`, `controller_max_pending_calls`) that turn overload into retryable `BackpressureError`,
 - and operational settings such as timeouts, retention, cleanup, and actor resource placement.
 
+Provenance fields such as `user_id`, `workspace_id`, `environment`, `executor`,
+`cluster_id`, and `request_id` are not backend settings. Set them with
+`checkmaite.configure_provenance(...)`. Job backends add job-specific fields such
+as `job_id`, backend name, and submission/completion times when they write run
+history.
+
 The goal is to make the backend's execution, coordination, storage, and operational assumptions explicit before jobs are submitted.
 
 ## API shape
@@ -121,4 +127,4 @@ configure_job_backend(
 )
 ```
 
-For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and [Ray simple job backend](ray_simple_job_backend.md). For worker image and cluster environment guidance, see [Worker environments](worker_environments.md). For store semantics and URI resolution details, see [Distributed analytics store](analytics_store.md).
+For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and [Ray simple job backend](ray_simple_job_backend.md). For worker image and cluster environment guidance, see [Worker environments](worker_environments.md). For store semantics, provenance, and URI resolution details, see [Distributed analytics store](analytics_store.md).

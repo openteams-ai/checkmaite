@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 import ray
 
-from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend, configure_provenance, reset_provenance
 from checkmaite.jobs import (
     CapabilityRunRef,
     JobCancelledError,
@@ -213,6 +213,43 @@ def test_submit_capability_returns_ref_and_writes_store(local_ray: Path) -> None
 
 
 @pytest.mark.ray
+def test_submitted_ray_job_writes_provenance(local_ray: Path, fake_ic_dataset_default) -> None:
+    reset_provenance()
+    configure_provenance(user_id="alice", workspace_id="workspace-a", environment="databricks")
+    try:
+        capability = TinyDatasetCapability()
+
+        job = submit_capability(
+            capability,
+            datasets=[fake_ic_dataset_default],
+            config=TinyConfig(text="provenance"),
+            use_cache=False,
+        )
+        ref = job.result(timeout=30)
+
+        result = _store(local_ray).query_sql(
+            """
+            SELECT user_id, workspace_id, environment, job_id, backend,
+                   submitted_at, completed_at, run_event_id
+            FROM runs
+            """
+        )
+
+        assert result.shape[0] == 1
+        assert result["user_id"].to_list() == ["alice"]
+        assert result["workspace_id"].to_list() == ["workspace-a"]
+        assert result["environment"].to_list() == ["databricks"]
+        assert result["job_id"].to_list() == [job.job_id]
+        assert result["backend"].to_list() == ["ray"]
+        assert result["run_event_id"].to_list() == [job.job_id]
+        assert result["submitted_at"].drop_nulls().len() == 1
+        assert result["completed_at"].drop_nulls().len() == 1
+        assert ref.run_uid
+    finally:
+        reset_provenance()
+
+
+@pytest.mark.ray
 def test_result_timeout_and_cancel(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -378,6 +415,8 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(isolated_
 
 @pytest.mark.ray
 def test_store_write_failure_raises_by_default(isolated_local_ray: Path) -> None:
+    reset_provenance()
+    configure_provenance(user_id="alice")
     capability = TinyCapability()
 
     # Point analytics store to a regular file so table directory creation fails.
@@ -393,9 +432,12 @@ def test_store_write_failure_raises_by_default(isolated_local_ray: Path) -> None
         controller_num_cpus=0.0,
     )
 
-    job = submit_capability(capability, config=TinyConfig(text="no-store"), use_cache=False)
-    with pytest.raises(JobFailedError):
-        job.result(timeout=30)
+    try:
+        job = submit_capability(capability, config=TinyConfig(text="no-store"), use_cache=False)
+        with pytest.raises(JobFailedError):
+            job.result(timeout=30)
+    finally:
+        reset_provenance()
 
 
 @pytest.mark.ray

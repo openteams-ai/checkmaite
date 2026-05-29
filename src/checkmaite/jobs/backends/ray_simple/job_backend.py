@@ -11,7 +11,7 @@ from typing import Any
 import ray
 from ray.exceptions import GetTimeoutError, TaskCancelledError
 
-from checkmaite.core.analytics_store import AnalyticsStore
+from checkmaite.core.analytics_store import AnalyticsStore, Provenance, ProvenanceLike, get_provenance_defaults
 from checkmaite.core.capability_core import CapabilityRunBase
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
@@ -28,6 +28,17 @@ from checkmaite.jobs.protocol import (
 logger = logging.getLogger(__name__)
 
 
+def _ray_simple_job_provenance(job_id: str, submitted_at: datetime) -> Provenance:
+    return get_provenance_defaults().merge(
+        {
+            "job_id": job_id,
+            "backend": "ray-simple",
+            "submitted_at": submitted_at,
+            "run_event_id": job_id,
+        }
+    )
+
+
 def _collect_md_report(run: CapabilityRunBase[Any, Any], threshold: float) -> str | list[Any]:
     try:
         return run.collect_md_report(threshold=threshold)
@@ -42,8 +53,10 @@ def _get_worker_store(store_config: AnalyticsStoreConfig | dict[str, Any]) -> An
 def _write_run_and_collect_store_metadata(
     store: AnalyticsStore,
     run: CapabilityRunBase[Any, Any],
+    *,
+    provenance: ProvenanceLike | None = None,
 ) -> str:
-    return write_run_and_get_store_uri(store, run)
+    return write_run_and_get_store_uri(store, run, provenance=provenance)
 
 
 def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, Any]) -> CapabilityRunRef:
@@ -61,13 +74,16 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
 
     report_threshold = float(run_kwargs.pop("report_threshold", 0.5))
     raw_store_config = run_kwargs.pop("_analytics_store")
+    raw_provenance = run_kwargs.pop("_provenance", None)
 
     run = capability.run(**run_kwargs)
 
     store = _get_worker_store(raw_store_config)
+    provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(timezone.utc)})
     store_uri = _write_run_and_collect_store_metadata(
         store,
         run,
+        provenance=provenance,
     )
 
     summary: dict[str, Any] = {
@@ -240,6 +256,7 @@ class RaySimpleJobBackend:
         )(_execute_capability_ref)
 
         run_kwargs["_analytics_store"] = self._analytics_store.model_dump(mode="python")
+        run_kwargs["_provenance"] = _ray_simple_job_provenance(job_id, created_at).model_dump(mode="python")
 
         try:
             obj_ref = remote_fn.remote(capability, run_kwargs)

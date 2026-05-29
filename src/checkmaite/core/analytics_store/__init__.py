@@ -8,11 +8,12 @@ Key Components
 - BaseRecord: Base class for capability-specific records
 - AnalyticsStore: Main API for writing runs and querying via SQL
 - ParquetBackend: Default storage backend using Parquet files
+- RunRecord: Auto-populated run metadata with flat provenance columns
 
 Usage
 -----
 ```python
-from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend, get_provenance_defaults
 
 # Create store
 store = AnalyticsStore(ParquetBackend("./my_analytics_store"))
@@ -21,8 +22,8 @@ store = AnalyticsStore(ParquetBackend("./my_analytics_store"))
 run1 = capability.run(datasets=[ds1])
 run2 = capability.run(datasets=[ds2])
 
-# Write runs to store
-store.write([run1, run2])
+# Write runs to store. Pass provenance explicitly if you want configured/env defaults.
+store.write([run1, run2], provenance=get_provenance_defaults())
 
 # List available tables
 tables = store.list_tables()  # ["runs", "dataeval_cleaning", "maite_evaluation"]
@@ -86,6 +87,13 @@ class MyCapabilityRun(CapabilityRunBase[MyConfig, MyOutputs]):
 ```
 """
 
+from checkmaite.core.analytics_store._provenance import (
+    Provenance,
+    ProvenanceLike,
+    configure_provenance,
+    get_provenance_defaults,
+    reset_provenance,
+)
 from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
 from checkmaite.core.analytics_store._storage import ParquetBackend, StorageBackend, StorageWriteReceipt
 from checkmaite.core.analytics_store._store import AnalyticsStore
@@ -94,7 +102,12 @@ __all__ = [
     "BaseRecord",
     "AnalyticsStore",
     "ParquetBackend",
+    "Provenance",
+    "ProvenanceLike",
     "RunRecord",
     "StorageBackend",
     "StorageWriteReceipt",
+    "configure_provenance",
+    "get_provenance_defaults",
+    "reset_provenance",
 ]

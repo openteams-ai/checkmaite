@@ -112,6 +112,11 @@ PosixPath('/home/user/my-cache')
 
 from checkmaite.core import cached_tasks, capability_core, image_classification, object_detection, report  # noqa: E402
 from checkmaite.core._cache import binary_de_serializer  # noqa: E402
+from checkmaite.core.analytics_store._provenance import (  # noqa: E402
+    configure_provenance,
+    get_provenance_defaults,
+    reset_provenance,
+)
 
 __all__ = [
     "__version__",
@@ -122,4 +127,7 @@ __all__ = [
     "capability_core",
     "binary_de_serializer",
     "report",
+    "configure_provenance",
+    "get_provenance_defaults",
+    "reset_provenance",
 ]

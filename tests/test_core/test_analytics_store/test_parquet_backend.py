@@ -154,6 +154,79 @@ def test_runs_table_deduplicates_same_mapping_across_writes(backend: ParquetBack
     assert result.shape[0] == 1
 
 
+def test_runs_table_preserves_distinct_run_events_for_same_mapping(backend: ParquetBackend) -> None:
+    first = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+        run_event_id="invoke-1",
+    )
+    second = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+        run_event_id="invoke-2",
+    )
+
+    backend.write([first])
+    backend.write([second])
+
+    result = backend.query_sql("SELECT run_event_id FROM runs ORDER BY run_event_id")
+    assert result["run_event_id"].to_list() == ["invoke-1", "invoke-2"]
+
+
+def test_runs_table_preserves_explicit_run_event_after_default_mapping(backend: ParquetBackend) -> None:
+    default_event = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+    )
+    explicit_event = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+        run_event_id="invoke-1",
+    )
+
+    backend.write([default_event])
+    backend.write([explicit_event])
+
+    result = backend.query_sql("SELECT run_event_id FROM runs ORDER BY run_event_id")
+    assert result["run_event_id"].to_list() == ["invoke-1", None]
+
+
+def test_runs_table_drops_default_mapping_after_explicit_run_event(backend: ParquetBackend) -> None:
+    explicit_event = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+        run_event_id="invoke-1",
+    )
+    default_event = RunRecord(
+        run_uid="same",
+        capability_id="cap1",
+        capability_table="metrics",
+        entity_type="dataset",
+        entity_id="ds1",
+    )
+
+    backend.write([explicit_event])
+    backend.write([default_event])
+
+    result = backend.query_sql("SELECT run_event_id FROM runs")
+    assert result["run_event_id"].to_list() == ["invoke-1"]
+
+
 def test_runs_table_preserves_distinct_mappings_for_same_run_uid(backend: ParquetBackend) -> None:
     dataset_row = RunRecord(
         run_uid="same",

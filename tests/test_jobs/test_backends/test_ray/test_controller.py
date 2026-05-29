@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 import ray
 
+from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
 from checkmaite.jobs import CapabilityRunRef, shutdown_job_backend
 from checkmaite.jobs.backends.ray.controller import (
     JobController,
@@ -19,7 +20,7 @@ from checkmaite.jobs.backends.ray.controller import (
     get_or_create_controller_actor,
 )
 from checkmaite.jobs.backends.ray.registry import RegistryStatus, get_or_create_registry_actor
-from tests.test_jobs.fakes import TinyCapability, TinyConfig
+from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
 
 
 def _ref_payload(text: str = "ok") -> dict[str, object]:
@@ -278,6 +279,41 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
     assert ref.capability_id == TinyCapability().id
     assert ref.store_uri.endswith(".parquet")
     assert ref.summary["md_report"] == "worker:0.75"
+
+
+def test_execute_capability_ref_writes_provenance_to_runs_table(tmp_path: Path, fake_ic_dataset_default) -> None:
+    store_path = tmp_path / "store"
+    ref = _execute_capability_ref(
+        TinyDatasetCapability(),
+        {
+            "datasets": [fake_ic_dataset_default],
+            "config": TinyConfig(text="worker"),
+            "use_cache": False,
+            "_analytics_store": {"backend": "parquet", "uri": str(store_path)},
+            "_provenance": {
+                "user_id": "alice",
+                "workspace_id": "workspace-a",
+                "job_id": "job-1",
+                "backend": "ray",
+                "submitted_at": "2024-01-01T00:00:00+00:00",
+                "run_event_id": "job-1",
+            },
+        },
+    )
+
+    result = AnalyticsStore(ParquetBackend(str(store_path))).query_sql(
+        "SELECT user_id, workspace_id, job_id, backend, submitted_at, completed_at, run_event_id FROM runs"
+    )
+
+    assert ref.run_uid
+    assert result.shape[0] == 1
+    assert result["user_id"].to_list() == ["alice"]
+    assert result["workspace_id"].to_list() == ["workspace-a"]
+    assert result["job_id"].to_list() == ["job-1"]
+    assert result["backend"].to_list() == ["ray"]
+    assert result["submitted_at"].drop_nulls().len() == 1
+    assert result["completed_at"].drop_nulls().len() == 1
+    assert result["run_event_id"].to_list() == ["job-1"]
 
 
 def test_execute_capability_ref_rejects_cache_in_job_submission(tmp_path: Path) -> None:

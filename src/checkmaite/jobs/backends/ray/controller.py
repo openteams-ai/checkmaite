@@ -7,13 +7,14 @@ import time
 from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, TypedDict, cast
 
 import ray
 from ray.actor import ActorHandle
 from ray.exceptions import GetTimeoutError, TaskCancelledError
 
-from checkmaite.core.analytics_store import AnalyticsStore
+from checkmaite.core.analytics_store import AnalyticsStore, Provenance, ProvenanceLike
 from checkmaite.core.capability_core import CapabilityRunBase
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
@@ -132,8 +133,10 @@ def _get_worker_store(store_config: AnalyticsStoreConfig | dict[str, Any]) -> An
 def _write_run_and_collect_store_metadata(
     store: AnalyticsStore,
     run: CapabilityRunBase[Any, Any],
+    *,
+    provenance: ProvenanceLike | None = None,
 ) -> str:
-    return write_run_and_get_store_uri(store, run)
+    return write_run_and_get_store_uri(store, run, provenance=provenance)
 
 
 def _update_registry_terminal_best_effort(
@@ -232,11 +235,13 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
 
     report_threshold = float(run_kwargs.pop("report_threshold", 0.5))
     raw_store_config = run_kwargs.pop("_analytics_store")
+    raw_provenance = run_kwargs.pop("_provenance", None)
 
     run = capability.run(**run_kwargs)
 
     store = _get_worker_store(raw_store_config)
-    store_uri = _write_run_and_collect_store_metadata(store, run)
+    provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(timezone.utc)})
+    store_uri = _write_run_and_collect_store_metadata(store, run, provenance=provenance)
 
     summary: dict[str, Any] = {
         "md_report": _collect_md_report(run, threshold=report_threshold),

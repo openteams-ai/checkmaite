@@ -125,7 +125,20 @@ Make sure:
 
 The registry does not store the full completed run.
 
-### 4. The job namespace controls sharing
+### 4. Analytics-store provenance is submitted with the task
+
+Analytics-store provenance is resolved by the submitting process before the
+worker runs. The backend reads `get_provenance_defaults()`, adds registry/job
+metadata (`job_id`, `backend="ray"`, `submitted_at`, and `run_event_id=job_id`),
+and sends that provenance through the controller to the worker task.
+
+The worker does not infer provenance from its own environment. After the
+capability finishes, the worker adds `completed_at` and passes the resolved
+provenance explicitly to the analytics-store write. Those values are persisted as
+columns on the auto-generated `runs` table. The registry stores only job-tracking
+metadata and does not store full run records.
+
+### 5. The job namespace controls sharing
 
 `idempotency_scope` is required. Think of it as the job namespace for a
 workspace, project, tenant, or experiment.
@@ -147,7 +160,7 @@ model/dataset/metric metadata used by `compute_uid(...)`. Worker resources, Ray
 address, runtime environment, analytics-store URI, and `report_threshold` are not
 part of that key.
 
-### 5. Ray actor state is not permanent storage
+### 6. Ray actor state is not permanent storage
 
 The registry actor and controller actors can keep running after a notebook or
 client process exits. That is what makes reconnecting possible.
@@ -164,7 +177,7 @@ lost if:
 If the registry actor is lost, job metadata and duplicate-submission tracking are
 lost, even if a worker already wrote rows or artifacts to the analytics store.
 
-### 6. Clients in the same Ray namespace are trusted
+### 7. Clients in the same Ray namespace are trusted
 
 The registry checks controller names and owner tokens to avoid normal race
 conditions and stale updates. This is not a full security boundary.
@@ -172,7 +185,7 @@ conditions and stale updates. This is not a full security boundary.
 Code that can access the same Ray namespace and registry actor is trusted. Do not
 expose registry or controller actor methods to untrusted code.
 
-### 7. Finished job state is final
+### 8. Finished job state is final
 
 Once the registry records `COMPLETED`, `FAILED`, or `CANCELLED`, that result is
 final and shared by all clients.
@@ -182,7 +195,7 @@ state to the registry. If the controller dies in that gap, the registry may late
 mark the job as failed. A `COMPLETED` job must include a valid, small
 `CapabilityRunRef`; otherwise the public job status is treated as failed.
 
-### 8. Status and cancellation are best effort
+### 9. Status and cancellation are best effort
 
 `RayJob.status` is a lightweight polling API. It can return old information if a
 Ray call fails or times out.
@@ -201,7 +214,7 @@ promise that the final state will be `CANCELLED`. If the job finishes at the
 same time as the cancel request, the final state may be `COMPLETED`, `FAILED`,
 or `CANCELLED`. Timeouts passed to `wait()` or `result()` do not cancel the job.
 
-### 9. Capability code may run more than once
+### 10. Capability code may run more than once
 
 The job backend tries to avoid duplicate submissions within a scope, but it does not
 guarantee exactly-once execution. Ray retries, user retries, cancellation races,
@@ -211,7 +224,7 @@ Capability code, analytics-store writes, and any other user-visible side effects
 should be safe to repeat. Use unique run ids, transactions, or another workflow
 specific guard when needed.
 
-### 10. This design is for coarse jobs
+### 11. This design is for coarse jobs
 
 The job backend creates one controller actor for each submitted job and uses one
 registry actor for job lookup. This is a good fit for capability jobs that run

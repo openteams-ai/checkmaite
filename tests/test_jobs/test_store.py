@@ -5,9 +5,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from checkmaite.core.analytics_store import AnalyticsStore
+from checkmaite.core.analytics_store import AnalyticsStore, Provenance
+from checkmaite.core.analytics_store import _provenance as provenance_module
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
-from tests.test_jobs.fakes import TinyCapability, TinyConfig
+from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
 
 
 def test_build_analytics_store_accepts_config_dict_and_config_model(tmp_path: Path) -> None:
@@ -43,3 +44,24 @@ def test_write_run_and_get_store_uri_falls_back_to_existing_run_uri(tmp_path: Pa
     second_uri = write_run_and_get_store_uri(store, run)
 
     assert second_uri == first_uri
+
+
+def test_job_store_write_uses_submitted_provenance_not_worker_process_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_ic_dataset_default,
+) -> None:
+    monkeypatch.setattr(provenance_module, "_ENV_PROVENANCE", Provenance(user_id="worker-user"))
+    monkeypatch.setattr(provenance_module, "_FROZEN_PROVENANCE_FIELDS", frozenset({"user_id"}))
+
+    store = build_analytics_store({"backend": "parquet", "uri": str(tmp_path / "store")})
+    run = TinyDatasetCapability().run(
+        datasets=[fake_ic_dataset_default],
+        config=TinyConfig(text="client-provenance"),
+        use_cache=False,
+    )
+
+    write_run_and_get_store_uri(store, run, provenance={"user_id": "client-user"})
+
+    result = store.query_sql("SELECT DISTINCT user_id FROM runs")
+    assert result["user_id"].to_list() == ["client-user"]

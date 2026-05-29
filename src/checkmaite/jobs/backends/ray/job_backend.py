@@ -18,6 +18,7 @@ try:
 except ImportError:  # pragma: no cover - compatibility with Ray versions lacking this exception
     PendingCallsLimitExceeded = type("PendingCallsLimitExceeded", (Exception,), {})
 
+from checkmaite.core.analytics_store import Provenance, get_provenance_defaults
 from checkmaite.jobs._store import AnalyticsStoreConfig
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
 from checkmaite.jobs.protocol import (
@@ -143,6 +144,19 @@ class RegistrySnapshot:
 
 def _created_at_from_submitted_ts(submitted_at_ts: float) -> datetime:
     return datetime.fromtimestamp(float(submitted_at_ts), tz=timezone.utc)
+
+
+def _ray_job_provenance(job_id: str, submitted_at: datetime, workspace_id: str) -> Provenance:
+    defaults = get_provenance_defaults()
+    dynamic: dict[str, Any] = {
+        "job_id": job_id,
+        "backend": "ray",
+        "submitted_at": submitted_at,
+        "run_event_id": job_id,
+    }
+    if defaults.workspace_id is None:
+        dynamic["workspace_id"] = workspace_id
+    return defaults.merge(dynamic)
 
 
 def _registry_status_from_raw(status: RegistryStatus | str) -> RegistryStatus:
@@ -1617,6 +1631,11 @@ class RayJobBackend:
             resources: RayTaskResources = self._resolve_resources(capability, run_kwargs)
             run_kwargs.pop("resources", None)
             run_kwargs["_analytics_store"] = self._analytics_store.model_dump(mode="python")
+            run_kwargs["_provenance"] = _ray_job_provenance(
+                job_id,
+                _created_at_from_submitted_ts(new_registration["submitted_at_ts"]),
+                self._idempotency_scope,
+            ).model_dump(mode="python")
 
             controller = get_or_create_controller_actor(
                 name=controller_name,

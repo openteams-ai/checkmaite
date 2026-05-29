@@ -10,6 +10,9 @@ from upath import UPath
 from checkmaite.core.analytics_store._schema import BaseRecord
 from checkmaite.core.analytics_store._storage._base import StorageWriteReceipt
 
+_RUNS_BASE_KEY = ["run_uid", "capability_table", "entity_type", "entity_id"]
+_RUNS_EVENT_KEY = [*_RUNS_BASE_KEY, "run_event_id"]
+
 
 class ParquetBackend:
     """Parquet-based storage backend for the analytics store.
@@ -84,16 +87,103 @@ class ParquetBackend:
                 )
 
     @staticmethod
+    def _dedupe_runs_within_batch(batch: pl.DataFrame) -> pl.DataFrame:
+        # If there is no run-event column, or it is all null, all rows use the base key.
+        if "run_event_id" not in batch.columns or batch.get_column("run_event_id").null_count() == batch.height:
+            # Keep one row per run/entity mapping, keeping the first one seen.
+            return batch.unique(subset=_RUNS_BASE_KEY, maintain_order=True)
+
+        # Add row numbers so we can restore the original order after splitting rows.
+        indexed = batch.with_row_index("__row_nr")
+        # Store the deduped row groups that we will join back together.
+        parts: list[pl.DataFrame] = []
+
+        # Rows without run_event_id use the base key.
+        without_event = indexed.filter(pl.col("run_event_id").is_null()).unique(
+            subset=_RUNS_BASE_KEY,
+            maintain_order=True,
+        )
+        # Add rows that remain after base-key dedupe.
+        if not without_event.is_empty():
+            # Save them for the final output.
+            parts.append(without_event)
+
+        # Rows with run_event_id use the event key.
+        with_event = indexed.filter(pl.col("run_event_id").is_not_null()).unique(
+            subset=_RUNS_EVENT_KEY,
+            maintain_order=True,
+        )
+        # Add rows that remain after event-key dedupe.
+        if not with_event.is_empty():
+            # Save them for the final output.
+            parts.append(with_event)
+
+        # If the input had no rows, there is nothing to join back together.
+        if not parts:
+            # Return the original empty batch.
+            return batch
+
+        # Join the groups, restore input order, and drop the temporary row number.
+        return pl.concat(parts, how="diagonal_relaxed").sort("__row_nr").drop("__row_nr")
+
+    @staticmethod
     def _dedupe_runs_batch(
         batch: pl.DataFrame,
         existing_lf: pl.LazyFrame,
         existing_schema: dict[str, pl.DataType],
     ) -> pl.DataFrame:
-        runs_key = ["run_uid", "capability_table", "entity_type", "entity_id"]
-        if all(col in existing_schema for col in runs_key):
-            existing_keys = existing_lf.select(runs_key).unique().collect()
-            batch = batch.join(existing_keys, on=runs_key, how="anti")
-        return batch
+        # If existing data lacks the base key columns, we cannot compare rows.
+        if not all(col in existing_schema for col in _RUNS_BASE_KEY):
+            # Keep the whole batch.
+            return batch
+
+        # If there is no run-event column, or it is all null, all rows use the base key.
+        if "run_event_id" not in batch.columns or batch.get_column("run_event_id").null_count() == batch.height:
+            # Read the base keys that are already stored.
+            existing_keys = existing_lf.select(_RUNS_BASE_KEY).unique().collect()
+            # Keep only rows whose base key is not already stored.
+            return batch.join(existing_keys, on=_RUNS_BASE_KEY, how="anti")
+
+        # Add row numbers so we can restore the original order after splitting rows.
+        indexed = batch.with_row_index("__row_nr")
+        # Store the row groups that survive comparison with existing data.
+        parts: list[pl.DataFrame] = []
+
+        # Rows without run_event_id compare to existing rows by the base key.
+        without_event = indexed.filter(pl.col("run_event_id").is_null())
+        # Skip this work when there are no no-event rows.
+        if not without_event.is_empty():
+            # Read the base keys that are already stored.
+            existing_base_keys = existing_lf.select(_RUNS_BASE_KEY).unique().collect()
+            # Keep only no-event rows whose base key is not already stored.
+            without_event = without_event.join(existing_base_keys, on=_RUNS_BASE_KEY, how="anti")
+            # Add rows that remain after comparing with existing data.
+            if not without_event.is_empty():
+                # Save them for the final output.
+                parts.append(without_event)
+
+        # Rows with run_event_id compare to existing rows by the event key.
+        with_event = indexed.filter(pl.col("run_event_id").is_not_null())
+        # Skip this work when there are no event rows.
+        if not with_event.is_empty():
+            # Older stored data may not have run_event_id yet.
+            if "run_event_id" in existing_schema:
+                # Read the event keys that are already stored.
+                existing_event_keys = existing_lf.select(_RUNS_EVENT_KEY).unique().collect()
+                # Keep only event rows whose event key is not already stored.
+                with_event = with_event.join(existing_event_keys, on=_RUNS_EVENT_KEY, how="anti")
+            # Add rows that remain after comparing with existing data.
+            if not with_event.is_empty():
+                # Save them for the final output.
+                parts.append(with_event)
+
+        # If no rows survived, return an empty batch with the same columns.
+        if not parts:
+            # head(0) keeps the schema but removes all rows.
+            return batch.head(0)
+
+        # Join the groups, restore input order, and drop the temporary row number.
+        return pl.concat(parts, how="diagonal_relaxed").sort("__row_nr").drop("__row_nr")
 
     @staticmethod
     def _dedupe_payload_batch(batch: pl.DataFrame, existing_lf: pl.LazyFrame) -> pl.DataFrame:
@@ -109,10 +199,7 @@ class ParquetBackend:
         for table_name, rows in self._group_records(records).items():
             batch = pl.DataFrame(rows)
             if table_name == "runs":
-                batch = batch.unique(
-                    subset=["run_uid", "capability_table", "entity_type", "entity_id"],
-                    maintain_order=True,
-                )
+                batch = self._dedupe_runs_within_batch(batch)
 
             output_dir = self._table_path(table_name)
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -160,8 +247,10 @@ class ParquetBackend:
         Dedupe semantics are table-specific:
         - capability payload tables are idempotent by ``run_uid`` across
           repeated write calls,
-        - the ``runs`` table is deduplicated by mapping key
-          ``(run_uid, capability_table, entity_type, entity_id)``.
+        - the ``runs`` table deduplicates rows without ``run_event_id`` by
+          mapping key ``(run_uid, capability_table, entity_type, entity_id)``,
+          and rows with ``run_event_id`` by provenance-aware mapping key
+          ``(run_uid, capability_table, entity_type, entity_id, run_event_id)``.
         """
         _ = self._write_impl(records)
 

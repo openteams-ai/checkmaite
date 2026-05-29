@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional, Union
+from datetime import datetime, timezone
+from typing import Union
 
 import pydantic
 import pytest
@@ -20,7 +20,7 @@ class TestIsScalarAcceptsOptionalScalars:
 
     @pytest.mark.parametrize("typ", [str, int, float, bool, bytes, datetime])
     def test_optional_typing(self, typ: type) -> None:
-        assert _is_scalar(Optional[typ]) is True  # noqa: UP007
+        assert _is_scalar(typ | None) is True
 
     @pytest.mark.parametrize("typ", [str, int, float, bool, bytes, datetime])
     def test_pipe_none(self, typ: type) -> None:
@@ -76,7 +76,7 @@ class TestIsScalarRejectsUnionsContainingNonScalars:
         assert _is_scalar(Union[str, list[int]]) is False  # noqa: UP007
 
     def test_optional_list(self) -> None:
-        assert _is_scalar(Optional[list[str]]) is False  # noqa: UP007
+        assert _is_scalar(list[str] | None) is False
 
     def test_optional_dict(self) -> None:
         assert _is_scalar(dict[str, int] | None) is False
@@ -203,6 +203,47 @@ def test_run_record_has_scalar_enforcement() -> None:
     )
     assert rec.run_uid == "r1"
     assert rec.created_at is not None
+    assert rec.run_event_id is None
+
+
+def test_run_record_has_flat_provenance_fields() -> None:
+    rec = RunRecord(
+        run_uid="r1",
+        capability_id="cap",
+        capability_table="tbl",
+        entity_type="dataset",
+        entity_id="ds1",
+        user_id="alice",
+        workspace_id="workspace-a",
+        job_id="job-1",
+        backend="ray",
+        submitted_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        completed_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        environment="databricks",
+        executor="ray",
+        cluster_id="cluster-1",
+        request_id="req-1",
+        run_event_id="invoke-1",
+    )
+
+    dumped = rec.model_dump(mode="python")
+
+    assert dumped["user_id"] == "alice"
+    assert dumped["workspace_id"] == "workspace-a"
+    assert dumped["job_id"] == "job-1"
+    assert dumped["backend"] == "ray"
+    assert dumped["submitted_at"] == datetime(2024, 1, 1, tzinfo=timezone.utc)
+    assert dumped["completed_at"] == datetime(2024, 1, 2, tzinfo=timezone.utc)
+    assert dumped["environment"] == "databricks"
+    assert dumped["executor"] == "ray"
+    assert dumped["cluster_id"] == "cluster-1"
+    assert dumped["request_id"] == "req-1"
+    assert dumped["run_event_id"] == "invoke-1"
+
+
+def test_run_record_fields_remain_scalar() -> None:
+    for field in RunRecord.model_fields.values():
+        assert _is_scalar(field.annotation)
 
 
 def test_run_record_forbids_extra_fields() -> None:

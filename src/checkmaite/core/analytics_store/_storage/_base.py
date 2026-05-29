@@ -66,8 +66,10 @@ class StorageBackend(Protocol):
         Backend implementations are expected to preserve analytics-store
         idempotency semantics across repeated writes:
         - capability payload tables deduplicate by ``run_uid`` across writes,
-        - the ``runs`` table deduplicates by mapping key
-          ``(run_uid, capability_table, entity_type, entity_id)`` across writes.
+        - the ``runs`` table deduplicates rows without ``run_event_id`` by
+          mapping key ``(run_uid, capability_table, entity_type, entity_id)``,
+          and rows with ``run_event_id`` by provenance-aware mapping key
+          ``(run_uid, capability_table, entity_type, entity_id, run_event_id)``.
 
         Parameters
         ----------

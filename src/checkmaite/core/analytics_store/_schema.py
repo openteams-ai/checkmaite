@@ -144,9 +144,12 @@ class RunRecord(BaseRecord, table_name="runs"):
     """A row in the ``runs`` table, emitted automatically by the store.
 
     Maps a ``run_uid`` to the human-readable identifiers that produced it
-    (capability, datasets, models, metrics). One record is written per unique
-    ``(run_uid, capability_table, entity_type, entity_id)`` mapping so that
-    users can filter on any dimension with plain SQL::
+    (capability, datasets, models, metrics) plus flat provenance metadata for
+    the run history event. One record is written per unique
+    ``(run_uid, capability_table, entity_type, entity_id)`` mapping by
+    default, or per ``(run_uid, capability_table, entity_type, entity_id,
+    run_event_id)`` when an explicit run event ID is supplied, so that users
+    can filter on any dimension with plain SQL::
 
         SELECT c.*
         FROM dataeval_cleaning c
@@ -158,3 +161,27 @@ class RunRecord(BaseRecord, table_name="runs"):
     capability_table: str  # table_name of the capability's record class
     entity_type: str  # "dataset", "model", or "metric"
     entity_id: str
+
+    # Provenance fields. These stay flat and scalar so the ``runs`` table
+    # remains directly queryable via SQL and compatible with Parquet storage.
+    user_id: str | None = None
+    workspace_id: str | None = None
+    job_id: str | None = None
+    backend: str | None = None
+    submitted_at: datetime | None = None
+    completed_at: datetime | None = None
+    environment: str | None = None
+    executor: str | None = None
+    cluster_id: str | None = None
+    request_id: str | None = None
+    run_event_id: str | None = None
+
+    @pydantic.field_validator("submitted_at", "completed_at")
+    @classmethod
+    def _normalize_timestamp(cls, value: datetime | None) -> datetime | None:
+        """Require timezone-aware timestamps and normalize them to UTC."""
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("submitted_at and completed_at must be timezone-aware datetimes")
+        return value.astimezone(timezone.utc)
