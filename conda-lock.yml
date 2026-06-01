@@ -15,7 +15,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: b471e9bc31f60335a0451f630ce937a137f4bf48cd9c8382f1c1e137c1f30d77
+    linux-64: 1f2ce5da3d18672e4c86327b309b895f1c4ad65c521deb04a4bff621a7ca981c
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -5813,7 +5813,7 @@ package:
   category: main
   optional: false
 - name: nrtk
-  version: 0.27.1
+  version: 1.0.2
   manager: conda
   platform: linux-64
   dependencies:
@@ -5838,6 +5838,7 @@ package:
     scikit-image: '>=0.20'
     scipy: '>=1.10.0'
     setuptools: '>=78.1.1'
+    simsimd: '>=5.9.2,<7'
     smqtk-classifier: '>=0.20.0'
     smqtk-core: '>=0.21'
     smqtk-detection: '>=0.23.0'
@@ -5846,10 +5847,10 @@ package:
     transformers: '>=4.53.0'
     typing-extensions: '>=4.5.0'
     uvicorn: '>=0.29.0'
-  url: https://conda.anaconda.org/conda-forge/noarch/nrtk-0.27.1-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/nrtk-1.0.2-pyhd8ed1ab_0.conda
   hash:
-    md5: 58022fa7e37259bff5f261adaeb9b3b1
-    sha256: b9f2001dd098ab850ef18ea52e4e9988f1e4c2827cb0eefb85222356c8641ea6
+    md5: ee6d9b08361ccb3ec9526c4ce2c29297
+    sha256: b4b4f307e1cf50b9f59eb5c370273e8fddcbb372e3da9c3f16a38e963b3b4c57
   category: main
   optional: false
 - name: nrtk-albumentations
@@ -8239,6 +8240,22 @@ package:
   hash:
     md5: 83ea3a2ddb7a75c1b09cea582aa4f106
     sha256: 1d6534df8e7924d9087bd388fbac5bd868c5bf8971c36885f9f016da0657d22b
+  category: main
+  optional: false
+- name: simsimd
+  version: 6.5.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    __glibc: '>=2.17,<3.0.a0'
+    _openmp_mutex: '>=4.5'
+    libgcc: '>=13'
+    python: '>=3.11,<3.12.0a0'
+    python_abi: 3.11.*
+  url: https://conda.anaconda.org/conda-forge/linux-64/simsimd-6.5.0-py311h9ecbd09_0.conda
+  hash:
+    md5: 0b25efc27432dcb122564bdd912b8cdd
+    sha256: bd8f806547c0f19e556d344e8bbeb034040d3876605edb1a440005d3ef1cbbff
   category: main
   optional: false
 - name: six

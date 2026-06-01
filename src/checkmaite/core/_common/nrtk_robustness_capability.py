@@ -3,7 +3,7 @@ import re
 from typing import Any
 
 import pandas as pd
-from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+from nrtk.interfaces import PerturbImageFactory
 from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 

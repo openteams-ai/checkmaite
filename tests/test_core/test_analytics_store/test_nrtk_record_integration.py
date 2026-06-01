@@ -167,7 +167,7 @@ def _make_run(perturbations: list[dict[str, object]], return_key: str = "accurac
 
     Builds a PerturberStepFactory whose theta count matches ``perturbations``.
     """
-    from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+    from nrtk.interfaces import PerturbImageFactory
     from smqtk_core.configuration import from_config_dict
 
     n = len(perturbations)

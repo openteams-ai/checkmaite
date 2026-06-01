@@ -5199,15 +5199,15 @@ test = ["pytest", "pytest-console-scripts", "pytest-jupyter", "pytest-tornasync"
 
 [[package]]
 name = "nrtk"
-version = "0.27.1"
+version = "1.0.2"
 description = "Natural Robustness Toolkit (NRTK) is a platform for generating validated, sensor-specific perturbations and transformations used to evaluate the robustness of computer vision models."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""
 files = [
-    {file = "nrtk-0.27.1-py3-none-any.whl", hash = "sha256:87e229b28a029a407f3b46849af2145446b5494b71d94e4ffef7bd0cf101415e"},
-    {file = "nrtk-0.27.1.tar.gz", hash = "sha256:0e609f67499a5d5f5357f690fd9cbde2363210702a9a23b006943c2a207a5496"},
+    {file = "nrtk-1.0.2-py3-none-any.whl", hash = "sha256:83777406218ca04ec2e9eee212b59e131491d7e67f102bd2d5a1770750d93902"},
+    {file = "nrtk-1.0.2.tar.gz", hash = "sha256:879cda9bda6cecafd60e8b3e82d4bbd40e89fac2089cdbea0fb23f7c72d8ba3e"},
 ]
 
 [package.dependencies]
@@ -11005,4 +11005,4 @@ ui = ["holoviews", "jupyterlab", "nbconvert", "panel", "streamz"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.13"
-content-hash = "fa1052f443896fb722babb76d07039a0a4bf666110138ed0ae5a59a251ebb874"
+content-hash = "d46092e0c95f701b4083eb124a6cfe7c756d3001040818d6372dca002a0a4970"

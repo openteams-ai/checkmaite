@@ -154,7 +154,7 @@ class NRTKBaseApp(BaseApp):
     )
 
     def __init__(self, styles: AppStyling = DEFAULT_STYLING, **params: dict[str, object]) -> None:
-        from nrtk.interfaces.perturb_image import PerturbImage
+        from nrtk.interfaces import PerturbImage
 
         self.add_button = pn.widgets.Button(
             name="Add Test Stage", button_type="primary"
@@ -244,7 +244,7 @@ class NRTKBaseApp(BaseApp):
             A Panel Column containing the configuration widgets for the
             selected perturber.
         """
-        from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+        from nrtk.interfaces import PerturbImageFactory
 
         pert_impl = self.perturber_select.value
 
@@ -597,7 +597,7 @@ class NRTKBaseApp(BaseApp):
         _event : object
             The event object from the button click (unused).
         """
-        from nrtk.interfaces.perturb_image_factory import PerturbImageFactory
+        from nrtk.interfaces import PerturbImageFactory
 
         self.status_source.emit("Perturbing...")
         factory_config = self.build_factory_json()
