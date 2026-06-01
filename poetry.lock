@@ -1708,15 +1708,15 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataeval"
-version = "1.0.3"
+version = "1.0.6"
 description = "DataEval provides a simple interface to characterize image data and its impact on model performance across classification and object-detection tasks"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""
 files = [
-    {file = "dataeval-1.0.3-py3-none-any.whl", hash = "sha256:43b8be6cf6837defae03442b33c4d86d1457fdcc1f07f6f85d5d1b6a18cf2a99"},
-    {file = "dataeval-1.0.3.tar.gz", hash = "sha256:a7d2ea842cdf55db47629d28975c60076d348853335351e9f87e444560bde8df"},
+    {file = "dataeval-1.0.6-py3-none-any.whl", hash = "sha256:30eba1c68837b177897ab9fd861e37720dab0c686fbf46e9c5e4483c86fd573e"},
+    {file = "dataeval-1.0.6.tar.gz", hash = "sha256:5816dc1cefbcb9b6934064e9db70725100108c64c9316b7f9a4e5e52fbf5b1a6"},
 ]
 
 [package.dependencies]
@@ -11005,4 +11005,4 @@ ui = ["holoviews", "jupyterlab", "nbconvert", "panel", "streamz"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.13"
-content-hash = "f38d1de056024fe30b3e6137af12c8f00f0aa9d1893e75e577ab4e933a9aa387"
+content-hash = "fa1052f443896fb722babb76d07039a0a4bf666110138ed0ae5a59a251ebb874"
