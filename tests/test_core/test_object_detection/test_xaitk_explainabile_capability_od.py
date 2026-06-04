@@ -1,5 +1,4 @@
 import pytest
-from torch import as_tensor, equal
 
 from checkmaite.core.object_detection.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
 from checkmaite.core.report._gradient import HAS_GRADIENT
@@ -68,26 +67,6 @@ def test_run_and_collect_md(fake_od_model_default, fake_od_dataset_default, test
 
     md = run_result.collect_md_report(threshold=0.5)
     assert md  # smoke test
-
-
-def test_xaitk_temp_dataset(fake_od_dataset_default, fake_od_model_default):
-    temp_dataset = XaitkExplainable().XaitkExplainableDetectionBaselineDataset(
-        fake_od_dataset_default, fake_od_model_default, dets_limit=2
-    )
-
-    assert len(temp_dataset) == len(fake_od_dataset_default)
-
-    for i in range(len(temp_dataset)):
-        assert equal(temp_dataset[i][0], fake_od_dataset_default[i][0])
-
-        dets_i = fake_od_model_default(fake_od_dataset_default[i])[0]
-        max_score_i = dets_i.scores.argmax()
-
-        assert equal(as_tensor(temp_dataset[i][1].boxes)[0], dets_i.boxes[max_score_i])
-        assert equal(as_tensor(temp_dataset[i][1].labels)[0], dets_i.labels[max_score_i])
-        assert equal(as_tensor(temp_dataset[i][1].scores)[0], dets_i.scores[max_score_i])
-
-        assert len(as_tensor(temp_dataset[i][1].boxes)) <= 2
 
 
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")

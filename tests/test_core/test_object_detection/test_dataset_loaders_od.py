@@ -13,6 +13,7 @@ from checkmaite.core.object_detection.dataset_loaders import (
     DatasetSpecification,
     DetectionTarget,
     VisdroneDetectionDataset,
+    XaitkExplainableDetectionBaselineDataset,
     YoloDetectionDataLoader,
     YoloDetectionDataset,
     load_datasets,
@@ -825,3 +826,69 @@ class TestYoloDetectionDatasetNew:
         l_plain = YoloDetectionDataLoader(ds, batch_size=6, shuffle=False)
         ids_plain = [m["id"] for m in list(l_plain)[0][2]]
         assert ids1 != ids_plain
+
+
+class _FixedODModel:
+    """Minimal fake OD model with known predictions for deterministic sorting tests."""
+
+    metadata = {"id": "fixed_model", "index2label": {0: "a", 1: "b"}}
+
+    def __call__(self, inputs):
+        return [
+            DetectionTarget(
+                boxes=torch.tensor([[0, 0, 1, 1], [1, 1, 2, 2], [2, 2, 3, 3]], dtype=torch.float32),
+                labels=torch.tensor([0, 1, 0]),
+                scores=torch.tensor([0.2, 0.9, 0.5]),
+            )
+            for _ in inputs
+        ]
+
+
+class TestXaitkExplainableDetectionBaselineDataset:
+    def test_xaitk_detection_baseline_dataset_is_importable_from_dataset_loaders(
+        self, fake_od_dataset_default, fake_od_model_default
+    ):
+        temp_dataset = XaitkExplainableDetectionBaselineDataset(fake_od_dataset_default, fake_od_model_default)
+        assert len(temp_dataset) == len(fake_od_dataset_default)
+
+    def test_xaitk_detection_baseline_dataset_preserves_images_and_metadata(
+        self, fake_od_dataset_default, fake_od_model_default
+    ):
+        temp_dataset = XaitkExplainableDetectionBaselineDataset(fake_od_dataset_default, fake_od_model_default)
+        for i in range(len(temp_dataset)):
+            assert torch.equal(temp_dataset[i][0], torch.as_tensor(fake_od_dataset_default[i][0]))
+            assert temp_dataset[i][2] == fake_od_dataset_default[i][2]
+
+    def test_xaitk_detection_baseline_dataset_replaces_targets_with_predictions(self, fake_od_dataset_default):
+        model = _FixedODModel()
+        temp_dataset = XaitkExplainableDetectionBaselineDataset(fake_od_dataset_default, model, dets_limit=2)
+
+        for i in range(len(temp_dataset)):
+            target = temp_dataset[i][1]
+            scores = torch.as_tensor(target.scores)
+            # Sorted descending: original indices [1, 2] → scores [0.9, 0.5]
+            assert torch.allclose(scores, torch.tensor([0.9, 0.5]))
+            assert torch.allclose(torch.as_tensor(target.labels), torch.tensor([1, 0]))
+            assert torch.allclose(
+                torch.as_tensor(target.boxes),
+                torch.tensor([[1, 1, 2, 2], [2, 2, 3, 3]], dtype=torch.float32),
+            )
+
+    def test_xaitk_detection_baseline_dataset_applies_dets_limit(self, fake_od_dataset_default):
+        model = _FixedODModel()
+        dets_limit = 2
+        temp_dataset = XaitkExplainableDetectionBaselineDataset(fake_od_dataset_default, model, dets_limit=dets_limit)
+
+        for i in range(len(temp_dataset)):
+            target = temp_dataset[i][1]
+            assert len(torch.as_tensor(target.boxes)) <= dets_limit
+            assert len(torch.as_tensor(target.labels)) <= dets_limit
+            assert len(torch.as_tensor(target.scores)) <= dets_limit
+
+    def test_xaitk_detection_baseline_dataset_preserves_dataset_metadata(
+        self, fake_od_dataset_default, fake_od_model_default
+    ):
+        temp_dataset = XaitkExplainableDetectionBaselineDataset(fake_od_dataset_default, fake_od_model_default)
+        assert temp_dataset.metadata["id"] == f"xai_temp_{fake_od_dataset_default.metadata['id']}"
+        if "index2label" in fake_od_dataset_default.metadata:
+            assert temp_dataset.metadata["index2label"] == fake_od_dataset_default.metadata["index2label"]

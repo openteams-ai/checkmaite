@@ -5,12 +5,10 @@ from typing import Any
 import maite.protocols.object_detection as od
 import matplotlib.pyplot as plt
 import numpy as np
-from maite.protocols import DatasetMetadata
 from matplotlib.patches import Rectangle
 from PIL import Image
 from pydantic import Field, model_validator
 from smqtk_core.configuration import from_config_dict
-from torch import Tensor, as_tensor
 from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
 
@@ -21,7 +19,7 @@ from checkmaite.core._utils import (
     requires_optional_dependency,
 )
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
+from checkmaite.core.object_detection.dataset_loaders import XaitkExplainableDetectionBaselineDataset
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import save_figure_to_tempfile
 
@@ -319,7 +317,7 @@ class XaitkExplainable(
         model = models[0]
         dataset = datasets[0]
 
-        prediction_dataset = self.XaitkExplainableDetectionBaselineDataset(dataset, model)
+        prediction_dataset = XaitkExplainableDetectionBaselineDataset(dataset, model)
         if "index2label" not in model.metadata:
             raise (KeyError("'index2label' not found in model metadata but is required by Xai"))
         all_dataset_sal_maps, _ = sal_on_dets(
@@ -347,69 +345,3 @@ class XaitkExplainable(
                 ]
             },
         )
-
-    class XaitkExplainableDetectionBaselineDataset(od.Dataset):
-        """
-        A MAITE-compliant dataset wrapper class which is exclusive to the Xai for OD use case. The underlying
-        assumption is that due to the nature of Xai and its OD saliency map algorithms, realistic use
-        cases only involve small dataset and so re-creating it entirely in memory is feasible.
-
-        Because `xaitk-saliency` evaluates the most salient locations with an image _for a given prediction_, the
-        ground truth boxes and labels are not relevant.
-
-        Since OD models may return many target boxes, this dataset will also save only the predictions where the model
-        has the highest confidence.
-
-        Parameters
-        ----------
-        dataset:
-            A MAITE-compliant Object Detection dataset
-        model:
-            A MAITE-compliant Object Detection model
-        dets_limit:
-            The maximum number of detection targets that will be saved for an image, selected by highest confidence
-            score.  Hardcoded to 10 for now, but could be made configurable in the future.
-
-        Attributes
-        ----------
-        items:
-            The whole dataset stored in memory.  The tuple structure is: image, boxes/labels/scores, datum metadata.
-        """
-
-        def __init__(self, dataset: od.Dataset, model: od.Model, dets_limit: int = 10) -> None:
-            metadata_args: dict = {"id": f"xai_temp_{dataset.metadata['id']}"}
-            if "index2label" in dataset.metadata:
-                metadata_args["index2label"] = dataset.metadata["index2label"]
-            self.metadata = DatasetMetadata(**metadata_args)
-            self.items: list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]] = self._construct_dataset(
-                dataset, model, dets_limit
-            )
-
-        def __getitem__(self, index: int) -> tuple[Tensor, DetectionTarget, od.DatumMetadataType]:
-            """Get `index`-th element from dataset."""
-            return self.items[index]
-
-        def __len__(self) -> int:
-            """Return length of dataset."""
-            return len(self.items)
-
-        def _construct_dataset(
-            self, dataset: od.Dataset, model: od.Model, dets_limit: int
-        ) -> list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]]:
-            """Loads dataset in memory, replacing GT detection targets with predictions, limit 10 boxes per image."""
-            items: list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]] = []
-
-            for datum in dataset:
-                predictions = model([datum[0]])[0]
-
-                # Sort predictions by scores in descending order and take the top `dets_limit`
-                sorted_indices = np.argsort(np.asarray(predictions.scores))[::-1][:dets_limit].copy()
-                top_boxes = np.asarray(predictions.boxes)[sorted_indices]
-                top_labels = np.asarray(predictions.labels)[sorted_indices]
-                top_scores = np.asarray(predictions.scores)[sorted_indices]
-
-                detection_target = DetectionTarget(boxes=top_boxes, labels=top_labels, scores=top_scores)
-
-                items.append((as_tensor(datum[0]), detection_target, datum[2]))
-
-            return items

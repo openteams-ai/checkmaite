@@ -6,11 +6,14 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Literal, TypedDict
 
+import maite.protocols.object_detection as od
+import numpy as np
 import torch
 import yaml
 from maite.protocols import ArrayLike, DatasetMetadata
 from maite.protocols.object_detection import DatumMetadataType, FieldwiseDataset
 from PIL import Image
+from torch import Tensor, as_tensor
 from torchvision.ops.boxes import box_convert
 from torchvision.transforms.functional import pil_to_tensor
 from typing_extensions import NotRequired
@@ -872,6 +875,66 @@ class VisdroneDetectionDataset(FieldwiseDataset):
         """
         _, _, metadata = self._samples[index]
         return metadata  # pyright: ignore[reportReturnType]
+
+
+class XaitkExplainableDetectionBaselineDataset(od.Dataset):
+    """A MAITE-compliant dataset wrapper that replaces ground-truth targets with model predictions.
+
+    Used by XAITK saliency for object detection, which evaluates saliency for model predictions
+    rather than ground truth. Only the top ``dets_limit`` predictions by confidence are kept.
+
+    Parameters
+    ----------
+    dataset:
+        A MAITE-compliant Object Detection dataset.
+    model:
+        A MAITE-compliant Object Detection model.
+    dets_limit:
+        Maximum number of detections to keep per image, selected by highest confidence score.
+
+    Attributes
+    ----------
+    metadata:
+        Dataset-level metadata with id prefixed ``xai_temp_`` and optional index2label.
+    items:
+        Full dataset stored in memory as (image_tensor, prediction_target, datum_metadata) tuples.
+    """
+
+    def __init__(self, dataset: od.Dataset, model: od.Model, dets_limit: int = 10) -> None:
+        metadata_args: dict = {"id": f"xai_temp_{dataset.metadata['id']}"}
+        if "index2label" in dataset.metadata:
+            metadata_args["index2label"] = dataset.metadata["index2label"]
+        self.metadata = DatasetMetadata(**metadata_args)
+        self.items: list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]] = self._construct_dataset(
+            dataset, model, dets_limit
+        )
+
+    def __getitem__(self, index: int) -> tuple[Tensor, DetectionTarget, od.DatumMetadataType]:
+        """Get `index`-th element from dataset."""
+        return self.items[index]
+
+    def __len__(self) -> int:
+        """Return length of dataset."""
+        return len(self.items)
+
+    def _construct_dataset(
+        self, dataset: od.Dataset, model: od.Model, dets_limit: int
+    ) -> list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]]:
+        """Build in-memory dataset replacing GT targets with model predictions."""
+        items: list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]] = []
+
+        for datum in dataset:
+            predictions = model([datum[0]])[0]
+
+            sorted_indices = np.argsort(np.asarray(predictions.scores))[::-1][:dets_limit].copy()
+            top_boxes = np.asarray(predictions.boxes)[sorted_indices]
+            top_labels = np.asarray(predictions.labels)[sorted_indices]
+            top_scores = np.asarray(predictions.scores)[sorted_indices]
+
+            detection_target = DetectionTarget(boxes=top_boxes, labels=top_labels, scores=top_scores)
+            items.append((as_tensor(datum[0]), detection_target, datum[2]))
+
+        return items
 
 
 class DatasetSpecification(TypedDict):
