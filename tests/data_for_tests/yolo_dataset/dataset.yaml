@@ -1,7 +1,6 @@
-path: tests/data_for_tests/yolo_dataset
-train: tests/data_for_tests/yolo_dataset/images
-val: # validation set
-test: # optional test images
+train: images
+val:
+test:
 names:
     0: person
     1: bicycle

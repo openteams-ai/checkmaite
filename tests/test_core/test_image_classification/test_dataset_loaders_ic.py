@@ -7,6 +7,7 @@ from PIL import Image
 
 from checkmaite.core.image_classification.dataset_loaders import (
     MissingYoloDataSplitError,
+    YoloClassificationDataLoader,
     YoloClassificationDataset,
     load_datasets,
 )
@@ -293,3 +294,95 @@ class TestAccessorMethodPerformance:
             f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
             "because it skips image loading"
         )
+
+
+# ─── New tests for IC fixes and DataLoader ────────────────────────────────────
+
+
+def _make_rgb(path):
+    Image.new("RGB", (10, 10), color=(64, 128, 32)).save(path)
+
+
+def test_yolo_classification_val_split_loads(tmp_path):
+    (tmp_path / "val" / "cat").mkdir(parents=True)
+    (tmp_path / "val" / "dog").mkdir(parents=True)
+    _make_rgb(tmp_path / "val" / "cat" / "a.jpg")
+    _make_rgb(tmp_path / "val" / "dog" / "b.jpg")
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
+    assert len(ds) == 2
+    assert ds.metadata["index2label"] == {0: "cat", 1: "dog"}
+
+
+def test_yolo_classification_validation_alias_uses_val_when_validation_missing(tmp_path):
+    (tmp_path / "val" / "cat").mkdir(parents=True)
+    _make_rgb(tmp_path / "val" / "cat" / "a.jpg")
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="validation")
+    assert len(ds) == 1
+
+
+def test_yolo_classification_ignores_non_image_files(tmp_path):
+    cls_dir = tmp_path / "val" / "cat"
+    cls_dir.mkdir(parents=True)
+    _make_rgb(cls_dir / "a.jpg")
+    (cls_dir / ".DS_Store").touch()
+    (cls_dir / "README.md").touch()
+    (cls_dir / "notes.txt").touch()
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
+    assert len(ds) == 1
+
+
+def test_yolo_classification_nested_images_use_top_level_class(tmp_path):
+    (tmp_path / "val" / "cat" / "nested").mkdir(parents=True)
+    (tmp_path / "val" / "dog" / "deeper").mkdir(parents=True)
+    _make_rgb(tmp_path / "val" / "cat" / "nested" / "a.jpg")
+    _make_rgb(tmp_path / "val" / "dog" / "deeper" / "b.png")
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
+    assert len(ds) == 2
+
+    result = [(ds._index2label[int(ds.get_target(i).argmax())], ds.get_metadata(i)["id"]) for i in range(len(ds))]
+    labels = {label for label, _ in result}
+    ids = {id_ for _, id_ in result}
+
+    assert labels == {"cat", "dog"}
+    # IDs must carry the nested path, not just the filename
+    assert any("nested" in id_ or "deeper" in id_ for id_ in ids)
+
+
+def test_yolo_classification_dataloader_batches(tmp_path):
+    for cls in ["cat", "dog"]:
+        (tmp_path / "val" / cls).mkdir(parents=True)
+    for i in range(3):
+        _make_rgb(tmp_path / "val" / "cat" / f"{i}.jpg")
+    for i in range(2):
+        _make_rgb(tmp_path / "val" / "dog" / f"{i}.jpg")
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
+    loader = YoloClassificationDataLoader(ds, batch_size=2, shuffle=False)
+
+    batches = list(loader)
+    assert [len(b[0]) for b in batches] == [2, 2, 1]
+    for inputs, targets, metadata in batches:
+        assert len(inputs) == len(targets) == len(metadata)
+
+
+def test_yolo_classification_dataloader_shuffle_seed_is_deterministic(tmp_path):
+    for cls in ["cat", "dog", "fish"]:
+        (tmp_path / "val" / cls).mkdir(parents=True)
+        for i in range(2):
+            _make_rgb(tmp_path / "val" / cls / f"{i}.jpg")
+
+    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
+
+    l1 = YoloClassificationDataLoader(ds, batch_size=6, shuffle=True, seed=123)
+    l2 = YoloClassificationDataLoader(ds, batch_size=6, shuffle=True, seed=123)
+    ids1 = [m["id"] for m in list(l1)[0][2]]
+    ids2 = [m["id"] for m in list(l2)[0][2]]
+    assert ids1 == ids2
+
+    l_plain = YoloClassificationDataLoader(ds, batch_size=6, shuffle=False)
+    ids_plain = [m["id"] for m in list(l_plain)[0][2]]
+    assert ids1 != ids_plain

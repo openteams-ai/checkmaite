@@ -5,12 +5,15 @@ from pathlib import Path
 
 import pytest
 import torch
+import yaml
+from PIL import Image
 
 from checkmaite.core.object_detection.dataset_loaders import (
     CocoDetectionDataset,
     DatasetSpecification,
     DetectionTarget,
     VisdroneDetectionDataset,
+    YoloDetectionDataLoader,
     YoloDetectionDataset,
     load_datasets,
 )
@@ -163,6 +166,8 @@ class TestYoloDetectionDataset:
 
         shutil.copy(self.YAML_DATASET, temp_root / "dataset.yaml")
         shutil.copytree(self.ANN_DIR, temp_root / "ann_dir", dirs_exist_ok=True)
+        # YAML uses 'train: images' (relative to YAML parent), so images must exist there
+        shutil.copytree(self.YOLO_ROOT / "images", temp_root / "images", dirs_exist_ok=True)
 
         dataset2 = YoloDetectionDataset(
             yaml_dataset=str(temp_root / "dataset.yaml"), ann_dir=str(temp_root / "ann_dir")
@@ -184,24 +189,22 @@ class TestYoloDetectionDataset:
         assert element[1].labels.ndim == 1
         assert element[1].scores.ndim == 1
         assert element[1].scores.shape == (14,)
-        assert element[2] == {"id": 0}
+        assert isinstance(element[2]["id"], str)  # image filename, e.g. "000000037777.jpg"
         assert yolo_dataset.metadata["index2label"][0] == "person"
         assert yolo_dataset.metadata["index2label"][1] == "bicycle"
 
-    def test_yolo_annotation_caching(self):
-        """Test that annotations are cached during initialization."""
+    def test_yolo_lazy_loading(self):
+        """Test that annotations are NOT cached at init (lazy parsing)."""
         yolo_dataset = YoloDetectionDataset(
             yaml_dataset=self.YAML_DATASET,
             ann_dir=self.ANN_DIR,
         )
-        # Check that annotations are cached
-        assert hasattr(yolo_dataset, "_annotations")
-        assert len(yolo_dataset._annotations) == len(yolo_dataset)
-        # Each annotation should be a tuple of (boxes, labels)
-        for boxes, labels in yolo_dataset._annotations:
-            assert isinstance(boxes, list)
-            assert isinstance(labels, list)
-            assert len(boxes) == len(labels)
+        # Eager annotation cache must not exist; only (image, label) path pairs are stored
+        assert not hasattr(yolo_dataset, "_annotations")
+        assert hasattr(yolo_dataset, "_samples")
+        assert len(yolo_dataset._samples) == len(yolo_dataset)
+        for img_path, _label_path in yolo_dataset._samples:
+            assert img_path.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
     def test_get_input(self):
         dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
@@ -227,7 +230,7 @@ class TestYoloDetectionDataset:
 
         assert isinstance(metadata, dict)
         assert "id" in metadata
-        assert metadata["id"] == 0
+        assert isinstance(metadata["id"], str)  # image filename, e.g. "000000037777.jpg"
 
     def test_fieldwise_methods_consistent_with_getitem(self):
         dataset = YoloDetectionDataset(yaml_dataset=self.YAML_DATASET, ann_dir=self.ANN_DIR)
@@ -641,3 +644,184 @@ class TestAccessorMethodPerformance:
             f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
             "because it skips image loading"
         )
+
+
+# ─── New tests for OD fixes and DataLoader ────────────────────────────────────
+
+
+def _make_img(path, size=(100, 50), mode="RGB"):
+    Image.new(mode, size).save(path)
+
+
+def _write_yaml(path, content):
+    path.write_text(yaml.dump(content))
+
+
+class TestYoloDetectionDatasetNew:
+    """Tests for the new YoloDetectionDataset behavior."""
+
+    def test_box_conversion_to_pixel_xyxy(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        (tmp_path / "labels" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img1.jpg", size=(100, 50))
+        (tmp_path / "labels" / "val" / "img1.txt").write_text("0 0.5 0.5 0.2 0.4\n")
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        _, target, _ = ds[0]
+        torch.testing.assert_close(target.boxes[0], torch.tensor([40.0, 15.0, 60.0, 35.0]))
+        assert target.labels.dtype == torch.int64
+        assert target.scores.dtype == torch.float32
+
+    def test_pairs_labels_by_stem(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        (tmp_path / "labels" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "b.jpg", size=(100, 100))
+        _make_img(tmp_path / "images" / "val" / "a.jpg", size=(100, 100))
+        (tmp_path / "labels" / "val" / "a.txt").write_text("0 0.1 0.1 0.1 0.1\n")
+        (tmp_path / "labels" / "val" / "b.txt").write_text("1 0.9 0.9 0.1 0.1\n")
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat", 1: "dog"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        by_name = {ds.get_metadata(i)["id"]: ds.get_target(i) for i in range(len(ds))}
+        assert by_name["a.jpg"].labels[0].item() == 0
+        assert by_name["b.jpg"].labels[0].item() == 1
+
+    def test_missing_label_file_returns_empty_target(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img.jpg", size=(50, 50))
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        _, target, _ = ds[0]
+        assert target.boxes.shape == (0, 4)
+        assert target.labels.shape == (0,)
+        assert target.labels.dtype == torch.int64
+        assert target.scores.shape == (0,)
+
+    def test_extra_label_file_is_ignored(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        (tmp_path / "labels" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img.jpg", size=(50, 50))
+        (tmp_path / "labels" / "val" / "img.txt").write_text("0 0.5 0.5 0.1 0.1\n")
+        (tmp_path / "labels" / "val" / "extra.txt").write_text("1 0.1 0.1 0.1 0.1\n")
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat", 1: "dog"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        assert len(ds) == 1
+        _, target, _ = ds[0]
+        assert target.labels[0].item() == 0
+
+    def test_train_val_test_splits(self, tmp_path):
+        for split in ("train", "val", "test"):
+            (tmp_path / "images" / split).mkdir(parents=True)
+            _make_img(tmp_path / "images" / split / f"{split}.jpg", size=(10, 10))
+
+        _write_yaml(
+            tmp_path / "data.yaml",
+            {"train": "images/train", "val": "images/val", "test": "images/test", "names": {0: "cat"}},
+        )
+        for split in ("train", "val", "test"):
+            ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split=split)
+            assert len(ds) == 1
+            assert ds.get_metadata(0)["id"] == f"{split}.jpg"
+
+    def test_resolves_split_relative_to_yaml_file(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img.jpg", size=(10, 10))
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        assert len(ds) == 1
+
+    def test_resolves_yaml_path_field(self, tmp_path):
+        dataset_root = tmp_path / "dataset-root"
+        (dataset_root / "images" / "val").mkdir(parents=True)
+        _make_img(dataset_root / "images" / "val" / "img.jpg", size=(10, 10))
+
+        _write_yaml(
+            tmp_path / "data.yaml",
+            {"path": "dataset-root", "val": "images/val", "names": {0: "cat"}},
+        )
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        assert len(ds) == 1
+
+    def test_parser_allows_whitespace_blank_and_comments(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        (tmp_path / "labels" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img.jpg", size=(100, 100))
+        label_content = "# comment line\n" "\n" "0\t0.5\t0.5\t0.2\t0.2\n" "   \n" "1  0.1  0.1  0.1  0.1\n"
+        (tmp_path / "labels" / "val" / "img.txt").write_text(label_content)
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "a", 1: "b"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        _, target, _ = ds[0]
+        assert len(target.boxes) == 2
+        assert target.labels.tolist() == [0, 1]
+
+    def test_parser_reports_malformed_rows(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        (tmp_path / "labels" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img.jpg", size=(10, 10))
+        (tmp_path / "labels" / "val" / "img.txt").write_text("0 0.5 0.5\n")  # 3 fields, not 5
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        with pytest.raises(ValueError, match="line 1"):
+            ds[0]
+
+    def test_ignores_non_image_files(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        _make_img(tmp_path / "images" / "val" / "img1.jpg", size=(10, 10))
+        (tmp_path / "images" / "val" / ".DS_Store").touch()
+        (tmp_path / "images" / "val" / "README.md").touch()
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        assert len(ds) == 1
+
+    def test_converts_images_to_rgb(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        Image.new("L", (10, 10)).save(tmp_path / "images" / "val" / "gray.jpg")
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        img, _, _ = ds[0]
+        assert img.shape[0] == 3
+
+    def test_dataloader_batches(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        for i in range(5):
+            _make_img(tmp_path / "images" / "val" / f"img{i}.jpg", size=(10, 10))
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+        loader = YoloDetectionDataLoader(ds, batch_size=2, shuffle=False)
+
+        batches = list(loader)
+        assert [len(b[0]) for b in batches] == [2, 2, 1]
+        for inputs, targets, metadata in batches:
+            assert len(inputs) == len(targets) == len(metadata)
+
+    def test_dataloader_shuffle_seed_is_deterministic(self, tmp_path):
+        (tmp_path / "images" / "val").mkdir(parents=True)
+        for i in range(6):
+            _make_img(tmp_path / "images" / "val" / f"img{i}.jpg", size=(10, 10))
+
+        _write_yaml(tmp_path / "data.yaml", {"val": "images/val", "names": {0: "cat"}})
+        ds = YoloDetectionDataset(yaml_dataset=tmp_path / "data.yaml", split="val")
+
+        l1 = YoloDetectionDataLoader(ds, batch_size=6, shuffle=True, seed=99)
+        l2 = YoloDetectionDataLoader(ds, batch_size=6, shuffle=True, seed=99)
+        ids1 = [m["id"] for m in list(l1)[0][2]]
+        ids2 = [m["id"] for m in list(l2)[0][2]]
+        assert ids1 == ids2
+
+        l_plain = YoloDetectionDataLoader(ds, batch_size=6, shuffle=False)
+        ids_plain = [m["id"] for m in list(l_plain)[0][2]]
+        assert ids1 != ids_plain

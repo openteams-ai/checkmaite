@@ -88,11 +88,15 @@ def memory_yolo_dataset():
 
     local_yolo = TEST_DATA_DIR / "yolo_dataset"
 
-    # Copy yaml file
-    yaml_file = local_yolo / "dataset.yaml"
-    # Modify the yaml to use memory:// paths
-    yaml_content = yaml_file.read_text()
-    yaml_content = yaml_content.replace(str(local_yolo), "memory://test-bucket/yolo_dataset")
+    # Write a YAML that points directly to the memory:// image path
+    yaml_content = (
+        "train: memory://test-bucket/yolo_dataset/images\n"
+        "val:\n"
+        "test:\n"
+        "names:\n"
+        "    0: person\n"
+        "    1: bicycle\n"
+    )
     fs.pipe_file("memory://test-bucket/yolo_dataset/dataset.yaml", yaml_content.encode())
 
     # Copy images directory
