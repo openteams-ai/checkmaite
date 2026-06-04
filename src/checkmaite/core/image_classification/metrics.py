@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from maite.protocols import MetricMetadata
@@ -23,6 +23,24 @@ class MetricInputDataError(Exception):
 
 class InvalidMetricTypeError(Exception):
     pass
+
+
+def _validate_multiclass_batch_shapes(
+    batch: Sequence[ic.TargetType],
+    *,
+    batch_name: str,
+    num_classes: int,
+) -> list[torch.Tensor]:
+    tensors = []
+    for index, item in enumerate(batch):
+        tensor = torch.as_tensor(item)
+        if tensor.ndim != 1 or tensor.shape[0] != num_classes:
+            raise MetricInputDataError(
+                f"Invalid {batch_name}[{index}] shape: got {tuple(tensor.shape)}, "
+                f"expected ({num_classes},) for multiclass image classification."
+            )
+        tensors.append(tensor)
+    return tensors
 
 
 class TorchICMulticlassMetric(ic.Metric):
@@ -105,9 +123,15 @@ class TorchICMulticlassMetric(ic.Metric):
                 """
             )
 
-        # Convert each ArrayLike item within the prediction and target batch Sequences to Tensors
-        preds_batch_list_of_tensors: Sequence[torch.Tensor] = [torch.as_tensor(x) for x in preds]
-        targets_batch_list_of_tensors: Sequence[torch.Tensor] = [torch.as_tensor(x) for x in targets]
+        num_classes = cast(int, self._ic_metric.num_classes)
+
+        # Convert and validate each item, then assemble into 2-D tensors
+        preds_batch_list_of_tensors = _validate_multiclass_batch_shapes(
+            preds, batch_name="preds", num_classes=num_classes
+        )
+        targets_batch_list_of_tensors = _validate_multiclass_batch_shapes(
+            targets, batch_name="targets", num_classes=num_classes
+        )
 
         # Assemble the Sequence of 1-dim Tensors as one 2-dim Tensor
         preds_batch_tensor: torch.Tensor = torch.stack(preds_batch_list_of_tensors)

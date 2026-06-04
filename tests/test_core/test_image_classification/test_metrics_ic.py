@@ -3,6 +3,7 @@ from maite.tasks import evaluate
 
 from checkmaite.core.image_classification.metrics import (
     InvalidMetricTypeError,
+    MetricInputDataError,
     TorchICMulticlassMetric,
     accuracy_multiclass_torch_metric_factory,
     f1score_multiclass_torch_metric_factory,
@@ -60,3 +61,60 @@ def test_error_with_non_multiclass_metric():
 
     with pytest.raises(InvalidMetricTypeError):
         _ = TorchICMulticlassMetric(multilabel_metric, return_key="_", metric_id="test_multilabel_metric")
+
+
+def test_update_rejects_unequal_batch_lengths():
+    metric = accuracy_multiclass_torch_metric_factory(num_classes=3)
+    preds = [[0.8, 0.1, 0.1], [0.2, 0.7, 0.1]]
+    targets = [[1, 0, 0]]
+    with pytest.raises(MetricInputDataError):
+        metric.update(preds, targets)
+
+
+def test_update_accepts_valid_multiclass_vectors():
+    metric = accuracy_multiclass_torch_metric_factory(num_classes=3)
+    preds = [[0.8, 0.1, 0.1], [0.2, 0.7, 0.1]]
+    targets = [[1, 0, 0], [0, 1, 0]]
+    metric.update(preds, targets)  # should not raise
+
+
+@pytest.mark.parametrize(
+    ("bad_pred", "expected_shape_hint"),
+    [
+        (1, "()"),
+        ([1, 0], "(2,)"),
+        ([[1, 0, 0]], "(1, 3)"),
+        ([[1, 0], [0, 1]], "(2, 2)"),
+    ],
+)
+def test_update_rejects_invalid_prediction_shapes(bad_pred, expected_shape_hint):
+    metric = accuracy_multiclass_torch_metric_factory(num_classes=3)
+    preds = [bad_pred]
+    targets = [[1, 0, 0]]
+    with pytest.raises(MetricInputDataError) as exc_info:
+        metric.update(preds, targets)
+    msg = str(exc_info.value)
+    assert "preds[0]" in msg
+    assert expected_shape_hint in msg
+    assert "(3,)" in msg
+
+
+@pytest.mark.parametrize(
+    ("bad_target", "expected_shape_hint"),
+    [
+        (1, "()"),
+        ([1, 0], "(2,)"),
+        ([[1, 0, 0]], "(1, 3)"),
+        ([[1, 0], [0, 1]], "(2, 2)"),
+    ],
+)
+def test_update_rejects_invalid_target_shapes(bad_target, expected_shape_hint):
+    metric = accuracy_multiclass_torch_metric_factory(num_classes=3)
+    preds = [[0.8, 0.1, 0.1]]
+    targets = [bad_target]
+    with pytest.raises(MetricInputDataError) as exc_info:
+        metric.update(preds, targets)
+    msg = str(exc_info.value)
+    assert "targets[0]" in msg
+    assert expected_shape_hint in msg
+    assert "(3,)" in msg
