@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import dataeval_plots as dep
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -444,7 +445,9 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
         if len({np.asarray(dataset[i][0]).shape for i in idxs}) == 1:
             cov_dict["image"] = dep.plot(dataset, indices=idxs)
 
-        return DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
+        outputs = DataevalBiasOutputs.model_validate({"balance": bal_dict, "diversity": div_dict, "coverage": cov_dict})
+        plt.close("all")
+        return outputs
 
 
 def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover
