@@ -17,6 +17,16 @@ The checkmaite team requires the collaboration of JATIC teams which release comp
 - ***A new version of a JATIC component introduces breaking changes.*** The checkmaite team will communicate with the JATIC Team responsible for the component to understand the scope of the fix required. The checkmaite team can support minor compatibility changes, but will request assistance if substantial changes are required to support the new version. ***The checkmaite team requests maximum advanced notice when breaking API changes will be introduced in upcoming versions of JATIC components*** in order to reduce their impact. 
 
 
+## Changelog
+
+`checkmaite` tracks all notable changes in [CHANGELOG.md](../../../CHANGELOG.md) following
+[Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
+When opening a merge request, add one or more lines under the `## [Unreleased]` section at the
+top of `CHANGELOG.md` — use the standard subsections (`Added`, `Changed`, `Deprecated`,
+`Removed`, `Fixed`, `Security`) and write each entry from the perspective of an external
+consumer ("Added X", not "I added X").  Update the entry during the MR, not after merge, so
+the changelog is always in sync with the code.
+
 ## External Contribution Procedure  
 The checkmaite team requests that Contributing Teams follow this procedure:  
 1.) Contributing Team commits to the `checkmaite` codebase within a feature branch of the checkmaite repo or their own fork of the repo  
