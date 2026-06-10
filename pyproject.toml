@@ -6,7 +6,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 name = "checkmaite"
 description = "checkmaite - an implementation of T&E tools using maite"
 readme = "README.md"
-license = { text = "TBD" }
+license = { text = "Apache-2.0" }
 authors = [
     { name = "OpenTeams" },
 ]
