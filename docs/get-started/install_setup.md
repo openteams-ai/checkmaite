@@ -10,23 +10,7 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 
 ## Create environment and install the package
 
-For most end users, the supported install path is `pip`:
-
-```bash
-pip install .
-```
-
-Optional extras for end users:
-
-```bash
-pip install ".[ui]"           # UI dependencies
-pip install ".[reporting]"    # PDF report export (markdown + xhtml2pdf)
-pip install ".[cloud]"        # cloud storage dependencies (aws+gcs+azure)
-```
-
-`dev`/`docs` dependencies are Poetry dependency groups, not `pip` extras.
-
-We also provide poetry-based and conda-based environment setup options below.
+The supported install path is `poetry`. We also provide a conda-based alternative.
 
 ### Option 1: poetry environment
 
@@ -34,6 +18,14 @@ To set up a poetry environment, [install `poetry`](https://python-poetry.org/doc
 
 ```bash
 poetry install
+```
+
+Optional extras:
+
+```bash
+poetry install --extras ui         # UI dependencies
+poetry install --extras reporting  # PDF report export (markdown + xhtml2pdf)
+poetry install --extras cloud      # cloud storage dependencies (aws+gcs+azure)
 ```
 
 JATIC tools which are not under active development are distributed through the separate `checkmaite-plugins` package.
