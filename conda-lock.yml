@@ -5813,7 +5813,7 @@ package:
   category: main
   optional: false
 - name: nrtk
-  version: 1.0.2
+  version: 1.0.3
   manager: conda
   platform: linux-64
   dependencies:
@@ -5847,10 +5847,10 @@ package:
     transformers: '>=4.53.0'
     typing-extensions: '>=4.5.0'
     uvicorn: '>=0.29.0'
-  url: https://conda.anaconda.org/conda-forge/noarch/nrtk-1.0.2-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/nrtk-1.0.3-pyhd8ed1ab_0.conda
   hash:
-    md5: ee6d9b08361ccb3ec9526c4ce2c29297
-    sha256: b4b4f307e1cf50b9f59eb5c370273e8fddcbb372e3da9c3f16a38e963b3b4c57
+    md5: d20cfd229b30b97478efc29b6b20e5bb
+    sha256: 317de65c282ebcb6d00a543af1f0a79f441df56cd73bf650c4a1dbeeddb53b3f
   category: main
   optional: false
 - name: nrtk-albumentations
