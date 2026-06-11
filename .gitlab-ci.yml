@@ -337,7 +337,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
 
       echo "Publish to ${PYPI_ENVIRONMENT_NAME} triggered by ${GITLAB_USER_LOGIN:-unknown} (${GITLAB_USER_EMAIL:-unknown}) at $(date -u +%FT%TZ)."
 
-      git fetch --prune origin "${CI_DEFAULT_BRANCH}:refs/remotes/origin/${CI_DEFAULT_BRANCH}"
+      git fetch --no-tags origin "+refs/heads/${CI_DEFAULT_BRANCH}:refs/remotes/origin/${CI_DEFAULT_BRANCH}"
 
       REMOTE_TAG_OBJECT="$(git ls-remote --tags --refs origin "refs/tags/${RELEASE_TAG}" | awk 'NF {print $1; exit}')"
       if [ -z "$REMOTE_TAG_OBJECT" ]; then
