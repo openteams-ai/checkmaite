@@ -137,7 +137,7 @@ class TorchODMultiClassMap50(TorchODMetric):
     Therefore, the compute() method is overridden.
 
     See checkmaite conventions for more details:
-    https://jatic.pages.jatic.net/reference-implementation/reference-implementation/reference/conventions.html
+    https://openteams-ai.github.io/checkmaite/reference/conventions.html
 
     Also note that the Metric object does not have access to class names (i.e.
     index2label), so returning class numbers for keys is the best that can be

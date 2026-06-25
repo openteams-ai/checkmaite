@@ -9,21 +9,21 @@ Checkmaite is an API and a UI application which makes testing and evaluation of 
 
 It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jatic.net/public/) tools and has since expanded focus. Our goal is to make T&E easier for analysts!
 
-To learn more please visit our [published documentation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+To learn more please visit our [published documentation](https://openteams-ai.github.io/checkmaite/).
 
 ## Installation
 
-For detailed installation instructions please refer to [Setup Guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/community/setup.html)
+For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html)
 
 ## Usage
 
-To learn how to get started using `checkmaite`, please visit our [quick start guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/index.html#who-are-the-target-users-of-the-reference-implementation).
+To learn how to get started using `checkmaite`, please visit our [quick start guide](https://openteams-ai.github.io/checkmaite/get-started/index.html).
 
-There are also [How-to Guides](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/how-tos/index.html) & [Tutorials](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/tutorials/index.html) that will help get new users up to speed on the available functionality.
+There are also [How-to Guides](https://openteams-ai.github.io/checkmaite/development/index.html) & [Tutorials](https://openteams-ai.github.io/checkmaite/tool-usage/index.html) that will help get new users up to speed on the available functionality.
 
 ## Contributing
 
-The `checkmaite` team welcomes contributions of all forms - questions, documentation, and code contributions. Please visit our [contribution guide](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/community/contributing.html).
+The `checkmaite` team welcomes contributions of all forms - questions, documentation, and code contributions. Please visit our [contribution guide](https://openteams-ai.github.io/checkmaite/development/contributing.html).
 
 ## Authors and acknowledgment
 
