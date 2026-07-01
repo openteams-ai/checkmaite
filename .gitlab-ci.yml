@@ -330,8 +330,13 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
         exit 1
       fi
 
-      if [ -z "${PYPI_ID_TOKEN:-}" ]; then
-        echo "PYPI_ID_TOKEN is not available; check the job id_tokens configuration and the PyPI/TestPyPI trusted publisher setup."
+      if [ "${PYPI_ENVIRONMENT_NAME}" = "TestPyPI" ]; then
+        OIDC_TOKEN_VARIABLE="TESTPYPI_ID_TOKEN"
+      else
+        OIDC_TOKEN_VARIABLE="PYPI_ID_TOKEN"
+      fi
+      if [ -z "${!OIDC_TOKEN_VARIABLE:-}" ]; then
+        echo "${OIDC_TOKEN_VARIABLE} is not available; check the job id_tokens configuration and the PyPI/TestPyPI trusted publisher setup."
         exit 1
       fi
 
@@ -402,7 +407,7 @@ publish-testpypi:
     name: pypi-test
     url: https://test.pypi.org/project/checkmaite/
   id_tokens:
-    PYPI_ID_TOKEN:
+    TESTPYPI_ID_TOKEN:
       aud: testpypi
   variables:
     PYPI_ENVIRONMENT_NAME: "TestPyPI"
