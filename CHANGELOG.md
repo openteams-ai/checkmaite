@@ -7,22 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-02
+
 ### Added
 - JATIC ONNX model wrappers
-- TestPyPI publishing for pre-release tags
 - Runtime shape validation for the image-classification metric wrapper
 - Provenance tracking in analytics run history
 - Robust YOLO MAITE DataLoaders (#707)
+- Project changelog and contributor guide
 
 ### Changed
 - Moved XAITK detection baseline dataset into shared OD dataset module
-- Consolidate analytics-store demo notebooks into a single tutorial
-- Updated NRTK dependency to 1.0.2
+- Consolidated analytics-store demo notebooks into a single tutorial
+- Updated NRTK dependency to 1.0.3
 - Updated dataeval dependency to 1.0.6
+- Restored Poetry as the primary install path in getting-started docs
+- Updated project license metadata and public documentation URLs
+- Documented torchvision config file requirements, COCO metadata conventions, `index2label` mapping conventions, and IC NRTK warning filtering
+- Migrated release publishing to PyPI Trusted Publishing / GitLab OIDC for production and TestPyPI API-token uploads for TestPyPI
 
 ### Fixed
 - Capability metadata warning handling
 - Deployment URL for GitLab Pages after team rename
+- Scheduled Ray test stability
+- Open figure warnings in tests and notebooks
+- PyPI release workflow default-branch fetching
 
 ## [0.2.0] - 2026-05-28
 
@@ -174,7 +183,8 @@ Initial public release of checkmaite.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.0...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.1...HEAD
+[0.2.1]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.0...0.2.1
 [0.2.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.1.8...0.2.0
 [0.1.8]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.1.7...0.1.8
 [0.1.7]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.1.6...0.1.7
