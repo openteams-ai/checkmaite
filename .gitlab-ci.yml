@@ -293,6 +293,9 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
     # Only run this rule if on main branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+# Publish releases from self-managed GitLab. PyPI uses Trusted Publishing
+# (OIDC); TestPyPI uses TEST_PYPI_API_TOKEN because PyPI/TestPyPI do not trust
+# self-managed GitLab issuers for Trusted Publishing.
 .publish-python-package:
   stage: publish
   image: python:3.10
@@ -331,13 +334,17 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
       fi
 
       if [ "${PYPI_ENVIRONMENT_NAME}" = "TestPyPI" ]; then
-        OIDC_TOKEN_VARIABLE="TESTPYPI_ID_TOKEN"
+        if [ -z "${TEST_PYPI_API_TOKEN:-}" ]; then
+          echo "TEST_PYPI_API_TOKEN is not available; add a masked/protected TestPyPI API token in GitLab CI/CD variables."
+          exit 1
+        fi
+        export TWINE_USERNAME="__token__"
+        export TWINE_PASSWORD="$TEST_PYPI_API_TOKEN"
       else
-        OIDC_TOKEN_VARIABLE="PYPI_ID_TOKEN"
-      fi
-      if [ -z "${!OIDC_TOKEN_VARIABLE:-}" ]; then
-        echo "${OIDC_TOKEN_VARIABLE} is not available; check the job id_tokens configuration and the PyPI/TestPyPI trusted publisher setup."
-        exit 1
+        if [ -z "${PYPI_ID_TOKEN:-}" ]; then
+          echo "PYPI_ID_TOKEN is not available; check the job id_tokens configuration and the PyPI trusted publisher setup."
+          exit 1
+        fi
       fi
 
       echo "Publish to ${PYPI_ENVIRONMENT_NAME} triggered by ${GITLAB_USER_LOGIN:-unknown} (${GITLAB_USER_EMAIL:-unknown}) at $(date -u +%FT%TZ)."
@@ -406,9 +413,6 @@ publish-testpypi:
   environment:
     name: pypi-test
     url: https://test.pypi.org/project/checkmaite/
-  id_tokens:
-    TESTPYPI_ID_TOKEN:
-      aud: testpypi
   variables:
     PYPI_ENVIRONMENT_NAME: "TestPyPI"
     TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
