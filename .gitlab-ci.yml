@@ -293,9 +293,9 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
     # Only run this rule if on main branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# Publish releases from self-managed GitLab. PyPI uses Trusted Publishing
-# (OIDC); TestPyPI uses TEST_PYPI_API_TOKEN because PyPI/TestPyPI do not trust
-# self-managed GitLab issuers for Trusted Publishing.
+# Publish releases from self-managed GitLab with PyPI/TestPyPI API tokens.
+# This avoids Trusted Publishing until PyPI finishes onboarding gitlab.jatic.net
+# as a trusted self-managed GitLab issuer.
 .publish-python-package:
   stage: publish
   image: python:3.10
@@ -341,10 +341,12 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
         export TWINE_USERNAME="__token__"
         export TWINE_PASSWORD="$TEST_PYPI_API_TOKEN"
       else
-        if [ -z "${PYPI_ID_TOKEN:-}" ]; then
-          echo "PYPI_ID_TOKEN is not available; check the job id_tokens configuration and the PyPI trusted publisher setup."
+        if [ -z "${PYPI_API_TOKEN:-}" ]; then
+          echo "PYPI_API_TOKEN is not available; add a masked/protected PyPI API token in GitLab CI/CD variables."
           exit 1
         fi
+        export TWINE_USERNAME="__token__"
+        export TWINE_PASSWORD="$PYPI_API_TOKEN"
       fi
 
       echo "Publish to ${PYPI_ENVIRONMENT_NAME} triggered by ${GITLAB_USER_LOGIN:-unknown} (${GITLAB_USER_EMAIL:-unknown}) at $(date -u +%FT%TZ)."
@@ -427,9 +429,6 @@ publish-pypi:
   environment:
     name: pypi-production
     url: https://pypi.org/project/checkmaite/
-  id_tokens:
-    PYPI_ID_TOKEN:
-      aud: pypi
   variables:
     PYPI_ENVIRONMENT_NAME: "PyPI"
     TWINE_REPOSITORY_URL: "https://upload.pypi.org/legacy/"

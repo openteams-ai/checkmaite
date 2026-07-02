@@ -7,9 +7,7 @@ Use the manual publish jobs only after the release tag already exists on `main`.
 - Protect release tags, for example `[0-9]*`, with create access limited to Maintainers and delete access set to No one.
 - Protect the `pypi-production` environment and require approvals before deployment.
 
-Production PyPI publishing uses PyPI Trusted Publishing / GitLab OIDC; do not configure a long-lived `PYPI_API_TOKEN` CI variable for production uploads.
-
-TestPyPI publishing uses a GitLab CI/CD variable named `TEST_PYPI_API_TOKEN` because PyPI/TestPyPI only trust `gitlab.com` as a GitLab OIDC issuer and do not trust self-managed GitLab instances such as `gitlab.jatic.net`. Store the token as a masked/protected variable.
+Publishing uses GitLab CI/CD variables named `TEST_PYPI_API_TOKEN` and `PYPI_API_TOKEN` because PyPI/TestPyPI have not yet onboarded `gitlab.jatic.net` as a trusted self-managed GitLab issuer. Store both tokens as masked/protected variables.
 
 ## Release steps
 

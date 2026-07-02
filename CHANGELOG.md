@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-02
+
+### Changed
+- Switched production PyPI publishing to API-token authentication while self-managed GitLab Trusted Publishing onboarding is pending.
+
 ## [0.2.1] - 2026-07-02
 
 ### Added
