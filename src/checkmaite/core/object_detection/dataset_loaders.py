@@ -37,7 +37,8 @@ class DetectionTarget:
     labels : ArrayLike
         Labels of detected images, shape: (n_boxes,).
     scores : ArrayLike
-        How confident the model is in each detection, shape: (n_boxes, n_classes).
+        Scores associated with each detection, shape: (n_boxes,) or
+        (n_boxes, n_classes).
 
     """
 

@@ -1,9 +1,13 @@
+from abc import abstractmethod
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
+from pydantic import Field
+from typing_extensions import TypeVar
 
 from checkmaite.core._utils import (
     CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
@@ -58,7 +62,18 @@ class MaiteEvaluationRecord(BaseRecord, table_name="maite_evaluation"):
 
 
 class MaiteEvaluationConfig(CapabilityConfigBase):
-    pass
+    batch_size: int = Field(
+        default=1,
+        ge=1,
+        description="Number of dataset items to pass to the MAITE model per inference call.",
+    )
+
+
+TMaiteEvaluationConfig = TypeVar(
+    "TMaiteEvaluationConfig",
+    bound=MaiteEvaluationConfig,
+    default=MaiteEvaluationConfig,
+)
 
 
 class MaiteEvaluationOutputs(CapabilityOutputsBase):
@@ -71,8 +86,8 @@ class MaiteEvaluationOutputs(CapabilityOutputsBase):
         return self.result[self.overall_metric_name]
 
 
-class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluationOutputs]):
-    config: MaiteEvaluationConfig
+class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluationOutputs]):
+    config: TMaiteEvaluationConfig
     outputs: MaiteEvaluationOutputs
 
     # The order is important
@@ -229,14 +244,17 @@ class MaiteEvaluationRun(CapabilityRunBase[MaiteEvaluationConfig, MaiteEvaluatio
         return records
 
 
-class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, TMetric, MaiteEvaluationConfig]):
+class MaiteEvaluationBase(
+    Capability[MaiteEvaluationOutputs, TDataset, TModel, TMetric, TMaiteEvaluationConfig],
+):
     """Evaluation implementation of Capability interface."""
 
     _RUN_TYPE = MaiteEvaluationRun
 
     @classmethod
-    def _create_config(cls) -> MaiteEvaluationConfig:
-        return MaiteEvaluationConfig()
+    @abstractmethod
+    def _create_config(cls) -> TMaiteEvaluationConfig:
+        """Create the task-specific evaluation configuration."""
 
     @property
     def supports_datasets(self) -> Number:
@@ -276,7 +294,7 @@ class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, T
         models: list[TModel],
         datasets: list[TDataset],
         metrics: list[TMetric],
-        config: MaiteEvaluationConfig,  # noqa: ARG002
+        config: TMaiteEvaluationConfig,
         use_prediction_and_evaluation_cache: bool,
     ) -> MaiteEvaluationOutputs:
         """Run the capability and store evaluation outputs.
@@ -299,10 +317,14 @@ class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, T
         dataset = datasets[0]
         dataset_id = dataset.metadata["id"]
 
+        cpu_prediction_postprocessor, cpu_prediction_postprocessor_id = self._cpu_prediction_postprocessor(config)
         result, _, _ = evaluate(
             model=model,
             metric=metric,
             dataset=dataset,
+            batch_size=config.batch_size,
+            cpu_prediction_postprocessor=cpu_prediction_postprocessor,
+            cpu_prediction_postprocessor_id=cpu_prediction_postprocessor_id,
             return_augmented_data=False,
             use_cache=use_prediction_and_evaluation_cache,
         )
@@ -335,6 +357,18 @@ class MaiteEvaluationBase(Capability[MaiteEvaluationOutputs, TDataset, TModel, T
         return MaiteEvaluationOutputs(
             overall_metric_name=overall_metric_name, result=result, class_metrics=class_metrics
         )
+
+    def _cpu_prediction_postprocessor(
+        self,
+        _config: TMaiteEvaluationConfig,
+    ) -> tuple[Callable[[Any], Any] | None, str | None]:
+        """Return optional CPU prediction postprocessing and its stable cache identity.
+
+        The postprocessor runs after reusable raw predictions are loaded or
+        computed and before metric evaluation. Task-specific capabilities may
+        override this no-op hook while preserving MAITE-compatible targets.
+        """
+        return None, None
 
 
 def create_per_class_bar_plot(

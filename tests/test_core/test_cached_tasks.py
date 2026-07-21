@@ -5,6 +5,21 @@ from collections.abc import Callable
 import pytest
 
 
+class CountingModel:
+    """Protocol-compatible model wrapper that records real inference calls."""
+
+    def __init__(self, model, *, model_id: str):
+        self._model = model
+        self.metadata = {**model.metadata, "id": model_id}
+        self.calls = 0
+        self.batch_sizes = []
+
+    def __call__(self, inputs):
+        self.calls += 1
+        self.batch_sizes.append(len(inputs))
+        return self._model(inputs)
+
+
 def _assert_predict_close(actual, expected, /, *, assert_target_close_fn, **kwargs):
     import torch
 
@@ -62,24 +77,24 @@ def predict_domain_fixture(
 
 
 @pytest.mark.parametrize("predict_domain_fixture", ["IC", "OD"], indirect=True)
-def test_predict(mocker, predict_domain_fixture):
+def test_predict(predict_domain_fixture):
     from maite import tasks as tasks
 
     from checkmaite import cached_tasks
 
-    actual = tasks.predict(model=predict_domain_fixture.model, dataset=predict_domain_fixture.dataset)
-    expected = cached_tasks.predict(
-        model=predict_domain_fixture.model, dataset=predict_domain_fixture.dataset, return_augmented_data=False
+    model = CountingModel(
+        predict_domain_fixture.model,
+        model_id=f"{predict_domain_fixture.model.metadata['id']}-counting-predict",
     )
+    actual = tasks.predict(model=model, dataset=predict_domain_fixture.dataset)
+    expected = cached_tasks.predict(model=model, dataset=predict_domain_fixture.dataset, return_augmented_data=False)
 
     predict_domain_fixture.assert_closeness_fn(actual, expected)
 
-    mocker.patch(
-        "maite.tasks.predict",
-        side_effect=AssertionError("maite.tasks.predict() was called although a cache hit was expected"),
-    )
-    cached = cached_tasks.predict(model=predict_domain_fixture.model, dataset=predict_domain_fixture.dataset)
+    calls_before_cache_hit = model.calls
+    cached = cached_tasks.predict(model=model, dataset=predict_domain_fixture.dataset)
 
+    assert model.calls == calls_before_cache_hit
     predict_domain_fixture.assert_closeness_fn(cached, actual, atol=0, rtol=0)
 
 
@@ -139,6 +154,204 @@ def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_i
 
     assert "metric_2_result" in results_2
     assert results_2["metric_2_result"].item() == 0.75
+
+
+def test_evaluate_cache_respects_cpu_prediction_postprocessor(fake_ic_model_default, fake_ic_dataset_default):
+    """Raw predictions are reused while postprocessed evaluations have distinct cache keys."""
+    import torch
+
+    from checkmaite import cached_tasks
+
+    class SumMetric:
+        metadata = {"id": "sum"}
+
+        def reset(self):
+            self.total = 0.0
+
+        def update(self, preds, targets, metadatas):
+            self.total += sum(float(pred.sum()) for pred in preds)
+
+        def compute(self):
+            return {"sum": self.total}
+
+    def zero_predictions(predictions):
+        return [[torch.zeros_like(prediction) for prediction in batch] for batch in predictions]
+
+    model = CountingModel(fake_ic_model_default, model_id="postprocessor-cache-model")
+    zero_result, _, _ = cached_tasks.evaluate(
+        model=model,
+        dataset=fake_ic_dataset_default,
+        metric=SumMetric(),
+        cpu_prediction_postprocessor=zero_predictions,
+        cpu_prediction_postprocessor_id="zero",
+        use_cache=True,
+    )
+
+    calls_after_first_evaluation = model.calls
+    raw_result, _, _ = cached_tasks.evaluate(
+        model=model,
+        dataset=fake_ic_dataset_default,
+        metric=SumMetric(),
+        cpu_prediction_postprocessor=lambda predictions: predictions,
+        cpu_prediction_postprocessor_id="identity",
+        use_cache=True,
+    )
+
+    assert model.calls == calls_after_first_evaluation
+    assert zero_result == {"sum": 0.0}
+    assert raw_result["sum"] != 0
+
+
+def test_predict_cache_respects_batch_size(fake_od_model_default, fake_od_dataset_default):
+    """Changing batch size must miss the prediction cache and use the requested batching."""
+    from checkmaite import cached_tasks
+
+    model = CountingModel(fake_od_model_default, model_id="batch-size-cache-model")
+    cached_tasks.predict(model=model, dataset=fake_od_dataset_default, batch_size=2, use_cache=True)
+
+    model.batch_sizes.clear()
+    cached_tasks.predict(model=model, dataset=fake_od_dataset_default, batch_size=4, use_cache=True)
+
+    assert model.batch_sizes == [4, 2]
+
+
+def test_evaluation_cache_respects_prediction_batch_size(fake_ic_dataset_default):
+    """Evaluation results must follow the batch-specific prediction identity."""
+    import torch
+
+    from checkmaite import cached_tasks
+
+    class BatchSensitiveModel:
+        metadata = {"id": "batch-sensitive-evaluation-model"}
+
+        def __init__(self):
+            self.batch_sizes = []
+
+        def __call__(self, inputs):
+            batch_size = len(inputs)
+            self.batch_sizes.append(batch_size)
+            return [torch.tensor(float(batch_size)) for _ in inputs]
+
+    class SumMetric:
+        metadata = {"id": "batch-sensitive-sum-metric"}
+
+        def reset(self):
+            self.total = 0.0
+
+        def update(self, preds, targets, metadatas):
+            self.total += sum(float(prediction) for prediction in preds)
+
+        def compute(self):
+            return {"sum": self.total}
+
+    model = BatchSensitiveModel()
+    batch_one_result, _, _ = cached_tasks.evaluate(
+        model=model,
+        dataset=fake_ic_dataset_default,
+        metric=SumMetric(),
+        batch_size=1,
+        use_cache=True,
+    )
+    calls_after_batch_one = len(model.batch_sizes)
+    batch_four_result, _, _ = cached_tasks.evaluate(
+        model=model,
+        dataset=fake_ic_dataset_default,
+        metric=SumMetric(),
+        batch_size=4,
+        use_cache=True,
+    )
+
+    assert len(model.batch_sizes) > calls_after_batch_one
+    assert batch_four_result["sum"] == 4 * batch_one_result["sum"]
+
+
+def test_prediction_cache_distinguishes_model_wrapper_ids(fake_ic_dataset_default):
+    """Wrapper postprocessing semantics can be isolated through model metadata IDs."""
+    import torch
+
+    from checkmaite import cached_tasks
+
+    class ConstantModel:
+        def __init__(self, model_id, value):
+            self.metadata = {"id": model_id}
+            self.value = value
+            self.calls = 0
+
+        def __call__(self, inputs):
+            self.calls += 1
+            return [torch.tensor(self.value) for _ in inputs]
+
+    first_model = ConstantModel("wrapper-postprocessor-a", 1.0)
+    second_model = ConstantModel("wrapper-postprocessor-b", 2.0)
+    first_predictions, _ = cached_tasks.predict(model=first_model, dataset=fake_ic_dataset_default, use_cache=True)
+    second_predictions, _ = cached_tasks.predict(model=second_model, dataset=fake_ic_dataset_default, use_cache=True)
+
+    assert first_model.calls > 0
+    assert second_model.calls > 0
+    assert float(first_predictions[0][0]) == 1.0
+    assert float(second_predictions[0][0]) == 2.0
+
+
+def test_evaluate_rejects_cpu_prediction_postprocessor_id_without_postprocessor(
+    fake_ic_model_default, fake_ic_dataset_default
+):
+    from checkmaite import cached_tasks
+    from tests.conftest import FakeICMetric
+
+    with pytest.raises(
+        ValueError, match="cpu_prediction_postprocessor_id was provided without a cpu_prediction_postprocessor"
+    ):
+        cached_tasks.evaluate(
+            model=fake_ic_model_default,
+            dataset=fake_ic_dataset_default,
+            metric=FakeICMetric(),
+            cpu_prediction_postprocessor_id="orphan-id",
+            use_cache=True,
+        )
+
+
+def test_evaluate_postprocessor_without_id_warns_and_preserves_prediction_cache(
+    fake_ic_model_default, fake_ic_dataset_default
+):
+    from checkmaite import cached_tasks
+
+    update_calls = []
+
+    class CountingMetric:
+        metadata = {"id": "counting-postprocessor-without-id"}
+
+        def reset(self):
+            pass
+
+        def update(self, preds, targets, metadatas):
+            update_calls.append(len(preds))
+
+        def compute(self):
+            return {"updates": len(update_calls)}
+
+    model = CountingModel(fake_ic_model_default, model_id="postprocessor-without-id-model")
+    with pytest.warns(UserWarning, match="evaluation-result caching is disabled"):
+        first_result, _, _ = cached_tasks.evaluate(
+            model=model,
+            dataset=fake_ic_dataset_default,
+            metric=CountingMetric(),
+            cpu_prediction_postprocessor=lambda predictions: predictions,
+            use_cache=True,
+        )
+
+    calls_after_first_evaluation = model.calls
+    with pytest.warns(UserWarning, match="evaluation-result caching is disabled"):
+        second_result, _, _ = cached_tasks.evaluate(
+            model=model,
+            dataset=fake_ic_dataset_default,
+            metric=CountingMetric(),
+            cpu_prediction_postprocessor=lambda predictions: predictions,
+            use_cache=True,
+        )
+
+    assert model.calls == calls_after_first_evaluation
+    assert first_result["updates"] > 0
+    assert second_result["updates"] == 2 * first_result["updates"]
 
 
 def test_predict_cache_warning_no_model_id(fake_ic_dataset_default):

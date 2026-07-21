@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Configurable MAITE evaluation inference batch size
+- Optional CPU object-detection evaluation postprocessing, disabled by default, with confidence filtering, NMS, class-agnostic NMS, and maximum-detection settings
+
+### Changed
+- Prediction and evaluation caches now distinguish inference batch sizes, so existing cached evaluations are cold after upgrading
+
 ### Fixed
 - JSON Schema generation for torch `Device` fields
 

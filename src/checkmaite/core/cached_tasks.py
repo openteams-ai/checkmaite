@@ -2,7 +2,7 @@ import abc
 import functools
 import hashlib
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, TypeVar, cast
 
@@ -101,6 +101,9 @@ class _PredictConfig(_ConfigBase):
     model_id: str | None
     dataset_id: str | None
     augmentation_id: str | None
+    # Batching can affect model outputs, padding, nondeterministic kernels, and
+    # prediction batch boundaries, so it is part of the prediction identity.
+    batch_size: int
     return_augmented_data: StrictReturnAugmentedData
 
     def cache_key_required_fields(self) -> set[str]:
@@ -169,6 +172,7 @@ def predict(
         model_id=model_id,
         dataset_id=dataset_id,
         augmentation_id=_resolve_id(augmentation) if augmentation else None,
+        batch_size=batch_size,
         return_augmented_data=strict_return_augmented_data,
     )
     if not config.cache_key and use_cache:
@@ -215,6 +219,12 @@ class _EvaluateFromPredictionsConfig(_ConfigBase):
     dataset_id: str | None
     augmentation_id: str | None
     metric_id: str | None
+    # Identifies the batching semantics of predictions produced by evaluate().
+    # Direct evaluate_from_predictions() callers may leave this unset.
+    prediction_batch_size: int | None
+    # Distinguishes evaluation results produced from the same cached raw
+    # predictions by different deterministic CPU postprocessing semantics.
+    cpu_prediction_postprocessor_id: str | None
 
     def cache_key_required_fields(self) -> set[str]:
         # self.augmentation_id is None is a valid use case and should not result in an invalid cache key
@@ -240,14 +250,25 @@ def evaluate_from_predictions(
     dataset_id: str | None = None,
     augmentation: gen.Augmentation | None = None,
     augmentation_id: str | None = None,
+    prediction_batch_size: int | None = None,
+    cpu_prediction_postprocessor_id: str | None = None,
     use_cache: bool = True,
 ) -> Mapping[str, Any]:
-    "Evaluate pre-calculated predictions against target (truth) data for some specified metric."
+    """Evaluate pre-calculated predictions against targets with one metric.
+
+    ``prediction_batch_size`` identifies batching used to produce model
+    predictions when this function is called through :func:`evaluate`.
+    ``cpu_prediction_postprocessor_id`` is the stable identity of deterministic
+    CPU postprocessing already applied to ``predictions``. Together they separate
+    evaluation cache entries without changing the reusable raw-prediction cache.
+    """
     config = _EvaluateFromPredictionsConfig(
         model_id=_resolve_id(model, id=model_id),
         dataset_id=_resolve_id(dataset, id=dataset_id),
         augmentation_id=_resolve_id(augmentation, id=augmentation_id),
         metric_id=_resolve_id(metric),
+        prediction_batch_size=prediction_batch_size,
+        cpu_prediction_postprocessor_id=cpu_prediction_postprocessor_id,
     )
 
     if not config.cache_key and use_cache:
@@ -296,13 +317,42 @@ def evaluate(
     return_augmented_data: ReturnAugmentedData = False,
     return_preds: bool = False,
     dataset_id: str | None = None,
+    cpu_prediction_postprocessor: Callable[[Sequence[Sequence[T_Target]]], Sequence[Sequence[T_Target]]] | None = None,
+    cpu_prediction_postprocessor_id: str | None = None,
     use_cache: bool = True,
 ) -> tuple[
     Mapping[str, Any],
     Sequence[Sequence[T_Target]],
     Sequence[tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]],
 ]:
-    "Evaluate a model's performance on data according to some metric with optional augmentation."
+    """Evaluate a model with optional CPU prediction postprocessing.
+
+    The deterministic ``cpu_prediction_postprocessor`` runs after raw prediction
+    cache retrieval and before metric evaluation. Supplying a stable
+    ``cpu_prediction_postprocessor_id`` keeps raw predictions reusable while giving
+    each postprocessing configuration a distinct evaluation-cache identity.
+
+    This hook runs only after the model has returned predictions. Device-specific
+    or latency-critical postprocessing should instead be implemented inside a
+    custom model wrapper so it can execute before predictions leave that device.
+    The wrapper's ``metadata["id"]`` must incorporate its postprocessing
+    configuration so prediction and run caches cannot reuse stale outputs when
+    those semantics change.
+    """
+
+    if cpu_prediction_postprocessor is None and cpu_prediction_postprocessor_id is not None:
+        raise ValueError("cpu_prediction_postprocessor_id was provided without a cpu_prediction_postprocessor.")
+
+    evaluate_use_cache = use_cache
+    if cpu_prediction_postprocessor is not None and cpu_prediction_postprocessor_id is None and use_cache:
+        # Raw prediction caching remains safe; only the evaluation result lacks
+        # a stable identity and must be recomputed.
+        warnings.warn(
+            "use_cache was requested but evaluation-result caching is disabled because "
+            "cpu_prediction_postprocessor_id was not provided for the cpu_prediction_postprocessor.",
+            stacklevel=2,
+        )
+        evaluate_use_cache = False
 
     strict_return_augmented_data = _parse_return_augmented_data(return_augmented_data)
     ps, ads = predict(
@@ -315,18 +365,21 @@ def evaluate(
         dataset_id=dataset_id,
         use_cache=use_cache,
     )
+    postprocessed_predictions = cpu_prediction_postprocessor(ps) if cpu_prediction_postprocessor else ps
     metric_results = evaluate_from_predictions(
         metric=metric,
-        predictions=ps,
+        predictions=postprocessed_predictions,
         targets=[d[1] for d in ads],
         model=model,
         dataset=dataset,
         dataset_id=dataset_id,
         augmentation=augmentation,
-        use_cache=use_cache,
+        prediction_batch_size=batch_size,
+        cpu_prediction_postprocessor_id=cpu_prediction_postprocessor_id,
+        use_cache=evaluate_use_cache,
     )
     return (
         metric_results,
-        ps if return_preds else [],
+        postprocessed_predictions if return_preds else [],
         ads if strict_return_augmented_data != "none" else [],
     )
