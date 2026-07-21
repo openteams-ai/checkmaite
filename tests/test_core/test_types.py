@@ -128,3 +128,9 @@ def test_dataframe_rejects_non_pandas_input():
 
     with pytest.raises(ValidationError):
         ModelWithDataFrame(data=FakeSparkDataFrame())
+
+
+def test_device_json_schema_is_a_string():
+    """Device exposes its serialized string representation in JSON Schema."""
+    schema = ModelWithDevice.model_json_schema()["properties"]["device"]
+    assert schema["type"] == "string"

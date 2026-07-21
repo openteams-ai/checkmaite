@@ -8,7 +8,7 @@ import pandas as pd
 import PIL.Image
 import pydantic
 import torch
-from pydantic import BeforeValidator, PlainSerializer
+from pydantic import BeforeValidator, PlainSerializer, WithJsonSchema
 
 from checkmaite.core._utils import set_device
 
@@ -51,7 +51,18 @@ Image = Annotated[PIL.Image.Image, BeforeValidator(_to_image)]
 
 DataFrame = pd.DataFrame
 
-Device = Annotated[torch.device, BeforeValidator(set_device), PlainSerializer(str)]
+Device = Annotated[
+    torch.device,
+    BeforeValidator(set_device),
+    PlainSerializer(str),
+    WithJsonSchema(
+        {
+            "type": "string",
+            "description": "Torch device string such as 'cpu', 'cuda', 'cuda:0', or 'mps'.",
+            "examples": ["cpu", "cuda", "mps"],
+        }
+    ),
+]
 
 
 class TorchvisionModelSpec(pydantic.BaseModel):
