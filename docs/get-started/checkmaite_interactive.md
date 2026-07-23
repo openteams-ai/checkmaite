@@ -12,11 +12,11 @@ Once you have the environment set up, you can start `checkmaite` by running the
 following command in your terminal:
 
 ```bash
-poetry run panel serve src/checkmaite/ui/app.py --show
+uv run panel serve src/checkmaite/ui/app.py --show
 ```
 
 </details>
-If running a conda environment, you can replace the need for `poetry run` with `conda run -n <env_name> --live-stream`,
+If running a conda environment, you can replace the need for `uv run` with `conda run -n <env_name> --live-stream`,
 or if the environment is activated, you can simply use:
 
 ```bash

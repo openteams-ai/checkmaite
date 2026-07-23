@@ -25,7 +25,7 @@ from checkmaite.core._common.dataeval_sufficiency_capability import (
 # This is needed to be compatible with min pytorch version 2.2.0
 try:
     # This should work for pytorch v2.3 and later
-    from torch.amp import GradScaler  # pyright: ignore[reportPrivateImportUsage]
+    from torch.amp import GradScaler
 
     has_cpu_grad_scaler = True
 except ImportError:

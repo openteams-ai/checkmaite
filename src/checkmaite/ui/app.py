@@ -3,7 +3,7 @@
 To deploy this app, ensure you have the necessary dependencies installed and run:
 
 ```bash
-poetry run panel serve src/checkmaite/ui/app.py --show
+uv run panel serve src/checkmaite/ui/app.py --show
 ```
 """
 

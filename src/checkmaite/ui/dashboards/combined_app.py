@@ -298,7 +298,7 @@ class FullApp(BaseApp):
     To view the app, deploy the script `/ui/app.py via the terminal:
 
     ```bash
-    poetry run panel serve src/checkmaite/ui/app.py --show
+    uv run panel serve src/checkmaite/ui/app.py --show
     ```
     """
 

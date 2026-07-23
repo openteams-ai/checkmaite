@@ -10,22 +10,22 @@ git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-impl
 
 ## Create environment and install the package
 
-The supported install path is `poetry`. We also provide a conda-based alternative.
+The supported install path is `uv`. We also provide a conda-based alternative.
 
-### Option 1: poetry environment
+### Option 1: uv environment
 
-To set up a poetry environment, [install `poetry`](https://python-poetry.org/docs/#installation) (the minimum supported version is `2.0.0`), and build the environment with:
+To set up a uv environment, [install `uv`](https://docs.astral.sh/uv/getting-started/installation/), and build the environment with:
 
 ```bash
-poetry install
+uv sync
 ```
 
 Optional extras:
 
 ```bash
-poetry install --extras ui         # UI dependencies
-poetry install --extras reporting  # PDF report export (markdown + xhtml2pdf)
-poetry install --extras cloud      # cloud storage dependencies (aws+gcs+azure)
+uv sync --extra ui         # UI dependencies
+uv sync --extra reporting  # PDF report export (markdown + xhtml2pdf)
+uv sync --extra cloud      # cloud storage dependencies (aws+gcs+azure)
 ```
 
 JATIC tools which are not under active development are distributed through the separate `checkmaite-plugins` package.
@@ -34,7 +34,7 @@ Use these tools with caution because they may contain bugs or may be incompatibl
 `checkmaite` extra so that the PyPI package metadata remains valid.
 
 ```bash
-poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
+uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
 If you are developing locally across both repositories:

@@ -221,10 +221,10 @@ def artifact_dir(tmp_path):
     Provides a directory for storing test artifacts.
 
     By default, artifacts go to a temporary directory that is removed
-    after the tests. Set SAVE_POETRY_ARTIFACTS=true to persist
+    after the tests. Set SAVE_UV_ARTIFACTS=true to persist
     artifacts to ARTIFACT_DIR (or fallback to tmp if unset).
     """
-    _save = os.environ.get("SAVE_POETRY_ARTIFACTS", "false").strip().lower() == "true"
+    _save = os.environ.get("SAVE_UV_ARTIFACTS", "false").strip().lower() == "true"
     _env_dir = os.environ.get("ARTIFACT_DIR")
 
     if _save and _env_dir:

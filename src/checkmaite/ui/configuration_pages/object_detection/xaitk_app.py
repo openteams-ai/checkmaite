@@ -593,6 +593,6 @@ if __name__ == "__main__":
         sys.stderr.write(msg)
         sys.exit(1)
     else:
-        # special adaption to ensure the poetry blocks execution when the server is running
+        # special adaption to ensure the CLI blocks execution when the server is running
         server = pn.serve(app, address="localhost", port=5008, show=True, threaded=True)
         server.join()

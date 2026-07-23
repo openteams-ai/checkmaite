@@ -1,5 +1,9 @@
 """Check if conda lockfile is consistent with pyproject.toml.
-Conda lock does not include optional dependency extras.
+
+The conda lock is generated with ``--filter-extras --extras ui`` so it covers
+the ``main`` dependencies plus the ``ui`` optional extra (needed for full test
+collection). PEP 735 ``[dependency-groups]`` (e.g. ``dev``) are not representable
+in conda-lock and are intentionally excluded.
 """
 
 import logging
@@ -13,7 +17,10 @@ HERE = __file__ = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[0]
 CONDA_LOCKFILE_PATH = REPO_ROOT / "conda-lock.yml"
 PYPROJECT_TOML_PATH = REPO_ROOT / "pyproject.toml"
-PYPROJECT_CATEGORIES = {"main", "dev"}
+# PEP 621 [project.dependencies] plus [tool.conda-lock.dependencies] land in
+# the "main" category; the conda CI jobs also install the "ui" extra so the
+# full test suite collects. conda-lock cannot read PEP 735 [dependency-groups].
+PYPROJECT_CATEGORIES = {"main", "ui"}
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +103,7 @@ def main() -> bool:
         logger.exception(
             f"{CONDA_LOCKFILE_PATH.name} is missing packages required "
             f"by {PYPROJECT_TOML_PATH.name}: {missing_packages}. "
-            "Run `conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml`"
+            "Run `conda-lock -f pyproject.toml --filter-extras --extras ui -p linux-64 --lockfile conda-lock.yml`"
             " to update the lockfile."
         )
         return False
@@ -106,7 +113,7 @@ def main() -> bool:
         extra_packages = lockfile_root_packages - lock_spec_packages
         logger.exception(
             f"{CONDA_LOCKFILE_PATH.name} contains packages not required by the lockspec: {extra_packages} "
-            "Run `conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml`"
+            "Run `conda-lock -f pyproject.toml --filter-extras --extras ui -p linux-64 --lockfile conda-lock.yml`"
             " to update the lockfile."
         )
         return False

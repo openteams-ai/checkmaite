@@ -97,7 +97,7 @@ Install the plugin package directly from GitLab. It supports Python `<3.12` and 
 `checkmaite` package metadata so that PyPI accepts checkmaite releases:
 
 ```bash
-poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
+uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
 ## Creating a Plugin
@@ -125,12 +125,10 @@ checkmaite-plugin-debiaser/
 name = "checkmaite-plugin-debiaser"
 version = "0.1.0"
 requires-python = ">=3.10, <3.13"
+dependencies = ["checkmaite>=0.2.0"]
 
 [project.entry-points."checkmaite.plugins.image_classification"]
 debiaser = "checkmaite_plugin_debiaser:ic_exports"
-
-[tool.poetry.dependencies]
-checkmaite = ">=0.2.0"
 ```
 
 The entry point name (`debiaser`) is an identifier — it can be anything. The value points to a callable using `module:function` syntax.

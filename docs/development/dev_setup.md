@@ -25,41 +25,43 @@ git clone git@gitlab.jatic.net:jatic/reference-implementation/reference-implemen
 
 ## Creating an environment
 
-We provide both poetry-based environment and conda-based environment options:
+We provide both uv-based environment and conda-based environment options:
 
-### Option 1: Setup poetry environment
+### Option 1: Setup uv environment
 
-To set up a poetry environment, [install `poetry`](https://python-poetry.org/docs/#installation) (the minimum supported version is `2.0.0`).
+To set up a uv environment, [install `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 #### For regular users
 
 You can build the environment by running:
 
 ```bash
-poetry install
+uv sync --no-dev
 ```
 
 #### For package developers
 
-If you plan to contribute to the project or need development tools, install with development dependencies:
+If you plan to contribute to the project or need development tools, a plain sync
+installs the `dev` dependency group by default:
 
 ```bash
-poetry install --with dev
+uv sync
 ```
 
-`dev` and `docs` are Poetry groups (not `pip` extras), so `pip install .[dev]` is not a supported path.
+`dev` and `docs` are [PEP 735 dependency groups](https://docs.astral.sh/uv/concepts/projects/dependencies/#dependency-groups)
+(not `pip` extras), so `pip install .[dev]` is not a supported path.
 
 To contribute to the documentation, install with the docs dependencies:
 
 ```bash
-poetry install --with docs
+uv sync --group docs
 ```
 
-There are also optional dependency groups, `ui` and `reporting`:
+There are also optional dependency extras, `ui` and `reporting`:
 
 ```bash
-poetry install --extras ui
-poetry install --extras reporting   # PDF report export (markdown + xhtml2pdf)
+uv sync --extra ui
+uv sync --extra reporting   # PDF report export (markdown + xhtml2pdf)
 ```
 
 JATIC tools which are not under active development are distributed through the separate
@@ -67,25 +69,25 @@ JATIC tools which are not under active development are distributed through the s
 through a `checkmaite` extra so that the PyPI package metadata remains valid:
 
 ```bash
-poetry run pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
+uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
 If you want to install all the checkmaite extras, you can use:
 
 ```bash
-poetry install --all-extras
+uv sync --all-extras
 ```
 
 And if you want to install everything and the kitchen sink:
 
 ```bash
-poetry install --with dev --all-extras
+uv sync --all-extras --all-groups
 ```
 
 This project utilizes `pre-commit` for linting and formatting. **Developers** should also install the `pre-commit` hooks using:
 
 ```bash
-poetry run pre-commit install
+uv run pre-commit install
 ```
 
 ### Option 2: Setup conda environment
@@ -97,27 +99,38 @@ To set up a conda environment, [install `conda`](https://docs.conda.io/projects/
 conda create -n checkmaite "conda-lock>=3"
 # activate the environment
 conda activate checkmaite
-# use conda-lock to install dependencies
-conda-lock install -n checkmaite conda-lock.yml
+# use conda-lock to install dependencies (include the `ui` extra so the full
+# test suite can be collected)
+conda-lock install -n checkmaite --extras ui conda-lock.yml
 # finally, install the `checkmaite` package
 pip install -e . --no-deps
 ```
 
-This project utilizes `pre-commit` for linting and formatting. Install the `pre-commit` hooks using:
+The conda-lock environment intentionally excludes developer tooling such as
+`pre-commit` (it is a PEP 735 `dev` dependency group, which conda-lock cannot
+represent). Install `pre-commit` separately and then enable the hooks:
 
 ```bash
+pip install pre-commit
 pre-commit install
 ```
 
 ## Testing
 
-(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
+(*In the following, instructions are only provided for `uv`. Similar instructions are valid for `conda`.*)
 
 This project uses `pytest` for it's test suite. Run the full test suite with:
 
 ```bash
-poetry run pytest tests -svv
+uv run pytest tests -svv
 ```
+
+!!! note
+    Ray >= 2.56 detects drivers launched via `uv run` and tries to propagate the
+    uv environment to its workers, which breaks the Ray job-backend tests (worker
+    startup times out). Disable the hook so workers use the already-synced
+    environment: `RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 uv run pytest tests -svv`
+    (CI sets this automatically).
 
 This project also contains test markers to flag special test groups. The tests marked `real_data` are
 time consuming tests that utilize real data. The `unsupported` capability tests are maintained in the
@@ -126,35 +139,35 @@ time consuming tests that utilize real data. The `unsupported` capability tests 
 You can run them manually with:
 
 ```bash
-poetry run pytest tests -svv -m real_data
+uv run pytest tests -svv -m real_data
 ```
 
 ## Linting and formatting
 
-(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
+(*In the following, instructions are only provided for `uv`. Similar instructions are valid for `conda`.*)
 
 Linting and formatting are automated via `pre-commit` hooks. However, if you'd like to run them directly, you can run:
 
 ```bash
-poetry run pre-commit run --all-files --verbose
+uv run pre-commit run --all-files --verbose
 ```
 
 Type checking is performed by `pyright`. This can be run using:
 
 ```bash
-poetry run pyright src
+uv run pyright src
 ```
 
 ## Building the docs
 
-(*In the following, instructions are only provided for `poetry`. Similar instructions are valid for `conda`.*)
+(*In the following, instructions are only provided for `uv`. Similar instructions are valid for `conda`.*)
 
 The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. checkmaite also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
 
 The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
 
 ```bash
-poetry run mkdocs serve
+uv run mkdocs serve
 ```
 
 This will create a live server running on the local machine. Any changes made to the document will be live-reloaded in the local website.
@@ -162,7 +175,7 @@ This will create a live server running on the local machine. Any changes made to
 Alternately, the docs can be built locally as a static site similar to the process in CI by running:
 
 ```bash
-poetry run mkdocs build --site-dir public
+uv run mkdocs build --site-dir public
 ```
 
 The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command.

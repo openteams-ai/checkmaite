@@ -719,7 +719,7 @@ def create_pdf_output(
     """Render a markdown report to PDF, copying local images into ``<path>/images/``.
 
     Requires the optional ``reporting`` extra (``pip install ".[reporting]"`` or
-    ``poetry install --extras reporting``), which pulls in ``markdown`` and ``xhtml2pdf``.
+    ``uv sync --extra reporting``), which pulls in ``markdown`` and ``xhtml2pdf``.
 
     Trust model
     -----------
@@ -754,7 +754,7 @@ def create_pdf_output(
             "PDF report rendering requires the 'reporting' extra. Install with:\n"
             '    pip install ".[reporting]"\n'
             "or:\n"
-            "    poetry install --extras reporting"
+            "    uv sync --extra reporting"
         ) from e
 
     out_dir = Path(path)

@@ -4,12 +4,12 @@
 # Philosophy: pre-commit handles only fast, auto-fixable formatting/linting via
 # ruff. Broader checks live in the DevSecOps compliance components:
 #   - SAST / security  -> dsor-compliance
-#   - pyproject.toml / poetry / conda installability -> sr-compliance
+#   - pyproject.toml / uv / conda installability -> sr-compliance
 #
 # Project-specific gap-fillers (check-conda-lock, check-linter-ignore) remain
 # here because no DevSecOps component covers them. Both are configured to be
 # self-contained so they run inside the pre-commit component's minimal
-# python-base-image on system python (no project poetry env required).
+# python-base-image on system python (no project uv env required).
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6  # matches the version of Ruff in the DevSecOps Team's base images
@@ -25,10 +25,11 @@ repos:
     - id: bandit
       additional_dependencies: ['.[toml]']
       args: [-c, pyproject.toml, -r, src]  # pull config from pyproject.toml and only scan `src`
-  - repo: https://github.com/python-poetry/poetry
-    rev: '2.1.2'  # add version here
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: '0.9.24'  # keep in sync with the uv version pinned in .gitlab-ci.yml
     hooks:
-    - id: poetry-check
+    - id: uv-lock
+      args: [--check]  # verify uv.lock is up to date without modifying it
   - repo: local
     hooks:
        - id: check-conda-lock
@@ -38,20 +39,14 @@ repos:
          pass_filenames: false
          additional_dependencies: ['conda-lock>=3,<5']
 
-       # NOTE: invoked as plain `python`, NOT `poetry run python`. This is to avoid
-       # a RACE CONDITION -- it is not a problem with poetry itself. pre-commit runs
-       # this hook over parallel file batches. `poetry run` only *creates* a venv if
-       # one doesn't already exist; in the DevSecOps minimal python-base-image there
-       # is no project venv, so every parallel `poetry run` tries to build `.venv`
-       # at the same time and the concurrent builds clobber each other mid-install
-       # (FileNotFoundError on pip vendor files). If the venv already exists -- e.g.
-       # after `poetry install --with dev` (see dev_setup.md) --
-       # `poetry run` just reuses it and works fine, which is exactly why this never
-       # fails locally and only the cold CI runner trips the race. The script is
-       # pure-stdlib (re/sys/tokenize/dataclasses) and needs nothing from the project
-       # env, so plain `python` is correct and creates no venv to race on. If this
-       # script ever grows real dependencies, add them via `language: python` +
-       # `additional_dependencies` (see check-conda-lock above), not `poetry run`.
+       # NOTE: invoked as plain `python`, NOT `uv run python`. pre-commit runs this
+       # hook over parallel file batches; a project-env runner (`uv run`) would try
+       # to create `.venv` concurrently on a cold CI runner and the parallel env
+       # builds can clobber each other mid-install. The script is pure-stdlib
+       # (re/sys/tokenize/dataclasses) and needs nothing from the project env, so
+       # plain `python` is correct and creates no venv to race on. If this script
+       # ever grows real dependencies, add them via `language: python` +
+       # `additional_dependencies` (see check-conda-lock above), not `uv run`.
        - id: check-linter-ignore
          name: 'Check for non-specific linter ignores'
          entry: python scripts/check_bare_pyright_ignore.py

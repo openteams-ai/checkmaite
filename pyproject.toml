@@ -1,6 +1,6 @@
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
+requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "checkmaite"
@@ -23,7 +23,35 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.10, <3.13"
-dynamic = ["dependencies", "version"]
+dynamic = ["version"]
+dependencies = [
+    "dataeval==1.0.6",
+    "dataeval-plots==0.0.6",           # we specify the pypi source in conda-lock as dataeval_plots won't be on conda-forge
+    "maite==0.9.2",
+    "nrtk[pybsm]==1.0.3",
+    "xaitk-jatic==0.8.1",
+    # external deps
+    "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
+    "universal-pathlib>=0.3.8",        # arbitrary, required for cloud storage support
+    "httpx>=0.28.1",                   # arbitrary, needed to run visdrone model
+    "ipython>=8.13,<9.0",              # necessary, rendering Markdown reports. ipython 9.x needs Python >=3.11
+    "matplotlib>=3.8.4,<3.10.8",       # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
+    "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
+    "opencv-python-headless>=4.9.0.80",# necessary lower pin, required by nrtk usage here
+    "pandas>=2",                       # arbitrary, required for data handling
+    "pillow>=11.0.0",                  # arbitrary
+    "polars>=1.37.0",                  # arbitrary, required for analytics store
+    "pydantic>=2.0.0",                 # arbitrary
+    "ray[serve]>=2.9.0",               # necessary for Ray Serve endpoint deployment
+    "scikit-learn>=1.7.0",             # arbitrary, required for embeddings
+    "setuptools>=78.1.1,<82.0.0",      # xaitk-saliency path still imports pkg_resources
+    "torch>=2.2.0",                    # necessary lower pin (at least >=2.2.0 for security)
+    "torchmetrics>=1.4.0",             # arbitrary, required for metric computation
+    "torchvision>=0.17.0",             # arbitrary, required for models
+    "smqtk-core>=0.21.0",              # necessary lower pin for compatibility with pydantic
+    "smqtk-detection>=0.22.0",         # necessary lower pin for running VisDrone model on Mac
+    "transformers[timm]>=4.48.0,!=4.51.0",  # necessary lower pin for xaitk panel app for security vulnerability
+]
 
 [tool.conda-lock]
 channels = ['conda-forge', 'fastai']
@@ -37,93 +65,84 @@ timm = ">=1.0.7"
 libgl = "*"
 libopengl = "*"                                    # patch for a missing dependency from something (opencv?) in conda-forge
 pip = "*"                                          # ensure pip is available for conda-lock
-git = "*"                                          # required by poetry-dynamic-versioning during package builds
-poetry = "==2.1.2"                                 # required for the poetry-check pre-commit hook
+git = "*"                                          # required by uv-dynamic-versioning during package builds
 dataeval-plots = {source = "pypi"}
+# Test tooling for the conda CI jobs. conda-lock cannot read PEP 735
+# [dependency-groups], so the conda-side test dependencies are declared here
+# (conda-only section; not part of the published package metadata).
+pytest = ">=8.3.0"
+pytest-cov = ">=4.0.0"
+pytest-mock = ">=3.6.1"
+pypdf = ">=4.0.0"
+# ray[serve]'s pip extra is dropped when conda-lock maps ray -> ray-core, but
+# importing ray.serve (rayserve test collection) needs grpc. Keep conda's
+# ray-core modern: an unconstrained latest grpcio otherwise makes the solver
+# trade ray-core down to the 2.9.0 floor (whose APIs the jobs backend
+# predates); let grpcio float to whatever the pinned ray-core accepts.
+ray-core = ">=2.55"
+grpcio = "*"
+grpcio-status = "*"
 
-[tool.poetry]
-packages = [{ include = "checkmaite", from = "src" }]
-include = ["src/checkmaite/py.typed"]
-exclude = ["src/checkmaite/_docs.py"]
-version = "0.0.0"  # dynamically replaced by rev tag
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
 
-[tool.poetry.requires-plugins]
-poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
-
-[tool.poetry-dynamic-versioning]
-enable = true
+[tool.uv-dynamic-versioning]
 pattern = "default-unprefixed"  # required because our tags don't start with v
-fix-shallow-repository = true
+fallback-version = "0.0.0"      # used when git history/tags are unavailable (e.g. shallow CI clones)
 
-[tool.poetry.dependencies]
-dataeval = "==1.0.6"
-dataeval-plots = "==0.0.6"                                        # We specify pypi source as dataeval_plots wont be on conda-forge
-maite = "==0.9.2"
-nrtk = { version = "==1.0.3", extras = ["pybsm"] }
-xaitk-jatic = "==0.8.1"
-# external deps
-fsspec = ">=2023.1.0"                                              # arbitrary, required for cloud storage support
-universal_pathlib = ">=0.3.8"                                      # arbitrary, required for cloud storage support
-s3fs = { version = ">=2023.1.0", optional = true }                 # arbitrary, required for AWS S3 cloud storage
-gcsfs = { version = ">=2023.1.0", optional = true }                # arbitrary, required for Google Cloud Storage
-adlfs = { version = ">=2023.1.0", optional = true }                # arbitrary, required for Azure Blob Storage
-holoviews = { version = ">=1.20.0", optional = true }              # arbitrary, required for panel pipelines
-httpx = ">=0.28.1"                                                 # arbitrary, needed to run visdrone model
-jupyterlab = { version = ">=4.3.5", optional = true }              # arbitrary, required for serving panel notebooks via CLI
-ipython = ">=8.13,<9.0"                                            # necessary, rendering Markdown reports. ipython 9.x needs Python >=3.11
-matplotlib = ">=3.8.4,< 3.10.8"                                    # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
-nbconvert = { version = ">=7.16.6", optional = true }              # arbitrary, required for serving panel notebooks via CLI
-numba = ">=0.60.0"                                                 # arbitrary, needed to run visdrone model
-onnx = { version = ">=1.14.0", optional = true }                       # arbitrary, required for ONNX model validation
-onnxruntime = { version = ">=1.14.0,<1.24.0", optional = true }       # necessary upper pin, 1.24.x lacks cp310 wheels
-opencv-python-headless = ">=4.9.0.80"                              # necessary lower pin, required by nrtk usage here
-pandas = ">=2"                                                     # arbitrary, required for data handling
-panel = { version = ">=1.8.7", optional = true }                   # necessary for FileDropper widget, and for progression of dashboards
-pillow = ">=11.0.0"                                                # arbitrary
-polars = ">=1.37.0"                                                # arbitrary, required for analytics store
-pydantic = ">=2.0.0"                                               # arbitrary
-ray = { extras = ["serve"], version = ">=2.9.0" }                  # necessary for Ray Serve endpoint deployment
-scikit-learn = ">=1.7.0"                                           # arbitrary, required for embeddings
-setuptools = ">=78.1.1,<82.0.0"                                    # xaitk-saliency path still imports pkg_resources
-streamz = { version = ">=0.6.4", optional = true }                 # arbitrary
-torch = ">=2.2.0"                                                  # necessary lower pin (at least >=2.2.0 for security)
-torchmetrics = ">=1.4.0"                                           # arbitrary, required for metric computation
-torchvision = ">=0.17.0"                                           # arbitrary, required for models
-markdown = { version = ">=3.5", optional = true }                  # arbitrary, required for PDF report rendering (md -> HTML)
-xhtml2pdf = { version = ">=0.2.16", optional = true }              # arbitrary, required for PDF report rendering (HTML -> PDF)
-smqtk-core = ">=0.21.0"                                            # necessary lower pin for compatibility with pydantic
-smqtk-detection = ">=0.22.0"                                       # necessary lower pin for running VisDrone model on Mac
-transformers = {extras = ["timm"], version = ">=4.48.0,!=4.51.0"}  # necessary lower pin for xaitk panel app for security vulnerability
+[tool.hatch.build.targets.wheel]
+packages = ["src/checkmaite"]
+exclude = ["src/checkmaite/_docs.py"]
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.0.0"                             # arbitrary
-pyright = {extras = ["nodejs"], version = ">=1.1.400,!=1.1.401"}  # necessary, typechecker will fail for some versions, https://github.com/microsoft/pyright/issues/10487
-pytest = ">=8.3.0"                                 # necessary lower pin for compatibility
-pytest-cov = ">=4.0.0"                             # arbitrary
-pytest-mock = ">=3.6.1"                            # arbitrary
-pypdf = ">=4.0.0"                                  # arbitrary, used to assert PDF structure in reporting tests
-# This is not needed by us, but required to avoid a critical vulnerability warning
-# See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
-virtualenv = ">=20.26.6"
-conda-lock = ">=3.0.3"                             # necessary, used to update conda-lock.yml
-ruamel-yaml = ">=0.17.21"                          # necessary, for comment-preserving YAML manipulation
+[tool.hatch.build.targets.sdist]
+# Ship only the package and the metadata needed to rebuild the wheel. Without an
+# explicit selection Hatchling packages the whole repo (tests, docs, notebooks,
+# CI config, lockfiles), bloating the sdist to hundreds of files / several MB.
+only-include = [
+    "src/checkmaite",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE.md",
+]
+exclude = [
+    "src/checkmaite/_docs.py",
+    "**/__pycache__",
+    "**/*.pyc",
+]
 
-[tool.poetry.group.docs.dependencies]
-mkdocs = ">=1.6.1"                                 # arbitrary
-mkdocs-jupyter = ">=0.25"                          # arbitrary
-mkdocs-material = ">=9.6.4"                        # arbitrary
-pymdown-extensions = ">=10.14.3"                   # arbitrary
+[dependency-groups]
+dev = [
+    "pre-commit>=3.0.0",                             # arbitrary
+    "pyright[nodejs]>=1.1.400,!=1.1.401",  # necessary, typechecker will fail for some versions, https://github.com/microsoft/pyright/issues/10487
+    "pytest>=8.3.0",                                 # necessary lower pin for compatibility
+    "pytest-cov>=4.0.0",                             # arbitrary
+    "pytest-mock>=3.6.1",                            # arbitrary
+    "pypdf>=4.0.0",                                  # arbitrary, used to assert PDF structure in reporting tests
+    # This is not needed by us, but required to avoid a critical vulnerability warning
+    # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
+    "virtualenv>=20.26.6",
+    "conda-lock>=3.0.3",                             # necessary, used to update conda-lock.yml
+    "ruamel-yaml>=0.17.21",                          # necessary, for comment-preserving YAML manipulation
+]
+docs = [
+    "mkdocs>=1.6.1",                                 # arbitrary
+    "mkdocs-jupyter>=0.25",                          # arbitrary
+    "mkdocs-material>=9.6.4",                        # arbitrary
+    "pymdown-extensions>=10.14.3",                   # arbitrary
+]
 
-# these are security patches are not direct dependencies
-# this group is never used directly, but these pins are used
-# when poetry lock is generated
-[tool.poetry.group.security.dependencies]
-urllib3 = ">=2.6.3"
-cryptography = ">=46.0.5"
-nbconvert = ">=7.17.0"
-pillow = "12.1.1"
-protobuf = "6.33.5"
-bokeh = ">=3.8.2"
+[tool.uv]
+# Security patches for transitive (not direct) dependencies: constraints only
+# apply when the package is already in the dependency tree, which is exactly
+# the old poetry "security" group's intent.
+constraint-dependencies = [
+    "urllib3>=2.6.3",
+    "cryptography>=46.0.5",
+    "nbconvert>=7.17.0",
+    "pillow==12.1.1",
+    "protobuf==6.33.5",
+    "bokeh>=3.8.2",
+]
 
 
 [project.scripts]

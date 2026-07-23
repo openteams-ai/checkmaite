@@ -14,9 +14,9 @@ variables:
   # (see .gitlab-ci-local-variables.yml). Temporarily override in an
   # MR for testing or via the Pipeline trigger if artifacts are needed:
   # https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/pipelines/new
-  SAVE_POETRY_ARTIFACTS:
+  SAVE_UV_ARTIFACTS:
     value: "false"
-    description: "Set to true to save Poetry artifacts after jobs; default is false."
+    description: "Set to true to save uv artifacts after jobs; default is false."
   # CI resource diagnostics for troubleshooting SIGKILL / OOM runner issues.
   # Set to "false" once https://gitlab.jatic.net/jatic/devsecops/dev/-/issues/659 is resolved.
   CI_DIAGNOSTICS:
@@ -50,7 +50,7 @@ stages:
   if [ "${VERSION:-}" = "3.12" ]; then
     echo "Skipping checkmaite-plugins install on Python 3.12; checkmaite-plugins supports Python <3.12."
   else
-    poetry run python -m pip install "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
+    uv pip install "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
   fi
 
 # Diagnostic logging for investigating CI SIGKILL / OOM issues.
@@ -159,38 +159,47 @@ stages:
     - *git_config
     # Regenerate conda-lock.yml from pyproject.toml so dynamic-conda-test
     # exercises a freshly resolved lockfile (catches upstream dep drift).
-    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras --extras dev -p linux-64 --lockfile conda-lock.yml
-    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
+    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras --extras ui -p linux-64 --lockfile conda-lock.yml
+    # --extras ui: install the ui-category packages from the lockfile too
+    # (conda-lock install skips extras categories by default).
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS --extras ui conda-lock.yml
     - pip install . --no-deps
     - micromamba list
 
-.poetry-setup:
+.uv-setup:
   # GitLab cache intentionally disabled — see !541 for benchmark rationale.
+  variables:
+    # Use the job image's interpreter; never download a managed Python.
+    UV_PYTHON_DOWNLOADS: "never"
+    # Ray >= 2.56 detects drivers launched via `uv run` and tries to propagate
+    # the uv environment to workers (requiring pyproject.toml inside the
+    # runtime_env working_dir). Our workers must keep using the driver's
+    # already-synced environment, exactly as under poetry.
+    RAY_ENABLE_UV_RUN_RUNTIME_ENV: "0"
   before_script:
     - *git_config
     - *start_diagnostics
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
-    - pip install --user -U poetry==2.1.2
-    - poetry config virtualenvs.in-project true
+    - pip install --user -U uv==0.9.24
     - python --version
     - pip --version
-    - poetry --version
-    - poetry check
+    - uv --version
+    - uv lock --check
 
 test:
-  extends: [.python-matrix, .shared-setup, .poetry-setup]
+  extends: [.python-matrix, .shared-setup, .uv-setup]
   stage: test
   needs: []
   timeout: 3h
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - poetry install --with dev --extras "ui onnx"
+    - uv sync --locked --extra ui --extra onnx
     - *install_checkmaite_plugins
-    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
-    - poetry run python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
-    - poetry run pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
+    - uv run --no-sync python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
+    - uv run --no-sync python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
+    - uv run --no-sync pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -234,25 +243,27 @@ conda-lock-test:
     - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
     - *git_config
-    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
+    # --extras ui: install the ui-category packages from the lockfile too
+    # (conda-lock install skips extras categories by default).
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS --extras ui conda-lock.yml
     - pip install . --no-deps
     - micromamba list
   script:
     - pytest tests -vvv --cov=checkmaite --cov-report term-missing
 
 pyright-internal:
-  extends: [.shared-setup, .poetry-setup]
+  extends: [.shared-setup, .uv-setup]
   image: python:3.10
   stage: pyright
   needs: []
   script:
-    - poetry install --with dev  --extras ui
-    - poetry run pyright src/
+    - uv sync --locked --extra ui
+    - uv run --no-sync pyright src/
 
 # DOCUMENTATION
 # deploy docs for merge requests
 pages-branch:
-  extends: [.shared-setup, .poetry-setup]
+  extends: [.shared-setup, .uv-setup]
   image: python:3.10
   stage: docs
   needs: []
@@ -265,8 +276,8 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/orchestration-interoperability/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - poetry install --with docs --extras onnx --no-cache
-    - poetry run mkdocs build -d public --no-directory-urls
+    - uv sync --locked --group docs --extra onnx --no-cache
+    - uv run --no-sync mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/orchestration-interoperability/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
   rules:
@@ -278,12 +289,12 @@ pages-branch:
 
 # deploy production docs on merge with main
 pages: # this must be named "pages" to get GitLab to run "pages:deploy"
-  extends: [.shared-setup, .poetry-setup]
+  extends: [.shared-setup, .uv-setup]
   image: python:3.10
   stage: docs
   script:
-    - poetry install --with docs --extras onnx --no-cache
-    - poetry run mkdocs build -d public --no-directory-urls
+    - uv sync --locked --group docs --extra onnx --no-cache
+    - uv run --no-sync mkdocs build -d public --no-directory-urls
     - rm -rf public/how-tos/tscache
     - rm -rf public/how-tos/visdrone_model_weights
   artifacts:
@@ -313,9 +324,9 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
     - *git_config
     - export PATH=${HOME}/.local/bin:${PATH}
     - pip install --upgrade pip
-    - pip install --user "poetry==2.1.2" "twine==6.2.0" "check-wheel-contents==0.6.3"
+    - pip install --user "uv==0.9.24" "twine==6.2.0" "check-wheel-contents==0.6.3"
     - python --version
-    - poetry --version
+    - uv --version
     - twine --version
     - check-wheel-contents --version
   script:
@@ -379,7 +390,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
 
       rm -rf dist/
       git checkout --detach "$TAG_COMMIT"
-      poetry build
+      uv build
       twine check dist/*
       check-wheel-contents dist/*.whl
       python - "$RELEASE_TAG" <<'PY'
