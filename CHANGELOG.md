@@ -7,17 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-24
+
 ### Added
 - Configurable MAITE evaluation inference batch size
 - Optional CPU object-detection evaluation postprocessing, disabled by default, with confidence filtering, NMS, class-agnostic NMS, and maximum-detection settings
 - Typed inline-text and artifact capability report models
 
 ### Changed
+- Replaced Poetry with uv and Hatchling for dependency management, development, CI, and packaging; development and documentation dependencies now use PEP 735 dependency groups
 - Prediction and evaluation caches now distinguish inference batch sizes, so existing cached evaluations are cold after upgrading
 - Capability reports now use typed inline or artifact models instead of plain strings, and job results expose an optional typed `report` instead of the untyped `summary` mapping
 - Capability extensions must now return `InlineTextReport` or `ArtifactReport` from `collect_md_report()`; returning a plain string is no longer accepted and causes submitted jobs to fail during result construction
 - Inline report content is limited to 256 KiB; oversized reports return a small placeholder so completed analytics remain accessible, while large, binary, or multi-file reports should use durable artifact references
-- Completed job records created before this report-schema change cannot be reattached after upgrading; restart detached Ray registry and controller actors when upgrading
+- Detached Ray registry or controller actors holding pre-0.3.0 completed job records cannot reattach those results; restart detached actors when upgrading
 
 ### Fixed
 - JSON Schema generation for torch `Device` fields
@@ -203,7 +206,9 @@ Initial public release of checkmaite.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.1...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...HEAD
+[0.3.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.2...0.3.0
+[0.2.2]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.1...0.2.2
 [0.2.1]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.0...0.2.1
 [0.2.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.1.8...0.2.0
 [0.1.8]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.1.7...0.1.8
