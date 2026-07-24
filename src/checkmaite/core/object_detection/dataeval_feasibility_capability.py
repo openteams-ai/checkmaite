@@ -32,6 +32,7 @@ from checkmaite.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 
@@ -219,7 +220,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
         return [semantic_slide]
 
-    def collect_md_report(self, threshold: float) -> str:  # noqa: C901
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Create Markdown report for feasibility analysis.
 
         Parameters
@@ -229,8 +230,8 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
         results = self.outputs
         dataset_id = self.dataset_metadata[0]["id"]
@@ -275,48 +276,8 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             ],
         )
 
-        if results.class_confusion.size > 0 and results.confusion_labels:
-            # Derive per-class BER from confusion matrix: fraction of each class misclassified
-            per_class_ber = []
-            for i, cls_id in enumerate(results.confusion_labels):
-                row_total = results.class_confusion[i].sum()
-                if row_total > 0:
-                    error_rate = 1.0 - results.class_confusion[i, i] / row_total
-                    per_class_ber.append((cls_id, error_rate))
-            if per_class_ber:
-                md.add_subsection(heading="Per-Class BER")
-                md.add_text(
-                    "Error rate per class based on kNN neighbor voting. "
-                    "High values indicate classes that are frequently confused with others."
-                )
-                sorted_ber = sorted(per_class_ber, key=lambda x: -x[1])
-                class_rows = [[str(cls_id), f"{ber_val:.3f}"] for cls_id, ber_val in sorted_ber]
-                md.add_table(headers=["Class ID", "BER"], rows=class_rows)
-
-        if results.class_confusion.size > 0:
-            md.add_subsection(heading="Class Confusion Analysis")
-            md.add_text(
-                "Shows which classes are confused with each other. "
-                "For each class, lists the most common predicted classes when kNN disagrees."
-            )
-            confusion_rows = []
-            labels = results.confusion_labels
-            for i, true_cls in enumerate(labels):
-                row = results.class_confusion[i]
-                total = row.sum()
-                if total == 0:
-                    continue
-                errors = [(labels[j], int(row[j])) for j in range(len(labels)) if j != i and row[j] > 0]
-                if errors:
-                    top_confusions = sorted(errors, key=lambda x: -x[1])[:3]
-                    confusion_str = ", ".join(f"{cls}({cnt}/{total})" for cls, cnt in top_confusions)
-                    error_rate = (total - row[i]) / total
-                    confusion_rows.append([str(true_cls), f"{error_rate:.1%}", confusion_str])
-            if confusion_rows:
-                md.add_table(
-                    headers=["True Class", "Error Rate", "Top Confusions (class(count/total))"],
-                    rows=confusion_rows,
-                )
+        _add_per_class_ber(md, results)
+        _add_class_confusion_analysis(md, results)
 
         # Dataset Health section
         hs = results.health_stats
@@ -337,28 +298,92 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             md.add_subsection(heading="Dataset Health Warnings")
             md.add_bulleted_list(hs.warnings)
 
-        md.add_section(heading="Recommendations")
+        _add_feasibility_recommendations(md, is_feasible)
 
-        if not is_feasible:
-            md.add_text("**Issues Detected:**")
-            md.add_bulleted_list(
-                [
-                    "Review class taxonomy for ambiguous or overlapping categories",
-                    "Check for label noise or annotation inconsistencies",
-                    "Consider representation/domain mismatch with embedding model",
-                    "Limited gains expected from model improvements alone",
-                ]
-            )
-        else:
-            md.add_text("**Dataset appears feasible for the given threshold.**")
-            md.add_bulleted_list(
-                [
-                    "Classes are sufficiently separable in embedding space",
-                    "Focus on model architecture and training optimization",
-                ]
-            )
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
-        return md.render()
+
+def _add_per_class_ber(md: MarkdownOutput, results: DataevalFeasibilityOutputs) -> None:
+    """Add the per-class Bayes error rate table when confusion data is available."""
+    if results.class_confusion.size == 0 or not results.confusion_labels:
+        return
+
+    per_class_ber = []
+    for i, cls_id in enumerate(results.confusion_labels):
+        row_total = results.class_confusion[i].sum()
+        if row_total > 0:
+            error_rate = 1.0 - results.class_confusion[i, i] / row_total
+            per_class_ber.append((cls_id, error_rate))
+
+    if not per_class_ber:
+        return
+
+    md.add_subsection(heading="Per-Class BER")
+    md.add_text(
+        "Error rate per class based on kNN neighbor voting. "
+        "High values indicate classes that are frequently confused with others."
+    )
+    sorted_ber = sorted(per_class_ber, key=lambda x: -x[1])
+    class_rows = [[str(cls_id), f"{ber_val:.3f}"] for cls_id, ber_val in sorted_ber]
+    md.add_table(headers=["Class ID", "BER"], rows=class_rows)
+
+
+def _add_class_confusion_analysis(md: MarkdownOutput, results: DataevalFeasibilityOutputs) -> None:
+    """Add the class-confusion summary when confusion data is available."""
+    if results.class_confusion.size == 0:
+        return
+
+    md.add_subsection(heading="Class Confusion Analysis")
+    md.add_text(
+        "Shows which classes are confused with each other. "
+        "For each class, lists the most common predicted classes when kNN disagrees."
+    )
+    confusion_rows = []
+    labels = results.confusion_labels
+    for i, true_cls in enumerate(labels):
+        row = results.class_confusion[i]
+        total = row.sum()
+        if total == 0:
+            continue
+        errors = [(labels[j], int(row[j])) for j in range(len(labels)) if j != i and row[j] > 0]
+        if errors:
+            top_confusions = sorted(errors, key=lambda x: -x[1])[:3]
+            confusion_str = ", ".join(f"{cls}({cnt}/{total})" for cls, cnt in top_confusions)
+            error_rate = (total - row[i]) / total
+            confusion_rows.append([str(true_cls), f"{error_rate:.1%}", confusion_str])
+    if confusion_rows:
+        md.add_table(
+            headers=["True Class", "Error Rate", "Top Confusions (class(count/total))"],
+            rows=confusion_rows,
+        )
+
+
+def _add_feasibility_recommendations(md: MarkdownOutput, is_feasible: bool) -> None:
+    """Add recommendations based on the feasibility determination."""
+    md.add_section(heading="Recommendations")
+    if not is_feasible:
+        md.add_text("**Issues Detected:**")
+        md.add_bulleted_list(
+            [
+                "Review class taxonomy for ambiguous or overlapping categories",
+                "Check for label noise or annotation inconsistencies",
+                "Consider representation/domain mismatch with embedding model",
+                "Limited gains expected from model improvements alone",
+            ]
+        )
+        return
+
+    md.add_text("**Dataset appears feasible for the given threshold.**")
+    md.add_bulleted_list(
+        [
+            "Classes are sufficiently separable in embedding space",
+            "Focus on model architecture and training optimization",
+        ]
+    )
 
 
 def _letterbox_to_square(

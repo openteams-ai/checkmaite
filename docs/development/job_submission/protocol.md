@@ -62,9 +62,19 @@ In practice, `CapabilityRunRef` contains:
 
 - `run_uid`
 - `capability_id`
-- `store_uri`
+- `store_uri` (`None` when the run produced no analytics rows)
 - `outputs_uri` (`None` today)
-- `summary` (small human-readable data such as markdown report content)
+- `report` (a typed `InlineTextReport` or `ArtifactReport`, or `None` for runs without reporting)
+
+Inline reports carry their media type, filename, and textual content directly
+in job metadata. Their UTF-8 content is limited to 256 KiB. Links to
+worker-local files cannot be resolved by clients on another node; some current
+Markdown reports still contain local image paths, which is a known limitation.
+Report consumers should not assume those images are remotely available. Large,
+binary, or multi-file reports should use a durable artifact URI. `store_uri`
+remains dedicated to analytics data and is absent for successful zero-row
+results. Report producers are responsible for creating the artifact and making
+its URI accessible to the consumer.
 
 Storage semantics and URI resolution are documented in [Distributed analytics store](analytics_store.md).
 

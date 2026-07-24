@@ -73,9 +73,9 @@ not an incidental local default.
 The job-submission layer relies on a few store-level properties:
 
 - workers can construct the store from the forwarded configuration,
-- completed run data is written durably before a job reports success,
+- non-empty completed run data is written durably before a job reports success,
 - repeated writes for the same logical completed run are safe,
-- the worker can return a stable `CapabilityRunRef`, including `store_uri`, and
+- the worker can return a stable `CapabilityRunRef`, with `store_uri` set when analytics rows exist, and
 - the client can later use the same store location to query or read results.
 
 Backend-specific storage mechanics, table layouts, deduplication keys, and

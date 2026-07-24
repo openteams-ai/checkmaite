@@ -5,7 +5,9 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, TypedDict, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from checkmaite.core.report import CapabilityReport, CapabilityReportPayload
 
 if TYPE_CHECKING:
     from checkmaite.core.capability_core import Capability as _Capability
@@ -66,9 +68,9 @@ class CapabilityRunRefPayload(TypedDict):
 
     run_uid: str
     capability_id: str
-    store_uri: str
+    store_uri: str | None
     outputs_uri: str | None
-    summary: dict[str, Any]
+    report: CapabilityReportPayload | None
 
 
 class CapabilityRunRef(BaseModel):
@@ -80,20 +82,20 @@ class CapabilityRunRef(BaseModel):
         Deterministic identity for the run.
     store_uri
         Stable URI for a concrete analytics-store payload object containing
-        data for this run.
+        data for this run. ``None`` when the run produced no analytics rows.
     outputs_uri
         URI for full serialized outputs/artifacts when available. May be
         ``None`` when cache/artifact materialization is not enabled.
-    summary
-        Small human-readable reports used by the checkmaite package
-        (for example markdown report snippets).
+    report
+        Typed inline content or durable artifact reference for this run's report.
+        ``None`` when the capability does not implement reporting.
     """
 
     run_uid: str
     capability_id: str
-    store_uri: str
+    store_uri: str | None
     outputs_uri: str | None = None
-    summary: dict[str, Any] = Field(default_factory=dict)
+    report: CapabilityReport | None
 
 
 class JobError(Exception):

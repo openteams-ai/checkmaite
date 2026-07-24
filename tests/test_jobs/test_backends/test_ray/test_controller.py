@@ -9,18 +9,18 @@ import pytest
 import ray
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+from checkmaite.core.report import InlineTextReport
 from checkmaite.jobs import CapabilityRunRef, shutdown_job_backend
 from checkmaite.jobs.backends.ray.controller import (
     JobController,
     RayTaskResources,
-    _collect_md_report,
     _execute_capability_ref,
     _heartbeat_registry_best_effort,
     _update_registry_terminal_best_effort,
     get_or_create_controller_actor,
 )
 from checkmaite.jobs.backends.ray.registry import RegistryStatus, get_or_create_registry_actor
-from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
+from tests.test_jobs.fakes import EmptyTinyCapability, TinyCapability, TinyConfig, TinyDatasetCapability
 
 
 def _ref_payload(text: str = "ok") -> dict[str, object]:
@@ -29,7 +29,7 @@ def _ref_payload(text: str = "ok") -> dict[str, object]:
         capability_id="tiny",
         store_uri=f"memory://{text}",
         outputs_uri=None,
-        summary={"text": text},
+        report=InlineTextReport(media_type="text/plain", content=text, filename="report.txt"),
     ).model_dump(mode="json")
 
 
@@ -254,15 +254,6 @@ def test_ray_task_resources_from_mapping_rejects_invalid_input() -> None:
         RayTaskResources.from_mapping({"resources": "not-a-mapping"})
 
 
-class NoReportRun:
-    def collect_md_report(self, threshold: float):
-        raise NotImplementedError
-
-
-def test_collect_md_report_returns_empty_list_when_run_does_not_implement_report() -> None:
-    assert _collect_md_report(NoReportRun(), threshold=0.5) == []  # type: ignore[arg-type]
-
-
 def test_execute_capability_ref_runs_capability_writes_store_and_returns_reference(tmp_path: Path) -> None:
     marker = tmp_path / "worker-started.txt"
     ref = _execute_capability_ref(
@@ -278,7 +269,27 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
     assert marker.read_text() == "started"
     assert ref.capability_id == TinyCapability().id
     assert ref.store_uri.endswith(".parquet")
-    assert ref.summary["md_report"] == "worker:0.75"
+    assert ref.report.model_dump() == {
+        "kind": "inline_text",
+        "media_type": "text/markdown",
+        "content": "worker:0.75",
+        "filename": "tiny-report.md",
+    }
+
+
+def test_execute_capability_ref_completes_with_empty_analytics(tmp_path: Path) -> None:
+    ref = _execute_capability_ref(
+        EmptyTinyCapability(),
+        {
+            "config": TinyConfig(text="no rows"),
+            "use_cache": False,
+            "report_threshold": 0.5,
+            "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+        },
+    )
+
+    assert ref.store_uri is None
+    assert ref.report.content == "no rows:0.5"
 
 
 def test_execute_capability_ref_writes_provenance_to_runs_table(tmp_path: Path, fake_ic_dataset_default) -> None:
@@ -484,7 +495,7 @@ def test_controller_actor_smoke_completes_and_cancels_with_real_ray(tmp_path: Pa
         assert started["status"] in {RegistryStatus.RUNNING, RegistryStatus.COMPLETED}
 
         completed = _wait_for_controller_status(controller, job.token, RegistryStatus.COMPLETED)
-        assert completed["result_ref"]["summary"]["md_report"] == "controller-smoke:0.5"
+        assert completed["result_ref"]["report"]["content"] == "controller-smoke:0.5"
         stored = ray.get(context.registry.get_job.remote(context.scope, job.job_id), timeout=5)
         assert stored["status"] == RegistryStatus.COMPLETED
 

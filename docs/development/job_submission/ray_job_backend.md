@@ -326,9 +326,11 @@ checkpoints, full `CapabilityRunBase` payloads, or unbounded history. Large data
 belongs in the analytics store, object storage, shared filesystems, databases,
 or platform logging systems. Terminal job records are retained only for the
 configured registry retention window/count; once purged, their dedupe entries are
-also removed and identical future submissions may create fresh jobs. If markdown
-summaries or reports become large, store them externally and keep only a
-URI/preview in `CapabilityRunRef.summary`.
+also removed and identical future submissions may create fresh jobs. Small,
+self-contained text reports use `CapabilityRunRef.report` with
+`kind="inline_text"`; inline UTF-8 content is limited to 256 KiB. Large, binary,
+or multi-file reports, including reports that depend on worker-local assets, use
+an artifact report containing a durable URI.
 
 During `controller.start(...)`, the controller temporarily receives the
 capability and run arguments so it can launch the worker task. It does not retain

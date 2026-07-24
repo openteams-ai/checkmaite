@@ -20,6 +20,7 @@ from checkmaite.core._common.dataeval_bias_capability import (
 )
 from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 def _create_fake_bias_run(
@@ -120,14 +121,14 @@ def test_run_ic(fake_ic_dataset_default) -> Any:
 
 
 def test_collect_md_report_ic(test_run_ic):
-    md = test_run_ic.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+    report = test_run_ic.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run_ic.capability_id)
 
     expected_data = [
         "| Potentially under-represented images | 1 of 20 (5.0%) |",
         "| Coverage radius |",
     ]
-    md_str = str(md)
+    md_str = report.content
     for expected in expected_data:
         assert expected in md_str, md_str
 
@@ -171,8 +172,8 @@ class TestOdDataevalBiasCapability:
         return capability.run(use_cache=False, datasets=[fake_od_dataset_default])  # smoke test
 
     def test_collect_md_report_od(self, test_run_od):
-        md = test_run_od.collect_md_report(threshold=0.5)
-        assert md  # smoke test
+        report = test_run_od.collect_md_report(threshold=0.5)
+        assert_inline_markdown_report(report, capability_id=test_run_od.capability_id)
 
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables_od(self, test_run_od):

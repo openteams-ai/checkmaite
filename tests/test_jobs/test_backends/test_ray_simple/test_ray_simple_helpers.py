@@ -6,21 +6,17 @@ import pytest
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
 from checkmaite.jobs.backends.ray_simple.job_backend import (
-    _collect_md_report,
     _execute_capability_ref,
     _get_worker_store,
     _write_run_and_collect_store_metadata,
 )
-from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
-
-
-class NoReportRun:
-    def collect_md_report(self, threshold: float):
-        raise NotImplementedError
-
-
-def test_collect_md_report_returns_empty_list_when_report_is_not_implemented() -> None:
-    assert _collect_md_report(NoReportRun(), threshold=0.5) == []  # type: ignore[arg-type]
+from tests.test_jobs.fakes import (
+    EmptyTinyCapability,
+    OversizedReportTinyCapability,
+    TinyCapability,
+    TinyConfig,
+    TinyDatasetCapability,
+)
 
 
 def test_get_worker_store_builds_analytics_store(tmp_path: Path) -> None:
@@ -56,7 +52,45 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
     assert marker.read_text() == "started"
     assert ref.capability_id == TinyCapability().id
     assert ref.store_uri.endswith(".parquet")
-    assert ref.summary["md_report"] == "worker:0.75"
+    assert ref.report.model_dump() == {
+        "kind": "inline_text",
+        "media_type": "text/markdown",
+        "content": "worker:0.75",
+        "filename": "tiny-report.md",
+    }
+
+
+def test_execute_capability_ref_preserves_store_uri_when_report_is_oversized(tmp_path: Path) -> None:
+    with pytest.warns(RuntimeWarning, match="exceeded the inline report size limit"):
+        ref = _execute_capability_ref(
+            OversizedReportTinyCapability(),
+            {
+                "config": TinyConfig(text="oversized"),
+                "use_cache": False,
+                "report_threshold": 0.5,
+                "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+            },
+        )
+
+    assert ref.store_uri is not None
+    assert ref.store_uri.endswith(".parquet")
+    assert ref.report is not None
+    assert ref.report.filename == "report-too-large.md"
+
+
+def test_execute_capability_ref_completes_with_empty_analytics(tmp_path: Path) -> None:
+    ref = _execute_capability_ref(
+        EmptyTinyCapability(),
+        {
+            "config": TinyConfig(text="no rows"),
+            "use_cache": False,
+            "report_threshold": 0.5,
+            "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+        },
+    )
+
+    assert ref.store_uri is None
+    assert ref.report.content == "no rows:0.5"
 
 
 def test_execute_capability_ref_writes_provenance_to_runs_table(tmp_path: Path, fake_ic_dataset_default) -> None:

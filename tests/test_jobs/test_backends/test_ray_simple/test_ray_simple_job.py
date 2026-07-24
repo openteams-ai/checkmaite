@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 import ray
 
+from checkmaite.core.report import InlineTextReport
 from checkmaite.jobs import CapabilityRunRef, JobFailedError, JobStatus
 from checkmaite.jobs.backends.ray_simple.job_backend import RaySimpleJob
 
@@ -16,7 +17,7 @@ def _ref(text: str = "ok") -> CapabilityRunRef:
         capability_id="tiny",
         store_uri=f"memory://{text}",
         outputs_uri=None,
-        summary={"text": text},
+        report=InlineTextReport(media_type="text/plain", content=text, filename="report.txt"),
     )
 
 

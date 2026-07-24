@@ -15,6 +15,7 @@ import pytest
 import ray
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+from checkmaite.core.report import InlineTextReport
 from checkmaite.jobs import (
     CapabilityRunRef,
     JobCancelledError,
@@ -165,6 +166,7 @@ def _completed_registry_record(scope: str, job_id: str, submitted_at_ts: float):
         run_uid=f"run-{job_id}",
         capability_id="tiny",
         store_uri=f"memory://{job_id}.parquet",
+        report=InlineTextReport(media_type="text/plain", content=job_id, filename="report.txt"),
     ).model_dump(mode="json")
     return record
 
@@ -280,7 +282,7 @@ def test_registry_get_job_can_reattach_after_restart(local_ray_registry) -> None
     ref = reattached.result(timeout=30)
 
     assert isinstance(ref, CapabilityRunRef)
-    assert ref.summary["md_report"] == "restart:0.5"
+    assert ref.report.content == "restart:0.5"
 
 
 @pytest.mark.ray
@@ -345,7 +347,7 @@ print(json.dumps({"job_id": job.job_id}), flush=True)
     reattached = get_job(job_id)
     ref = reattached.result(timeout=60)
 
-    assert ref.summary["md_report"] == "driver-exit:0.5"
+    assert ref.report.content == "driver-exit:0.5"
 
 
 @pytest.mark.ray
@@ -368,7 +370,7 @@ def test_running_job_reattaches_after_backend_restart(local_ray_registry) -> Non
     )
 
     reattached = get_job(job_id)
-    assert reattached.result(timeout=30).summary["md_report"] == "running-reattach:0.5"
+    assert reattached.result(timeout=30).report.content == "running-reattach:0.5"
 
 
 @pytest.mark.ray
@@ -395,7 +397,7 @@ def test_cross_client_duplicate_submit_dedupes_to_one_running_job(local_ray_regi
     job_2 = backend_b.submit_capability(TinyCapability(), config=config, use_cache=False)
 
     assert job_1.job_id == job_2.job_id
-    assert job_2.result(timeout=30).summary["md_report"] == "cross-client-dedupe:0.5"
+    assert job_2.result(timeout=30).report.content == "cross-client-dedupe:0.5"
     assert {job.job_id for job in backend_b.list_jobs()} == {job_1.job_id}
 
     rows = _store(local_ray_registry["store_path"]).query_sql("SELECT run_uid, payload FROM tiny_jobs")
@@ -456,7 +458,7 @@ def test_registry_shared_list_and_get_across_clients(local_ray_registry) -> None
     assert any(listed.job_id == job.job_id for listed in backend_b.list_jobs())
 
     ref = observed.result(timeout=30)
-    assert ref.summary["md_report"] == "shared:0.5"
+    assert ref.report.content == "shared:0.5"
 
 
 @pytest.mark.ray
@@ -577,7 +579,7 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
         job = backend.submit_capability(TinyCapability(), config=TinyConfig(text="slow-final-read"), use_cache=False)
 
         assert job.job_id == job_id
-        assert job.result(timeout=30).summary["md_report"] == "slow-final-read:0.5"
+        assert job.result(timeout=30).report.content == "slow-final-read:0.5"
     finally:
         shutdown_job_backend(wait=False)
 
@@ -616,7 +618,7 @@ def test_registry_submit_failure_releases_dedupe_for_retry(local_ray_registry) -
     retry = submit_capability(SameIdentityCapability(), config=config, use_cache=False)
 
     assert retry.job_id != failed_job_id
-    assert retry.result(timeout=30).summary["md_report"] == "retry-after-submit-failure:0.5"
+    assert retry.result(timeout=30).report.content == "retry-after-submit-failure:0.5"
 
 
 @pytest.mark.ray
@@ -635,7 +637,7 @@ def test_registry_resource_resolution_failure_closes_reservation_and_allows_retr
     retry = submit_capability(TinyCapability(), config=config, resources={"num_cpus": 1}, use_cache=False)
 
     assert retry.job_id != failed_job_id
-    assert retry.result(timeout=30).summary["md_report"] == "retry-after-resource-failure:0.5"
+    assert retry.result(timeout=30).report.content == "retry-after-resource-failure:0.5"
 
 
 @pytest.mark.ray
@@ -936,7 +938,7 @@ def test_ray_job_commits_controller_terminal_state_before_returning_result(tmp_p
             run_uid="run-commit-terminal",
             capability_id="tiny",
             store_uri=str(tmp_path / "payload.parquet"),
-            summary={"md_report": "committed"},
+            report=InlineTextReport(media_type="text/markdown", content="committed", filename="report.md"),
         )
 
         controller = CompletedController.options(name=controller_name, namespace=namespace, lifetime="detached").remote(
@@ -1166,7 +1168,7 @@ def test_controller_heartbeat_keeps_running_job_from_being_swept(tmp_path: Path)
         assert swept == 0
         stored = ray.get(backend._registry.get_job.remote(scope, job.job_id))
         assert stored["status"] in {RegistryStatus.RUNNING.value, RegistryStatus.COMPLETED.value}
-        assert job.result(timeout=30).summary["md_report"] == "heartbeat:0.5"
+        assert job.result(timeout=30).report.content == "heartbeat:0.5"
     finally:
         backend.shutdown(wait=False)
         shutdown_job_backend(wait=False)
@@ -1390,8 +1392,8 @@ def test_registry_report_threshold_is_not_part_of_submission_identity(local_ray_
     assert second.job_id == first.job_id
     assert second_ref.run_uid == first_ref.run_uid
     # The first submission's report threshold determines the stored summary.
-    assert first_ref.summary["md_report"] == "threshold-identity:0.5"
-    assert second_ref.summary["md_report"] == "threshold-identity:0.5"
+    assert first_ref.report.content == "threshold-identity:0.5"
+    assert second_ref.report.content == "threshold-identity:0.5"
 
 
 @pytest.mark.ray

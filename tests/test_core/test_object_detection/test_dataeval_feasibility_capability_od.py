@@ -11,6 +11,7 @@ from checkmaite.core.object_detection.dataeval_feasibility_capability import (
 )
 from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 class FeasibilityTestDataset(od.Dataset):
@@ -190,7 +191,8 @@ class TestDataevalFeasibilityCapability:
         )
 
         assert output.model_dump()  # smoke test
-        assert isinstance(output.collect_md_report(threshold=0.5), str)
+        report = output.collect_md_report(threshold=0.5)
+        assert_inline_markdown_report(report, capability_id=output.capability_id)
 
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables(self, test_dataset, test_config):

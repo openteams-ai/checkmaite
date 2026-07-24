@@ -8,6 +8,7 @@ from checkmaite.core._common.maite_evaluation_capability import (
 )
 from checkmaite.core.image_classification.maite_evaluation_capability import MaiteEvaluation
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 @pytest.fixture
@@ -22,7 +23,8 @@ def test_run_ic(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_d
 
 
 def test_collect_md_report_ic(test_run_ic):
-    assert test_run_ic.collect_md_report(threshold=0.5)  # smoke test
+    report = test_run_ic.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run_ic.capability_id)
 
 
 def test_maite_evaluation_extract_preserves_overall_and_class_metrics() -> None:

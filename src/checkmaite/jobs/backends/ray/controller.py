@@ -16,6 +16,7 @@ from ray.exceptions import GetTimeoutError, TaskCancelledError
 
 from checkmaite.core.analytics_store import AnalyticsStore, Provenance, ProvenanceLike
 from checkmaite.core.capability_core import CapabilityRunBase
+from checkmaite.jobs._result import build_capability_run_ref
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
 from checkmaite.jobs.protocol import CapabilityRunRef, CapabilityRunRefPayload, CapabilityType
@@ -119,13 +120,6 @@ class ControllerStatePayload(TypedDict):
     terminal_at_ts: float | None
 
 
-def _collect_md_report(run: CapabilityRunBase[Any, Any], threshold: float) -> str | list[Any]:
-    try:
-        return run.collect_md_report(threshold=threshold)
-    except NotImplementedError:
-        return []
-
-
 def _get_worker_store(store_config: AnalyticsStoreConfig | dict[str, Any]) -> AnalyticsStore:
     return build_analytics_store(store_config)
 
@@ -135,7 +129,7 @@ def _write_run_and_collect_store_metadata(
     run: CapabilityRunBase[Any, Any],
     *,
     provenance: ProvenanceLike | None = None,
-) -> str:
+) -> str | None:
     return write_run_and_get_store_uri(store, run, provenance=provenance)
 
 
@@ -243,16 +237,10 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
     provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(timezone.utc)})
     store_uri = _write_run_and_collect_store_metadata(store, run, provenance=provenance)
 
-    summary: dict[str, Any] = {
-        "md_report": _collect_md_report(run, threshold=report_threshold),
-    }
-
-    return CapabilityRunRef(
-        run_uid=run.run_uid,
-        capability_id=run.capability_id,
+    return build_capability_run_ref(
+        run,
         store_uri=store_uri,
-        outputs_uri=None,
-        summary=summary,
+        report_threshold=report_threshold,
     )
 
 

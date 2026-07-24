@@ -41,6 +41,7 @@ from checkmaite.core.capability_core import (
     TDataset,
     TModel,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import temp_image_file
@@ -98,7 +99,27 @@ class DataevalSufficiencyConfig(CapabilityConfigBase):
 
     verbose: bool = Field(default=True, description="Use logger to display intermediate logging info.")
 
-    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+    model_config = pydantic.ConfigDict(
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "oneOf": [
+                {
+                    "required": ["num_epochs"],
+                    "properties": {
+                        "num_epochs": {"type": "integer"},
+                        "num_iters": {"type": "null"},
+                    },
+                },
+                {
+                    "required": ["num_iters"],
+                    "properties": {
+                        "num_epochs": {"type": "null"},
+                        "num_iters": {"type": "integer"},
+                    },
+                },
+            ]
+        },
+    )
 
     @pydantic.model_validator(mode="after")
     def _check_epochs_or_iters(self) -> "DataevalSufficiencyConfig":
@@ -168,7 +189,7 @@ class DataevalSufficiencyRun(CapabilityRunBase[DataevalSufficiencyConfig, Dataev
 
         return report_list
 
-    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Collect Markdown-formatted report content.
 
         Gathers the results from the dataset sufficiency analysis run and formats them
@@ -177,14 +198,15 @@ class DataevalSufficiencyRun(CapabilityRunBase[DataevalSufficiencyConfig, Dataev
         Parameters
         ----------
         threshold : float
-            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
-            Results below `threshold` require further inspection or are treated as failures.
+            Present for the shared report API; sufficiency uses the configured target metric value.
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
+        _ = threshold  # TODO: Remove threshold as a keyword argument in a future MR.
+
         outputs: DataevalSufficiencyOutputs = self.outputs
 
         md = MarkdownOutput(title="Sufficiency Analysis Report")
@@ -195,7 +217,11 @@ class DataevalSufficiencyRun(CapabilityRunBase[DataevalSufficiencyConfig, Dataev
 
         report_sufficiency_md(md, self.config.target_metric_value, outputs)
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
 
 class _DatasetToTorchDatasetAdapter(TorchDataset[TDatum], Generic[TDatum]):

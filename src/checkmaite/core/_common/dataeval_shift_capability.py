@@ -28,6 +28,7 @@ from checkmaite.core.capability_core import (
     TMetric,
     TModel,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 
@@ -204,20 +205,21 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
 
         return report_consumables
 
-    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Convert results from drift and OOD detection into Markdown format.
 
         Parameters
         ----------
         threshold : float
-            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
-            Results below `threshold` require further inspection or are treated as failures.
+            Present for the shared report API; shift significance comes from the capability configuration.
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
+        _ = threshold  # TODO: Remove threshold as a keyword argument in a future MR.
+
         outputs = self.outputs
         dataset_ids = [d["id"] for d in self.dataset_metadata]
 
@@ -229,7 +231,11 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
 
         collect_ood_md(md, outputs.ood, dataset_ids=dataset_ids)
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
 
 class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetric, DataevalShiftConfig]):

@@ -3,6 +3,7 @@ from checkmaite.core._common.maite_evaluation_capability import (
     MaiteEvaluationOutputs,
     MaiteEvaluationRun,
 )
+from checkmaite.core.report import InlineTextReport
 
 
 def test_maite_collect_md_report_simple():
@@ -17,9 +18,11 @@ def test_maite_collect_md_report_simple():
         outputs=outputs,
     )
 
-    md = run.collect_md_report(threshold=0.5)
-    assert isinstance(md, str)
-    assert "Model Evaluation Summary" in md
+    report = run.collect_md_report(threshold=0.5)
+    assert isinstance(report, InlineTextReport)
+    assert report.media_type == "text/markdown"
+    assert report.filename == "test.maite.md"
+    assert "Model Evaluation Summary" in report.content
 
 
 def test_maite_collect_md_report_with_class_metrics():
@@ -39,6 +42,8 @@ def test_maite_collect_md_report_with_class_metrics():
         outputs=outputs,
     )
 
-    md = run.collect_md_report(threshold=0.5)
-    assert isinstance(md, str)
-    assert "Model Evaluation Summary" in md
+    report = run.collect_md_report(threshold=0.5)
+    assert isinstance(report, InlineTextReport)
+    assert report.media_type == "text/markdown"
+    assert report.filename == "test.maite2.md"
+    assert "Model Evaluation Summary" in report.content

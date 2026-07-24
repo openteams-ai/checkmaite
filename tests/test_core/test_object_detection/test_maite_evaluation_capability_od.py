@@ -12,6 +12,7 @@ from checkmaite.core.object_detection.maite_evaluation_capability import (
 )
 from checkmaite.core.object_detection.metrics import multiclass_map50_torch_metric_factory
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 class CountingODModel:
@@ -48,7 +49,8 @@ def test_collect_report_consumables(test_run):
 
 
 def test_collect_md_report(test_run):
-    assert test_run.collect_md_report(threshold=0.5)  # smoke test
+    report = test_run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run.capability_id)
 
 
 def test_batch_size_controls_inference_batches(fake_od_model_default, fake_od_dataset_default, fake_od_metric_default):

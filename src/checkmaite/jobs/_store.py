@@ -38,8 +38,8 @@ def write_run_and_get_store_uri(
     run: CapabilityRunBase[Any, Any],
     *,
     provenance: ProvenanceLike | None = None,
-) -> str:
-    """Persist a run in the analytics store and return a concrete payload URI."""
+) -> str | None:
+    """Persist a run and return its payload URI, or ``None`` for an empty result."""
     receipt = store.write_with_receipt([run], provenance=provenance)
 
     store_uri = receipt.resolve_run_uri(run.run_uid)
@@ -48,5 +48,12 @@ def write_run_and_get_store_uri(
 
     # No new payload row may be written for this run_uid when capability records
     # are deduplicated across calls. In that case, infer the persisted location
-    # from existing analytics-store metadata.
-    return store.get_run_uri(run.run_uid)
+    # from existing analytics-store metadata. A valid run can also extract no
+    # analytics rows (for example, XAITK when a model returns no detections); it
+    # has no payload URI but still has a report and is a successful result.
+    try:
+        return store.get_run_uri(run.run_uid)
+    except ValueError:
+        if not run.extract():
+            return None
+        raise

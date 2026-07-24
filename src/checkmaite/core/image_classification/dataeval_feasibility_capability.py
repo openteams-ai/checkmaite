@@ -26,6 +26,7 @@ from checkmaite.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 
@@ -140,7 +141,7 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             },
         ]
 
-    def collect_md_report(self, threshold: float) -> str:
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Create Markdown report for feasibility analysis.
 
         Parameters
@@ -151,8 +152,8 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
         results = self.outputs
         dataset_id = self.dataset_metadata[0]["id"]
@@ -194,7 +195,11 @@ class DataevalFeasibilityRun(CapabilityRunBase[DataevalFeasibilityConfig, Dataev
             ],
         )
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
 
 class DataevalFeasibility(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from checkmaite.core.report import ArtifactReport, InlineTextReport
 from checkmaite.jobs import CapabilityRunRef
 from checkmaite.jobs.backends.ray.registry import JobRegistry, RegistryStatus, _coerce_registry_status
 
@@ -12,7 +13,7 @@ def _ref_payload(text: str = "ok") -> dict[str, object]:
         capability_id="tiny",
         store_uri=f"memory://{text}",
         outputs_uri=None,
-        summary={"text": text},
+        report=InlineTextReport(media_type="text/plain", content=text, filename="report.txt"),
     ).model_dump(mode="json")
 
 
@@ -185,6 +186,39 @@ def test_update_terminal_validates_result_payload_and_controller_ownership() -> 
 
     retried = registry.register_or_get("scope", "key")
     assert retried["decision"] == "new"
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        InlineTextReport(media_type="text/markdown", content="# Done", filename="report.md"),
+        ArtifactReport(media_type="application/pdf", uri="s3://reports/report.pdf", filename="report.pdf"),
+    ],
+)
+def test_registry_round_trips_both_report_variants(report) -> None:
+    registry = JobRegistry()
+    _registration, job_id, token = _new_started_job(registry)
+    controller = f"controller-{job_id}"
+    result_ref = CapabilityRunRef(
+        run_uid="run-report",
+        capability_id="tiny",
+        store_uri="memory://report",
+        report=report,
+    ).model_dump(mode="json")
+
+    assert registry.update_terminal(
+        "scope",
+        job_id,
+        RegistryStatus.COMPLETED,
+        result_ref=result_ref,
+        controller_actor_name=controller,
+        controller_token=token,
+    )
+    completed = registry.get_job("scope", job_id)
+    assert completed is not None
+    restored = CapabilityRunRef.model_validate(completed["result_ref"])
+    assert type(restored.report) is type(report)
+    assert restored.report == report
 
 
 def test_completed_terminal_update_stores_result_and_rejects_later_state_changes() -> None:

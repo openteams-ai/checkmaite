@@ -3,6 +3,7 @@ from typing import Any
 import numpy as np
 import pytest
 import torch
+from pydantic.json_schema import GenerateJsonSchema
 
 from checkmaite.core._common.dataeval_sufficiency_capability import (
     DataevalSufficiencyBase,
@@ -10,6 +11,7 @@ from checkmaite.core._common.dataeval_sufficiency_capability import (
     _SufficiencyLimits,
 )
 from checkmaite.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
+from tests.report_assertions import assert_inline_markdown_report
 
 
 def do_smoke_run(dataset, monkeypatch):
@@ -78,6 +80,32 @@ def test_run_ic(fake_ic_dataset_default, monkeypatch) -> Any:
     return do_smoke_run(fake_ic_dataset_default, monkeypatch)
 
 
+class _RuntimeTypeSchemaGenerator(GenerateJsonSchema):
+    def handle_invalid_for_json_schema(self, schema, error_info):
+        return {"not": {}, "description": f"Runtime-only value: {error_info}"}
+
+
+def test_config_schema_requires_exactly_one_training_limit() -> None:
+    schema = DataevalSufficiencyConfig.model_json_schema(schema_generator=_RuntimeTypeSchemaGenerator)
+
+    assert schema["oneOf"] == [
+        {
+            "required": ["num_epochs"],
+            "properties": {
+                "num_epochs": {"type": "integer"},
+                "num_iters": {"type": "null"},
+            },
+        },
+        {
+            "required": ["num_iters"],
+            "properties": {
+                "num_epochs": {"type": "null"},
+                "num_iters": {"type": "integer"},
+            },
+        },
+    ]
+
+
 def test_sufficiency_output(fake_ic_dataset_default, monkeypatch):
     run_output = do_smoke_run(fake_ic_dataset_default, monkeypatch)
     output = run_output.outputs
@@ -95,8 +123,8 @@ def test_sufficiency_output(fake_ic_dataset_default, monkeypatch):
 
 
 def test_collect_md_report_ic(test_run_ic):
-    md = test_run_ic.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+    report = test_run_ic.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run_ic.capability_id)
 
 
 @pytest.mark.skip(reason="gradient report generation is not implemented")

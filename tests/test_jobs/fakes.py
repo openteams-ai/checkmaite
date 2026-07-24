@@ -14,6 +14,7 @@ from checkmaite.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from checkmaite.core.report import MAX_INLINE_REPORT_BYTES, InlineTextReport
 
 
 class TinyRecord(BaseRecord, table_name="tiny_jobs"):
@@ -39,11 +40,44 @@ class TinyRun(CapabilityRunBase[TinyConfig, TinyOutputs]):
     config: TinyConfig
     outputs: TinyOutputs
 
-    def collect_md_report(self, threshold: float) -> str:
-        return f"{self.outputs.text}:{threshold}"
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=f"{self.outputs.text}:{threshold}",
+            filename="tiny-report.md",
+        )
 
     def extract(self) -> Sequence[BaseRecord]:
         return [TinyRecord(run_uid=self.run_uid, payload=self.outputs.text)]
+
+
+class EmptyTinyRun(TinyRun):
+    """Valid run that intentionally produces no analytics records."""
+
+    def extract(self) -> Sequence[BaseRecord]:
+        return []
+
+
+class ReportlessTinyRun(CapabilityRunBase[TinyConfig, TinyOutputs]):
+    """Run that intentionally does not implement Markdown reporting."""
+
+    config: TinyConfig
+    outputs: TinyOutputs
+
+    def extract(self) -> Sequence[BaseRecord]:
+        return [TinyRecord(run_uid=self.run_uid, payload=self.outputs.text)]
+
+
+class OversizedReportTinyRun(TinyRun):
+    """Run whose generated inline report exceeds the job metadata limit."""
+
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
+        _ = threshold
+        return InlineTextReport(
+            media_type="text/markdown",
+            content="x" * (MAX_INLINE_REPORT_BYTES + 1),
+            filename="oversized.md",
+        )
 
 
 class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
@@ -100,6 +134,24 @@ class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
             finish_marker.write_text("finished")
 
         return TinyOutputs(text=output_text)
+
+
+class EmptyTinyCapability(TinyCapability):
+    """Tiny capability used to exercise successful empty analytics results."""
+
+    _RUN_TYPE = EmptyTinyRun
+
+
+class ReportlessTinyCapability(TinyCapability):
+    """Tiny capability used to exercise runs without reports."""
+
+    _RUN_TYPE = ReportlessTinyRun
+
+
+class OversizedReportTinyCapability(TinyCapability):
+    """Tiny capability used to exercise oversized report handling."""
+
+    _RUN_TYPE = OversizedReportTinyRun
 
 
 class AppendMarkerCapability(TinyCapability):

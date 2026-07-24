@@ -7,6 +7,7 @@ from checkmaite.core.image_classification.dataeval_feasibility_capability import
     DataevalFeasibilityRun,
 )
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 @pytest.fixture
@@ -51,26 +52,28 @@ def test_feasibility_collect_md_report_feasible_branch() -> None:
     # BER=0.2 → accuracy=0.8 >= threshold=0.5 → feasible
     run = _make_run(ber=0.2, ber_lower=0.1)
 
-    md = run.collect_md_report(threshold=0.5)
+    report = run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run.capability_id)
 
-    assert "Dataset Feasibility Analysis" in md
-    assert "Bayes Error Rate" in md
-    assert "is feasible" in md
+    assert "Dataset Feasibility Analysis" in report.content
+    assert "Bayes Error Rate" in report.content
+    assert "is feasible" in report.content
 
     # Rounded to precision=3 in the Results table
-    assert "0.2" in md
-    assert "0.1" in md
+    assert "0.2" in report.content
+    assert "0.1" in report.content
 
     # Action branch for feasible
-    assert "No action required" in md
-    assert "Reduce difficulty of the problem statement" not in md
+    assert "No action required" in report.content
+    assert "Reduce difficulty of the problem statement" not in report.content
 
 
 def test_feasibility_collect_md_report_not_feasible_branch() -> None:
     # BER=0.912 → accuracy=0.088 < threshold=0.5 → NOT feasible
     run = _make_run(ber=0.91234, ber_lower=0.87654)
 
-    md = run.collect_md_report(threshold=0.5)
+    report = run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run.capability_id)
 
-    assert "is NOT" in md
-    assert "Reduce difficulty of the problem statement" in md
+    assert "is NOT" in report.content
+    assert "Reduce difficulty of the problem statement" in report.content

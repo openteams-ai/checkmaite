@@ -9,6 +9,7 @@ from checkmaite.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
+from checkmaite.core.report import InlineTextReport
 
 
 class MockConfig(CapabilityConfigBase):
@@ -20,6 +21,18 @@ class MockOutputs(CapabilityOutputsBase):
 
 
 class MockRun(CapabilityRunBase):
+    config: MockConfig
+    outputs: MockOutputs
+
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
+        return InlineTextReport(
+            media_type="text/plain",
+            content=f"result={self.outputs.result}; threshold={threshold}",
+            filename="report.txt",
+        )
+
+
+class MissingReportRun(CapabilityRunBase):
     config: MockConfig
     outputs: MockOutputs
 
@@ -98,6 +111,20 @@ def _mk_datasets(n: int, fake_od_dataset_default) -> list[object]:
 
 def _mk_metrics(n: int, fake_od_metric_default) -> list[object]:
     return [fake_od_metric_default for _ in range(n)]
+
+
+def test_capability_run_default_collect_md_report_is_backward_compatible() -> None:
+    run = MissingReportRun(
+        capability_id="missing-report",
+        config=MockConfig(),
+        dataset_metadata=[],
+        model_metadata=[],
+        metric_metadata=[],
+        outputs=MockOutputs(result=True),
+    )
+
+    with pytest.raises(NotImplementedError):
+        run.collect_md_report(threshold=0.5)
 
 
 @pytest.mark.parametrize("card", [Number.ZERO, Number.ONE, Number.TWO, Number.MANY])

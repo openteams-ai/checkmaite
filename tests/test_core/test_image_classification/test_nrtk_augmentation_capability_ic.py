@@ -2,6 +2,7 @@ import pytest
 
 from checkmaite.core.image_classification.nrtk_robustness_capability import NrtkRobustness, NrtkRobustnessConfig
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 ARGS = {
     "name": "NRTKTestStage Example",
@@ -46,7 +47,8 @@ def test_run_and_collect_consumables(test_run):
 
 
 def test_run_and_collect_md(test_run):
-    assert test_run.collect_md_report(threshold=0.5)  # smoke test
+    report = test_run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run.capability_id)
 
 
 def test_no_cache_hit_same_perturber_different_step(

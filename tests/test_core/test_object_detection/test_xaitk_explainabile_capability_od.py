@@ -2,6 +2,7 @@ import pytest
 
 from checkmaite.core.object_detection.xaitk_explainable_capability import XaitkExplainable, XaitkExplainableConfig
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 ARGS = {
     "name": "XaitkExplainable Example",
@@ -65,8 +66,8 @@ def test_run_and_collect_md(fake_od_model_default, fake_od_dataset_default, test
         config=test_config,
     )
 
-    md = run_result.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+    report = run_result.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run_result.capability_id)
 
 
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")

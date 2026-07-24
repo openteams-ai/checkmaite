@@ -26,6 +26,7 @@ from checkmaite.core.capability_core import (
     TMetric,
     TModel,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
 
@@ -152,7 +153,7 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
             },
         ]
 
-    def collect_md_report(self, threshold: float) -> str:
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         md = MarkdownOutput(
             title="Basic Evaluation with MAITE",
         )
@@ -195,7 +196,11 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
             img_path = save_figure_to_tempfile(fig=fig)
             md.add_image(img_path, alt_text="Overall Metrics")
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
     def extract(self) -> list[MaiteEvaluationRecord]:
         """Extract metrics from this MaiteEvaluation run.

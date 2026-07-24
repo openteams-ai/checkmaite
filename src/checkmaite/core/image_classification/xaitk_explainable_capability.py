@@ -18,6 +18,7 @@ from checkmaite.core._utils import (
     requires_optional_dependency,
 )
 from checkmaite.core.capability_core import CapabilityConfigBase, CapabilityOutputsBase, CapabilityRunBase
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import save_figure_to_tempfile
 
@@ -211,20 +212,21 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
 
         return gradient_slides
 
-    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Generate Markdown report for XAITK saliency analysis.
 
         Parameters
         ----------
         threshold : float
-            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
-            Results below `threshold` require further inspection or are treated as failures.
+            Present for the shared report API; saliency maps have no threshold-based interpretation.
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
+        _ = threshold  # TODO: Remove threshold as a keyword argument in a future MR.
+
         outputs = self.outputs
         model_id = self.model_metadata[0]["id"]
         index2label = self.model_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
@@ -288,7 +290,11 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     md.add_text(f"**Prediction**: {index2label[sal_idx]}")
                     md.add_image(img_path, alt_text=f"Saliency Map {sal_idx}")
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
 
 class XaitkExplainable(

@@ -10,9 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Configurable MAITE evaluation inference batch size
 - Optional CPU object-detection evaluation postprocessing, disabled by default, with confidence filtering, NMS, class-agnostic NMS, and maximum-detection settings
+- Typed inline-text and artifact capability report models
 
 ### Changed
 - Prediction and evaluation caches now distinguish inference batch sizes, so existing cached evaluations are cold after upgrading
+- Capability reports now use typed inline or artifact models instead of plain strings, and job results expose an optional typed `report` instead of the untyped `summary` mapping
+- Capability extensions must now return `InlineTextReport` or `ArtifactReport` from `collect_md_report()`; returning a plain string is no longer accepted and causes submitted jobs to fail during result construction
+- Inline report content is limited to 256 KiB; oversized reports return a small placeholder so completed analytics remain accessible, while large, binary, or multi-file reports should use durable artifact references
+- Completed job records created before this report-schema change cannot be reattached after upgrading; restart detached Ray registry and controller actors when upgrading
 
 ### Fixed
 - JSON Schema generation for torch `Device` fields

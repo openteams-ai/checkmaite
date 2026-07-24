@@ -37,6 +37,7 @@ from checkmaite.core.capability_core import (
     TMetric,
     TModel,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import (
@@ -294,21 +295,21 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
             generate_next_steps_report(deck=deck, dataset_id=dataset_id),
         ]
 
-    def collect_md_report(self, threshold: float) -> str:  # noqa: ARG002
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Collect Markdown-formatted report for duplicates and outliers.
 
         Parameters
         ----------
         threshold : float
-            Minimum acceptable score. Results meeting or exceeding `threshold` are
-            considered acceptable. Results below `threshold` require further
-            inspection or are treated as failures.
+            Present for the shared report API; cleaning results have no threshold-based interpretation.
 
         Returns
         -------
-        str
-            Markdown-formatted report content.
+        InlineTextReport
+            Typed inline Markdown report.
         """
+        _ = threshold  # TODO: Remove threshold as a keyword argument in a future MR.
+
         outputs = self.outputs
         dataset_id = self.dataset_metadata[0]["id"]
         index2label = self.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
@@ -359,7 +360,11 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         md.add_section_divider()
         generate_next_steps_report_md(md, dataset_id)
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
     def extract(self) -> list[DataevalCleaningRecord]:
         """Extract metrics from this DataevalCleaning run.

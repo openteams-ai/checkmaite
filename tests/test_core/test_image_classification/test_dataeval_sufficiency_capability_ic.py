@@ -7,6 +7,7 @@ from checkmaite.core.image_classification.dataeval_sufficiency_capability import
     _DefaultTrainingStrategy,
 )
 from checkmaite.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
+from tests.report_assertions import assert_inline_markdown_report
 
 
 def do_smoke_run(dataset, monkeypatch):
@@ -67,5 +68,5 @@ def test_sufficiency_output_and_md_report(fake_ic_dataset_ten_unique_classes, mo
     )
     np.testing.assert_allclose(output.sufficiency_table["accuracy"], [0.1, 0.1, 0.1])
 
-    md = run_output.collect_md_report(threshold=0.5)
-    assert md  # smoke test
+    report = run_output.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run_output.capability_id)

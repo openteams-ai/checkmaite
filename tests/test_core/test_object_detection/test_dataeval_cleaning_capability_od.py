@@ -5,6 +5,7 @@ import pytest
 from checkmaite.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
 from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 def ignore_degenerate_data_warnings(test_fn):
@@ -41,7 +42,8 @@ def test_collect_reports(fake_od_dataset_default):
 def test_collect_md_report(fake_od_dataset_default):
     capability = DataevalCleaning()
     output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])
-    assert output.collect_md_report(threshold=0.5)  # smoke test
+    report = output.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=output.capability_id)
 
 
 @pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")

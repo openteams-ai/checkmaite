@@ -6,6 +6,7 @@ from checkmaite.core._common.dataeval_bias_capability import (
     DataevalBiasOutputs,
     DataevalBiasRun,
 )
+from checkmaite.core.report import InlineTextReport
 
 
 def test_dataeval_bias_collect_md_report():
@@ -29,6 +30,8 @@ def test_dataeval_bias_collect_md_report():
         outputs=outputs,
     )
 
-    md = run.collect_md_report(threshold=0.5)
-    assert isinstance(md, str)
-    assert "Bias Analysis Report" in md
+    report = run.collect_md_report(threshold=0.5)
+    assert isinstance(report, InlineTextReport)
+    assert report.media_type == "text/markdown"
+    assert report.filename == "test.bias.md"
+    assert "Bias Analysis Report" in report.content

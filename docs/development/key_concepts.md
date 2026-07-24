@@ -57,7 +57,7 @@ A **Run** is an object that stores everything associated with a *specific execut
 
 - The **configuration** for that execution (e.g., model, dataset, metric settings)
 - The **outputs** produced (e.g., predictions, metric results)
-- A method `collect_md_report()` (formerly `collect_report_consumables()`) for generating Markdown reports from those outputs
+- An optional `collect_md_report()` implementation returning a typed inline or artifact report for those outputs
 
 <!-- Note: The exported name is binary_de_serializer (with underscore), not binary_deserializer. See _cache.py:323. -->
 Outputs are serialized using **Pydantic**, which handles conversion of Python objects (numpy arrays, pandas DataFrames, torch tensors, etc.) to bytes for storage in the cache. Custom serialization for additional types can be registered via `binary_de_serializer.register(...)`.
@@ -95,7 +95,7 @@ classDiagram
         +metric_metadata: list
         +run_uid(): str (SHA-256)
         +extract() list~BaseRecord~
-        +collect_md_report() str
+        +collect_md_report() CapabilityReport
     }
     class Capability~TOutputs, TDataset, TModel, TMetric, TConfig~ {
         <<abstract>>
@@ -218,11 +218,13 @@ This means internal code never needs to check input types — it can always assu
 
 ## Reporting and Visualization
 
-Each Run exposes a `collect_md_report()` method that prepares outputs for reporting. Report generation is handled by pluggable backends located in the `report/` submodule:
+A Run can implement `collect_md_report()` to return a typed `InlineTextReport` or `ArtifactReport`. The base implementation continues to raise `NotImplementedError` for backward compatibility. Inline reports include a media type, filename, and up to 256 KiB of self-contained textual `content`; artifact reports include a media type, filename, and durable `uri` for large, binary, or multi-file reports. Report models are exported from `checkmaite.core.report`.
+
+Report generation is handled by utilities located in the `report/` submodule:
 
 - **Gradient-based reports** (legacy, optional dependency) — generates visual outputs using the Gradient library. Will emit a deprecation warning if used.
 - **Markdown reports** — generates a structured `.md` file summarizing outputs. This is the recommended approach going forward.
-- **PDF reports** — converts a markdown report (the same string returned by `collect_md_report`) into a PDF via `create_pdf_output()`. Requires the optional `reporting` extra (`pip install ".[reporting]"`).
+- **PDF reports** — converts an inline Markdown report's `content` into a PDF via `create_pdf_output()`. Requires the optional `reporting` extra (`pip install ".[reporting]"`).
 
 These are available as separate functions, so end users can choose the format appropriate to their context.
 

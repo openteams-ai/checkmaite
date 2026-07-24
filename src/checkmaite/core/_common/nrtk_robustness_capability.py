@@ -23,6 +23,7 @@ from checkmaite.core.capability_core import (
     TMetric,
     TModel,
 )
+from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import save_figure_to_tempfile
 
@@ -273,7 +274,7 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
             },
         ]
 
-    def collect_md_report(self, threshold: float) -> str:
+    def collect_md_report(self, threshold: float) -> InlineTextReport:
         """Generate Markdown-formatted report for NRTK perturbation analysis.
 
         This mirrors the semantics of collect_report_consumables:
@@ -375,7 +376,11 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
 
         md.add_table(headers=[theta_label, metric_label], rows=rows)
 
-        return md.render()
+        return InlineTextReport(
+            media_type="text/markdown",
+            content=md.render(),
+            filename=f"{self.capability_id}.md",
+        )
 
 
 class NrtkRobustnessBase(Capability[NrtkRobustnessOutputs, TDataset, TModel, TMetric, NrtkRobustnessConfig]):

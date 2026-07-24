@@ -144,7 +144,7 @@ def test_ray_job_backend_smoke_contract_exercises_default_backend_coverage(
     assert any(job.job_id == completed.job_id for job in backend.list_jobs())
 
     ref = completed.result(timeout=30)
-    assert ref.summary["md_report"] == "smoke:0.5"
+    assert ref.report.content == "smoke:0.5"
     assert completed.wait(timeout=1) is JobStatus.COMPLETED
     assert completed.status is JobStatus.COMPLETED
     assert completed.exception() is None
@@ -201,7 +201,7 @@ def test_submit_capability_returns_ref_and_writes_store(local_ray: Path) -> None
     assert ref.outputs_uri is None
     assert ref.store_uri.endswith(".parquet")
     assert "#" not in ref.store_uri
-    assert ref.summary["md_report"] == "hello:0.5"
+    assert ref.report.content == "hello:0.5"
 
     assert job.wait(timeout=1) is JobStatus.COMPLETED
     assert job.status is JobStatus.COMPLETED
@@ -365,7 +365,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path)
     )
 
     ref = job.result(timeout=30)
-    assert ref.summary["md_report"] == "inflight:0.5"
+    assert ref.report.content == "inflight:0.5"
 
 
 @pytest.mark.ray
@@ -393,7 +393,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(tmp_path:
             config=TinyConfig(env_key=env_key),
             use_cache=False,
         ).result(timeout=30)
-        assert ref_one.summary["md_report"] == "one:0.5"
+        assert ref_one.report.content == "one:0.5"
 
         configure_job_backend(
             "ray",
@@ -413,7 +413,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(tmp_path:
             config=TinyConfig(env_key=env_key),
             use_cache=False,
         ).result(timeout=30)
-        assert ref_two.summary["md_report"] == "two:0.5"
+        assert ref_two.report.content == "two:0.5"
     finally:
         shutdown_job_backend(wait=False)
         ray.shutdown()

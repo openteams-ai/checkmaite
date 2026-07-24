@@ -2,6 +2,7 @@ import pytest
 
 from checkmaite.core.image_classification.dataeval_cleaning_capability import DataevalCleaning
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 def ignore_degenerate_data_warnings(test_fn):
@@ -38,4 +39,5 @@ def test_collect_reports(fake_ic_dataset_default):
 def test_collect_md_report(fake_ic_dataset_default):
     capability = DataevalCleaning()
     output = capability.run(use_cache=False, datasets=[fake_ic_dataset_default])
-    assert output.collect_md_report(threshold=0.5)  # smoke test
+    report = output.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=output.capability_id)

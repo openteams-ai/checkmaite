@@ -120,7 +120,7 @@ Make sure:
 
 - workers have the needed URI, network access, and credentials;
 - the store location remains available after the notebook or driver exits;
-- completed `CapabilityRunRef.store_uri` values can be read by later clients;
+- non-empty completed results expose `CapabilityRunRef.store_uri` values that later clients can read;
 - writes are safe to repeat, because retries or duplicate submissions can happen.
 
 The registry does not store the full completed run.

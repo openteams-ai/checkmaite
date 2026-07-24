@@ -22,6 +22,7 @@ from checkmaite.core._cache import PydanticCache, binary_de_serializer
 
 if TYPE_CHECKING:
     from checkmaite.core.analytics_store._schema import BaseRecord
+    from checkmaite.core.report import CapabilityReport
 
 TModel = TypeVar("TModel", bound=gen.Model[Any, Any])
 TDataset = TypeVar("TDataset", bound=gen.Dataset[Any, Any, Any])
@@ -190,20 +191,19 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
         """
         raise NotImplementedError
 
-    def collect_md_report(self, threshold: float) -> str:
-        """Collect data for generating a markdown report.
-
-        Accesses in-depth data needed to produce a markdown report. This data
-        is typically generated in the `_run` method or loaded from cached results.
+    def collect_md_report(self, threshold: float) -> "CapabilityReport":
+        """Create the report for this capability run.
 
         Parameters
         ----------
         threshold
             Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
             Results below `threshold` require further inspection or are treated as failures.
+
         Returns
         -------
-            A string containing the markdown report content.
+        CapabilityReport
+            A typed inline or artifact report.
         """
         raise NotImplementedError
 

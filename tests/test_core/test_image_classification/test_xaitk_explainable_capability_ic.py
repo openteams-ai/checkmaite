@@ -8,6 +8,7 @@ from checkmaite.core.image_classification.xaitk_explainable_capability import (
     XaitkExplainableConfig,
 )
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 RISE_ARGS = {
     "name": "XAITKTestStage RISE Example",
@@ -108,7 +109,8 @@ def test_run_and_collect_consumables_rise(test_run_rise, small_ic_dataset):
 
 
 def test_run_and_collect_md_rise(test_run_rise):
-    assert test_run_rise.collect_md_report(threshold=0.5)  # smoke test
+    report = test_run_rise.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run_rise.capability_id)
 
 
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
@@ -120,7 +122,8 @@ def test_run_and_collect_consumables_mc_rise(test_run_mc_rise, small_ic_dataset)
 
 
 def test_run_and_collect_md_mc_rise(test_run_mc_rise):
-    assert test_run_mc_rise.collect_md_report(threshold=0.5)  # smoke test
+    report = test_run_mc_rise.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=test_run_mc_rise.capability_id)
 
 
 # --------------------------------------------------------------------
@@ -141,7 +144,8 @@ def test_xaitk_capability_rise_unfixed_model(fake_ic_dataset_default, fake_ic_mo
 
     # if it ever stops erroring, these should succeed and xfail will alert us
     _ = run.collect_report_consumables(threshold=0.5)
-    assert run.collect_md_report(threshold=0.5)
+    report = run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run.capability_id)
 
 
 @pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
@@ -155,7 +159,8 @@ def test_xaitk_capability_mc_rise_unfixed_model(fake_ic_dataset_default, fake_ic
     )
 
     _ = run.collect_report_consumables(threshold=0.5)
-    assert run.collect_md_report(threshold=0.5)
+    report = run.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=run.capability_id)
 
 
 def test_extract_returns_valid_sequential_records(test_run_rise) -> None:

@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 import ray
 
+from checkmaite.core.report import InlineTextReport
 from checkmaite.jobs import CapabilityRunRef, JobCancelledError, JobFailedError, JobStatus, shutdown_job_backend
 from checkmaite.jobs.backends.ray.job_backend import RayJob
 from checkmaite.jobs.backends.ray.registry import RegistryStatus, get_or_create_registry_actor
@@ -19,7 +20,7 @@ def _ref_payload(text: str = "ok") -> dict[str, object]:
         capability_id="tiny",
         store_uri=f"memory://{text}",
         outputs_uri=None,
-        summary={"text": text},
+        report=InlineTextReport(media_type="text/plain", content=text, filename="report.txt"),
     ).model_dump(mode="json")
 
 

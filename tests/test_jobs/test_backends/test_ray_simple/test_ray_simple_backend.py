@@ -76,7 +76,7 @@ def test_ray_simple_job_backend_smoke_contract_exercises_default_backend_coverag
         assert any(job.job_id == completed.job_id for job in backend.list_jobs())
 
         ref = completed.result(timeout=30)
-        assert ref.summary["md_report"] == "simple-smoke:0.5"
+        assert ref.report.content == "simple-smoke:0.5"
         assert completed.wait(timeout=1) is JobStatus.COMPLETED
         assert completed.status is JobStatus.COMPLETED
         assert completed.exception() is None
@@ -216,7 +216,7 @@ def test_submit_capability_returns_ref_and_writes_store(local_ray_simple: Path) 
     assert ref.outputs_uri is None
     assert ref.store_uri.endswith(".parquet")
     assert "#" not in ref.store_uri
-    assert ref.summary["md_report"] == "hello-simple:0.5"
+    assert ref.report.content == "hello-simple:0.5"
 
     assert job.wait(timeout=1) is JobStatus.COMPLETED
     assert job.status is JobStatus.COMPLETED
@@ -257,7 +257,7 @@ def test_result_timeout_does_not_cancel_task(local_ray_simple: Path) -> None:
         job.result(timeout=0.01)
 
     ref = job.result(timeout=30)
-    assert ref.summary["md_report"] == "timeout-continues:0.5"
+    assert ref.report.content == "timeout-continues:0.5"
     assert finish_marker.read_text() == "finished"
     assert job.status is JobStatus.COMPLETED
 
@@ -270,7 +270,7 @@ def test_wait_timeout_does_not_cancel_task(local_ray_simple: Path) -> None:
     assert status is JobStatus.RUNNING
 
     ref = job.result(timeout=30)
-    assert ref.summary["md_report"] == "wait-continues:0.5"
+    assert ref.report.content == "wait-continues:0.5"
     assert job.status is JobStatus.COMPLETED
 
 
@@ -315,7 +315,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray_simple
     )
 
     ref = job.result(timeout=30)
-    assert ref.summary["md_report"] == "inflight:0.5"
+    assert ref.report.content == "inflight:0.5"
 
 
 @pytest.mark.ray
@@ -381,5 +381,5 @@ def test_repeated_submissions_are_independent_jobs(local_ray_simple: Path) -> No
 
     ref1 = job1.result(timeout=30)
     ref2 = job2.result(timeout=30)
-    assert ref1.summary["md_report"] == "repeat-simple:0.5"
-    assert ref2.summary["md_report"] == "repeat-simple:0.5"
+    assert ref1.report.content == "repeat-simple:0.5"
+    assert ref2.report.content == "repeat-simple:0.5"

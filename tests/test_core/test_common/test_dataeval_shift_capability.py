@@ -17,6 +17,7 @@ from checkmaite.core._common.dataeval_shift_capability import (
     collect_ood,
 )
 from checkmaite.core.report._gradient import HAS_GRADIENT
+from tests.report_assertions import assert_inline_markdown_report
 
 
 @pytest.fixture(scope="module")
@@ -65,8 +66,8 @@ def test_collect_md_report(fake_od_dataset_default, test_config):
         outputs=outputs,
     )
 
-    md = run.collect_md_report(threshold=0.0)
-    assert md  # smoke test for non-empty markdown report
+    report = run.collect_md_report(threshold=0.0)
+    assert_inline_markdown_report(report, capability_id=run.capability_id)
 
 
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
