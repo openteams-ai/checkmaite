@@ -418,7 +418,75 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
           raise SystemExit("No wheel or sdist artifacts were built in dist/.")
       print(f"Verified {matched} artifact(s) for version {expected}.")
       PY
-      twine upload --non-interactive --disable-progress-bar dist/*
+      # A repository can accept one artifact and then lose the response, leaving
+      # the release partially published. Bound the network wait and make retries
+      # continue past artifacts that PyPI has already accepted.
+      timeout --signal=TERM --kill-after=30s 5m \
+        twine upload --non-interactive --disable-progress-bar --skip-existing dist/*
+
+      # Do not let --skip-existing hide a conflicting artifact. Wait for the
+      # package index to become consistent, then compare every remote digest with
+      # the artifact built from the release tag. A mismatch for an older tag may
+      # also indicate build-backend drift; new release tags pin backend versions.
+      python - "$PYPI_ENVIRONMENT_NAME" "$RELEASE_TAG" <<'PY'
+      import hashlib
+      import json
+      import sys
+      import time
+      import urllib.error
+      import urllib.request
+      from pathlib import Path
+
+      from packaging.version import Version
+
+      attempts = 12
+      request_timeout_seconds = 5
+      retry_interval_seconds = 5
+      maximum_wait_seconds = (
+          attempts * request_timeout_seconds + (attempts - 1) * retry_interval_seconds
+      )
+
+      environment, version = sys.argv[1:]
+      host = "https://test.pypi.org" if environment == "TestPyPI" else "https://pypi.org"
+      release_url = f"{host}/pypi/checkmaite/{Version(version)}/json"
+      local_digests = {
+          artifact.name: hashlib.sha256(artifact.read_bytes()).hexdigest()
+          for artifact in Path("dist").iterdir()
+          if artifact.suffix == ".whl" or artifact.name.endswith(".tar.gz")
+      }
+
+      remote_digests = {}
+      for attempt in range(attempts):
+          try:
+              with urllib.request.urlopen(release_url, timeout=request_timeout_seconds) as response:
+                  release = json.load(response)
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404 and exc.code < 500:
+                  raise
+          except (urllib.error.URLError, TimeoutError):
+              pass
+          else:
+              remote_digests = {item["filename"]: item["digests"]["sha256"] for item in release["urls"]}
+              if local_digests.keys() <= remote_digests.keys():
+                  break
+          if attempt + 1 < attempts:
+              time.sleep(retry_interval_seconds)
+      else:
+          missing = sorted(local_digests.keys() - remote_digests.keys())
+          raise SystemExit(
+              f"Published release did not expose all artifacts after {attempts} attempts "
+              f"(up to {maximum_wait_seconds} seconds): {missing}"
+          )
+
+      mismatched = sorted(
+          filename
+          for filename, digest in local_digests.items()
+          if remote_digests[filename] != digest
+      )
+      if mismatched:
+          raise SystemExit(f"Published artifact digest mismatch: {mismatched}")
+      print(f"Verified {len(local_digests)} published artifact digest(s) for {version}.")
+      PY
 
 publish-testpypi:
   extends: .publish-python-package
