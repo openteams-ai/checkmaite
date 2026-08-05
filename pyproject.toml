@@ -34,7 +34,8 @@ dependencies = [
     "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
     "universal-pathlib>=0.3.8",        # arbitrary, required for cloud storage support
     "httpx>=0.28.1",                   # arbitrary, needed to run visdrone model
-    "ipython>=8.13,<9.0",              # necessary, rendering Markdown reports. ipython 9.x needs Python >=3.11
+    # IPython 9+ requires Python >=3.11; its package metadata keeps Python 3.10 on a compatible 8.x release.
+    "ipython>=8.13",                    # necessary, rendering Markdown reports
     "matplotlib>=3.8.4,<3.10.8",       # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
     "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
     "opencv-python-headless>=4.9.0.80",# necessary lower pin, required by nrtk usage here
