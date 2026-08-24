@@ -816,7 +816,7 @@ requires-dist = [
     { name = "markdown", marker = "extra == 'reporting'", specifier = ">=3.5" },
     { name = "matplotlib", specifier = ">=3.8.4,<3.10.8" },
     { name = "nbconvert", marker = "extra == 'ui'", specifier = ">=7.16.6" },
-    { name = "nrtk", extras = ["pybsm"], specifier = "==1.0.3" },
+    { name = "nrtk", extras = ["pybsm"], specifier = "==1.0.4" },
     { name = "numba", specifier = ">=0.60.0" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.14.0" },
     { name = "onnx", marker = "extra == 'onnx-cuda'", specifier = ">=1.14.0" },
@@ -3441,7 +3441,7 @@ wheels = [
 
 [[package]]
 name = "nrtk"
-version = "1.0.3"
+version = "1.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "lazy-loader" },
@@ -3455,9 +3455,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ee/c9/a189d68fe0761120de4653bd310779413c6007be1f8affef2a0105b2de92/nrtk-1.0.3.tar.gz", hash = "sha256:b56c162902906e9fd202fc923455195f223ace70380cbfa2435e56225a090fe2", size = 86633, upload-time = "2026-04-30T16:39:30.301Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/83/ba83bc8b8d1de09f7bfba4ba9c623ad8dbc7330e108ec5a0aaff5e5e1917/nrtk-1.0.4.tar.gz", hash = "sha256:9ae62e41903257cd2c44e92a9bd5bf3cf69fcd9863314806263912048b711fbd", size = 86836, upload-time = "2026-06-25T22:15:53.442Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/6b/31979428c0d9274e5955c16df4a024cb2f49d939dcfba25c90e2de6edfe9/nrtk-1.0.3-py3-none-any.whl", hash = "sha256:f2a1ba6994b6145fdf89370d4904b6478ba96fa159efc4891936414b85c6e00b", size = 143460, upload-time = "2026-04-30T16:39:31.7Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/13/f57275e918ce0c548d7671db9441ee1ebfd6af0502e6d38b1a7af1494dd3/nrtk-1.0.4-py3-none-any.whl", hash = "sha256:2bb9feda5d27046e56a52388d8ca97ceea75ba6a9647b209a93a9f88a5a3e79b", size = 144033, upload-time = "2026-06-25T22:15:54.533Z" },
 ]
 
 [package.optional-dependencies]

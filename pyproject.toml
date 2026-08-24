@@ -28,7 +28,7 @@ dependencies = [
     "dataeval==1.0.6",
     "dataeval-plots==0.0.6",           # we specify the pypi source in conda-lock as dataeval_plots won't be on conda-forge
     "maite==0.9.2",
-    "nrtk[pybsm]==1.0.3",
+    "nrtk[pybsm]==1.0.4",
     "xaitk-jatic==0.8.1",
     # external deps
     "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
