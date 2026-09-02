@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Cache schema version 1 for serialized Pydantic cache entries.
+- Support for extension fields in cached MAITE datum metadata.
+
 ### Changed
+- Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
+- Cache entries and binary files now use failure-safe publication and clean up partial writes.
+- Binary cache references are decoded only while loading cache entries.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
 

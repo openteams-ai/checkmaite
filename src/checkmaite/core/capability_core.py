@@ -9,12 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import maite.protocols.generic as gen
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    field_serializer,
-    field_validator,
-)
+from pydantic import BaseModel, ConfigDict, field_serializer
 from typing_extensions import NotRequired, TypedDict
 
 from checkmaite import cache_path
@@ -42,7 +37,9 @@ class CapabilityOutputsBase(BaseModel):
     @classmethod
     def _traverse(cls, obj: Any, fn: Callable[[Any], Any]) -> Any:
         if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
-            return type(obj)(**cls._traverse(dataclasses.asdict(obj), fn))  # pyright: ignore[reportArgumentType]
+            return type(obj)(
+                **{field.name: cls._traverse(getattr(obj, field.name), fn) for field in dataclasses.fields(obj)}
+            )
         if isinstance(obj, tuple) and hasattr(obj, "_fields"):
             # named tuple
             return type(obj)(*cls._traverse(tuple(obj), fn))
@@ -55,11 +52,6 @@ class CapabilityOutputsBase(BaseModel):
     @field_serializer("*", when_used="json-unless-none")
     def __serialize_binary(self, v: Any) -> Any:
         return self._traverse(v, binary_de_serializer.serialize)
-
-    @field_validator("*", mode="before")
-    @classmethod
-    def __deserialize_binary(cls, v: Any) -> Any:
-        return cls._traverse(v, binary_de_serializer.deserialize)
 
 
 class RunDatasetMetadata(TypedDict):
@@ -406,7 +398,7 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
         )
 
         if use_cache:
-            run_cache.set(uid, run)
+            run_cache.try_set(uid, run)
 
         return run
 

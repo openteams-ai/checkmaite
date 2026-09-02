@@ -59,8 +59,10 @@ A **Run** is an object that stores everything associated with a *specific execut
 - The **outputs** produced (e.g., predictions, metric results)
 - An optional `collect_md_report()` implementation returning a typed inline or artifact report for those outputs
 
-<!-- Note: The exported name is binary_de_serializer (with underscore), not binary_deserializer. See _cache.py:323. -->
-Outputs are serialized using **Pydantic**, which handles conversion of Python objects (numpy arrays, pandas DataFrames, torch tensors, etc.) to bytes for storage in the cache. Custom serialization for additional types can be registered via `binary_de_serializer.register(...)`.
+Checkmaite uses Pydantic to serialize cache entries. It directly supports common objects such as NumPy arrays and Torch tensors by saving their data in separate binary files. If saving fails, Checkmaite cleans up partial files. Cache links are only followed while loading the cache, so similar-looking user strings remain strings.
+
+<!-- Note: The exported name is binary_de_serializer (with underscore), not binary_deserializer. -->
+To cache another type, register a codec with `binary_de_serializer.register(...)`. The codec supplies functions that convert the value to bytes and restore it.
 
 ---
 

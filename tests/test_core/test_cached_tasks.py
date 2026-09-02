@@ -5,6 +5,31 @@ from collections.abc import Callable
 import pytest
 
 
+def test_cache_set_is_atomic_when_serialization_fails(tmp_path):
+    """A failed replacement cannot leave a corrupt entry that appears valid."""
+    from checkmaite.core._cache import Cache
+
+    class TextCache(Cache[str]):
+        def path(self, key):
+            return tmp_path / key
+
+        def serialize(self, value):
+            if value == "invalid":
+                raise ValueError("cannot serialize")
+            return value.encode()
+
+        def deserialize(self, value):
+            return value.decode()
+
+    cache = TextCache()
+    cache.set("entry", "valid")
+    with pytest.raises(ValueError, match="cannot serialize"):
+        cache.set("entry", "invalid")
+
+    assert cache.contains("entry")
+    assert cache.get("entry") == "valid"
+
+
 class CountingModel:
     """Protocol-compatible model wrapper that records real inference calls."""
 
