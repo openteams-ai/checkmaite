@@ -54,13 +54,16 @@ def small_ic_dataset(fake_ic_dataset_default):
 
 @pytest.fixture
 def fixed_ic_model(fake_ic_model_default):
-    """
-    XAITK requires index2label to be a dict with integer keys from 0..n-1.
-    Our test fixture uses string keys starting from '1', so remap here.
-    """
-    model_copy = deepcopy(fake_ic_model_default)
-    model_copy.metadata["index2label"] = {int(i) - 1: label for i, label in model_copy.metadata["index2label"].items()}
-    return model_copy
+    """Return an isolated model with the fixture's zero-based class map."""
+    return deepcopy(fake_ic_model_default)
+
+
+@pytest.fixture
+def unfixed_ic_model(fake_ic_model_default):
+    """Return the deliberately one-based class map required by the xfail tests."""
+    model = deepcopy(fake_ic_model_default)
+    model.metadata["index2label"] = {index + 1: label for index, label in model.metadata["index2label"].items()}
+    return model
 
 
 @pytest.fixture
@@ -133,11 +136,11 @@ def test_run_and_collect_md_mc_rise(test_run_mc_rise):
 
 
 @pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
-def test_xaitk_capability_rise_unfixed_model(fake_ic_dataset_default, fake_ic_model_default, rise_config) -> None:
+def test_xaitk_capability_rise_unfixed_model(fake_ic_dataset_default, unfixed_ic_model, rise_config) -> None:
     capability = XaitkExplainable()
     run = capability.run(
         use_cache=False,
-        models=[fake_ic_model_default],  # intentionally unfixed
+        models=[unfixed_ic_model],
         datasets=[fake_ic_dataset_default],
         config=rise_config,
     )
@@ -149,11 +152,11 @@ def test_xaitk_capability_rise_unfixed_model(fake_ic_dataset_default, fake_ic_mo
 
 
 @pytest.mark.xfail(reason="XAITK errors when model 'index2label' keys are not integers from 0 to n-1 consecutively")
-def test_xaitk_capability_mc_rise_unfixed_model(fake_ic_dataset_default, fake_ic_model_default, mc_rise_config) -> None:
+def test_xaitk_capability_mc_rise_unfixed_model(fake_ic_dataset_default, unfixed_ic_model, mc_rise_config) -> None:
     capability = XaitkExplainable()
     run = capability.run(
         use_cache=False,
-        models=[fake_ic_model_default],  # intentionally unfixed
+        models=[unfixed_ic_model],
         datasets=[fake_ic_dataset_default],
         config=mc_rise_config,
     )

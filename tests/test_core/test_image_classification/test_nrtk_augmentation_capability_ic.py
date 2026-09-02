@@ -97,15 +97,15 @@ def test_no_cache_hit_same_perturber_different_step(
         config=config_a,
     )
 
-    # Replace maite.tasks.predict so any real call raises
+    # Replace the fundamental MAITE task so any real call raises.
     mocker.patch(
-        "maite.tasks.predict",
-        side_effect=RuntimeError("maite.tasks.predict was called — no cache hit"),
+        "maite.tasks.evaluate",
+        side_effect=RuntimeError("maite.tasks.evaluate was called — no cache hit"),
     )
 
     # Run B — perturber hashing should produce different augmentation IDs,
-    # so predict() must be invoked (triggering the RuntimeError).
-    with pytest.raises(RuntimeError, match="maite.tasks.predict was called"):
+    # so evaluate() must execute (triggering the RuntimeError).
+    with pytest.raises(RuntimeError, match="maite.tasks.evaluate was called"):
         capability.run(
             use_cache=True,
             models=[fake_ic_model_default],
@@ -170,12 +170,12 @@ def test_no_cache_hit_different_perturber(
     )
 
     mocker.patch(
-        "maite.tasks.predict",
-        side_effect=RuntimeError("maite.tasks.predict was called — no cache hit"),
+        "maite.tasks.evaluate",
+        side_effect=RuntimeError("maite.tasks.evaluate was called — no cache hit"),
     )
 
     # Run with BrightnessPerturber — different class → different augmentation ID
-    with pytest.raises(RuntimeError, match="maite.tasks.predict was called"):
+    with pytest.raises(RuntimeError, match="maite.tasks.evaluate was called"):
         capability.run(
             use_cache=True,
             models=[fake_ic_model_default],

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Cache schema version 1 for serialized Pydantic cache entries.
+- A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
 
 ### Changed

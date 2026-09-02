@@ -11,7 +11,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 import maite.protocols.image_classification as ic
 import maite.protocols.object_detection as od
 import numpy as np
-import numpy.typing
+import numpy.typing as npt
 import pytest
 import torch
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata, MetricMetadata, ModelMetadata
@@ -23,7 +23,7 @@ if tuple(int(v) for v in np.__version__.split(".")[:2]) >= (2, 1):
     np_unstack = np.unstack
 else:
 
-    def np_unstack(x: numpy.typing.NDArray, /, *, axis: int = 0) -> list[numpy.typing.NDArray]:
+    def np_unstack(x: npt.NDArray, /, *, axis: int = 0) -> list[npt.NDArray]:
         if platform.system() == "Darwin":
             x = x.astype(np.float32)
         return [y.squeeze(axis) for y in np.split(x, x.shape[axis], axis=axis)]
@@ -390,7 +390,7 @@ DEFAULT_IC_MODEL_METADATA = ModelMetadata(
         7: "grape",
         8: "honeycomb",
         9: "iceberg lettuce",
-        10: "jackfruit",
+        0: "jackfruit",
     },
 )
 
