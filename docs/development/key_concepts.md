@@ -183,7 +183,9 @@ Checkmaite validates batch alignment, but it does not snapshot arrays or tensors
 
 `return_preds=True` asks MAITE to retain raw prediction batches in memory; Checkmaite returns them after any configured CPU postprocessing. Even when the caller sets `return_preds=False`, Checkmaite may request predictions internally on a cold call when it needs to publish the prediction cache or perform deferred CPU postprocessing. The flag controls the public return value, not an unconditional peak-memory guarantee.
 
-`return_augmented_data=True` is intended primarily for debugging and inspecting the exact data sent to the model. It retains complete post-augmentation input, target, and metadata batches. Checkmaite always runs that request fresh so the augmented data and predictions come from the same realization, and it does not cache the complete inputs. Prefer the default `False` for normal evaluations, especially with large inputs.
+Ordinary MOT calls cache predictions, targets, and metadata, including `track_ids`, but store empty input batches instead of decoded video. `return_augmented_data=True` is intended primarily for debugging and inspecting the exact data sent to the model. It returns complete post-augmentation input, target, and metadata batches. Checkmaite always runs that request fresh and publishes nothing to the prediction or evaluation caches.
+
+For a full-data MOT request, Checkmaite wraps the supplied augmentation and materializes one-shot video streams after augmentation but before the model runs. A non-`Sequence` stream is therefore passed to the model and returned to the caller as a list of frames rather than as its original wrapper type. This preserves an inspectable realization after inference but can require substantial memory. Prefer the default `False` for normal evaluations, especially with large videos.
 
 #### Stochastic Inference
 
@@ -278,6 +280,8 @@ results, predictions, _ = cached_tasks.evaluate(
 ```
 
 Strict mode supports a conservative tree of exact lists, string-keyed dictionaries, finite scalar values, and explicitly admitted binary codecs. NumPy values require safe dtypes and exact scalar-class round trips. Torch values require exact CPU strided tensors without gradients. Other codecs must explicitly opt into strict admission.
+
+MOT target objects are not currently admitted by strict serialization. A strict MOT call still completes, but Checkmaite warns and skips prediction artifact publication. Use the default flexible option when MOT predictions, targets, and metadata need to be cached.
 
 Here, *lossless* means preserving the admitted scientific value and supported type. It does not cover NumPy or Torch storage topology, array writability, or arbitrary tensor attributes. Use `use_cache=False` when unsupported state is part of the computation.
 

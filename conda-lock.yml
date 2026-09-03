@@ -4301,17 +4301,17 @@ package:
   category: main
   optional: false
 - name: maite
-  version: 0.9.2
+  version: 0.9.5
   manager: conda
   platform: linux-64
   dependencies:
     numpy: '>=1.24'
     python: '>=3.10'
     typing-extensions: '>=4.5,!=4.6'
-  url: https://conda.anaconda.org/conda-forge/noarch/maite-0.9.2-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/maite-0.9.5-pyhd8ed1ab_0.conda
   hash:
-    md5: de1e334b4bb67e881b2e59dbef78649c
-    sha256: 36d86e88afcc96fa778e483b71c7437263f03a647010ec1417b51c1c1bcf2d1a
+    md5: 52fc019d43ca9d8b9073897d7edbdfc0
+    sha256: c626932a43eae2f36e2d702f3a2ee9bef28eaee1b38908735899cf1ac8be0262
   category: main
   optional: false
 - name: markdown

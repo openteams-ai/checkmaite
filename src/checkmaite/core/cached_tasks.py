@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any, Generic, Literal, TypeAlias, TypeVar, cast
 
 import maite.protocols.image_classification as ic
+import maite.protocols.multiobject_tracking as mot
 import maite.protocols.object_detection as od
 import maite.tasks
 import pydantic
-from maite.protocols import ArrayLike, MetricMetadata
+from maite.protocols import ArrayLike, AugmentationMetadata, MetricMetadata
 from maite.protocols import generic as gen
 from maite.protocols.image_classification import InputType as ImageClassificationInputType
 from maite.protocols.image_classification import TargetType as ImageClassificationTargetType
@@ -29,9 +30,9 @@ __all__ = ["predict", "evaluate_from_predictions", "evaluate"]
 
 PModel = TypeVar("PModel", bound=pydantic.BaseModel)
 
-SomeInputType: TypeAlias = ic.InputType | od.InputType
-SomeTargetType: TypeAlias = ic.TargetType | od.TargetType
-SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType
+SomeInputType: TypeAlias = ic.InputType | od.InputType | mot.InputType
+SomeTargetType: TypeAlias = ic.TargetType | od.TargetType | mot.TargetType
+SomeMetadataType: TypeAlias = ic.DatumMetadataType | od.DatumMetadataType | mot.DatumMetadataType
 T_Input = TypeVar("T_Input", bound=SomeInputType)
 T_Target = TypeVar("T_Target", bound=SomeTargetType)
 T_Metadata = TypeVar("T_Metadata", bound=SomeMetadataType)
@@ -44,8 +45,57 @@ class PydanticCompatObjectDetectionTarget(CapabilityOutputsBase):
     scores: ArrayLike
 
 
+class PydanticCompatSingleFrameObjectTrackingTarget(CapabilityOutputsBase):
+    boxes: ArrayLike
+    labels: ArrayLike
+    scores: ArrayLike
+    track_ids: ArrayLike
+
+
+class PydanticCompatMultiobjectTrackingTarget(CapabilityOutputsBase):
+    frame_tracks: Sequence[PydanticCompatSingleFrameObjectTrackingTarget]
+
+
 PydanticCompatInputBatchType = Sequence[ObjectDetectionInputType] | Sequence[ImageClassificationInputType]
-PydanticCompatTargetBatchType = Sequence[PydanticCompatObjectDetectionTarget] | Sequence[ImageClassificationTargetType]
+PydanticCompatTargetBatchType = (
+    Sequence[PydanticCompatObjectDetectionTarget]
+    | Sequence[ImageClassificationTargetType]
+    | Sequence[PydanticCompatMultiobjectTrackingTarget]
+)
+
+
+def _is_mot_target_batch(targets: Sequence[Any]) -> bool:
+    return len(targets) > 0 and all(hasattr(target, "frame_tracks") for target in targets)
+
+
+# TODO: Remove this workaround once https://github.com/mit-ll-ai-technology/maite/issues/45
+# is fixed in Checkmaite's minimum supported MAITE version.
+class _MaterializingAugmentation(Generic[T_Input, T_Target, T_Metadata]):
+    def __init__(
+        self,
+        augmentation: gen.Augmentation[T_Input, T_Target, T_Metadata, T_Input, T_Target, T_Metadata] | None,
+    ) -> None:
+        self._augmentation = augmentation
+        self.metadata: AugmentationMetadata = (
+            augmentation.metadata if augmentation is not None else {"id": "checkmaite-materialize-mot-streams"}
+        )
+
+    def __call__(
+        self,
+        batch: tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]],
+    ) -> tuple[Sequence[T_Input], Sequence[T_Target], Sequence[T_Metadata]]:
+        inputs, targets, metadata = self._augmentation(batch) if self._augmentation is not None else batch
+        if _is_mot_target_batch(targets):
+            inputs = [
+                value if isinstance(value, Sequence) else cast(T_Input, list(cast(Any, value))) for value in inputs
+            ]
+        return inputs, targets, metadata
+
+
+def _materializing_augmentation(
+    augmentation: gen.Augmentation[T_Input, T_Target, T_Metadata, T_Input, T_Target, T_Metadata] | None,
+) -> gen.Augmentation[T_Input, T_Target, T_Metadata, T_Input, T_Target, T_Metadata]:
+    return _MaterializingAugmentation(augmentation)
 
 
 def _make_task_cache(task: str, model_type: type[PModel]) -> PydanticCache[PModel]:
@@ -259,7 +309,8 @@ def predict(
 
     Setting ``return_augmented_data=True`` always runs fresh inference so the
     returned inputs and predictions share one realization. Complete inputs are
-    materialized for the response but are not cached. Compatibility serialization
+    materialized for the response but are not cached; one-shot video streams may
+    therefore require substantial memory. Compatibility serialization
     is the default; ``strict_cache_serialization=True`` requires explicitly
     lossless predictions, targets, metadata, and metric results.
     """
@@ -565,13 +616,14 @@ def _run_fresh_evaluation(
     need_predictions = (
         return_preds or prediction_cache_write_enabled or (needs_deferred_scoring and evaluation_cache.call is None)
     )
+    effective_augmentation = _materializing_augmentation(augmentation) if return_augmented_data else augmentation
     online_metric_results, raw_predictions, maite_augmented_data = maite.tasks.evaluate(
         model=model,
         metric=collector,
         dataloader=dataloader,
         dataset=dataset,
         batch_size=batch_size,
-        augmentation=augmentation,
+        augmentation=effective_augmentation,
         return_augmented_data=return_augmented_data,
         return_preds=need_predictions,
     )
@@ -673,7 +725,8 @@ def evaluate(
 
     Setting ``return_augmented_data=True`` always runs fresh inference so the
     returned inputs and predictions share one realization. Complete inputs are
-    materialized for the response but are not cached. ``strict_cache_serialization``
+    materialized for the response but are not cached; one-shot video streams may
+    therefore require substantial memory. ``strict_cache_serialization``
     applies one policy to every persisted task artifact and is included in cache
     identity, preventing strict calls from reading compatibility-mode entries.
     """

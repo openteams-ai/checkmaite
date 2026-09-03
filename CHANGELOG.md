@@ -11,13 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache schema version 1 for serialized Pydantic cache entries.
 - A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
+- MOT prediction, target, and metadata caching in flexible serialization mode, including `track_ids`.
 
 ### Changed
 - Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
 - Cache entries and binary files now use failure-safe publication and clean up partial writes.
 - Binary cache references are decoded only while loading cache entries.
+- Made `evaluate()` the fundamental cached task, with `predict()` as its `metric=None` convenience wrapper.
+- Required `metadata_batches` for `evaluate_from_predictions()` and an explicit `inference_id` for result caching.
+- Restricted `return_augmented_data` to the Boolean MAITE API; full-data requests now run fresh and publish nothing.
+- Changed prediction and evaluation cache identities, so entries created by earlier versions will be cold.
+- Upgraded MAITE from 0.9.2 to 0.9.5, selecting the latest patch after native MOT protocols were introduced in 0.9.4.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
+
+### Fixed
+- Passed datum metadata to metrics when evaluating cached predictions.
+- Restored cache loading for Torch tensor subclasses on Torch 2.6 and later and for PIL images backed by temporary buffers.
+- Preserved generator-backed MOT frames in fresh augmented-data debugging responses.
 
 ## [0.3.0] - 2026-07-24
 
