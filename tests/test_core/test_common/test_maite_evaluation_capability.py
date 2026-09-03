@@ -5,6 +5,7 @@ from checkmaite.core._common.maite_evaluation_capability import (
     MaiteEvaluationConfig,
     MaiteEvaluationOutputs,
     MaiteEvaluationRun,
+    MaiteMetricResult,
 )
 from checkmaite.core.image_classification.maite_evaluation_capability import MaiteEvaluation
 from checkmaite.core.report._gradient import HAS_GRADIENT
@@ -35,9 +36,15 @@ def test_maite_evaluation_extract_preserves_overall_and_class_metrics() -> None:
         model_metadata=[{"id": "model"}],
         metric_metadata=[{"id": "accuracy"}],
         outputs=MaiteEvaluationOutputs(
-            overall_metric_name="accuracy",
-            result={"accuracy": 0.75},
-            class_metrics={"cat": 0.5, "dog": None},
+            metrics={
+                "accuracy": MaiteMetricResult(
+                    metric_id="accuracy",
+                    principal_key="accuracy",
+                    result={"accuracy": 0.75},
+                    scalar_values={"accuracy": 0.75},
+                    class_metrics={"cat": 0.5, "dog": None},
+                )
+            }
         ),
     )
 
@@ -58,7 +65,7 @@ def test_maite_evaluation_rejects_malformed_per_class_metric(
         return_key="fake_metric",
     )
 
-    with pytest.raises(RuntimeError, match="single value"):
+    with pytest.raises(RuntimeError, match="one overall value plus class values"):
         MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
 
 

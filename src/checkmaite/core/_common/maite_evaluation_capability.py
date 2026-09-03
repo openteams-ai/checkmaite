@@ -1,14 +1,19 @@
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
-from pydantic import Field
+from pydantic import Field, model_validator
 from typing_extensions import TypeVar
 
+from checkmaite.core._common.metric_fanout import (
+    MaiteEvaluationMetricError,
+    _canonicalize_metrics,
+    _MetricFanout,
+)
 from checkmaite.core._utils import (
     CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT,
     deprecated,
@@ -32,33 +37,14 @@ from checkmaite.core.report._plotting_utils import create_metrics_bar_plot, save
 
 
 class MaiteEvaluationRecord(BaseRecord, table_name="maite_evaluation"):
-    """Record for MaiteEvaluation capability results.
+    """One numeric result produced by a metric in a MAITE evaluation."""
 
-    One record is emitted per output of ``Metric.compute()`` (one row per
-    key in the returned dict).  Per-class breakdowns are stored as separate
-    records with ``scope="class"`` and the class name in ``class_name``.
-
-    This flat layout enables straightforward SQL queries such as::
-
-        SELECT * FROM maite_evaluation WHERE output_key = 'accuracy'
-    """
-
-    # Identifies the dataset under evaluation; enables cross-capability JOINs with other
-    # single-dataset tables (e.g. dataeval_cleaning) on this field.
     dataset_id: str
-
     model_id: str
     metric_id: str
-
-    # Each row stores one key/value pair from Metric.compute(). One row per output makes
-    # it trivial to filter, aggregate, and pivot in SQL without parsing nested structures.
     output_key: str
     output_value: float
-
-    # Scope distinguishes overall results from per-class breakdowns in the same table,
-    # avoiding the need for a separate table while keeping queries simple
-    # (WHERE scope = 'overall').
-    scope: str = "overall"  # "overall" or "class"
+    scope: str = "overall"
     class_name: str | None = None
 
 
@@ -68,6 +54,7 @@ class MaiteEvaluationConfig(CapabilityConfigBase):
         ge=1,
         description="Number of dataset items to pass to the MAITE model per inference call.",
     )
+    output_schema_version: Literal[2] = 2
 
 
 TMaiteEvaluationConfig = TypeVar(
@@ -77,124 +64,206 @@ TMaiteEvaluationConfig = TypeVar(
 )
 
 
-class MaiteEvaluationOutputs(CapabilityOutputsBase):
-    overall_metric_name: str
-    result: dict[str, float]
+class MaiteMetricResult(CapabilityOutputsBase):
+    """Normalized result for one member of a MAITE evaluation."""
+
+    metric_id: str
+    principal_key: str | None
+    result: dict[str, Any]
+    scalar_values: dict[str, float]
     class_metrics: dict[str, float | None] | None
 
+    @model_validator(mode="after")
+    def _validate_principal_key(self) -> "MaiteMetricResult":
+        if self.principal_key is not None and self.principal_key not in self.scalar_values:
+            raise ValueError("principal_key must identify a value in scalar_values.")
+        return self
+
     @property
-    def overall_metric_value(self) -> float:
-        return self.result[self.overall_metric_name]
+    def principal_value(self) -> float | None:
+        if self.principal_key is None:
+            return None
+        return self.scalar_values[self.principal_key]
+
+
+class MaiteEvaluationOutputs(CapabilityOutputsBase):
+    """Results from one or more metrics, keyed by canonical metric ID."""
+
+    metrics: dict[str, MaiteMetricResult]
+
+
+def _numeric_scalar(value: Any) -> float | None:
+    if isinstance(value, (bool, np.bool_, str, bytes)):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _extract_class_metrics(
+    result: dict[str, Any],
+    return_key: str | None,
+    model_metadata: Mapping[str, Any],
+) -> dict[str, float | None] | None:
+    if "per_class_flag" not in result:
+        return None
+
+    result.pop("per_class_flag")
+    index2label = model_metadata.get("index2label")
+    if not isinstance(index2label, Mapping):
+        raise ValueError("Per-class metric results require model metadata 'index2label'.")
+
+    class_metrics: dict[str, float | None] = {}
+    for index, label in index2label.items():
+        value = result.pop(str(index), None)
+        scalar = None if value is None else _numeric_scalar(value)
+        if value is not None and scalar is None:
+            raise TypeError(f"Per-class result for index {index!r} must be numeric or None.")
+        # Preserve the established display-label behavior, including accepting
+        # repeated labels without rejecting the evaluation.
+        class_metrics[str(label)] = scalar
+
+    if return_key is None:
+        raise ValueError("Per-class metric results require the metric to define return_key.")
+    if result.keys() != {return_key}:
+        raise ValueError(
+            "When 'per_class_flag' is included, the metric must return one overall value plus class values, "
+            f"but got {', '.join(sorted(result))}."
+        )
+    return class_metrics
+
+
+def _normalize_metric_result(
+    metric: Any,
+    raw_result: Mapping[str, Any],
+    model_metadata: Mapping[str, Any],
+) -> MaiteMetricResult:
+    metric_id = metric.metadata["id"]
+    try:
+        result = dict(raw_result)
+        return_key = getattr(metric, "return_key", None)
+        if return_key is not None and (type(return_key) is not str or not return_key):
+            raise TypeError("Metric return_key must be a non-empty string when defined.")
+
+        class_metrics = _extract_class_metrics(result, return_key, model_metadata)
+        scalar_values = {key: scalar for key, value in result.items() if (scalar := _numeric_scalar(value)) is not None}
+        if return_key is not None and return_key not in scalar_values:
+            raise ValueError(f"Metric return_key {return_key!r} does not identify a numeric top-level result.")
+
+        return MaiteMetricResult(
+            metric_id=metric_id,
+            principal_key=return_key,
+            result=result,
+            scalar_values=scalar_values,
+            class_metrics=class_metrics,
+        )
+    except MaiteEvaluationMetricError:
+        raise
+    except Exception as error:
+        raise MaiteEvaluationMetricError(
+            metric_id=metric_id,
+            stage="normalize",
+            error_type=type(error).__name__,
+            message=str(error),
+        ) from error
 
 
 class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluationOutputs]):
     config: TMaiteEvaluationConfig
     outputs: MaiteEvaluationOutputs
 
-    # The order is important
     @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
     @deprecated(replacement="collect_md_report")
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
-        """Access data for Gradient report generation.
+        """Return one legacy Gradient report slide per metric."""
+        slides: list[dict[str, Any]] = []
+        for metric_id, metric_result in self.outputs.metrics.items():
+            text = f"*Model*: {self.model_metadata[0]['id']} \n\n"
+            text += f"*Dataset*: {self.dataset_metadata[0]['id']} \n\n"
+            text += f"*Metric*: {metric_id}"
+            figure: Figure | None = None
 
-        Retrieves in-depth data produced during the `run` method or loaded
-        from cache, formatted for Gradient slide creation.
+            if metric_result.principal_key is not None:
+                text += f"\n\n*{metric_result.principal_key}*: {metric_result.principal_value:.2f}"
 
-        Parameters
-        ----------
-        threshold
-            Minimum acceptable score. Results meeting or exceeding `threshold` are considered acceptable.
-            Results below `threshold` require further inspection or are treated as failures.
+            if metric_result.class_metrics is not None and metric_result.principal_key is not None:
+                class_metrics = {key: value for key, value in metric_result.class_metrics.items() if value is not None}
+                missing_classes = [key for key, value in metric_result.class_metrics.items() if value is None]
+                figure = create_per_class_bar_plot(
+                    overall_metric_name=metric_result.principal_key,
+                    overall_metric_value=cast(float, metric_result.principal_value),
+                    class_metrics=class_metrics,
+                    threshold=threshold,
+                )
+                if missing_classes:
+                    text += "\n\n\nClasses present in the model index but not the test dataset:\n"
+                    text += "".join(f"\\* {class_name}\n" for class_name in missing_classes)
+            elif metric_result.scalar_values:
+                highlighted_key = metric_result.principal_key or next(iter(metric_result.scalar_values))
+                figure = create_metrics_bar_plot(
+                    metric_result.scalar_values,
+                    metric_key=highlighted_key,
+                    threshold=threshold,
+                    width=0.4,
+                )
 
-        Returns
-        -------
-            A list of dictionaries, where each dictionary represents a slide.
-            Each dictionary must contain the following keys:
-        """
-
-        text = ""
-        text += f"*Model*: {self.model_metadata[0]['id']} \n\n"
-        text += f"*Dataset*: {self.dataset_metadata[0]['id']} \n\n"
-        text += f"*{self.outputs.overall_metric_name}*: {self.outputs.overall_metric_value:.2f}"
-
-        if self.outputs.class_metrics is not None:
-            class_metrics: dict[str, float] = {}
-            missing_classes: list[str] = []
-            for k, v in self.outputs.class_metrics.items():
-                if v is not None:
-                    class_metrics[k] = v
-                else:
-                    missing_classes.append(k)
-
-            fig = create_per_class_bar_plot(
-                overall_metric_name=self.outputs.overall_metric_name,
-                overall_metric_value=self.outputs.overall_metric_value,
-                class_metrics=class_metrics,
-                threshold=threshold,
+            layout_arguments: dict[str, Any] = {
+                "title": f"Basic Evaluation with MAITE: {metric_id}",
+                "text": text,
+            }
+            if figure is not None:
+                layout_arguments["item"] = Path(save_figure_to_tempfile(figure))
+            slides.append(
+                {
+                    "deck": self.capability_id,
+                    "layout_name": "ItemByNarrowText",
+                    "layout_arguments": layout_arguments,
+                }
             )
-            text += "\n\n\nClasses present in the model index but not the test dataset:\n"
-            for missing_class in missing_classes:
-                text += f"\\* {missing_class}\n"
-
-        else:
-            fig = create_metrics_bar_plot(
-                self.outputs.result, metric_key=self.outputs.overall_metric_name, threshold=threshold, width=0.4
-            )
-
-        return [
-            {
-                "deck": self.capability_id,
-                "layout_name": "ItemByNarrowText",
-                "layout_arguments": {
-                    "title": "Basic Evaluation with MAITE",
-                    "text": text,
-                    "item": Path(save_figure_to_tempfile(fig)),
-                },
-            },
-        ]
+        return slides
 
     def collect_md_report(self, threshold: float) -> InlineTextReport:
-        md = MarkdownOutput(
-            title="Basic Evaluation with MAITE",
-        )
-
+        md = MarkdownOutput(title="Basic Evaluation with MAITE")
         md.add_section(heading="Model Evaluation Summary")
         md.add_text(f"**Model**: {self.model_metadata[0]['id']}")
         md.add_text(f"**Dataset**: {self.dataset_metadata[0]['id']}")
-        md.add_text(f"**{self.outputs.overall_metric_name}**: {self.outputs.overall_metric_value:.2f}")
 
-        if self.outputs.class_metrics is not None:
-            class_metrics: dict[str, float] = {}
-            missing_classes: list[str] = []
-            for k, v in self.outputs.class_metrics.items():
-                if v is not None:
-                    class_metrics[k] = v
-                else:
-                    missing_classes.append(k)
+        for metric_id, metric_result in self.outputs.metrics.items():
+            md.add_subsection(metric_id)
+            if metric_result.principal_key is not None:
+                md.add_text(f"**{metric_result.principal_key}**: {metric_result.principal_value:.2f}")
 
-            fig = create_per_class_bar_plot(
-                overall_metric_name=self.outputs.overall_metric_name,
-                overall_metric_value=self.outputs.overall_metric_value,
-                class_metrics=class_metrics,
-                threshold=threshold,
-            )
+            if metric_result.scalar_values:
+                md.add_table(
+                    headers=["Output", "Value"],
+                    rows=[[key, f"{value:.4f}"] for key, value in metric_result.scalar_values.items()],
+                )
+            else:
+                md.add_text("This metric returned no numeric top-level values.")
 
-            img_path = save_figure_to_tempfile(fig=fig)
-            md.add_image(img_path, alt_text="Per-Class Metrics")
-
-            if missing_classes:
-                md.add_subsection("Classes Present in Model Index but Not in Test Dataset")
-                md.add_bulleted_list(missing_classes)
-
-        else:
-            fig = create_metrics_bar_plot(
-                self.outputs.result,
-                metric_key=self.outputs.overall_metric_name,
-                threshold=threshold,
-                width=0.4,
-            )
-            img_path = save_figure_to_tempfile(fig=fig)
-            md.add_image(img_path, alt_text="Overall Metrics")
+            if metric_result.class_metrics is not None and metric_result.principal_key is not None:
+                class_metrics = {key: value for key, value in metric_result.class_metrics.items() if value is not None}
+                missing_classes = [key for key, value in metric_result.class_metrics.items() if value is None]
+                figure = create_per_class_bar_plot(
+                    overall_metric_name=metric_result.principal_key,
+                    overall_metric_value=cast(float, metric_result.principal_value),
+                    class_metrics=class_metrics,
+                    threshold=threshold,
+                )
+                md.add_image(save_figure_to_tempfile(figure), alt_text=f"Per-Class Metrics: {metric_id}")
+                if missing_classes:
+                    md.add_subsection(f"Classes Missing for {metric_id}")
+                    md.add_bulleted_list(missing_classes)
+            elif metric_result.scalar_values:
+                highlighted_key = metric_result.principal_key or next(iter(metric_result.scalar_values))
+                figure = create_metrics_bar_plot(
+                    metric_result.scalar_values,
+                    metric_key=highlighted_key,
+                    threshold=threshold,
+                    width=0.4,
+                )
+                md.add_image(save_figure_to_tempfile(figure), alt_text=f"Overall Metrics: {metric_id}")
 
         return InlineTextReport(
             media_type="text/markdown",
@@ -203,48 +272,40 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
         )
 
     def extract(self) -> list[MaiteEvaluationRecord]:
-        """Extract metrics from this MaiteEvaluation run.
-
-        Returns one record per metric key in the result dict, plus
-        one record per class metric (if available).
-        """
+        """Extract numeric overall and per-class values for every metric."""
         dataset_id = self.dataset_metadata[0]["id"]
         model_id = self.model_metadata[0]["id"]
-        metric_id = self.metric_metadata[0]["id"]
-        outputs = self.outputs
-
         records: list[MaiteEvaluationRecord] = []
 
-        # One record per key in Metric.compute() output
-        for key, value in outputs.result.items():
-            records.append(
-                MaiteEvaluationRecord(
-                    run_uid=self.run_uid,
-                    dataset_id=dataset_id,
-                    model_id=model_id,
-                    metric_id=metric_id,
-                    output_key=key,
-                    output_value=value,
-                    scope="overall",
-                )
-            )
-
-        # One record per class breakdown
-        if outputs.class_metrics:
-            for class_name, value in outputs.class_metrics.items():
-                if value is not None:
-                    records.append(
-                        MaiteEvaluationRecord(
-                            run_uid=self.run_uid,
-                            dataset_id=dataset_id,
-                            model_id=model_id,
-                            metric_id=metric_id,
-                            output_key=outputs.overall_metric_name,
-                            output_value=value,
-                            scope="class",
-                            class_name=class_name,
-                        )
+        for metric_id, metric_result in self.outputs.metrics.items():
+            for key, value in metric_result.scalar_values.items():
+                records.append(
+                    MaiteEvaluationRecord(
+                        run_uid=self.run_uid,
+                        dataset_id=dataset_id,
+                        model_id=model_id,
+                        metric_id=metric_id,
+                        output_key=key,
+                        output_value=value,
+                        scope="overall",
                     )
+                )
+
+            if metric_result.class_metrics and metric_result.principal_key is not None:
+                for class_name, value in metric_result.class_metrics.items():
+                    if value is not None:
+                        records.append(
+                            MaiteEvaluationRecord(
+                                run_uid=self.run_uid,
+                                dataset_id=dataset_id,
+                                model_id=model_id,
+                                metric_id=metric_id,
+                                output_key=metric_result.principal_key,
+                                output_value=value,
+                                scope="class",
+                                class_name=class_name,
+                            )
+                        )
 
         return records
 
@@ -252,7 +313,7 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
 class MaiteEvaluationBase(
     Capability[MaiteEvaluationOutputs, TDataset, TModel, TMetric, TMaiteEvaluationConfig],
 ):
-    """Evaluation implementation of Capability interface."""
+    """Evaluate one model and dataset with one or more metrics."""
 
     _RUN_TYPE = MaiteEvaluationRun
 
@@ -263,36 +324,33 @@ class MaiteEvaluationBase(
 
     @property
     def supports_datasets(self) -> Number:
-        """Number of datasets this capability supports.
-
-        Returns
-        -------
-        Number
-            An enumeration value indicating dataset support.
-        """
         return Number.ONE
 
     @property
     def supports_models(self) -> Number:
-        """Number of models this capability supports.
-
-        Returns
-        -------
-        Number
-            An enumeration value indicating model support.
-        """
         return Number.ONE
 
     @property
     def supports_metrics(self) -> Number:
-        """Number of metrics this capability supports.
+        return Number.MANY
 
-        Returns
-        -------
-        Number
-            An enumeration value indicating metric support.
-        """
-        return Number.ONE
+    def run(
+        self,
+        models: list[TModel] | None = None,
+        datasets: list[TDataset] | None = None,
+        metrics: list[TMetric] | None = None,
+        config: TMaiteEvaluationConfig | None = None,
+        use_cache: bool = True,
+    ) -> CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluationOutputs]:
+        """Canonicalize metric IDs before capability UID and cache handling."""
+        canonical_metrics = _canonicalize_metrics(metrics or [])
+        return super().run(
+            models=models,
+            datasets=datasets,
+            metrics=canonical_metrics,
+            config=config,
+            use_cache=use_cache,
+        )
 
     def _run(
         self,
@@ -302,123 +360,70 @@ class MaiteEvaluationBase(
         config: TMaiteEvaluationConfig,
         use_prediction_and_evaluation_cache: bool,
     ) -> MaiteEvaluationOutputs:
-        """Run the capability and store evaluation outputs.
-
-        Returns
-        -------
-        The outputs of the evaluation.
-
-        Raises
-        ------
-        RuntimeError
-            If the evaluation returns no results or if per-class metrics
-            are malformed.
-        """
-
         model = models[0]
-        model_id = model.metadata["id"]
-        metric = metrics[0]
-        metric_id = metric.metadata["id"]
         dataset = datasets[0]
-        dataset_id = dataset.metadata["id"]
-
+        metric_fanout = _MetricFanout(metrics)
         cpu_prediction_postprocessor, cpu_prediction_postprocessor_id = self._cpu_prediction_postprocessor(config)
         result, _, _ = evaluate(
             model=model,
-            metric=metric,
+            metric=metric_fanout,
             dataset=dataset,
             batch_size=config.batch_size,
             cpu_prediction_postprocessor=cpu_prediction_postprocessor,
             cpu_prediction_postprocessor_id=cpu_prediction_postprocessor_id,
             return_augmented_data=False,
+            return_preds=False,
             use_cache=use_prediction_and_evaluation_cache,
         )
         if result is None:
             raise RuntimeError(
-                f'Evaluate method returned no results for model ID "{model_id}", \
-                dataset ID "{dataset_id}", and metric ID "{metric_id}"',
+                f'Evaluate returned no results for model ID {model.metadata["id"]!r} and '
+                f'dataset ID {dataset.metadata["id"]!r}.'
             )
 
-        # MAITE dictates dict[str, Any] here so enforcing a conversion to float might not be possible
-        result = {k: float(v) for k, v in result.items()}
+        normalized_results: dict[str, MaiteMetricResult] = {}
+        for metric in metrics:
+            metric_id = metric.metadata["id"]
+            raw_metric_result = result.get(metric_id)
+            if not isinstance(raw_metric_result, Mapping):
+                error = TypeError("The fanout evaluation did not return a mapping for this metric.")
+                raise MaiteEvaluationMetricError(
+                    metric_id=metric_id,
+                    stage="normalize",
+                    error_type=type(error).__name__,
+                    message=str(error),
+                ) from error
+            normalized_results[metric_id] = _normalize_metric_result(metric, raw_metric_result, model.metadata)
 
-        overall_metric_name = str(getattr(metric, "return_key", metric_id))
-
-        # TODO: can we formalize this per_class logic as part of MAITE itself?
-        if "per_class_flag" in result:
-            del result["per_class_flag"]
-            class_metrics = {
-                label: result.pop(str(index), None)
-                for index, label in model.metadata["index2label"].items()  # pyright: ignore[reportTypedDictNotRequiredAccess]
-            }
-            if result.keys() != {overall_metric_name}:
-                raise RuntimeError(
-                    f"When 'per_class_flag' is included in the results, the metric should be a single value, "
-                    f"but got {', '.join(sorted(result.keys()))}."
-                )
-        else:
-            class_metrics = None
-
-        return MaiteEvaluationOutputs(
-            overall_metric_name=overall_metric_name, result=result, class_metrics=class_metrics
-        )
+        return MaiteEvaluationOutputs(metrics=normalized_results)
 
     def _cpu_prediction_postprocessor(
         self,
         _config: TMaiteEvaluationConfig,
     ) -> tuple[Callable[[Any], Any] | None, str | None]:
-        """Return optional CPU prediction postprocessing and its stable cache identity.
-
-        The postprocessor runs after reusable raw predictions are loaded or
-        computed and before metric evaluation. Task-specific capabilities may
-        override this no-op hook while preserving MAITE-compatible targets.
-        """
+        """Return optional CPU prediction postprocessing and its stable cache identity."""
         return None, None
 
 
 def create_per_class_bar_plot(
     overall_metric_name: str, overall_metric_value: float, class_metrics: dict[str, float], threshold: float
 ) -> Figure:
-    """Create a bar plot for per-class metrics alongside overall metric and threshold.
-
-    Parameters
-    ----------
-    overall_metric_name
-        Name of the overall metric (e.g., "Accuracy").
-    overall_metric_value
-        Value of the overall metric.
-    class_metrics
-        Dictionary mapping class names to their metric values.
-    threshold
-        Threshold value to be plotted as a horizontal line.
-
-    Returns
-    -------
-    The matplotlib Figure object containing the plot.
-    """
-    bar_color = "blue"  # TODO: make these configurable with AppStyling
+    """Create a bar plot for per-class metrics alongside overall metric and threshold."""
+    bar_color = "blue"
     threshold_line_color = "red"
     overall_line_color = "orange"
-
-    # create initial canvas
     fig, ax = plt.subplots(figsize=(9, 5))
-
-    # set up bar spacing
-    index = np.arange(len(class_metrics))  # the x locations for the bars
+    index = np.arange(len(class_metrics))
 
     for idx, (_, value) in enumerate(class_metrics.items()):
         ax.bar(index[idx], value, color=bar_color)
 
-    # plot and label the threshold line
-    ax.axhline(threshold, color=threshold_line_color)  # TODO: make these configurable with AppStyling
+    ax.axhline(threshold, color=threshold_line_color)
     plt.text(len(index), threshold, "Threshold", va="center", color=threshold_line_color)
-    # plot and label the overall metric line
-    ax.axhline(overall_metric_value, color=overall_line_color)  # TODO: make these configurable with AppStyling
+    ax.axhline(overall_metric_value, color=overall_line_color)
     plt.text(len(index), overall_metric_value, f"Overall {overall_metric_name}", color=overall_line_color)
-
     ax.set_title(f"Class-wise Metric: {overall_metric_name}")
     ax.set_xticks(index, class_metrics.keys(), rotation=45, ha="right")
     fig.tight_layout()
     plt.close(fig)
-
     return fig
