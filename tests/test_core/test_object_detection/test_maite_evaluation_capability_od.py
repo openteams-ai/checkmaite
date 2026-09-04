@@ -66,6 +66,43 @@ def test_batch_size_controls_inference_batches(fake_od_model_default, fake_od_da
     assert model.batch_sizes == [4, 2]
 
 
+def test_multiple_metrics_share_one_postprocessing_pass(
+    fake_od_model_default, fake_od_dataset_default, fake_od_metric_default
+):
+    class CountingPostprocessorCapability(MaiteEvaluation):
+        def __init__(self):
+            self.postprocessing_calls = 0
+
+        def _cpu_postprocess_predictions(self, predictions, config):
+            self.postprocessing_calls += 1
+            return super()._cpu_postprocess_predictions(predictions, config)
+
+    model = CountingODModel(fake_od_model_default, model_id="multi-metric-postprocessing-model")
+    metric_a = type(fake_od_metric_default)(
+        calculated_metrics={"a": torch.tensor(0.1)},
+        metric_metadata={"id": "a-postprocessing-metric"},
+        return_key="a",
+    )
+    metric_b = type(fake_od_metric_default)(
+        calculated_metrics={"b": torch.tensor(0.2)},
+        metric_metadata={"id": "b-postprocessing-metric"},
+        return_key="b",
+    )
+    capability = CountingPostprocessorCapability()
+
+    run = capability.run(
+        use_cache=False,
+        models=[model],
+        metrics=[metric_b, metric_a],
+        datasets=[fake_od_dataset_default],
+        config=MaiteEvaluationConfig(batch_size=2, confidence_threshold=0.5),
+    )
+
+    assert model.batch_sizes == [2, 2, 2]
+    assert capability.postprocessing_calls == 1
+    assert list(run.outputs.metrics) == ["a-postprocessing-metric", "b-postprocessing-metric"]
+
+
 def _postprocess_one(prediction, config):
     return MaiteEvaluation()._cpu_postprocess_predictions([[prediction]], config)[0][0]
 
@@ -479,4 +516,4 @@ def test_multiclass(fake_od_model_default, fake_od_dataset_default):
         use_cache=False, models=[fake_od_model_default], metrics=[metric], datasets=[fake_od_dataset_default]
     )
 
-    assert output.outputs.class_metrics is not None
+    assert output.outputs.metrics[metric.metadata["id"]].class_metrics is not None

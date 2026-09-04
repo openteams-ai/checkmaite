@@ -113,7 +113,7 @@ def test_get_capability_from_app_config_and_run_od(
     else:
         raise ValueError("Test should be rewritten if more than two datasets used.")
 
-    if capability.supports_metrics == Number.ONE:
+    if capability.supports_metrics in {Number.ONE, Number.MANY}:
         metrics = [metric_od]
     elif capability.supports_metrics == Number.ZERO:
         metrics = []

@@ -1,7 +1,12 @@
 from checkmaite.core._common.dataeval_bias_capability import DataevalBiasConfig, DataevalBiasOutputs
 from checkmaite.core._common.dataeval_cleaning_capability import DataevalCleaningConfig, DataevalCleaningOutputs
 from checkmaite.core._common.dataeval_shift_capability import DataevalShiftConfig, DataevalShiftOutputs
-from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationConfig, MaiteEvaluationOutputs
+from checkmaite.core._common.maite_evaluation_capability import (
+    MaiteEvaluationConfig,
+    MaiteEvaluationOutputs,
+    MaiteMetricResult,
+)
+from checkmaite.core._common.metric_fanout import MaiteEvaluationMetricError
 from checkmaite.core._common.nrtk_robustness_capability import NrtkRobustnessConfig, NrtkRobustnessOutputs
 from checkmaite.core._plugins import inject_plugin_exports
 from checkmaite.core.image_classification.dataeval_bias_capability import DataevalBias
@@ -24,6 +29,8 @@ __all__ = [
     "MaiteEvaluation",
     "MaiteEvaluationConfig",
     "MaiteEvaluationOutputs",
+    "MaiteEvaluationMetricError",
+    "MaiteMetricResult",
     "DataevalBias",
     "DataevalBiasConfig",
     "DataevalBiasOutputs",

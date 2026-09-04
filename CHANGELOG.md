@@ -8,12 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Multi-metric image-classification and object-detection evaluation through one shared MAITE inference pass, including when caching is disabled.
+- Attributed `MaiteEvaluationMetricError` failures for metric reset, update, compute, and result normalization.
 - Cache schema version 1 for serialized Pydantic cache entries.
 - A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
 - MOT prediction, target, and metadata caching in flexible serialization mode, including `track_ids`.
 
 ### Changed
+- `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed. Its run-cache identity now includes a schema version so incompatible single-metric run entries are not loaded as nested outputs.
 - Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
 - Cache entries and binary files now use failure-safe publication and clean up partial writes.
 - Binary cache references are decoded only while loading cache entries.

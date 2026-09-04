@@ -179,6 +179,25 @@ MAITE passes the same batch objects between these steps; it does not make defens
 
 Checkmaite validates batch alignment, but it does not snapshot arrays or tensors before metric updates. A metric that mutates a prediction can therefore also alter the value returned to the caller or published to the prediction cache. A model that repeatedly returns and overwrites the same mutable output buffer can similarly make earlier batches appear to contain the final batch. Such adapters and metrics are outside the supported contract and should copy internally when they need mutable working storage.
 
+#### Multi-Metric Evaluation
+
+Image-classification and object-detection `MaiteEvaluation` capabilities accept one or more metrics. Checkmaite presents the collection to MAITE as one internal fanout metric, so augmentation and model inference happen once per batch even when `use_cache=False`. Member metrics receive the same prediction, target, and metadata objects in canonical metric-ID order.
+
+```python
+run = MaiteEvaluation().run(
+    models=[model],
+    datasets=[dataset],
+    metrics=[accuracy, recall],
+    use_cache=False,
+)
+
+accuracy_result = run.outputs.metrics[accuracy.metadata["id"]]
+print(accuracy_result.result)
+print(accuracy_result.overall_metric_value)
+```
+
+Metric metadata IDs must be non-empty and unique. Checkmaite sorts metrics by ID before evaluation, run identity generation, reports, and analytics, so reversing caller order does not create a different run. Any member failure immediately aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying the member and lifecycle stage. Partial capability runs are not returned.
+
 #### Retained Data and Memory
 
 `return_preds=True` asks MAITE to retain raw prediction batches in memory; Checkmaite returns them after any configured CPU postprocessing. Even when the caller sets `return_preds=False`, Checkmaite may request predictions internally on a cold call when it needs to publish the prediction cache or perform deferred CPU postprocessing. The flag controls the public return value, not an unconditional peak-memory guarantee.

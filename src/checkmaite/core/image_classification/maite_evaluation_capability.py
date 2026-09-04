@@ -4,7 +4,7 @@ from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationB
 
 
 class MaiteEvaluation(MaiteEvaluationBase[ic.Dataset, ic.Model, ic.Metric]):
-    """Baseline evaluation implementation with single model, dataset and metric plugins"""
+    """Evaluate one image-classification model and dataset with one or more metrics."""
 
     @classmethod
     def _create_config(cls) -> MaiteEvaluationConfig:
