@@ -92,8 +92,8 @@ def test_multiple_metrics_share_one_uncached_inference_pass(
     assert metric_a.target_batch_ids == metric_b.target_batch_ids
     assert metric_a.metadata_batch_ids == metric_b.metadata_batch_ids
     assert list(run.outputs.metrics) == ["a-metric", "b-metric"]
-    assert run.outputs.metrics["a-metric"].principal_value == 0.1
-    assert run.outputs.metrics["b-metric"].principal_value == 0.2
+    assert run.outputs.metrics["a-metric"].overall_metric_value == 0.1
+    assert run.outputs.metrics["b-metric"].overall_metric_value == 0.2
 
 
 def test_metric_order_does_not_change_fanout_or_run_identity(fake_ic_model_default, fake_ic_dataset_default):
@@ -287,8 +287,8 @@ def test_generic_structured_metric_without_return_key_is_supported(fake_ic_model
     )
     result = run.outputs.metrics["structured-metric"]
 
-    assert result.principal_key is None
-    assert result.principal_value is None
+    assert result.overall_metric_name is None
+    assert result.overall_metric_value is None
     assert result.scalar_values == {"score": 0.5}
     assert result.result["enabled"] is True
     assert result.result["label"] == "0.8"

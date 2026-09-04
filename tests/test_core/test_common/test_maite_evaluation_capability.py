@@ -39,7 +39,7 @@ def test_maite_evaluation_extract_preserves_overall_and_class_metrics() -> None:
             metrics={
                 "accuracy": MaiteMetricResult(
                     metric_id="accuracy",
-                    principal_key="accuracy",
+                    overall_metric_name="accuracy",
                     result={"accuracy": 0.75},
                     scalar_values={"accuracy": 0.75},
                     class_metrics={"cat": 0.5, "dog": None},
@@ -50,7 +50,10 @@ def test_maite_evaluation_extract_preserves_overall_and_class_metrics() -> None:
 
     records = run.extract()
 
-    assert {record.output_value for record in records} == {0.75, 0.5}
+    assert {(record.scope, record.class_name, record.output_value) for record in records} == {
+        ("overall", None, 0.75),
+        ("class", "cat", 0.5),
+    }
 
 
 def test_maite_evaluation_rejects_malformed_per_class_metric(

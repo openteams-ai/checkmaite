@@ -8,6 +8,7 @@ import pytest
 import ray
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend, configure_provenance, reset_provenance
+from checkmaite.core.image_classification import MaiteEvaluation, MaiteEvaluationConfig
 from checkmaite.jobs import (
     CapabilityRunRef,
     JobCancelledError,
@@ -24,6 +25,31 @@ from checkmaite.jobs import (
 from checkmaite.jobs.backends.ray import RegistryStatus
 from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
 from tests.test_jobs.ray_test_utils import init_local_ray
+
+
+def test_maite_evaluation_scoped_key_is_metric_order_independent(
+    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
+):
+    metric_a = fake_ic_metric_default
+    metric_a.metadata = {"id": "a-metric"}
+    metric_b = type(fake_ic_metric_default)(metric_metadata={"id": "b-metric"})
+    capability = MaiteEvaluation()
+    shared_kwargs = {
+        "models": [fake_ic_model_default],
+        "datasets": [fake_ic_dataset_default],
+        "config": MaiteEvaluationConfig(),
+    }
+
+    forward_key = RayJobBackend._compute_scoped_run_key(
+        capability,
+        {**shared_kwargs, "metrics": [metric_a, metric_b]},
+    )
+    reverse_key = RayJobBackend._compute_scoped_run_key(
+        capability,
+        {**shared_kwargs, "metrics": [metric_b, metric_a]},
+    )
+
+    assert forward_key == reverse_key
 
 
 @pytest.fixture(scope="module", name="ray_runtime")

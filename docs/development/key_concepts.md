@@ -193,12 +193,12 @@ run = MaiteEvaluation().run(
 
 accuracy_result = run.outputs.metrics[accuracy.metadata["id"]]
 print(accuracy_result.result)
-print(accuracy_result.principal_value)
+print(accuracy_result.overall_metric_value)
 ```
 
 Metric metadata IDs must be non-empty and unique. Checkmaite sorts metrics by ID before evaluation, run identity generation, reports, and analytics, so reversing caller order does not create a different run. Any member failure immediately aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying the member and lifecycle stage. Partial capability runs are not returned.
 
-The nested output is a breaking change from Checkmaite 0.3.x. Replace `run.outputs.result` with `run.outputs.metrics[metric_id].result` and `run.outputs.overall_metric_value` with `run.outputs.metrics[metric_id].principal_value`.
+The nested output is a breaking change from Checkmaite 0.3.x. Replace `run.outputs.result` with `run.outputs.metrics[metric_id].result` and `run.outputs.overall_metric_value` with `run.outputs.metrics[metric_id].overall_metric_value`.
 
 #### Retained Data and Memory
 

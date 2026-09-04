@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MOT prediction, target, and metadata caching in flexible serialization mode, including `track_ids`.
 
 ### Changed
-- `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed, and existing `MaiteEvaluation` run-cache entries are cold because the output schema is now version 2.
+- `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed, and existing `MaiteEvaluation` run-cache entries are cold because the new nested output schema is version 1.
 - Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
 - Cache entries and binary files now use failure-safe publication and clean up partial writes.
 - Binary cache references are decoded only while loading cache entries.
