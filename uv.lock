@@ -813,7 +813,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "ipython", specifier = ">=8.13" },
     { name = "jupyterlab", marker = "extra == 'ui'", specifier = ">=4.3.5" },
-    { name = "maite", specifier = "==0.9.5" },
+    { name = "maite", specifier = ">=0.9.4,<0.10" },
     { name = "markdown", marker = "extra == 'reporting'", specifier = ">=3.5" },
     { name = "matplotlib", specifier = ">=3.8.4,<3.10.8" },
     { name = "nbconvert", marker = "extra == 'ui'", specifier = ">=7.16.6" },
@@ -2788,9 +2788,9 @@ dependencies = [
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/68/e6/02fefc59ce5c179df5f629d636c8451efc5d0ad1301ebfc17d50bb1a7a7b/maite-0.9.5.tar.gz", hash = "sha256:abf14ecc6ed8cedb91aa7b1dc9c790409d0c954652731fb6f3cdd617bd8c42b8", size = 94952 }
+sdist = { url = "https://files.pythonhosted.org/packages/68/e6/02fefc59ce5c179df5f629d636c8451efc5d0ad1301ebfc17d50bb1a7a7b/maite-0.9.5.tar.gz", hash = "sha256:abf14ecc6ed8cedb91aa7b1dc9c790409d0c954652731fb6f3cdd617bd8c42b8", size = 94952, upload-time = "2026-03-30T14:52:19.121Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/a6/9ace69f9ddfb4f9af0438e07c98e3a9dea3f44cc1dc11cd39a0c85b138e8/maite-0.9.5-py3-none-any.whl", hash = "sha256:a710ec5e3ffa93541a3dffb69ca9cc7002452d73aca744f911383e886ce7e233", size = 90861 },
+    { url = "https://files.pythonhosted.org/packages/e4/a6/9ace69f9ddfb4f9af0438e07c98e3a9dea3f44cc1dc11cd39a0c85b138e8/maite-0.9.5-py3-none-any.whl", hash = "sha256:a710ec5e3ffa93541a3dffb69ca9cc7002452d73aca744f911383e886ce7e233", size = 90861, upload-time = "2026-03-30T14:52:17.772Z" },
 ]
 
 [[package]]

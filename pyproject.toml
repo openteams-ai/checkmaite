@@ -27,7 +27,7 @@ dynamic = ["version"]
 dependencies = [
     "dataeval==1.0.6",
     "dataeval-plots==0.0.6",           # we specify the pypi source in conda-lock as dataeval_plots won't be on conda-forge
-    "maite==0.9.5",
+    "maite>=0.9.4,<0.10",              # necessary lower pin: ships maite.protocols.multiobject_tracking (#723); range avoids lockstep with checkmaite-plugins
     "nrtk[pybsm]==1.0.4",
     "xaitk-jatic==0.8.1",
     # external deps

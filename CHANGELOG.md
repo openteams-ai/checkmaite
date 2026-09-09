@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Required `metadata_batches` for `evaluate_from_predictions()` and an explicit `inference_id` for result caching.
 - Restricted `return_augmented_data` to the Boolean MAITE API; full-data requests now run fresh and publish nothing.
 - Changed prediction and evaluation cache identities, so entries created by earlier versions will be cold.
-- Upgraded MAITE from 0.9.2 to 0.9.5, selecting the latest patch after native MOT protocols were introduced in 0.9.4.
+- Upgraded MAITE from 0.9.2 to a `>=0.9.4,<0.10` range. The floor is 0.9.4, the release that introduced the native multi-object tracking protocols checkmaite imports unconditionally, and a range rather than an exact pin avoids lockstep bumps with checkmaite-plugins' circular test dependency. The resolved version is 0.9.5.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
 
