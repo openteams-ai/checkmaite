@@ -4,7 +4,42 @@ import pytest
 
 from checkmaite.core.report import ArtifactReport, InlineTextReport
 from checkmaite.jobs import CapabilityRunRef
-from checkmaite.jobs.backends.ray.registry import JobRegistry, RegistryStatus, _coerce_registry_status
+from checkmaite.jobs.backends.ray.registry import (
+    REGISTRY_COMPATIBILITY_VERSION,
+    JobRegistry,
+    RegistryCompatibilityError,
+    RegistryStatus,
+    _coerce_registry_status,
+    _registry_configuration,
+    _registry_descriptor,
+    _validate_registry_descriptor,
+)
+
+
+def test_registry_descriptor_reports_compatibility_version_and_typed_configuration() -> None:
+    configuration = _registry_configuration(registry_num_cpus=0.0)
+    descriptor = JobRegistry(deployment_configuration=configuration).describe()
+
+    assert set(descriptor) == {"compatibility_version", "configuration"}
+    assert descriptor["compatibility_version"] == REGISTRY_COMPATIBILITY_VERSION
+    assert descriptor["configuration"] == configuration
+
+
+def test_registry_descriptor_validation_rejects_compatibility_version_mismatch() -> None:
+    expected = _registry_descriptor(_registry_configuration())
+    actual = _registry_descriptor(_registry_configuration())
+    actual["compatibility_version"] += 1
+
+    with pytest.raises(RegistryCompatibilityError, match="compatibility_version"):
+        _validate_registry_descriptor(actual, expected)
+
+
+def test_registry_descriptor_validation_rejects_configuration_mismatch() -> None:
+    actual = _registry_descriptor(_registry_configuration(registry_num_cpus=0.0))
+    expected = _registry_descriptor(_registry_configuration(registry_num_cpus=1.0))
+
+    with pytest.raises(RegistryCompatibilityError, match="configuration"):
+        _validate_registry_descriptor(actual, expected)
 
 
 def _ref_payload(text: str = "ok") -> dict[str, object]:

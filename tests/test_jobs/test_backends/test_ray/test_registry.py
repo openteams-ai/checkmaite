@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 import ray
+from ray.exceptions import RayActorError, RayTaskError
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
 from checkmaite.core.report import InlineTextReport
@@ -32,12 +33,19 @@ from checkmaite.jobs import (
 from checkmaite.jobs.backends.ray import (
     JobControllerActor,
     RayJob,
+    RegistryCompatibilityError,
+    RegistryStartupError,
     RegistryStatus,
     get_or_create_controller_actor,
     get_or_create_registry_actor,
 )
 from checkmaite.jobs.backends.ray.controller import _update_registry_terminal_best_effort
-from checkmaite.jobs.backends.ray.registry import JobRegistry
+from checkmaite.jobs.backends.ray.registry import (
+    DEFAULT_REGISTRY_ACTOR_NAME,
+    JobRegistry,
+    _registry_configuration,
+    _registry_descriptor,
+)
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
 from tests.test_jobs.ray_test_utils import init_local_ray
 
@@ -58,7 +66,6 @@ def _ray_registry_runtime():
 @pytest.fixture
 def local_ray_registry(ray_registry_runtime, tmp_path: Path):
     store_path = tmp_path / "analytics-store"
-    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
 
@@ -71,15 +78,12 @@ def local_ray_registry(ray_registry_runtime, tmp_path: Path):
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
-        registry_actor_name=actor_name,
         registry_namespace=namespace,
-        registry_reservation_ttl_s=30.0,
     )
 
     try:
         yield {
             "store_path": store_path,
-            "actor_name": actor_name,
             "namespace": namespace,
             "scope": scope,
         }
@@ -95,7 +99,6 @@ def _configure_registry_backend(
     *,
     store_path: Path,
     scope: str,
-    actor_name: str,
     namespace: str,
     force_reinit: bool = False,
     address: str | None = None,
@@ -107,9 +110,7 @@ def _configure_registry_backend(
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
-        registry_actor_name=actor_name,
         registry_namespace=namespace,
-        registry_reservation_ttl_s=30.0,
     )
 
 
@@ -274,7 +275,6 @@ def test_registry_get_job_can_reattach_after_restart(local_ray_registry) -> None
     _configure_registry_backend(
         store_path=local_ray_registry["store_path"],
         scope=local_ray_registry["scope"],
-        actor_name=local_ray_registry["actor_name"],
         namespace=local_ray_registry["namespace"],
     )
 
@@ -305,7 +305,7 @@ from pathlib import Path
 from checkmaite.jobs import configure_job_backend, submit_capability
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
 
-store_path, actor_name, namespace, scope, start_marker_path = sys.argv[1:6]
+store_path, namespace, scope, start_marker_path = sys.argv[1:5]
 start_marker = Path(start_marker_path)
 configure_job_backend(
     "ray",
@@ -313,7 +313,6 @@ configure_job_backend(
     analytics_store={"backend": "parquet", "uri": store_path},
     idempotency_scope=scope,
     controller_num_cpus=0.0,
-    registry_actor_name=actor_name,
     registry_namespace=namespace,
 )
 job = submit_capability(
@@ -329,7 +328,6 @@ if not start_marker.exists():
 print(json.dumps({"job_id": job.job_id}), flush=True)
 """,
             str(local_ray_registry["store_path"]),
-            local_ray_registry["actor_name"],
             local_ray_registry["namespace"],
             local_ray_registry["scope"],
             str(start_marker),
@@ -365,7 +363,6 @@ def test_running_job_reattaches_after_backend_restart(local_ray_registry) -> Non
     _configure_registry_backend(
         store_path=local_ray_registry["store_path"],
         scope=local_ray_registry["scope"],
-        actor_name=local_ray_registry["actor_name"],
         namespace=local_ray_registry["namespace"],
     )
 
@@ -374,19 +371,72 @@ def test_running_job_reattaches_after_backend_restart(local_ray_registry) -> Non
 
 
 @pytest.mark.ray
+def test_default_registry_is_shared_across_scopes_but_jobs_remain_partitioned(tmp_path: Path) -> None:
+    shutdown_job_backend(wait=False)
+    if not ray.is_initialized():
+        init_local_ray()
+
+    namespace = f"checkmaite-shared-default-{uuid4().hex}"
+    backend_a = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "a")},
+        idempotency_scope="workspace-a",
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+    )
+    backend_b = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "b")},
+        idempotency_scope="workspace-b",
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+    )
+
+    assert backend_a._registry._actor_id == backend_b._registry._actor_id
+    assert ray.get_actor(DEFAULT_REGISTRY_ACTOR_NAME, namespace=namespace)._actor_id == backend_a._registry._actor_id
+
+    job_a = backend_a.submit_capability(TinyCapability(), config=TinyConfig(text="partitioned"), use_cache=False)
+    job_b = backend_b.submit_capability(TinyCapability(), config=TinyConfig(text="partitioned"), use_cache=False)
+
+    assert job_a.job_id != job_b.job_id
+    assert {job.job_id for job in backend_a.list_jobs()} == {job_a.job_id}
+    assert {job.job_id for job in backend_b.list_jobs()} == {job_b.job_id}
+    assert job_a.result(timeout=30).report.content == "partitioned:0.5"
+    assert job_b.result(timeout=30).report.content == "partitioned:0.5"
+
+
+@pytest.mark.ray
+def test_different_ray_namespaces_select_independent_fixed_registries(tmp_path: Path) -> None:
+    shutdown_job_backend(wait=False)
+    if not ray.is_initialized():
+        init_local_ray()
+
+    backend_a = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "a")},
+        idempotency_scope="same-scope",
+        registry_namespace=f"namespace-a-{uuid4().hex}",
+        controller_num_cpus=0.0,
+    )
+    backend_b = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "b")},
+        idempotency_scope="same-scope",
+        registry_namespace=f"namespace-b-{uuid4().hex}",
+        controller_num_cpus=0.0,
+    )
+
+    assert backend_a._registry._actor_id != backend_b._registry._actor_id
+
+
+@pytest.mark.ray
 def test_cross_client_duplicate_submit_dedupes_to_one_running_job(local_ray_registry) -> None:
     backend_a = RayJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
 
@@ -420,7 +470,6 @@ def test_registry_cancel_after_backend_restart(local_ray_registry) -> None:
     _configure_registry_backend(
         store_path=local_ray_registry["store_path"],
         scope=local_ray_registry["scope"],
-        actor_name=local_ray_registry["actor_name"],
         namespace=local_ray_registry["namespace"],
     )
     reattached = get_job(job_id)
@@ -440,14 +489,12 @@ def test_registry_shared_list_and_get_across_clients(local_ray_registry) -> None
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
 
@@ -463,7 +510,7 @@ def test_registry_shared_list_and_get_across_clients(local_ray_registry) -> None
 
 @pytest.mark.ray
 def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path) -> None:
-    actor_name = f"slow-final-read-registry-{uuid4().hex}"
+    actor_name = DEFAULT_REGISTRY_ACTOR_NAME
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
     job_id = uuid4().hex
@@ -472,9 +519,12 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
     if not ray.is_initialized():
         init_local_ray()
 
+    registry_descriptor = _registry_descriptor(_registry_configuration())
+
     @ray.remote
     class SlowFirstGetRegistry:
-        def __init__(self) -> None:
+        def __init__(self, descriptor: dict[str, Any]) -> None:
+            self.descriptor = descriptor
             now = time.time()
             self.get_count = 0
             self.record: dict[str, Any] = {
@@ -501,6 +551,9 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
 
         def ping(self) -> bool:
             return True
+
+        def describe(self) -> dict[str, Any]:
+            return self.descriptor
 
         def register_or_get(self, _scope: str, _scoped_run_key: str) -> dict[str, Any]:
             out = dict(self.record)
@@ -563,14 +616,15 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
             return dict(self.record)
 
     try:
-        registry = SlowFirstGetRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote()
+        registry = SlowFirstGetRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote(
+            registry_descriptor
+        )
         assert ray.get(registry.ping.remote()) is True
         backend = RayJobBackend(
             address="local",
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             idempotency_scope=scope,
             controller_num_cpus=0.0,
-            registry_actor_name=actor_name,
             registry_namespace=namespace,
             registry_sweep_on_submit=False,
             registry_update_timeout_s=0.2,
@@ -652,7 +706,6 @@ def test_controller_launch_failure_keeps_terminal_controller_for_retry(local_ray
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
         controller_actor_prefix=prefix,
     )
@@ -825,14 +878,12 @@ def test_registry_cancel_updates_shared_state(local_ray_registry) -> None:
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
-        registry_actor_name=local_ray_registry["actor_name"],
         registry_namespace=local_ray_registry["namespace"],
     )
 
@@ -857,7 +908,6 @@ def test_registry_requires_explicit_scope(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="idempotency_scope is required"):
         RayJobBackend(
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
-            registry_actor_name=f"checkmaite-test-registry-{uuid4().hex}",
             registry_namespace=f"checkmaite-test-ns-{uuid4().hex}",
         )
 
@@ -868,7 +918,6 @@ def test_registry_rejects_unsafe_heartbeat_config(tmp_path: Path) -> None:
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             idempotency_scope=f"scope-{uuid4().hex}",
             controller_num_cpus=0.0,
-            registry_actor_name=f"checkmaite-test-registry-{uuid4().hex}",
             registry_namespace=f"checkmaite-test-ns-{uuid4().hex}",
             registry_controller_heartbeat_ttl_s=1.0,
             controller_heartbeat_interval_s=1.0,
@@ -1135,7 +1184,6 @@ def test_registry_get_and_list_sweep_stale_running_jobs() -> None:
 @pytest.mark.ray
 def test_controller_heartbeat_keeps_running_job_from_being_swept(tmp_path: Path) -> None:
     store_path = tmp_path / "analytics-store"
-    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
 
@@ -1148,7 +1196,6 @@ def test_controller_heartbeat_keeps_running_job_from_being_swept(tmp_path: Path)
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
-        registry_actor_name=actor_name,
         registry_namespace=namespace,
         registry_controller_heartbeat_ttl_s=6.0,
         controller_heartbeat_interval_s=0.05,
@@ -1271,7 +1318,6 @@ def test_list_jobs_is_limited_and_caches_listed_handles(monkeypatch) -> None:
 @pytest.mark.ray
 def test_registry_sweeps_retained_terminal_job_records(tmp_path: Path) -> None:
     store_path = tmp_path / "analytics-store"
-    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
 
@@ -1284,7 +1330,6 @@ def test_registry_sweeps_retained_terminal_job_records(tmp_path: Path) -> None:
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
-        registry_actor_name=actor_name,
         registry_namespace=namespace,
         terminal_job_retention_s=0.0,
     )
@@ -1399,7 +1444,6 @@ def test_registry_report_threshold_is_not_part_of_submission_identity(local_ray_
 @pytest.mark.ray
 def test_registry_sweeps_retained_terminal_controllers(tmp_path: Path) -> None:
     store_path = tmp_path / "analytics-store"
-    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
 
@@ -1412,7 +1456,6 @@ def test_registry_sweeps_retained_terminal_controllers(tmp_path: Path) -> None:
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
-        registry_actor_name=actor_name,
         registry_namespace=namespace,
         controller_retention_s=0.0,
         max_retained_terminal_controllers=0,
@@ -1448,7 +1491,6 @@ def test_registry_failed_terminal_state_propagates_after_restart(local_ray_regis
     _configure_registry_backend(
         store_path=local_ray_registry["store_path"],
         scope=local_ray_registry["scope"],
-        actor_name=local_ray_registry["actor_name"],
         namespace=local_ray_registry["namespace"],
     )
 
@@ -1484,7 +1526,6 @@ def test_registry_store_write_failure_still_fails_job(local_ray_registry) -> Non
     _configure_registry_backend(
         store_path=bad_store_root,
         scope=local_ray_registry["scope"],
-        actor_name=local_ray_registry["actor_name"],
         namespace=local_ray_registry["namespace"],
         force_reinit=True,
     )
@@ -1588,6 +1629,167 @@ def test_registry_sweep_expired_submissions_honors_limit() -> None:
     assert registry.sweep_expired_submissions(now_ts, 2) == 2
     failed = [registry.get_job(scope, row["job_id"])["status"] is RegistryStatus.FAILED for row in rows]
     assert sum(failed) == 2
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_actor_reuse_rejects_legacy_actor_without_handshake() -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+
+    @ray.remote
+    class LegacyRegistry:
+        def ping(self) -> bool:
+            return True
+
+    registry = LegacyRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote()
+    try:
+        assert ray.get(registry.ping.remote()) is True
+        with pytest.raises(RegistryCompatibilityError, match="does not support.*registry handshake"):
+            get_or_create_registry_actor(name=actor_name, namespace=namespace, reservation_ttl_s=10.0)
+    finally:
+        ray.kill(registry, no_restart=True)
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_actor_reuse_rejects_invalid_handshake_payload() -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+
+    @ray.remote
+    class InvalidRegistry:
+        def describe(self) -> list[object]:
+            return []
+
+    registry = InvalidRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote()
+    try:
+        with pytest.raises(RegistryCompatibilityError, match="invalid compatibility descriptor"):
+            get_or_create_registry_actor(name=actor_name, namespace=namespace, reservation_ttl_s=10.0)
+    finally:
+        ray.kill(registry, no_restart=True)
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_actor_death_during_handshake_is_startup_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+    get_or_create_registry_actor(name=actor_name, namespace=namespace, reservation_ttl_s=10.0)
+    real_get_actor = ray.get_actor
+
+    def get_then_kill(name: str, *, namespace: str | None = None):
+        registry = real_get_actor(name, namespace=namespace)
+        ray.kill(registry, no_restart=True)
+        return registry
+
+    monkeypatch.setattr(ray, "get_actor", get_then_kill)
+
+    with pytest.raises(RegistryStartupError, match="failed during its startup handshake") as exc_info:
+        get_or_create_registry_actor(name=actor_name, namespace=namespace, reservation_ttl_s=10.0)
+
+    assert isinstance(exc_info.value.__cause__, RayActorError)
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_describe_task_failure_is_startup_failure() -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+
+    @ray.remote
+    class FailingRegistry:
+        def describe(self) -> dict[str, object]:
+            raise RuntimeError("temporary describe failure")
+
+    registry = FailingRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote()
+    try:
+        with pytest.raises(RegistryStartupError, match="failed during its startup handshake") as exc_info:
+            get_or_create_registry_actor(name=actor_name, namespace=namespace, reservation_ttl_s=10.0)
+        assert isinstance(exc_info.value.__cause__, RayTaskError)
+    finally:
+        ray.kill(registry, no_restart=True)
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_describe_timeout_is_startup_failure() -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+
+    @ray.remote
+    class SlowRegistry:
+        def describe(self) -> dict[str, object]:
+            time.sleep(1.0)
+            return {}
+
+    registry = SlowRegistry.options(name=actor_name, namespace=namespace, lifetime="detached").remote()
+    try:
+        with pytest.raises(RegistryStartupError, match="did not become ready"):
+            get_or_create_registry_actor(
+                name=actor_name,
+                namespace=namespace,
+                reservation_ttl_s=10.0,
+                startup_timeout_s=0.01,
+            )
+    finally:
+        ray.kill(registry, no_restart=True)
+
+
+@pytest.mark.ray
+@pytest.mark.usefixtures("ray_registry_runtime")
+def test_registry_reuse_does_not_compare_handle_pending_call_limits(tmp_path: Path) -> None:
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+    registry = get_or_create_registry_actor(
+        name=DEFAULT_REGISTRY_ACTOR_NAME,
+        namespace=namespace,
+        reservation_ttl_s=60.0,
+        registry_max_pending_calls=None,
+    )
+    backend: RayJobBackend | None = None
+    try:
+        reattached = get_or_create_registry_actor(
+            name=DEFAULT_REGISTRY_ACTOR_NAME,
+            namespace=namespace,
+            reservation_ttl_s=60.0,
+            registry_max_pending_calls=2048,
+        )
+        assert ray.get(reattached.describe.remote())["configuration"] == _registry_configuration()
+
+        backend = RayJobBackend(
+            analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
+            idempotency_scope=f"scope-{uuid4().hex}",
+            registry_namespace=namespace,
+            controller_num_cpus=0.0,
+        )
+        assert backend.list_jobs() == []
+    finally:
+        if backend is not None:
+            backend.shutdown(wait=False)
+        ray.kill(registry, no_restart=True)
+
+
+@pytest.mark.ray
+def test_registry_actor_reuse_rejects_incompatible_configuration() -> None:
+    actor_name = f"checkmaite-test-registry-{uuid4().hex}"
+    namespace = f"checkmaite-test-ns-{uuid4().hex}"
+
+    shutdown_job_backend(wait=False)
+    if not ray.is_initialized():
+        init_local_ray()
+
+    get_or_create_registry_actor(
+        name=actor_name,
+        namespace=namespace,
+        reservation_ttl_s=10.0,
+    )
+
+    with pytest.raises(RegistryCompatibilityError, match="reservation_ttl_s"):
+        get_or_create_registry_actor(
+            name=actor_name,
+            namespace=namespace,
+            reservation_ttl_s=20.0,
+        )
 
 
 @pytest.mark.ray

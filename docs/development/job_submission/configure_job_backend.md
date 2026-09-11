@@ -24,10 +24,9 @@ So the backend needs explicit configuration for the execution environment and co
 - that job-submission workers run with capability-local caching disabled
   (`use_cache=False`) because worker-local caches are ephemeral and not shared,
 - which clients should share job identity, dedupe, and reattach behavior (`idempotency_scope` for the registry-backed Ray backend),
-- how shared backend state is named and discovered (`registry_actor_name`,
-  `registry_namespace`; by default the Ray registry actor name is derived from
-  `idempotency_scope`),
-- actor pending-call limits (`registry_max_pending_calls`, `controller_max_pending_calls`) that turn overload into retryable `BackpressureError`,
+- which native Ray namespace owns the shared backend state
+  (`registry_namespace`; each namespace has one fixed internal registry actor),
+- actor pending-call limits (`registry_max_pending_calls`, `controller_max_pending_calls`) for handles returned when this client creates an actor; Ray cannot apply them to reattached handles,
 - and operational settings such as timeouts, retention, cleanup, and actor resource placement.
 
 Provenance fields such as `user_id`, `workspace_id`, `environment`, `executor`,
@@ -119,12 +118,17 @@ configure_job_backend(
     address="ray://cluster-head:10001",
     analytics_store={"backend": "parquet", "uri": "s3://team-checkmaite/analytics-store"},
     idempotency_scope="team-a-notebooks",
-    # Optional: omit registry_actor_name to use a stable scope-derived default.
-    # Pass an explicit name only when clients should intentionally share one registry actor.
+    # Use a different Ray namespace when an independent registry is required.
     registry_namespace="checkmaite_jobs",
     controller_retention_s=3600,
     max_retained_terminal_controllers=1000,
 )
 ```
+
+`registry_namespace` uses Ray's built-in named-resource namespace. It does not
+create a new Ray cluster, Kubernetes namespace, resource quota, or security
+boundary. Checkmaite's registry actor name is fixed and internal; users select
+an independent registry by selecting another Ray namespace. All clients sharing
+a namespace must use compatible registry settings.
 
 For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and [Ray simple job backend](ray_simple_job_backend.md). For worker image and cluster environment guidance, see [Worker environments](worker_environments.md). For store semantics, provenance, and URI resolution details, see [Distributed analytics store](analytics_store.md).

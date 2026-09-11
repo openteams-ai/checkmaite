@@ -99,7 +99,7 @@ Important:
 - and it is forwarded to worker tasks so they know where durable results should be written.
 - submission is deduplicated by `(idempotency_scope, scoped_run_key)`, and
   `get_job(job_id)` / `list_jobs()` can reattach across client restarts as
-  long as the same actor identity and scope are reused.
+  long as the same Ray cluster, `registry_namespace`, and scope are reused.
 - worker-side analytics-store writes include provenance resolved on the
   submitter plus dynamic job metadata: `job_id`, `backend="ray"`,
   `submitted_at`, `completed_at`, and `run_event_id=job_id`.
@@ -260,32 +260,70 @@ when you really want to disconnect the local Ray runtime.
 
 ## Registry configuration notes
 
-Keep `registry_namespace` and `idempotency_scope` stable across sessions if you
-want reattach behavior. By default, the registry actor name is a deterministic
-hash of `idempotency_scope`, which avoids accidental collisions between unrelated
-teams on the same Ray cluster. Pass `registry_actor_name` explicitly only when
-clients should intentionally share one registry actor across scopes.
+The registry has two user-visible identity levels:
 
-Different scopes intentionally do not dedupe with each other.
+```text
+Ray cluster
+└── registry_namespace       selects one independent registry
+    └── idempotency_scope    partitions jobs inside that registry
+```
+
+`registry_namespace` is a native Ray namespace. It is sent to Ray when
+Checkmaite creates or looks up its fixed internal `checkmaite_job_registry`
+actor. There is no user-configurable registry actor name. Keep the namespace
+stable across sessions to reconnect to the same registry, and select a different
+namespace for migration, testing, load sharding, or independent retention and
+resource settings.
+
+A Ray namespace does not create a separate Ray cluster, Kubernetes namespace,
+worker pool, quota, or security boundary. Registries in different namespaces on
+the same cluster still share Ray's scheduler and workers. Use a separate Ray
+cluster when infrastructure or security isolation is required. In KubeRay, no
+extra Kubernetes object is needed for a Ray namespace: Ray's GCS records the
+namespace when the named actor is created.
+
+The registry keys every lookup and deduplication entry by `idempotency_scope`, so
+different scopes in one namespace do not list or deduplicate against each other.
+Scopes are logical partitions, not security boundaries. Controller-count and
+sweep-batch limits apply to the registry as a whole, not separately to each
+scope, so activity in one scope can cause terminal controllers from another
+scope to be cleaned up.
+
+Registry creation settings are immutable for the lifetime of the registry in a
+namespace. Each client performs a readiness and compatibility handshake before
+reuse. If settings differ, either make clients agree or choose another
+`registry_namespace`; Checkmaite never silently creates another actor name in the
+same namespace. A single Checkmaite compatibility version covers the actor
+protocol and record/result schemas; incompatible versions are rejected early.
+Ray remains responsible for Python and Ray runtime compatibility.
+`registry_startup_timeout_s` controls this cold-start handshake
+separately from normal registry update timeouts.
+
+The registry reserves zero Ray CPUs by default. It remains a long-lived detached
+control-plane actor and should stay small.
 
 ### Pending-call limits and backpressure
 
-The registry is a single serialized actor, so queued registry calls should be
-bounded. By default, `registry_max_pending_calls=1024` caps queued calls on each
-registry actor handle and `controller_max_pending_calls=64` caps queued calls on
-each per-job controller actor handle. These limits protect the Ray control plane
-from unbounded memory growth during bursty submits, polling, or cancellation.
+Ray's pending-call limits belong to client-side actor handles, not to the actors
+themselves. When a client creates an actor, `registry_max_pending_calls=1024`
+bounds the registry handle returned by that creation call and
+`controller_max_pending_calls=64` similarly bounds a newly created controller's
+initial handle. These limits can protect that client from unbounded queue growth
+during bursty submits, polling, or cancellation.
 
-If Ray rejects a call because an actor pending-call limit is full, client APIs
-raise `BackpressureError`. Treat that as a retryable overload signal: retry with
-exponential backoff and jitter, reduce client-side concurrency, or tune
-`registry_max_pending_calls` / `controller_max_pending_calls` for expected burst
-size. Higher limits absorb larger bursts but increase memory use and tail
-latency; lower limits fail fast and protect the registry/controller actors.
-Passing `None` opts back into Ray's unbounded pending-call behavior and should be
-reserved for controlled local/debug workloads. These options are applied when an
-actor is created; an already-running detached registry/controller actor keeps the
-limits it was created with until that actor is replaced.
+A handle later obtained through `ray.get_actor()` is a distinct object. Ray does
+not provide a public API for applying `max_pending_calls` to that handle, so
+reattached registry and controller handles use Ray's unbounded default. Pending-
+call limits therefore are not immutable actor settings and do not participate in
+the registry compatibility handshake.
+
+If Ray rejects a call on a bounded creation handle because its pending-call limit
+is full, client APIs raise `BackpressureError`. Treat that as a retryable overload
+signal: retry with exponential backoff and jitter, reduce client-side concurrency,
+or tune `registry_max_pending_calls` / `controller_max_pending_calls` for the
+expected creation-client burst size. Passing `None` leaves a creation handle
+unbounded. Reattached clients should bound their own submission and polling
+concurrency; Checkmaite does not add a separate client-side queue.
 
 Dedupe policy in the current implementation:
 
@@ -353,8 +391,8 @@ Detached registry/controller actors survive notebook or client-process exits,
 but they do **not** survive Ray cluster loss. Current behavior assumes:
 
 - if a client process exits but the Ray cluster remains alive, running jobs can
-  continue and later clients can reattach using the same derived or explicit
-  registry actor name, namespace, and idempotency scope;
+  continue and later clients can reattach using the same Ray cluster,
+  registry namespace, and idempotency scope;
 - if the Ray cluster dies, in-memory registry state, controller actors, and
   running tasks are lost;
 - durable run data that was successfully written before cluster loss remains in

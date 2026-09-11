@@ -53,13 +53,14 @@ submissions are either safe or handled by your own code.
 
 To use `ray` well:
 
-- choose one stable job namespace for each workspace or experiment; this is the
-  `idempotency_scope` value in the job backend config;
-- make clients use the same job namespace (`idempotency_scope`) and Ray namespace
-  when they should share, list, or reconnect to the same jobs; by default the
-  registry actor name is derived from the job namespace, so pass an explicit
-  `registry_actor_name` only when clients should intentionally share one registry
-  actor across scopes;
+- choose a stable `idempotency_scope` for each group of jobs that should be
+  listed, recovered, and deduplicated together, such as a project, team
+  workspace, or series of related experiments; clients must reuse the same
+  value to reconnect to those jobs;
+- make clients use the same `idempotency_scope` and `registry_namespace` when
+  they should share, list, or reconnect to the same jobs; each Ray namespace
+  contains one fixed internal Checkmaite registry, and a different
+  `registry_namespace` selects an independent registry;
 - choose an analytics store that Ray workers can reach and that remains available
   after the submitting process exits;
 - keep registry records small; store large outputs, reports, artifacts, datasets,
@@ -138,19 +139,30 @@ provenance explicitly to the analytics-store write. Those values are persisted a
 columns on the auto-generated `runs` table. The registry stores only job-tracking
 metadata and does not store full run records.
 
-### 5. The job namespace controls sharing
+### 5. Ray namespaces select registries; idempotency scopes partition jobs
 
-`idempotency_scope` is required. Think of it as the job namespace for a
-workspace, project, tenant, or experiment.
+`registry_namespace` is a native Ray namespace, not a Kubernetes namespace or a
+security boundary. Checkmaite creates exactly one registry with a fixed internal
+actor name in each configured Ray namespace. Use the same namespace to share a
+registry and a different namespace when an independent registry, configuration,
+or migration boundary is required. Ray namespaces do not create separate
+clusters or reserve separate compute resources.
+
+`idempotency_scope` is required. It is a logical workspace, project, tenant, or
+experiment partition inside that registry. Different scopes do not list or
+deduplicate against each other, but they are not security boundaries.
 
 Clients share and reconnect to the same jobs only when they use the same:
 
+- Ray cluster;
+- `registry_namespace`;
 - `idempotency_scope`;
-- registry actor name;
-- registry namespace;
-- compatible job backend code.
+- compatible job backend protocol and registry configuration.
 
-Use different scopes or registry actors for clients that should not share jobs.
+When a client reattaches to a registry, Checkmaite validates one compatibility
+version covering its actor protocol and record/result schemas, plus a typed copy
+of the registry's immutable configuration. Ray itself remains responsible for
+Python and Ray runtime compatibility.
 When the same logical run is submitted again, the job backend is expected to return
 the existing active or completed job instead of starting duplicate work.
 

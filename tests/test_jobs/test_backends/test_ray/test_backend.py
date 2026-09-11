@@ -138,7 +138,6 @@ def ray_job_backend_smoke(_jobs_smoke_ray_runtime, tmp_path: Path) -> tuple[RayJ
             address=None,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
             idempotency_scope=f"smoke-{uuid4().hex}",
-            registry_actor_name=f"registry-{uuid4().hex}",
             registry_namespace=f"checkmaite-smoke-{uuid4().hex}",
             controller_num_cpus=0.0,
             registry_sweep_interval_s=0.0,

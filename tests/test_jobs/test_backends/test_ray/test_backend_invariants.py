@@ -283,19 +283,21 @@ def test_validate_max_pending_calls_accepts_none_or_positive_int(value) -> None:
 def test_ray_job_backend_defaults_bound_actor_pending_calls() -> None:
     signature = inspect.signature(RayJobBackend)
 
-    assert signature.parameters["registry_actor_name"].default is None
+    assert "registry_actor_name" not in signature.parameters
+    assert signature.parameters["registry_namespace"].default == "checkmaite_jobs"
+    assert signature.parameters["registry_num_cpus"].default == 0.0
     assert signature.parameters["registry_max_pending_calls"].default == 1024
     assert signature.parameters["controller_max_pending_calls"].default == 64
 
 
-def test_default_registry_actor_name_is_scope_specific_and_stable() -> None:
-    scope_a = RayJobBackend._default_registry_actor_name("scope-a")
-    same_scope_a = RayJobBackend._default_registry_actor_name("scope-a")
-    scope_b = RayJobBackend._default_registry_actor_name("scope-b")
+@pytest.mark.parametrize("namespace", ["", "   ", " leading", "trailing "])
+def test_registry_namespace_must_be_nonempty_without_surrounding_whitespace(namespace: str) -> None:
+    with pytest.raises(ValueError, match="registry_namespace"):
+        RayJobBackend._validate_registry_namespace(namespace)
 
-    assert scope_a == same_scope_a
-    assert scope_a != scope_b
-    assert scope_a.startswith(f"{job_backend_module.DEFAULT_REGISTRY_ACTOR_NAME}_")
+
+def test_registry_actor_name_is_a_fixed_internal_constant() -> None:
+    assert job_backend_module.DEFAULT_REGISTRY_ACTOR_NAME == "checkmaite_job_registry"
 
 
 @pytest.mark.parametrize("value", [True, 1.5, "1"])

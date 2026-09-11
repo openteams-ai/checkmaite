@@ -13,6 +13,8 @@ from .registry import (
     JobRegistrationRecord,
     JobRegistry,
     NewJobRegistrationRecord,
+    RegistryCompatibilityError,
+    RegistryStartupError,
     RegistryStatus,
     get_or_create_registry_actor,
 )
@@ -28,6 +30,8 @@ __all__ = [
     "NewJobRegistrationRecord",
     "RayJob",
     "RayJobBackend",
+    "RegistryCompatibilityError",
+    "RegistryStartupError",
     "RegistryStatus",
     "get_or_create_controller_actor",
     "get_or_create_registry_actor",

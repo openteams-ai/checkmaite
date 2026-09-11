@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed. Its run-cache identity now includes a schema version so incompatible single-metric run entries are not loaded as nested outputs.
+- Ray job clients now use one fixed internal registry actor per Ray namespace while retaining idempotency scopes as logical lookup and deduplication partitions; select another namespace for an independent registry.
+- Existing Ray registry actors now complete a version and immutable-configuration handshake before clients reuse them.
 - Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
 - Cache entries and binary files now use failure-safe publication and clean up partial writes.
 - Binary cache references are decoded only while loading cache entries.
@@ -27,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded MAITE from 0.9.2 to a `>=0.9.4,<0.10` range. The floor is 0.9.4, the release that introduced the native multi-object tracking protocols checkmaite imports unconditionally, and a range rather than an exact pin avoids lockstep bumps with checkmaite-plugins' circular test dependency. The resolved version is 0.9.5.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
+
+### Removed
+- Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous Checkmaite release, or keep that client available until the Ray cluster is recycled.
 
 ### Fixed
 - Passed datum metadata to metrics when evaluating cached predictions.

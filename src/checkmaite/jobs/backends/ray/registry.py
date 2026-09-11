@@ -9,6 +9,7 @@ from typing import Any, Literal, TypeAlias, TypedDict, cast
 
 import ray
 from ray.actor import ActorHandle
+from ray.exceptions import GetTimeoutError
 
 from checkmaite.jobs.protocol import CapabilityRunRef, CapabilityRunRefPayload
 
@@ -122,6 +123,9 @@ JobRegistrationRecord: TypeAlias = ExistingJobRegistrationRecord | NewJobRegistr
 
 DEFAULT_REGISTRY_ACTOR_NAME = "checkmaite_job_registry"
 DEFAULT_REGISTRY_NAMESPACE = "checkmaite_jobs"
+DEFAULT_REGISTRY_NUM_CPUS = 0.0
+DEFAULT_REGISTRY_STARTUP_TIMEOUT_S = 30.0
+REGISTRY_COMPATIBILITY_VERSION = 1
 DEFAULT_RESERVATION_TTL_S = 60.0
 DEFAULT_CONTROLLER_HEARTBEAT_TTL_S = 120.0
 DEFAULT_CONTROLLER_RETENTION_S = 3600.0
@@ -131,6 +135,89 @@ DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE = 10000
 DEFAULT_LIST_JOBS_LIMIT = 100
 DEFAULT_REGISTRY_SWEEP_INTERVAL_S = 30.0
 DEFAULT_REGISTRY_SWEEP_BATCH_LIMIT = 100
+
+
+class RegistryConfiguration(TypedDict):
+    """Immutable behavior and placement settings for one registry actor."""
+
+    reservation_ttl_s: float
+    controller_heartbeat_ttl_s: float
+    controller_retention_s: float
+    max_retained_terminal_controllers: int | None
+    terminal_job_retention_s: float | None
+    max_retained_terminal_jobs_per_scope: int | None
+    registry_num_cpus: float
+    registry_memory: float | None
+    registry_resources: dict[str, float] | None
+
+
+class RegistryDescriptor(TypedDict):
+    """Small compatibility payload returned by a registry actor."""
+
+    compatibility_version: int
+    configuration: RegistryConfiguration
+
+
+class RegistryCompatibilityError(RuntimeError):
+    """Raised when an existing registry cannot safely serve this client."""
+
+
+class RegistryStartupError(RuntimeError):
+    """Raised when a registry does not become ready within its startup budget."""
+
+
+def _registry_configuration(
+    *,
+    reservation_ttl_s: float = DEFAULT_RESERVATION_TTL_S,
+    controller_heartbeat_ttl_s: float = DEFAULT_CONTROLLER_HEARTBEAT_TTL_S,
+    controller_retention_s: float = DEFAULT_CONTROLLER_RETENTION_S,
+    max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
+    terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
+    max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+    registry_num_cpus: float = DEFAULT_REGISTRY_NUM_CPUS,
+    registry_memory: float | None = None,
+    registry_resources: dict[str, float] | None = None,
+) -> RegistryConfiguration:
+    return {
+        "reservation_ttl_s": float(reservation_ttl_s),
+        "controller_heartbeat_ttl_s": float(controller_heartbeat_ttl_s),
+        "controller_retention_s": float(controller_retention_s),
+        "max_retained_terminal_controllers": max_retained_terminal_controllers,
+        "terminal_job_retention_s": None if terminal_job_retention_s is None else float(terminal_job_retention_s),
+        "max_retained_terminal_jobs_per_scope": max_retained_terminal_jobs_per_scope,
+        "registry_num_cpus": float(registry_num_cpus),
+        "registry_memory": None if registry_memory is None else float(registry_memory),
+        "registry_resources": None if registry_resources is None else dict(registry_resources),
+    }
+
+
+def _registry_descriptor(configuration: RegistryConfiguration) -> RegistryDescriptor:
+    return {
+        "compatibility_version": REGISTRY_COMPATIBILITY_VERSION,
+        "configuration": copy.deepcopy(configuration),
+    }
+
+
+def _validate_registry_descriptor(actual: RegistryDescriptor, expected: RegistryDescriptor) -> None:
+    """Fail early when a named actor has an incompatible protocol or configuration."""
+    mismatches = []
+    if actual.get("compatibility_version") != expected["compatibility_version"]:
+        mismatches.append(
+            "compatibility_version: "
+            f"expected {expected['compatibility_version']!r}, got {actual.get('compatibility_version')!r}"
+        )
+
+    actual_configuration = actual.get("configuration")
+    if actual_configuration != expected["configuration"]:
+        mismatches.append(f"configuration: expected {expected['configuration']!r}, got {actual_configuration!r}")
+
+    if mismatches:
+        raise RegistryCompatibilityError(
+            "Existing Ray registry actor is incompatible with this Checkmaite client: "
+            + "; ".join(mismatches)
+            + ". Configure a different registry_namespace for an independent registry, or make all clients in "
+            "this namespace use the same registry settings."
+        )
 
 
 def _coerce_registry_status(status: RegistryStatus | str) -> RegistryStatus:
@@ -165,6 +252,7 @@ class JobRegistry:
         max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
         terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
         max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+        deployment_configuration: RegistryConfiguration | None = None,
     ) -> None:
         """Create an empty registry and configure cleanup timeouts.
 
@@ -195,9 +283,24 @@ class JobRegistry:
         self._max_retained_terminal_controllers = max_retained_terminal_controllers
         self._terminal_job_retention_s = None if terminal_job_retention_s is None else float(terminal_job_retention_s)
         self._max_retained_terminal_jobs_per_scope = max_retained_terminal_jobs_per_scope
+        self._deployment_configuration = copy.deepcopy(
+            deployment_configuration
+            or _registry_configuration(
+                reservation_ttl_s=reservation_ttl_s,
+                controller_heartbeat_ttl_s=controller_heartbeat_ttl_s,
+                controller_retention_s=controller_retention_s,
+                max_retained_terminal_controllers=max_retained_terminal_controllers,
+                terminal_job_retention_s=terminal_job_retention_s,
+                max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+            )
+        )
 
         self._dedupe_index: dict[tuple[str, str], str] = {}
         self._job_index: dict[tuple[str, str], JobRecord] = {}
+
+    def describe(self) -> RegistryDescriptor:
+        """Return the compatibility version and immutable actor configuration."""
+        return _registry_descriptor(self._deployment_configuration)
 
     @staticmethod
     def _copy_record(record: JobRecord) -> JobRecord:
@@ -1006,7 +1109,7 @@ def get_or_create_registry_actor(
     name: str,
     namespace: str,
     reservation_ttl_s: float,
-    registry_num_cpus: float | None = None,
+    registry_num_cpus: float = DEFAULT_REGISTRY_NUM_CPUS,
     registry_memory: float | None = None,
     registry_resources: dict[str, float] | None = None,
     registry_max_pending_calls: int | None = None,
@@ -1015,38 +1118,78 @@ def get_or_create_registry_actor(
     max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
     terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
     max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+    startup_timeout_s: float = DEFAULT_REGISTRY_STARTUP_TIMEOUT_S,
 ) -> ActorHandle:
-    """Get existing detached registry actor or create it if absent."""
-    try:
-        return ray.get_actor(name, namespace=namespace)
-    except ValueError:
-        pass
-
-    options: dict[str, Any] = {
-        "name": name,
-        "namespace": namespace,
-        "lifetime": "detached",
-    }
-    if registry_num_cpus is not None:
-        options["num_cpus"] = float(registry_num_cpus)
-    if registry_memory is not None:
-        options["memory"] = float(registry_memory)
-    if registry_resources is not None:
-        options["resources"] = registry_resources
-    if registry_max_pending_calls is not None:
-        options["max_pending_calls"] = int(registry_max_pending_calls)
+    """Get or create a detached registry and verify that it is safe to reuse."""
+    deployment_configuration = _registry_configuration(
+        reservation_ttl_s=reservation_ttl_s,
+        controller_heartbeat_ttl_s=controller_heartbeat_ttl_s,
+        controller_retention_s=controller_retention_s,
+        max_retained_terminal_controllers=max_retained_terminal_controllers,
+        terminal_job_retention_s=terminal_job_retention_s,
+        max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+        registry_num_cpus=registry_num_cpus,
+        registry_memory=registry_memory,
+        registry_resources=registry_resources,
+    )
+    expected_descriptor = _registry_descriptor(deployment_configuration)
 
     try:
-        return cast(
-            ActorHandle,
-            JobRegistryActor.options(**options).remote(
-                reservation_ttl_s=float(reservation_ttl_s),
-                controller_heartbeat_ttl_s=float(controller_heartbeat_ttl_s),
-                controller_retention_s=float(controller_retention_s),
-                max_retained_terminal_controllers=max_retained_terminal_controllers,
-                terminal_job_retention_s=terminal_job_retention_s,
-                max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
-            ),
-        )
+        registry = ray.get_actor(name, namespace=namespace)
     except ValueError:
-        return ray.get_actor(name, namespace=namespace)
+        options: dict[str, Any] = {
+            "name": name,
+            "namespace": namespace,
+            "lifetime": "detached",
+            "num_cpus": float(registry_num_cpus),
+        }
+        if registry_memory is not None:
+            options["memory"] = float(registry_memory)
+        if registry_resources is not None:
+            options["resources"] = registry_resources
+        if registry_max_pending_calls is not None:
+            options["max_pending_calls"] = int(registry_max_pending_calls)
+
+        try:
+            registry = cast(
+                ActorHandle,
+                JobRegistryActor.options(**options).remote(
+                    reservation_ttl_s=float(reservation_ttl_s),
+                    controller_heartbeat_ttl_s=float(controller_heartbeat_ttl_s),
+                    controller_retention_s=float(controller_retention_s),
+                    max_retained_terminal_controllers=max_retained_terminal_controllers,
+                    terminal_job_retention_s=terminal_job_retention_s,
+                    max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+                    deployment_configuration=deployment_configuration,
+                ),
+            )
+        except ValueError:
+            # Another client may have won the named-actor creation race.
+            registry = ray.get_actor(name, namespace=namespace)
+
+    try:
+        describe = registry.describe
+    except AttributeError as exc:
+        raise RegistryCompatibilityError(
+            f"Ray namespace {namespace!r} already contains an actor named {name!r} that does not support "
+            "the required Checkmaite registry handshake. Use a different registry_namespace, reconnect with "
+            "the previous Checkmaite release until legacy jobs finish, or remove the conflicting actor before upgrading"
+        ) from exc
+
+    try:
+        raw_descriptor = ray.get(describe.remote(), timeout=float(startup_timeout_s))
+    except GetTimeoutError as exc:
+        raise RegistryStartupError(
+            f"Ray registry actor {name!r} in namespace {namespace!r} did not become ready "
+            f"within {float(startup_timeout_s):.3f}s"
+        ) from exc
+    except Exception as exc:
+        raise RegistryStartupError(
+            f"Ray registry actor {name!r} in namespace {namespace!r} failed during its startup handshake; retry "
+            "the connection"
+        ) from exc
+
+    if not isinstance(raw_descriptor, dict):
+        raise RegistryCompatibilityError(f"Ray registry actor {name!r} returned an invalid compatibility descriptor")
+    _validate_registry_descriptor(cast(RegistryDescriptor, raw_descriptor), expected_descriptor)
+    return registry

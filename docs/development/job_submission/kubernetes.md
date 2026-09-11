@@ -99,12 +99,14 @@ scale-down.
 
 The registry remains a single serialized coordination point, so keep records
 small and list operations bounded. `registry_max_pending_calls` defaults to
-`1024` to cap queued registry calls so many notebooks or clients do not build an
-unbounded actor-call queue. `controller_max_pending_calls` defaults to `64` and
-similarly caps queued calls on per-job controller actors. If those queues fill,
-client calls raise `BackpressureError`; retry with exponential backoff and jitter
-or tune the limits for your expected burst size. Passing `None` opts back into
-Ray's unbounded pending-call behavior.
+`1024` for the registry handle returned when this client creates the actor, and
+`controller_max_pending_calls` similarly defaults to `64` for newly created
+controller handles. If those bounded handles fill, client calls raise
+`BackpressureError`; retry with exponential backoff and jitter or tune the limits
+for the expected burst size. Ray cannot apply these handle-local limits when a
+client reattaches through `ray.get_actor()`, so reattached registry and controller
+handles use Ray's unbounded default and clients should bound their own request
+concurrency. Passing `None` also leaves creation handles unbounded.
 
 ## Durability boundary and workload fit
 

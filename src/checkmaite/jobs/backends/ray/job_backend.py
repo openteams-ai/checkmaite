@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -50,6 +49,8 @@ from .registry import (
     DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
     DEFAULT_REGISTRY_ACTOR_NAME,
     DEFAULT_REGISTRY_NAMESPACE,
+    DEFAULT_REGISTRY_NUM_CPUS,
+    DEFAULT_REGISTRY_STARTUP_TIMEOUT_S,
     DEFAULT_REGISTRY_SWEEP_BATCH_LIMIT,
     DEFAULT_REGISTRY_SWEEP_INTERVAL_S,
     DEFAULT_RESERVATION_TTL_S,
@@ -79,7 +80,7 @@ def _backpressure_error(action: str) -> BackpressureError:
     return BackpressureError(
         "Ray job backend control plane is overloaded while "
         f"{action}; actor pending-call limit was exceeded. Retry with exponential backoff, reduce "
-        "client concurrency, or tune registry_max_pending_calls/controller_max_pending_calls for expected bursts."
+        "client concurrency, or tune the creation-handle pending-call limit for expected bursts."
     )
 
 
@@ -1000,9 +1001,25 @@ class RayJobBackend:
         return value
 
     @staticmethod
-    def _default_registry_actor_name(idempotency_scope: str) -> str:
-        scope_hash = hashlib.sha256(idempotency_scope.encode("utf-8")).hexdigest()[:16]
-        return f"{DEFAULT_REGISTRY_ACTOR_NAME}_{scope_hash}"
+    def _validate_registry_actor_settings(num_cpus: float, startup_timeout_s: float) -> tuple[float, float]:
+        num_cpus = float(num_cpus)
+        startup_timeout_s = float(startup_timeout_s)
+        if num_cpus < 0:
+            raise ValueError("registry_num_cpus must be >= 0")
+        if startup_timeout_s <= 0:
+            raise ValueError("registry_startup_timeout_s must be > 0")
+        return num_cpus, startup_timeout_s
+
+    @staticmethod
+    def _validate_registry_namespace(namespace: str) -> str:
+        """Validate the sole public identity for an independent registry."""
+        if not isinstance(namespace, str):
+            raise TypeError("registry_namespace must be a string")
+        if not namespace or not namespace.strip():
+            raise ValueError("registry_namespace must be non-empty")
+        if namespace != namespace.strip():
+            raise ValueError("registry_namespace must not have leading or trailing whitespace")
+        return namespace
 
     def __init__(
         self,
@@ -1012,10 +1029,10 @@ class RayJobBackend:
         max_retries: int = 0,
         force_reinit: bool = False,
         idempotency_scope: str | None = None,
-        registry_actor_name: str | None = None,
         registry_namespace: str = DEFAULT_REGISTRY_NAMESPACE,
-        registry_num_cpus: float | None = None,
+        registry_num_cpus: float = DEFAULT_REGISTRY_NUM_CPUS,
         registry_memory: float | None = None,
+        registry_startup_timeout_s: float = DEFAULT_REGISTRY_STARTUP_TIMEOUT_S,
         registry_resources: dict[str, float] | None = None,
         registry_max_pending_calls: int | None = DEFAULT_REGISTRY_MAX_PENDING_CALLS,
         registry_reservation_ttl_s: float = DEFAULT_RESERVATION_TTL_S,
@@ -1060,24 +1077,26 @@ class RayJobBackend:
         idempotency_scope
             Required workspace/project namespace for duplicate-submission keys
             and job lookup.
-        registry_actor_name
-            Name of the shared registry actor. ``None`` derives a stable,
-            scope-specific name from ``idempotency_scope`` to avoid accidental
-            collisions between unrelated clients on the same Ray cluster.
         registry_namespace
-            Ray namespace that contains the registry and controller actors.
+            Ray namespace that contains one fixed internal Checkmaite registry
+            actor and its controllers. Use a different namespace when an
+            independent registry is required.
         registry_num_cpus
-            CPU reservation for the registry actor; ``None`` leaves Ray's actor
-            default unchanged.
+            CPU reservation for the registry actor. Defaults to zero because the
+            registry is a lightweight control-plane actor.
         registry_memory
             Heap memory reservation for the registry actor; ``None`` leaves it
             unset.
         registry_resources
             Custom Ray resources reserved for the registry actor.
+        registry_startup_timeout_s
+            Maximum seconds to wait for registry readiness and compatibility
+            validation. This is separate from routine control-operation timeouts.
         registry_max_pending_calls
-            Maximum queued calls allowed on each registry actor handle. The
-            default bounds registry queue growth; ``None`` opts back into Ray's
-            unbounded behavior.
+            Maximum queued calls on the registry handle returned if this client
+            creates the actor. Handles later obtained through ``ray.get_actor``
+            use Ray's unbounded default because Ray cannot apply this option when
+            reattaching. ``None`` also leaves the creation handle unbounded.
         registry_reservation_ttl_s
             How long a new reservation may stay unattached before cleanup can
             fail it.
@@ -1120,19 +1139,17 @@ class RayJobBackend:
         controller_resources
             Custom Ray resources reserved for each controller actor.
         controller_max_pending_calls
-            Maximum queued calls allowed on each controller actor handle. The
-            default bounds per-controller queue growth; ``None`` opts back into
-            Ray's unbounded behavior.
+            Maximum queued calls on a controller handle returned if this client
+            creates the actor. Handles later obtained through ``ray.get_actor``
+            use Ray's unbounded default because Ray cannot apply this option when
+            reattaching. ``None`` also leaves the creation handle unbounded.
         """
         if not idempotency_scope:
             raise ValueError(
                 "idempotency_scope is required for Ray job submission. "
                 "Pass a stable workspace/project scope so dedupe and reattach semantics are explicit."
             )
-        if registry_actor_name is None:
-            registry_actor_name = self._default_registry_actor_name(idempotency_scope)
-        elif not registry_actor_name:
-            raise ValueError("registry_actor_name must be non-empty when provided")
+        registry_namespace = self._validate_registry_namespace(registry_namespace)
 
         (
             registry_update_timeout_s,
@@ -1172,9 +1189,11 @@ class RayJobBackend:
         self._max_retries = max_retries
 
         self._idempotency_scope = idempotency_scope
-        self._registry_actor_name = registry_actor_name
         self._registry_namespace = registry_namespace
-        self._registry_num_cpus = None if registry_num_cpus is None else float(registry_num_cpus)
+        self._registry_num_cpus, self._registry_startup_timeout_s = self._validate_registry_actor_settings(
+            registry_num_cpus,
+            registry_startup_timeout_s,
+        )
         self._registry_memory = None if registry_memory is None else float(registry_memory)
         self._registry_resources = registry_resources
         self._registry_max_pending_calls = self._validate_max_pending_calls(
@@ -1188,7 +1207,7 @@ class RayJobBackend:
         self._registry_sweep_batch_limit = registry_sweep_batch_limit
         self._last_registry_sweep_ts = 0.0
         self._registry_update_timeout_s = registry_update_timeout_s
-        self._controller_actor_prefix = controller_actor_prefix or f"{self._registry_actor_name}_controller"
+        self._controller_actor_prefix = controller_actor_prefix or f"{DEFAULT_REGISTRY_ACTOR_NAME}_controller"
         self._controller_heartbeat_interval_s = controller_heartbeat_interval_s
         self._controller_terminal_retry_interval_s = controller_terminal_retry_interval_s
         self._controller_retention_s = float(controller_retention_s)
@@ -1204,7 +1223,7 @@ class RayJobBackend:
         )
 
         self._registry = get_or_create_registry_actor(
-            name=self._registry_actor_name,
+            name=DEFAULT_REGISTRY_ACTOR_NAME,
             namespace=self._registry_namespace,
             reservation_ttl_s=self._registry_reservation_ttl_s,
             registry_num_cpus=self._registry_num_cpus,
@@ -1216,6 +1235,7 @@ class RayJobBackend:
             max_retained_terminal_controllers=self._max_retained_terminal_controllers,
             terminal_job_retention_s=self._terminal_job_retention_s,
             max_retained_terminal_jobs_per_scope=self._max_retained_terminal_jobs_per_scope,
+            startup_timeout_s=self._registry_startup_timeout_s,
         )
         self._jobs: dict[str, RayJob] = {}
 
@@ -1640,7 +1660,7 @@ class RayJobBackend:
             controller = get_or_create_controller_actor(
                 name=controller_name,
                 namespace=self._registry_namespace,
-                registry_name=self._registry_actor_name,
+                registry_name=DEFAULT_REGISTRY_ACTOR_NAME,
                 registry_namespace=self._registry_namespace,
                 scope=self._idempotency_scope,
                 job_id=job_id,
