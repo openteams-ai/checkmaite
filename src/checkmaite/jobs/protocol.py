@@ -252,7 +252,7 @@ class JobBackend(Protocol):
         Parameters
         ----------
         capability
-            A checkmaite capability instance (same conceptual input as
+            A CheckMAITE capability instance (same conceptual input as
             ``Capability.run(...)``).
         **kwargs
             Submission/run arguments (models, datasets, metrics, config,

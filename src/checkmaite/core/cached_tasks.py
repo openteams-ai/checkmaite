@@ -69,7 +69,7 @@ def _is_mot_target_batch(targets: Sequence[Any]) -> bool:
 
 
 # TODO: Remove this workaround once https://github.com/mit-ll-ai-technology/maite/issues/45
-# is fixed in Checkmaite's minimum supported MAITE version.
+# is fixed in CheckMAITE's minimum supported MAITE version.
 class _MaterializingAugmentation(Generic[T_Input, T_Target, T_Metadata]):
     def __init__(
         self,

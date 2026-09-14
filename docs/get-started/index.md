@@ -1,6 +1,6 @@
 # Get started
 
-We offer two key ways of executing workflows on `checkmaite`:
+We offer two key ways of executing workflows on `CheckMAITE`:
 
 * An interactive web-based __user interface__ (UI)
 * An __API__ for programmatic access via Python object interfaces
@@ -12,9 +12,9 @@ Click on the respective pages below to get started.
 * :material-monitor-arrow-down-variant:{ .lg .middle } [__Setup__ :octicons-arrow-right-24:](install_setup.md)
 
     ---
-    Install and setup `checkmaite` on your local machine to start using it!
+    Install and setup `CheckMAITE` on your local machine to start using it!
 
-* :material-tab:{ .lg .middle } [__Interactive Access to `checkmaite`__ :octicons-arrow-right-24:](checkmaite_interactive.md)
+* :material-tab:{ .lg .middle } [__Interactive Access to `CheckMAITE`__ :octicons-arrow-right-24:](checkmaite_interactive.md)
 
     ---
     Interactive access to the application (web UI) for Object Detection and Image Classification workflows.

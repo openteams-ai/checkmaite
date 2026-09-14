@@ -1,4 +1,4 @@
-# Setup `checkmaite`
+# Setup `CheckMAITE`
 
 ## Clone the project repository
 

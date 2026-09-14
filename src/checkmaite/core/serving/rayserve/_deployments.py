@@ -1,4 +1,4 @@
-"""Ray Serve deployment classes that wrap existing checkmaite models for remote inference."""
+"""Ray Serve deployment classes that wrap existing CheckMAITE models for remote inference."""
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +17,7 @@ from ray import serve
 # Tune these together when balancing latency vs throughput.
 @serve.deployment
 class RayObjectDetectionDeployment:
-    """Ray Serve deployment wrapping a checkmaite object detection model.
+    """Ray Serve deployment wrapping a CheckMAITE object detection model.
     Parameters
     ----------
     model_cls
@@ -62,7 +62,7 @@ class RayObjectDetectionDeployment:
 
 @serve.deployment
 class RayImageClassificationDeployment:
-    """Ray Serve deployment wrapping a checkmaite image classification model.
+    """Ray Serve deployment wrapping a CheckMAITE image classification model.
 
     Parameters
     ----------

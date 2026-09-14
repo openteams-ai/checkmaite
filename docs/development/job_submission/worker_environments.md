@@ -1,10 +1,10 @@
 # Ray worker environments
 
-This page is aimed primarily at the **platform team** operating Ray clusters for `checkmaite` job submission.
+This page is aimed primarily at the **platform team** operating Ray clusters for `CheckMAITE` job submission.
 
 The short version is:
 
-- `checkmaite` does **not** build worker environments for you,
+- `CheckMAITE` does **not** build worker environments for you,
 - the platform owns the worker image and cluster spec,
 - and the job backend can only supply a Ray `runtime_env` overlay at connection time.
 

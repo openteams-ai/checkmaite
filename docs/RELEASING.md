@@ -1,4 +1,4 @@
-# Releasing checkmaite
+# Releasing CheckMAITE
 
 Use the manual publish jobs only after the release tag already exists on `main`. Pushing the tag does not publish to TestPyPI or PyPI by itself.
 

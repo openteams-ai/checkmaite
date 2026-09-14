@@ -4,7 +4,7 @@
 
 -  [__Personas__ :octicons-arrow-right-24:](personas.md)
 
-    User roles and how they interact with checkmaite.
+    User roles and how they interact with CheckMAITE.
 
 -  [__Workflows__ :octicons-arrow-right-24:](workflows.md)
 

@@ -724,7 +724,7 @@ def create_pdf_output(
     Trust model
     -----------
     The markdown -> HTML -> PDF pipeline assumes the input ``md_report`` is
-    trusted content produced by checkmaite itself (for example, the ``content``
+    trusted content produced by CheckMAITE itself (for example, the ``content``
     of an inline report from ``CapabilityRunBase.collect_md_report``).
     ``xhtml2pdf`` has historically had CVEs in its HTML/CSS parsing path;
     user-supplied strings that reach the report (dataset/model/metric IDs,

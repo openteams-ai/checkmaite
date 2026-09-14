@@ -59,7 +59,7 @@ A **Run** is an object that stores everything associated with a *specific execut
 - The **outputs** produced (e.g., predictions, metric results)
 - An optional `collect_md_report()` implementation returning a typed inline or artifact report for those outputs
 
-Checkmaite uses Pydantic to serialize cache entries. It directly supports common objects such as NumPy arrays and Torch tensors by saving their data in separate binary files. If saving fails, Checkmaite cleans up partial files. Cache links are only followed while loading the cache, so similar-looking user strings remain strings.
+CheckMAITE uses Pydantic to serialize cache entries. It directly supports common objects such as NumPy arrays and Torch tensors by saving their data in separate binary files. If saving fails, CheckMAITE cleans up partial files. Cache links are only followed while loading the cache, so similar-looking user strings remain strings.
 
 <!-- Note: The exported name is binary_de_serializer (with underscore), not binary_deserializer. -->
 To cache another type, register a codec with `binary_de_serializer.register(...)`. The codec supplies functions that convert the value to bytes and restore it. Strict mode uses a custom codec only when the codec also identifies which values have a lossless round trip.
@@ -169,19 +169,19 @@ This cache is controlled by the same `use_cache` flag. When `use_cache=False`, b
 
 ### MAITE Execution and Ownership Semantics
 
-Checkmaite treats `maite.tasks.evaluate()` as the fundamental task. `cached_tasks.predict()` is the convenience form of `evaluate(metric=None, return_preds=True)`. On a cold evaluation, MAITE applies augmentation, calls the model, updates the metric, and optionally retains each batch for return—all in one pass.
+CheckMAITE treats `maite.tasks.evaluate()` as the fundamental task. `cached_tasks.predict()` is the convenience form of `evaluate(metric=None, return_preds=True)`. On a cold evaluation, MAITE applies augmentation, calls the model, updates the metric, and optionally retains each batch for return—all in one pass.
 
-MAITE passes the same batch objects between these steps; it does not make defensive copies. Checkmaite follows that ownership model and assumes:
+MAITE passes the same batch objects between these steps; it does not make defensive copies. CheckMAITE follows that ownership model and assumes:
 
 - model and augmentation adapters return stable outputs that remain valid after later batches are processed;
 - `metric.update(predictions, targets, metadata)` treats all three arguments as read-only; and
 - callers do not depend on Python alias identity or mutate returned values expecting the cache to change.
 
-Checkmaite validates batch alignment, but it does not snapshot arrays or tensors before metric updates. A metric that mutates a prediction can therefore also alter the value returned to the caller or published to the prediction cache. A model that repeatedly returns and overwrites the same mutable output buffer can similarly make earlier batches appear to contain the final batch. Such adapters and metrics are outside the supported contract and should copy internally when they need mutable working storage.
+CheckMAITE validates batch alignment, but it does not snapshot arrays or tensors before metric updates. A metric that mutates a prediction can therefore also alter the value returned to the caller or published to the prediction cache. A model that repeatedly returns and overwrites the same mutable output buffer can similarly make earlier batches appear to contain the final batch. Such adapters and metrics are outside the supported contract and should copy internally when they need mutable working storage.
 
 #### Multi-Metric Evaluation
 
-Image-classification and object-detection `MaiteEvaluation` capabilities accept one or more metrics. Checkmaite presents the collection to MAITE as one internal fanout metric, so augmentation and model inference happen once per batch even when `use_cache=False`. Member metrics receive the same prediction, target, and metadata objects in canonical metric-ID order.
+Image-classification and object-detection `MaiteEvaluation` capabilities accept one or more metrics. CheckMAITE presents the collection to MAITE as one internal fanout metric, so augmentation and model inference happen once per batch even when `use_cache=False`. Member metrics receive the same prediction, target, and metadata objects in canonical metric-ID order.
 
 ```python
 run = MaiteEvaluation().run(
@@ -196,15 +196,15 @@ print(accuracy_result.result)
 print(accuracy_result.overall_metric_value)
 ```
 
-Metric metadata IDs must be non-empty and unique. Checkmaite sorts metrics by ID before evaluation, run identity generation, reports, and analytics, so reversing caller order does not create a different run. Any member failure immediately aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying the member and lifecycle stage. Partial capability runs are not returned.
+Metric metadata IDs must be non-empty and unique. CheckMAITE sorts metrics by ID before evaluation, run identity generation, reports, and analytics, so reversing caller order does not create a different run. Any member failure immediately aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying the member and lifecycle stage. Partial capability runs are not returned.
 
 #### Retained Data and Memory
 
-`return_preds=True` asks MAITE to retain raw prediction batches in memory; Checkmaite returns them after any configured CPU postprocessing. Even when the caller sets `return_preds=False`, Checkmaite may request predictions internally on a cold call when it needs to publish the prediction cache or perform deferred CPU postprocessing. The flag controls the public return value, not an unconditional peak-memory guarantee.
+`return_preds=True` asks MAITE to retain raw prediction batches in memory; CheckMAITE returns them after any configured CPU postprocessing. Even when the caller sets `return_preds=False`, CheckMAITE may request predictions internally on a cold call when it needs to publish the prediction cache or perform deferred CPU postprocessing. The flag controls the public return value, not an unconditional peak-memory guarantee.
 
-Ordinary MOT calls cache predictions, targets, and metadata, including `track_ids`, but store empty input batches instead of decoded video. `return_augmented_data=True` is intended primarily for debugging and inspecting the exact data sent to the model. It returns complete post-augmentation input, target, and metadata batches. Checkmaite always runs that request fresh and publishes nothing to the prediction or evaluation caches.
+Ordinary MOT calls cache predictions, targets, and metadata, including `track_ids`, but store empty input batches instead of decoded video. `return_augmented_data=True` is intended primarily for debugging and inspecting the exact data sent to the model. It returns complete post-augmentation input, target, and metadata batches. CheckMAITE always runs that request fresh and publishes nothing to the prediction or evaluation caches.
 
-For a full-data MOT request, Checkmaite wraps the supplied augmentation and materializes one-shot video streams after augmentation but before the model runs. A non-`Sequence` stream is therefore passed to the model and returned to the caller as a list of frames rather than as its original wrapper type. This preserves an inspectable realization after inference but can require substantial memory. Prefer the default `False` for normal evaluations, especially with large videos.
+For a full-data MOT request, CheckMAITE wraps the supplied augmentation and materializes one-shot video streams after augmentation but before the model runs. A non-`Sequence` stream is therefore passed to the model and returned to the caller as a list of frames rather than as its original wrapper type. This preserves an inspectable realization after inference but can require substantial memory. Prefer the default `False` for normal evaluations, especially with large videos.
 
 #### Stochastic Inference
 
@@ -267,7 +267,7 @@ capability.run(model=my_model, dataset=my_dataset, use_cache=False)
 
 ### Flexible and Strict Serialization
 
-Checkmaite provides two serialization options for task artifacts:
+CheckMAITE provides two serialization options for task artifacts:
 
 - **Flexible (potentially lossy)** accepts more Python values. Pydantic or a registered codec may change the representation. For example, a tuple may return as a list or a dataclass as a mapping. Use this when those changes do not affect the evaluation.
 - **Strict (lossless)** accepts only values with an explicitly supported round trip. Unsupported artifacts are returned to the caller but are not saved to the cache, so cache limitations do not fail completed computation.
@@ -300,17 +300,17 @@ results, predictions, _ = cached_tasks.evaluate(
 
 Strict mode supports a conservative tree of exact lists, string-keyed dictionaries, finite scalar values, and explicitly admitted binary codecs. NumPy values require safe dtypes and exact scalar-class round trips. Torch values require exact CPU strided tensors without gradients. Other codecs must explicitly opt into strict admission.
 
-MOT target objects are not currently admitted by strict serialization. A strict MOT call still completes, but Checkmaite warns and skips prediction artifact publication. Use the default flexible option when MOT predictions, targets, and metadata need to be cached.
+MOT target objects are not currently admitted by strict serialization. A strict MOT call still completes, but CheckMAITE warns and skips prediction artifact publication. Use the default flexible option when MOT predictions, targets, and metadata need to be cached.
 
 Here, *lossless* means preserving the admitted scientific value and supported type. It does not cover NumPy or Torch storage topology, array writability, or arbitrary tensor attributes. Use `use_cache=False` when unsupported state is part of the computation.
 
-Flexible serialization is the default for Checkmaite's built-in capabilities and capability-level caches. The strict option applies to cached-task orchestration.
+Flexible serialization is the default for CheckMAITE's built-in capabilities and capability-level caches. The strict option applies to cached-task orchestration.
 
 ---
 
 ## Input Flexibility (Type Coercion)
 
-The checkmaite accepts flexible input types at its public API boundary and normalizes them internally. For example, an image can be passed as:
+CheckMAITE accepts flexible input types at its public API boundary and normalizes them internally. For example, an image can be passed as:
 
 - A file path (`str` or `Path`)
 - Raw bytes

@@ -213,7 +213,7 @@ def _validate_registry_descriptor(actual: RegistryDescriptor, expected: Registry
 
     if mismatches:
         raise RegistryCompatibilityError(
-            "Existing Ray registry actor is incompatible with this Checkmaite client: "
+            "Existing Ray registry actor is incompatible with this CheckMAITE client: "
             + "; ".join(mismatches)
             + ". Configure a different registry_namespace for an independent registry, or make all clients in "
             "this namespace use the same registry settings."
@@ -1172,8 +1172,8 @@ def get_or_create_registry_actor(
     except AttributeError as exc:
         raise RegistryCompatibilityError(
             f"Ray namespace {namespace!r} already contains an actor named {name!r} that does not support "
-            "the required Checkmaite registry handshake. Use a different registry_namespace, reconnect with "
-            "the previous Checkmaite release until legacy jobs finish, or remove the conflicting actor before upgrading"
+            "the required CheckMAITE registry handshake. Use a different registry_namespace, reconnect with "
+            "the previous CheckMAITE release until legacy jobs finish, or remove the conflicting actor before upgrading"
         ) from exc
 
     try:

@@ -1,6 +1,6 @@
 # Plugin System
 
-checkmaite uses a plugin architecture to support capabilities with heavy or optional dependencies. Plugins are discovered automatically at runtime via Python's [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) mechanism — any installed package that registers under the correct group is picked up without changes to the core repository.
+CheckMAITE uses a plugin architecture to support capabilities with heavy or optional dependencies. Plugins are discovered automatically at runtime via Python's [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) mechanism — any installed package that registers under the correct group is picked up without changes to the core repository.
 
 ## How It Works
 
@@ -40,7 +40,7 @@ flowchart TB
         M3["checkmaite-plugins-acme.dist-info\nentry point: acme"]
     end
 
-    subgraph loader["checkmaite Plugin Loader"]
+    subgraph loader["CheckMAITE Plugin Loader"]
         L["importlib.metadata.entry_points\n(group='checkmaite.plugins.object_detection')"]
     end
 
@@ -94,7 +94,7 @@ The [`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interope
 - **Survivor** (object detection + image classification) — survivability analysis
 
 Install the plugin package directly from GitLab. It supports Python `<3.12` and is intentionally kept out of
-`checkmaite` package metadata so that PyPI accepts checkmaite releases:
+`checkmaite` package metadata so that PyPI accepts CheckMAITE releases:
 
 ```bash
 uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
@@ -155,13 +155,13 @@ def ic_exports() -> Mapping[str, Any]:
     }
 ```
 
-**capability.py** would contain your `Capability` subclass following the standard checkmaite [capability pattern](key_concepts.md).
+**capability.py** would contain your `Capability` subclass following the standard CheckMAITE [capability pattern](key_concepts.md).
 
 Once installed (`pip install checkmaite-plugin-debiaser`), the capability is automatically available:
 
 ```python
 import checkmaite.core.image_classification as ic
-ic.Debiaser  # available without any changes to checkmaite
+ic.Debiaser  # available without any changes to CheckMAITE
 ```
 
 ### Mono-Repo Plugin (Multiple Capabilities)
@@ -222,13 +222,13 @@ def object_detection_exports() -> Mapping[str, Any]:
 | Group name | `checkmaite.plugins.object_detection` or `checkmaite.plugins.image_classification` |
 | Entry point value | A callable (function) taking no arguments |
 | Return type | `Mapping[str, Any]` — keys are symbol names, values are **classes** (not instances) |
-| `__plugin_api_version__` | **Required.** Must be a semver string (e.g., `"1.0.0"`). Major version must match checkmaite's `PLUGIN_API_VERSION`. |
+| `__plugin_api_version__` | **Required.** Must be a semver string (e.g., `"1.0.0"`). Major version must match CheckMAITE's `PLUGIN_API_VERSION`. |
 | Error handling | Wrap imports in `try/except ImportError` for optional deps |
 | Core dependency | `checkmaite >= 0.2.0` must be a dependency of your plugin |
 
 ### API Version Compatibility
 
-checkmaite uses semver for plugin API versioning. The current API version is available as:
+CheckMAITE uses semver for plugin API versioning. The current API version is available as:
 
 ```python
 from checkmaite.core._plugins import PLUGIN_API_VERSION
@@ -237,7 +237,7 @@ from checkmaite.core._plugins import PLUGIN_API_VERSION
 **Rules:**
 
 - Plugins **must** include `"__plugin_api_version__"` in their exports mapping
-- The **major version** must match checkmaite's `PLUGIN_API_VERSION`
+- The **major version** must match CheckMAITE's `PLUGIN_API_VERSION`
 - Minor and patch differences are allowed (a `1.0.0` plugin works with a `1.2.0` core)
 - If the major version does not match, the plugin is rejected and will not load
 
@@ -245,7 +245,7 @@ from checkmaite.core._plugins import PLUGIN_API_VERSION
 
 Only when the Capability/Config/Outputs contract changes in a breaking way (e.g., `_run()` signature changes, required base class methods added or removed). This is expected to be rare.
 
-**Best practice:** Import `PLUGIN_API_VERSION` from checkmaite rather than hardcoding a string. This way your plugin always declares the version it was built against:
+**Best practice:** Import `PLUGIN_API_VERSION` from CheckMAITE rather than hardcoding a string. This way your plugin always declares the version it was built against:
 
 ```python
 from checkmaite.core._plugins import PLUGIN_API_VERSION

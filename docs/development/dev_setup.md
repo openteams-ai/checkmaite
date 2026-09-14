@@ -72,7 +72,7 @@ through a `checkmaite` extra so that the PyPI package metadata remains valid:
 uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
-If you want to install all the checkmaite extras, you can use:
+If you want to install all the CheckMAITE extras, you can use:
 
 ```bash
 uv sync --all-extras
@@ -162,7 +162,7 @@ uv run pyright src
 
 (*In the following, instructions are only provided for `uv`. Similar instructions are valid for `conda`.*)
 
-The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. checkmaite also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
+The documentation is built using [`mkdocs`](https://www.mkdocs.org/) and deployed via CI to GitLab Pages. CheckMAITE also makes use of the [`mkdocs-jupyter`](https://github.com/danielfrg/mkdocs-jupyter) plugin which allows the docs to be build from notebooks as well as the standard markdown.
 
 The docs can be built locally in two different ways. To build the docs with a live-reloading server, use:
 
@@ -180,7 +180,7 @@ uv run mkdocs build --site-dir public
 
 The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command.
 
-The checkmaite documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+The CheckMAITE documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
 
 ## Setting minimum package versions
 
@@ -216,7 +216,7 @@ We use [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local) to run the 
 
 `gitlab-ci-local` can execute jobs via a Docker container or directly on your machine (shell executor). We follow the Docker approach and so you will need to have Docker available locally before you can use the tool.
 
-To run GitLab CI locally, we have created a special file `.gitlab-ci-local-variables.yml`. You should generate a PAT on GitLab (contact the checkmaite team if you do not know how to do this) and then update the `GITLAB_CI_TOKEN:` field in `.gitlab-ci-local-variables.yml` with this value.
+To run GitLab CI locally, we have created a special file `.gitlab-ci-local-variables.yml`. You should generate a PAT on GitLab (contact the CheckMAITE team if you do not know how to do this) and then update the `GITLAB_CI_TOKEN:` field in `.gitlab-ci-local-variables.yml` with this value.
 
 To run a single job, it's as simple as running `gitlab-ci-local run lint` (you can replace `lint` with any job name from `.gitlab-ci.yml` such as `test` or `pages-branch`). A Docker container should then start and you should be able to replicate the GitLab CI experience locally.
 

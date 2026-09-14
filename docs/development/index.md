@@ -1,6 +1,6 @@
-# checkmaite development
+# CheckMAITE development
 
-Documentation for checkmaite developers and contributors.
+Documentation for CheckMAITE developers and contributors.
 
 <div class="grid cards" markdown>
 
@@ -14,11 +14,11 @@ Documentation for checkmaite developers and contributors.
 
 -  [__User persona__ :octicons-arrow-right-24:](persona.md)
 
-    Persona for a typical user of checkmaite, to guide development decisions.
+    Persona for a typical user of CheckMAITE, to guide development decisions.
 
 -  [__Plugin system__ :octicons-arrow-right-24:](plugins.md)
 
-    How to create, install, and debug checkmaite plugins.
+    How to create, install, and debug CheckMAITE plugins.
 
 -  [__ONNX model wrappers__ :octicons-arrow-right-24:](onnx_model_wrappers.md)
 
@@ -26,7 +26,7 @@ Documentation for checkmaite developers and contributors.
 
 -  [__Contribution guidelines__ :octicons-arrow-right-24:](contributing.md)
 
-    Guidelines on contributing to the `checkmaite` project.
+    Guidelines on contributing to the `CheckMAITE` project.
 
 -  [__Key Concepts: Capabilities, Runs, and caches__ :octicons-arrow-right-24:](key_concepts.md)
 

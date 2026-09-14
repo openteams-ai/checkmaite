@@ -127,7 +127,7 @@ configure_job_backend(
 
 `registry_namespace` uses Ray's built-in named-resource namespace. It does not
 create a new Ray cluster, Kubernetes namespace, resource quota, or security
-boundary. Checkmaite's registry actor name is fixed and internal; users select
+boundary. CheckMAITE's registry actor name is fixed and internal; users select
 an independent registry by selecting another Ray namespace. All clients sharing
 a namespace must use compatible registry settings.
 

@@ -1,6 +1,6 @@
 # Ray simple job backend
 
-`ray-simple` is the lightweight Ray job backend for `checkmaite` jobs:
+`ray-simple` is the lightweight Ray job backend for `CheckMAITE` jobs:
 
 ```python
 from checkmaite.jobs import configure_job_backend

@@ -132,11 +132,11 @@ class TorchODMetric:
 class TorchODMultiClassMap50(TorchODMetric):
     """A MAITE-compliant wrapper for the Torchmetrics MeanAveragePrecision metric with multi-class scores.
 
-    In order to return values in a format compliant with checkmaite standards, each
+    In order to return values in a format compliant with CheckMAITE standards, each
     element returned by compute must be safely convertable to a float.
     Therefore, the compute() method is overridden.
 
-    See checkmaite conventions for more details:
+    See CheckMAITE conventions for more details:
     https://openteams-ai.github.io/checkmaite/reference/conventions.html
 
     Also note that the Metric object does not have access to class names (i.e.
@@ -165,7 +165,7 @@ class TorchODMultiClassMap50(TorchODMetric):
         MeanAveragePrecision.compute() returns a key 'map_per_class' which is a
         list of mAP per class and another key 'classes' which is a list of
         corresponding class IDs. The dict comprehension in the return statement
-        restructures these into an checkmaite-compliant format of dict[str, num].
+        restructures these into a CheckMAITE-compliant format of dict[str, num].
 
         Returns
         -------

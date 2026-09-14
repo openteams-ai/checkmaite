@@ -1,6 +1,6 @@
 # Ray job backend
 
-`ray` is the production Ray job backend for `checkmaite` jobs:
+`ray` is the production Ray job backend for `CheckMAITE` jobs:
 
 ```python
 from checkmaite.jobs import configure_job_backend
@@ -59,7 +59,7 @@ To use `ray` well:
   value to reconnect to those jobs;
 - make clients use the same `idempotency_scope` and `registry_namespace` when
   they should share, list, or reconnect to the same jobs; each Ray namespace
-  contains one fixed internal Checkmaite registry, and a different
+  contains one fixed internal CheckMAITE registry, and a different
   `registry_namespace` selects an independent registry;
 - choose an analytics store that Ray workers can reach and that remains available
   after the submitting process exits;
@@ -142,7 +142,7 @@ metadata and does not store full run records.
 ### 5. Ray namespaces select registries; idempotency scopes partition jobs
 
 `registry_namespace` is a native Ray namespace, not a Kubernetes namespace or a
-security boundary. Checkmaite creates exactly one registry with a fixed internal
+security boundary. CheckMAITE creates exactly one registry with a fixed internal
 actor name in each configured Ray namespace. Use the same namespace to share a
 registry and a different namespace when an independent registry, configuration,
 or migration boundary is required. Ray namespaces do not create separate
@@ -159,7 +159,7 @@ Clients share and reconnect to the same jobs only when they use the same:
 - `idempotency_scope`;
 - compatible job backend protocol and registry configuration.
 
-When a client reattaches to a registry, Checkmaite validates one compatibility
+When a client reattaches to a registry, CheckMAITE validates one compatibility
 version covering its actor protocol and record/result schemas, plus a typed copy
 of the registry's immutable configuration. Ray itself remains responsible for
 Python and Ray runtime compatibility.

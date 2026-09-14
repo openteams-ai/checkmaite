@@ -285,7 +285,7 @@ def test_strict_mode_skips_lossy_evaluation_results(fake_ic_model_default, fake_
 def test_return_augmented_data_rejects_string_modes(
     task_name, invalid_value, fake_ic_model_default, fake_ic_dataset_default
 ):
-    """Checkmaite follows MAITE's boolean-only public contract."""
+    """CheckMAITE follows MAITE's boolean-only public contract."""
     from checkmaite import cached_tasks
 
     task = getattr(cached_tasks, task_name)

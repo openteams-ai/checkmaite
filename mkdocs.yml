@@ -1,4 +1,4 @@
-site_name: checkmaite
+site_name: CheckMAITE
 site_url: !ENV [MKDOCS_SITE_URL, "https://jatic.pages.jatic.net/reference-implementation/reference-implementation/"]
 use_directory_urls: false
 theme:
@@ -31,7 +31,7 @@ nav:  # navigation links on sidebar
   - Get started:
     - get-started/index.md
     - Setup: get-started/install_setup.md
-    - Run `checkmaite` interactively: get-started/checkmaite_interactive.md
+    - Run `CheckMAITE` interactively: get-started/checkmaite_interactive.md
     - Object Detection Workflow via API: get-started/checkmaite_api_od.ipynb
     - Image Classification Workflow via API: get-started/checkmaite_api_ic.ipynb
     - Remote Inference with Ray Serve: get-started/checkmaite_ray_serve.ipynb
@@ -58,7 +58,7 @@ nav:  # navigation links on sidebar
     - Conventions: reference/conventions.md
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
-  - Checkmaite development:
+  - CheckMAITE development:
     - development/index.md
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md

@@ -425,7 +425,7 @@ class _BinaryDeSerializer:
         return isinstance(value, str) and self._binary_pattern.fullmatch(value) is not None
 
     def escape_user_references(self, value: Any) -> Any:
-        """Escape user strings that overlap Checkmaite's serialized reference syntax."""
+        """Escape user strings that overlap CheckMAITE's serialized reference syntax."""
         if isinstance(value, str):
             transaction_keys = self._transaction_keys.get() or []
             match = self._binary_pattern.fullmatch(value)

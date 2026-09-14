@@ -88,7 +88,7 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
 
 
 class RaySimpleJob(Job[CapabilityRunRef]):
-    """Thin checkmaite wrapper over Ray ObjectRef lifecycle primitives."""
+    """Thin CheckMAITE wrapper over Ray ObjectRef lifecycle primitives."""
 
     def __init__(self, job_id: str, created_at: datetime, obj_ref: ray.ObjectRef[CapabilityRunRef]) -> None:
         self._job_id = job_id

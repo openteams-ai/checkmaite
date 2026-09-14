@@ -1,14 +1,14 @@
-# Running checkmaite interactively
+# Running CheckMAITE interactively
 
-We've streamlined the process of running `checkmaite`
-interactively. This allows you to explore and utilize the full capabilities of `checkmaite` workflows through a user-friendly web interface (UI).
+We've streamlined the process of running `CheckMAITE`
+interactively. This allows you to explore and utilize the full capabilities of `CheckMAITE` workflows through a user-friendly web interface (UI).
 
-To run checkmaite, we recommend setting up a virtual environment and installing
+To run CheckMAITE, we recommend setting up a virtual environment and installing
 the necessary dependencies, for detailed instructions, please refer to the [Setup
 Guide](./install_setup.md).
 
 
-Once you have the environment set up, you can start `checkmaite` by running the
+Once you have the environment set up, you can start `CheckMAITE` by running the
 following command in your terminal:
 
 ```bash
@@ -24,7 +24,7 @@ python panel serve src/checkmaite/ui/app.py --show
 ```
 </details>
 
-This command will launch checkmaite in your default web browser under
+This command will launch CheckMAITE in your default web browser under
 `http://localhost:5006/app`. If this port is in use, you can also specify the port, for example, `--port 9000`. You can
 then interact with the application and run workflows directly from
 the web interface.
@@ -38,7 +38,7 @@ The first step is to select which workflow you would like to work with:
 
 All of these tools are available for both Image Classification (IC) and Object Detection (OD) tasks.
 
-![Preview of the checkmaite Landing Page](../assets/checkmaite_landing_page.png)
+![Preview of the CheckMAITE Landing Page](../assets/checkmaite_landing_page.png)
 
 You can then select the desired workflow, and either load a pre-configured workflow parametrization JSON file or you can create a new configuration for this workflow.
 
@@ -59,4 +59,4 @@ button. The application will then execute the workflow and generate a report wit
 
 The Dataset Analysis workflow works in the same manner with different JATIC tools available.
 
-For detailed information on how each tool is configured and operates, refer to the individual pages in the `checkmaite` documentation or the original tool’s documentation.
+For detailed information on how each tool is configured and operates, refer to the individual pages in the `CheckMAITE` documentation or the original tool’s documentation.

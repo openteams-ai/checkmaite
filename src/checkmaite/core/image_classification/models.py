@@ -86,7 +86,7 @@ class TorchvisionICModel:
               `torchvision` for more details.
         """
         if model_name not in SUPPORTED_TORCHVISION_MODELS:
-            raise ValueError(f"Model {model_name} is not currently supported by checkmaite.")
+            raise ValueError(f"Model {model_name} is not currently supported by CheckMAITE.")
         self._model_name = model_name
 
         if not config_path:
@@ -246,7 +246,7 @@ class OnnxICModel:
 
 
 class ModelSpecification(TypedDict):
-    """Model metadata required for loading models via checkmaite wrappers"""
+    """Model metadata required for loading models via CheckMAITE wrappers"""
 
     # full filepath to model weights file
     model_weights_path: NotRequired[str | Path]

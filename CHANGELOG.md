@@ -26,12 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Required `metadata_batches` for `evaluate_from_predictions()` and an explicit `inference_id` for result caching.
 - Restricted `return_augmented_data` to the Boolean MAITE API; full-data requests now run fresh and publish nothing.
 - Changed prediction and evaluation cache identities, so entries created by earlier versions will be cold.
-- Upgraded MAITE from 0.9.2 to a `>=0.9.4,<0.10` range. The floor is 0.9.4, the release that introduced the native multi-object tracking protocols checkmaite imports unconditionally, and a range rather than an exact pin avoids lockstep bumps with checkmaite-plugins' circular test dependency. The resolved version is 0.9.5.
+- Upgraded MAITE from 0.9.2 to a `>=0.9.4,<0.10` range. The floor is 0.9.4, the release that introduced the native multi-object tracking protocols CheckMAITE imports unconditionally, and a range rather than an exact pin avoids lockstep bumps with checkmaite-plugins' circular test dependency. The resolved version is 0.9.5.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
 
 ### Removed
-- Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous Checkmaite release, or keep that client available until the Ray cluster is recycled.
+- Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.
 
 ### Fixed
 - Passed datum metadata to metrics when evaluating cached predictions.
@@ -233,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2025-06-06
 
-Initial public release of checkmaite.
+Initial public release of CheckMAITE.
 
 ---
 

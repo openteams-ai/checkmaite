@@ -73,7 +73,7 @@ TMaiteEvaluationConfig = TypeVar(
 class MaiteMetricResult(CapabilityOutputsBase):
     """Normalized result for one member of a MAITE evaluation.
 
-    ``overall_metric_name`` is the metric's optional Checkmaite ``return_key``.
+    ``overall_metric_name`` is the metric's optional CheckMAITE ``return_key``.
     It identifies the member's headline value within ``scalar_values``.
     """
 

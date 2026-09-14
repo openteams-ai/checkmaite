@@ -36,7 +36,7 @@
 
 -  [__ONNX object detection wrapper__ :octicons-arrow-right-24:](onnx_object_detection_wrapper.ipynb)
 
-    Load a JATIC_ONNX object detection model and convert its outputs into checkmaite detection targets.
+    Load a JATIC_ONNX object detection model and convert its outputs into CheckMAITE detection targets.
 
 </div>
 

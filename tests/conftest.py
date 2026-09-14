@@ -159,7 +159,7 @@ DEFAULT_OD_METRIC_RESPONSE: dict[str, Any] = {
     "fake_metric_1": torch.Tensor([0.43]),
     "fake_metric_2": torch.Tensor([0.56]),
 }
-# Take the first ordered key above for use as return_key, the 'primary metric' in `checkmaite` conventions
+# Take the first ordered key above for use as return_key, the 'primary metric' in `CheckMAITE` conventions
 DEFAULT_OD_METRIC_RETURN_KEY: str = list(DEFAULT_OD_METRIC_RESPONSE.keys())[0]
 
 
@@ -167,18 +167,18 @@ class FakeODModel(od.Model):
     """This MAITE-compliant fake (stub) OD model can be instantiated with canned responses to its __call__ function for testing.
     A restarting iterator class is used so that a fake model can handle an indefinite number of calls of arbitrary batch sizes.
 
-    IMPORTANT - if the default stub values do not meet your testing requirements, consult checkmaite team
+    IMPORTANT - if the default stub values do not meet your testing requirements, consult CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test cases as possible use
     the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
     data for different scenarios.
 
-    Per `checkmaite` conventions, our model classes must expose the model API (e.g. torch.nn.Module) as `model` attribute.
+    Per `CheckMAITE` conventions, our model classes must expose the model API (e.g. torch.nn.Module) as `model` attribute.
     NOTE: the initialized Torchvision `model` does not actually do inference when this wrapper class is called.  Nor does the index2label contained
     in this fake model's metadata align with this model object.
 
     Attributes:
 
-        model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for `checkmaite` capabilities.
+        model_metadata (ModelMetadata): Includes `id` and `index2label`.  `index2label` is not required by MAITE definition but _may_ be for `CheckMAITE` capabilities.
         prediction_data (Sequence[od.ObjectDetectionTarget]): A Sequence of responses to provide, sequentially and repeating, as the model is called.
         The __call__ method will batch these responses into a return batch of the correct size.
 
@@ -227,7 +227,7 @@ class FakeODDataset(od.Dataset):
     This MAITE-compliant fake OD dataset can be instantiated with any MAITE-compliant representations of (1) images, (2) corresponding ObjectDetectionTarget
     ground truths, and (3) corresponding metadata.
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult checkmaite team before implementing a custom instance of
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult CheckMAITE team before implementing a custom instance of
     this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
     cover additional scenarios is likely preferable to creating different fake data for different scenarios.
 
@@ -264,7 +264,7 @@ class FakeODMetric(od.Metric):
     This MAITE-compliant fake OD metric can be instantiatiated with a canned response to its compute() method.  By default, it will return
     the value of constant DEFAULT_OD_METRIC_RESPONSE to any invocation of compute().
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team before implementing a custom instance of
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team before implementing a custom instance of
     this class.  As much as possible, we would like to have as many test cases as possible use the default attributes/fixture, so expanding the defaults to
     cover additional scenarios is likely preferable to creating different fake data for different scenarios.
 
@@ -312,7 +312,7 @@ def fake_od_dataset_default() -> FakeODDataset:
     """
     Fixture for getting the default Fake Object Detection Dataset with behaviors as described in /tests/fake_od_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test
     cases as possible use the default attributes/fixture, so expanding the defaults to cover additional scenarios
     is likely preferable to creating different fake data for different scenarios.
@@ -325,7 +325,7 @@ def fake_od_model_default() -> FakeODModel:
     """
     Fixture for getting the default Fake Object Detection model with behaviors as described in /tests/fake_od_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test
     cases as possible use the default attributes/fixture, so expanding the defaults to cover additional scenarios
     is likely preferable to creating different fake data for different scenarios.
@@ -338,7 +338,7 @@ def fake_od_metric_default() -> FakeODMetric:
     """
     Fixture for getting the default Fake Object Detection metric with behaviors as described in /tests/fake_od_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test
     cases as possible use the default attributes/fixture, so expanding the defaults to cover additional scenarios
     is likely preferable to creating different fake data for different scenarios.
@@ -469,7 +469,7 @@ DEFAULT_IC_METRIC_RESPONSE: dict[str, Any] = {
     "fake_metric_1": torch.Tensor([0.43]),
     "fake_metric_2": torch.Tensor([0.56]),
 }
-# Take the first ordered key above for use as return_key, the 'primary metric' in checkmaite conventions
+# Take the first ordered key above for use as return_key, the 'primary metric' in CheckMAITE conventions
 DEFAULT_IC_METRIC_RETURN_KEY: str = list(DEFAULT_IC_METRIC_RESPONSE.keys())[0]
 
 
@@ -509,13 +509,13 @@ class FakeICModel(ic.Model):
     handle an indefinite number of calls of arbitrary batch sizes.
 
     IMPORTANT - if the default stub values do not meet your testing
-    requirements, consult the checkmaite team before implementing a
+    requirements, consult the CheckMAITE team before implementing a
     custom instance of this class. As much as possible, we would like to
     have as many test cases as possible use the default attributes/fixture,
     so expanding the defaults to cover additional scenarios is likely
     preferable to creating different fake data for different scenarios.
 
-    Per `checkmaite` conventions, our model classes must expose the model API
+    Per `CheckMAITE` conventions, our model classes must expose the model API
     (e.g. ``torch.nn.Module``) as `model` attribute.
     NOTE: the initialized Torchvision `model` does not actually do inference
     when this wrapper class is called. Nor does the`index2label` contained
@@ -525,7 +525,7 @@ class FakeICModel(ic.Model):
     ----------
     model_metadata : ModelMetadata, optional
         Includes `id` and `index2label`. `index2label` is not required by
-        MAITE definition but _may_ be for `checkmaite` capabilities.
+        MAITE definition but _may_ be for `CheckMAITE` capabilities.
         Defaults to`DEFAULT_IC_MODEL_METADATA`.
     prediction_data : Sequence[ArrayLike], optional
         A Sequence of responses to provide, sequentially and repeating, as
@@ -587,7 +587,7 @@ class FakeICDataset(ic.Dataset):
     (3) corresponding metadata.
 
     IMPORTANT - if the default fake values do not meet your testing
-    requirements, consult the checkmaite team before implementing a
+    requirements, consult the CheckMAITE team before implementing a
     custom instance of this class. As much as possible, we would like to
     have as many test cases as possible use the default attributes/fixture,
     so expanding the defaults to cover additional scenarios is likely
@@ -652,7 +652,7 @@ class FakeICMetric(ic.Metric):
     `DEFAULT_IC_METRIC_RESPONSE` to any invocation of ``compute()``.
 
      IMPORTANT - if the default fake values do not meet your testing
-     requirements, consult the checkmaite team before implementing a
+     requirements, consult the CheckMAITE team before implementing a
      custom instance of this class. As much as possible, we would like to
      have as many test cases as possible use the default attributes/fixture,
      so expanding the defaults to cover additional scenarios is likely
@@ -724,7 +724,7 @@ def fake_ic_dataset_default() -> FakeICDataset:
     """
     Fixture for getting the default fake Image Classification dataset with behaviors as described in /tests/fake_ic_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test cases as possible use
     the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
     data for different scenarios.
@@ -754,7 +754,7 @@ def fake_ic_model_default() -> FakeICModel:
     """
     Fixture for getting the default fake Image Classification model with behaviors as described in /tests/fake_ic_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test cases as possible use
     the default attributes/fixture, so expanding the defaults to cover additional scenarios is likely preferable to creating different fake
     data for different scenarios.
@@ -767,7 +767,7 @@ def fake_ic_metric_default() -> FakeICMetric:
     """
     Fixture for getting the default Fake Image Classification metric with behaviors as described in /tests/fake_ic_classes.py
 
-    IMPORTANT - if the default fake values do not meet your testing requirements, consult the checkmaite team
+    IMPORTANT - if the default fake values do not meet your testing requirements, consult the CheckMAITE team
     before implementing a custom instance of this class.  As much as possible, we would like to have as many test
     cases as possible use the default attributes/fixture, so expanding the defaults to cover additional scenarios
     is likely preferable to creating different fake data for different scenarios.

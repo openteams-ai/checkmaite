@@ -1,6 +1,6 @@
 # Job protocol and lifecycle
 
-The jobs protocol gives `checkmaite` a small, backend-agnostic contract for asynchronous execution.
+The jobs protocol gives `CheckMAITE` a small, backend-agnostic contract for asynchronous execution.
 
 Instead of coupling notebooks and higher-level APIs directly to backend-specific primitives, the codebase defines a common shape for:
 
@@ -40,7 +40,7 @@ The current code uses Ray-backed implementations, but the protocol is what makes
 - a platform-specific scheduler,
 - or a local background executor.
 
-The point is not that those exist today. The point is that the rest of `checkmaite` does not need to be rewritten if they appear.
+The point is not that those exist today. The point is that the rest of `CheckMAITE` does not need to be rewritten if they appear.
 
 ## Why `result()` is reference-first
 

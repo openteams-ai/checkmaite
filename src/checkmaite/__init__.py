@@ -25,7 +25,7 @@ def _configure_torch_mps_fallback() -> None:
     if not user_set_fallback and torch.backends.mps.is_available():
         if torch_imported:
             warnings.warn(
-                "torch was imported before checkmaite and "
+                "torch was imported before CheckMAITE and "
                 f"{mps_env_var} was not set. Changing it now may have no effect. "
                 f"Set {mps_env_var} before importing torch/checkmaite to avoid this warning.",
                 stacklevel=2,
@@ -87,7 +87,7 @@ class _CachePath:
 
 cache_path = _CachePath(Path.home() / ".cache" / "checkmaite")
 cache_path.__doc__ = """
-Get or set the global cache path used by checkmaite.
+Get or set the global cache path used by CheckMAITE.
 
 - Called with no arguments, returns the current cache path.
 - Called with a path, creates the directory (if needed) and sets it as the new cache path.

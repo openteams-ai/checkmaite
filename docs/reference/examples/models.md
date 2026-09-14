@@ -1,6 +1,6 @@
 # Model Wrappers
 
-`checkmaite` provides access to several common object-detection models using MAITE-compliant wrappers.
+`CheckMAITE` provides access to several common object-detection models using MAITE-compliant wrappers.
 
 ## `torchvision` Wrappers
 
@@ -18,7 +18,7 @@ This is the simplest option:
 This option is recommended for advanced users:
 
 - Users can provide a pickle file containing pre-trained weights via the `pickle_path` keyword argument. The pickle file is expected to contain only the pre-trained weights (i.e., the `state_dict`, created using something similar to `torch.save(model.state_dict())`).
-- Additionally, they must supply a configuration file via the `config_path` keyword argument. This is checkmaite wrapper metadata, not a torchvision-native config file.
+- Additionally, they must supply a configuration file via the `config_path` keyword argument. This is CheckMAITE wrapper metadata, not a torchvision-native config file.
 - The configuration file must include class labels under the key `index2label` by default. Users can customize this key with the wrapper's `index2label_key` argument.
 - The optional `num_classes` field should be included when the custom weights use a different number of classes than the torchvision default.
 
@@ -56,4 +56,4 @@ Dictionary keys are converted to integers when the wrapper loads the config.
 #### Image Dimensions
 
 - It is assumed that all images passed to the model for prediction have the same height and width.
-- If this assumption does not hold, the wrapper will raise an error. Please contact the checkmaite team if your use case involves images with unequal dimensions.
+- If this assumption does not hold, the wrapper will raise an error. Please contact the CheckMAITE team if your use case involves images with unequal dimensions.

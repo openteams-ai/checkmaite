@@ -210,7 +210,7 @@ def validate_input_batch(input_batch: Sequence[ArrayLike]) -> None:
             raise ValueError(
                 f"All input images currently required to have identical shape, {npy_array.shape} "
                 f"not equal to {(total_channels, orig_img_height, orig_img_width)}. Please "
-                "contact checkmaite team if your use case requires unevenly shaped images."
+                "contact CheckMAITE team if your use case requires unevenly shaped images."
             )
 
 
@@ -318,7 +318,7 @@ def load_jatic_onnx_metadata(
 
     The JATIC Interoperability Requirements specify that ONNX model input/output metadata should be provided alongside
     the model in a metadata file such as ``model-metadata.json``. The standard fields identify the JATIC_ONNX interface
-    version, the CV task interface, input channel/size constraints, and output dimensions. checkmaite additionally
+    version, the CV task interface, input channel/size constraints, and output dimensions. CheckMAITE additionally
     requires model wrappers to expose ``index2label`` metadata, so this loader requires that mapping in the same JSON
     file.
 
@@ -393,9 +393,9 @@ def validate_jatic_onnx_session(session: Any, *, expected_outputs: set[str]) -> 
 
 
 def get_onnx_providers(device: str | torch.device | None) -> tuple[torch.device, list[str]]:
-    """Translate a checkmaite device request into ONNX Runtime execution providers.
+    """Translate a CheckMAITE device request into ONNX Runtime execution providers.
 
-    Existing checkmaite model wrappers accept torch-style device strings such as ``"cpu"`` and ``"cuda"``. ONNX Runtime
+    Existing CheckMAITE model wrappers accept torch-style device strings such as ``"cpu"`` and ``"cuda"``. ONNX Runtime
     selects hardware through execution providers instead. This helper preserves the wrapper-facing device API while
     selecting provider lists that ONNX Runtime understands. If no device is requested, the helper prefers CUDA when
     available, then CoreML/MPS on Apple platforms, and finally CPU.
@@ -404,7 +404,7 @@ def get_onnx_providers(device: str | torch.device | None) -> tuple[torch.device,
         device: ``None`` for automatic provider selection, or a torch-style device string/object.
 
     Returns:
-        A torch device used for checkmaite metadata and the ONNX Runtime provider preference list.
+        A torch device used for CheckMAITE metadata and the ONNX Runtime provider preference list.
 
     Raises:
         RuntimeError: If a requested accelerator provider is unavailable in the installed ONNX Runtime package.
@@ -457,9 +457,9 @@ def prepare_jatic_onnx_image_batch(
     image_height: int | None = None,
     image_width: int | None = None,
 ) -> tuple[np.ndarray, list[tuple[int, int]]]:
-    """Convert a checkmaite CHW image batch into the JATIC_ONNX input tensor.
+    """Convert a CheckMAITE CHW image batch into the JATIC_ONNX input tensor.
 
-    checkmaite datasets and model wrappers use CHW image arrays. JATIC_ONNX v1 requires a single input named ``image``
+    CheckMAITE datasets and model wrappers use CHW image arrays. JATIC_ONNX v1 requires a single input named ``image``
     containing an FP32 NCHW batch with pixel values normalized to ``[0, 1]``. The metadata file declares whether the
     model expects RGB or grayscale images and whether height, width, or batch size are fixed. The JATIC Interoperability
     Requirements also allow user-provided height, width, and batch-size settings to override the metadata; the optional
@@ -474,7 +474,7 @@ def prepare_jatic_onnx_image_batch(
 
     Returns:
         A normalized FP32 NCHW NumPy batch and each input image's original ``(height, width)``. Object-detection
-        wrappers use the original sizes to convert JATIC_ONNX normalized boxes back to checkmaite pixel-coordinate
+        wrappers use the original sizes to convert JATIC_ONNX normalized boxes back to CheckMAITE pixel-coordinate
         boxes.
 
     Raises:

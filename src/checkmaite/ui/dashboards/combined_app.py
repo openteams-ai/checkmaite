@@ -288,7 +288,7 @@ class LandingPage(BaseApp):
 
 
 class FullApp(BaseApp):
-    """High level constructor for the fully integrated `checkmaite` App
+    """High level constructor for the fully integrated `CheckMAITE` App
 
     Creates a Panel Pipeline object from the individual panel apps and
     connects them together for sequential viewing.

@@ -1,4 +1,4 @@
-"""Base dashboard for JATIC `checkmaite` testbeds.
+"""Base dashboard for JATIC `CheckMAITE` testbeds.
 
 This module provides the `BaseTestbed` class, which serves as a foundational
 Panel application for model evaluation and dataset analysis workflows. It

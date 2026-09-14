@@ -1078,7 +1078,7 @@ class RayJobBackend:
             Required workspace/project namespace for duplicate-submission keys
             and job lookup.
         registry_namespace
-            Ray namespace that contains one fixed internal Checkmaite registry
+            Ray namespace that contains one fixed internal CheckMAITE registry
             actor and its controllers. Use a different namespace when an
             independent registry is required.
         registry_num_cpus

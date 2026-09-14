@@ -939,7 +939,7 @@ class XaitkExplainableDetectionBaselineDataset(od.Dataset):
 
 
 class DatasetSpecification(TypedDict):
-    """Dataset metadata required for loading datasets via checkmaite wrappers.
+    """Dataset metadata required for loading datasets via CheckMAITE wrappers.
 
     Attributes
     ----------

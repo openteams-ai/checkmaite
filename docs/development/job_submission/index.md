@@ -1,6 +1,6 @@
 # Job submission and cluster execution
 
-`checkmaite` traditionally executes capabilities through `capability.run(...)`, which blocks until the run finishes. For small local workloads that is fine. For long-running evaluations, it creates two problems:
+`CheckMAITE` traditionally executes capabilities through `capability.run(...)`, which blocks until the run finishes. For small local workloads that is fine. For long-running evaluations, it creates two problems:
 
 1. **Interactivity** — notebook users cannot keep working smoothly while a run is executing.
 2. **Compute scaling** — one local Python process is a poor fit for capabilities that need more CPU/GPU resources or cluster execution.

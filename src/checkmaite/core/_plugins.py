@@ -77,7 +77,7 @@ def _check_api_version(declared_version: object, entry_point_name: str, group: s
 
     if plugin_major != core_major:
         msg = (
-            f"Plugin declares API version {declared_version} but checkmaite requires "
+            f"Plugin declares API version {declared_version} but CheckMAITE requires "
             f"major version {core_major} (current: {PLUGIN_API_VERSION}). Update the plugin."
         )
         logger.warning("Plugin entry point '%s' in group '%s': %s", entry_point_name, group, msg)

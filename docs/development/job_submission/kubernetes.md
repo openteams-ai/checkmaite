@@ -1,12 +1,12 @@
 # Kubernetes and KubeRay deployment notes
 
-This page collects Kubernetes-specific guidance for running `checkmaite` job
+This page collects Kubernetes-specific guidance for running `CheckMAITE` job
 submission on KubeRay. General worker image and Ray `runtime_env` guidance lives
 in [Worker environments](worker_environments.md).
 
-The exact cluster YAML belongs to the platform repository, not to `checkmaite`.
+The exact cluster YAML belongs to the platform repository, not to `CheckMAITE`.
 The important point is that the **platform image and RayCluster definition live
-outside `checkmaite`**, while the job backend connects to that cluster and
+outside `CheckMAITE`**, while the job backend connects to that cluster and
 submits work into it.
 
 ## KubeRay-style deployment model

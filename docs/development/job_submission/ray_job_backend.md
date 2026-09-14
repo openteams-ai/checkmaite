@@ -2,7 +2,7 @@
 
 The default Ray job backend uses **Ray Core** with a detached registry actor and detached per-job controller actors.
 
-This page explains why Ray is a good fit, how the default `"ray"` job backend maps onto Ray's execution model, and how to use it from `checkmaite`. For the direct process-local Ray task-based job backend, see [Ray simple job backend](ray_simple_job_backend.md).
+This page explains why Ray is a good fit, how the default `"ray"` job backend maps onto Ray's execution model, and how to use it from `CheckMAITE`. For the direct process-local Ray task-based job backend, see [Ray simple job backend](ray_simple_job_backend.md).
 
 ## Why Ray
 
@@ -12,7 +12,7 @@ Ray is a distributed Python runtime designed for:
 - actor-based stateful services, where an actor is a named Python object that keeps state across remote method calls,
 - and dynamic CPU/GPU scheduling.
 
-That lines up well with `checkmaite`'s needs:
+That lines up well with `CheckMAITE`'s needs:
 
 - notebook users want to submit work without blocking,
 - capabilities may need CPUs or GPUs,
@@ -29,7 +29,7 @@ At the Ray Core level, distributed computation is built from a few primitives:
 - `ray.wait(...)` checks whether it is ready,
 - and `ray.cancel(...)` requests cancellation.
 
-The current `checkmaite` job backend uses one **detached per-job controller actor** plus one **Ray task** per submitted capability run. The controller actor owns the live `ObjectRef`, while the public `RayJob` handle reads shared lifecycle metadata from the registry.
+The current `CheckMAITE` job backend uses one **detached per-job controller actor** plus one **Ray task** per submitted capability run. The controller actor owns the live `ObjectRef`, while the public `RayJob` handle reads shared lifecycle metadata from the registry.
 
 ## End-to-end flow
 
@@ -269,7 +269,7 @@ Ray cluster
 ```
 
 `registry_namespace` is a native Ray namespace. It is sent to Ray when
-Checkmaite creates or looks up its fixed internal `checkmaite_job_registry`
+CheckMAITE creates or looks up its fixed internal `checkmaite_job_registry`
 actor. There is no user-configurable registry actor name. Keep the namespace
 stable across sessions to reconnect to the same registry, and select a different
 namespace for migration, testing, load sharding, or independent retention and
@@ -292,8 +292,8 @@ scope to be cleaned up.
 Registry creation settings are immutable for the lifetime of the registry in a
 namespace. Each client performs a readiness and compatibility handshake before
 reuse. If settings differ, either make clients agree or choose another
-`registry_namespace`; Checkmaite never silently creates another actor name in the
-same namespace. A single Checkmaite compatibility version covers the actor
+`registry_namespace`; CheckMAITE never silently creates another actor name in the
+same namespace. A single CheckMAITE compatibility version covers the actor
 protocol and record/result schemas; incompatible versions are rejected early.
 Ray remains responsible for Python and Ray runtime compatibility.
 `registry_startup_timeout_s` controls this cold-start handshake
@@ -323,7 +323,7 @@ signal: retry with exponential backoff and jitter, reduce client-side concurrenc
 or tune `registry_max_pending_calls` / `controller_max_pending_calls` for the
 expected creation-client burst size. Passing `None` leaves a creation handle
 unbounded. Reattached clients should bound their own submission and polling
-concurrency; Checkmaite does not add a separate client-side queue.
+concurrency; CheckMAITE does not add a separate client-side queue.
 
 Dedupe policy in the current implementation:
 

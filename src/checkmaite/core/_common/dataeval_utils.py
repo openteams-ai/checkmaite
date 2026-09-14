@@ -29,7 +29,7 @@ SplitDatasetOutput: TypeAlias = (
 )
 
 
-# TODO(checkmaite): Remove this wrapper once ``dataeval.selection.Select`` is
+# TODO(CheckMAITE): Remove this wrapper once ``dataeval.selection.Select`` is
 # typed as MAITE-compatible (i.e., it satisfies ``maite.protocols.generic.Dataset``
 # with MAITE ``DatasetMetadata``). Today, ``Select`` follows DataEval protocol
 # metadata typing, which causes pyright protocol mismatches in our MAITE-typed API.
