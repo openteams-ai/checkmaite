@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import warnings
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ except ImportError:  # pragma: no cover - compatibility with Ray versions lackin
 
 from checkmaite.core.analytics_store import Provenance, get_provenance_defaults
 from checkmaite.jobs._store import AnalyticsStoreConfig
-from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
+from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
 from checkmaite.jobs.protocol import (
     BackpressureError,
     CapabilityRunRef,
@@ -29,14 +30,18 @@ from checkmaite.jobs.protocol import (
     JobCancelledError,
     JobFailedError,
     JobStatus,
+    JobSubmissionError,
     JobTimeoutError,
 )
 
 from .controller import (
+    CONTROLLER_COMPATIBILITY_VERSION,
     DEFAULT_CONTROLLER_HEARTBEAT_INTERVAL_S,
     DEFAULT_CONTROLLER_NUM_CPUS,
+    DEFAULT_CONTROLLER_STARTUP_TIMEOUT_S,
     DEFAULT_CONTROLLER_TERMINAL_RETRY_INTERVAL_S,
     DEFAULT_REGISTRY_UPDATE_TIMEOUT_S,
+    DEFAULT_SCHEDULING_TIMEOUT_S,
     ControllerStatePayload,
     RayTaskResources,
     get_or_create_controller_actor,
@@ -68,12 +73,22 @@ logger = logging.getLogger(__name__)
 DEFAULT_REGISTRY_MAX_PENDING_CALLS = 1024
 DEFAULT_CONTROLLER_MAX_PENDING_CALLS = 64
 _JOB_POLL_BACKOFF_DELAYS_S = (0.05, 0.25, 1.0, 5.0)
+_UNBOUNDED_SCHEDULING_TIMEOUT_WARNING = (
+    "scheduling_timeout_s=None allows unscheduled Ray tasks and detached controllers to remain active "
+    "indefinitely. This may prevent Ray/Kubernetes idle scale-down, leave cluster nodes running, and cause "
+    "significant additional compute charges."
+)
 
 _RayGetResultT = TypeVar("_RayGetResultT")
 
 
 def _is_pending_calls_limit_exceeded(exc: BaseException) -> bool:
     return isinstance(exc, PendingCallsLimitExceeded)
+
+
+def _warn_if_unbounded_scheduling_timeout(scheduling_timeout_s: float | None) -> None:
+    if scheduling_timeout_s is None:
+        warnings.warn(_UNBOUNDED_SCHEDULING_TIMEOUT_WARNING, RuntimeWarning, stacklevel=3)
 
 
 def _backpressure_error(action: str) -> BackpressureError:
@@ -143,6 +158,12 @@ class RegistrySnapshot:
     record: JobRecord
 
 
+@dataclass(frozen=True)
+class _SubmissionRecord:
+    record: JobRecord
+    authoritative: bool
+
+
 def _created_at_from_submitted_ts(submitted_at_ts: float) -> datetime:
     return datetime.fromtimestamp(float(submitted_at_ts), tz=timezone.utc)
 
@@ -187,6 +208,9 @@ def _job_status_from_fields(
 
     if status is RegistryStatus.SUBMITTING:
         return JobStatus.PENDING
+
+    if status is RegistryStatus.SCHEDULING:
+        return JobStatus.SCHEDULING
 
     if status in {RegistryStatus.RUNNING, RegistryStatus.CANCELLING}:
         return JobStatus.RUNNING
@@ -310,6 +334,8 @@ class RayJob(Job[CapabilityRunRef]):
         created_at: datetime,
         control_plane_timeout_s: float = DEFAULT_REGISTRY_UPDATE_TIMEOUT_S,
         initial_status: JobStatus = JobStatus.PENDING,
+        job_name: str = "unknown",
+        requested_resources: Mapping[str, Any] | None = None,
     ) -> None:
         self._registry = registry
         self._scope = scope
@@ -317,6 +343,14 @@ class RayJob(Job[CapabilityRunRef]):
         self._created_at = created_at
         self._control_plane_timeout_s = float(control_plane_timeout_s)
         self._last_status = initial_status
+        self._job_name = job_name
+        self._requested_resources = dict(requested_resources or {})
+        self._scheduling_started_at: datetime | None = None
+        self._worker_started_at: datetime | None = None
+        self._worker_node_id: str | None = None
+        self._worker_pod_name: str | None = None
+        self._worker_kubernetes_node_name: str | None = None
+        self._validated_controller_actor_name: str | None = None
 
     @property
     def job_id(self) -> str:
@@ -325,6 +359,31 @@ class RayJob(Job[CapabilityRunRef]):
     @property
     def created_at(self) -> datetime:
         return self._created_at
+
+    @property
+    def job_name(self) -> str:
+        return self._job_name
+
+    @property
+    def scheduling_info(self) -> dict[str, Any]:
+        """Return the latest bounded worker scheduling metadata."""
+        with suppress(Exception):
+            self._remember_status(self._fetch_record(timeout_s=self._control_plane_timeout_s))
+        scheduling_end = self._worker_started_at or datetime.now(timezone.utc)
+        waiting_seconds = (
+            None
+            if self._scheduling_started_at is None
+            else max(0.0, (scheduling_end - self._scheduling_started_at).total_seconds())
+        )
+        return {
+            "requested_resources": dict(self._requested_resources),
+            "scheduling_started_at": self._scheduling_started_at,
+            "scheduling_wait_seconds": waiting_seconds,
+            "worker_started_at": self._worker_started_at,
+            "worker_node_id": self._worker_node_id,
+            "worker_pod_name": self._worker_pod_name,
+            "worker_kubernetes_node_name": self._worker_kubernetes_node_name,
+        }
 
     @staticmethod
     def _remaining_s(deadline: float | None) -> float | None:
@@ -359,6 +418,15 @@ class RayJob(Job[CapabilityRunRef]):
         """
         status = _job_status_from_fields(snapshot["status"], snapshot["result_ref"])
         self._last_status = status
+        self._job_name = str(snapshot.get("job_name", self._job_name))
+        self._requested_resources = dict(snapshot.get("requested_resources", self._requested_resources))
+        scheduling_ts = snapshot.get("scheduling_started_at_ts")
+        worker_ts = snapshot.get("worker_started_at_ts")
+        self._scheduling_started_at = None if scheduling_ts is None else _created_at_from_submitted_ts(scheduling_ts)
+        self._worker_started_at = None if worker_ts is None else _created_at_from_submitted_ts(worker_ts)
+        self._worker_node_id = snapshot.get("worker_node_id")
+        self._worker_pod_name = snapshot.get("worker_pod_name")
+        self._worker_kubernetes_node_name = snapshot.get("worker_kubernetes_node_name")
         return status
 
     def _raise_timeout(self, timeout: float | None) -> NoReturn:
@@ -517,11 +585,11 @@ class RayJob(Job[CapabilityRunRef]):
         """Handle a non-terminal job when its controller actor cannot be found.
 
         A pending job may not have a controller yet, so the record is returned as
-        it is. For a running job, the caller chooses the behavior: fail the job
-        right away, or first ask the registry whether the controller has stopped
-        sending heartbeats for too long.
+        it is. For a scheduling or running job, the caller chooses the behavior:
+        fail the job right away, or first ask the registry whether the controller
+        has stopped sending heartbeats for too long.
         """
-        if record_status is not JobStatus.RUNNING:
+        if record_status not in {JobStatus.SCHEDULING, JobStatus.RUNNING}:
             return record
         if fail_unavailable_controller:
             return self._fail_unavailable_controller(
@@ -544,9 +612,9 @@ class RayJob(Job[CapabilityRunRef]):
 
         For running jobs, callers can choose between failing the job immediately
         or asking the registry whether the controller heartbeat has actually
-        expired. Non-running records are returned unchanged.
+        expired. Other records are returned unchanged.
         """
-        if record_status is not JobStatus.RUNNING:
+        if record_status not in {JobStatus.SCHEDULING, JobStatus.RUNNING}:
             return record
         if fail_unavailable_controller:
             return self._fail_unavailable_controller(
@@ -556,6 +624,36 @@ class RayJob(Job[CapabilityRunRef]):
             )
         swept = self._sweep_stale_running_job(deadline)
         return record if swept is None else swept
+
+    def _validate_controller_compatibility(
+        self,
+        controller: ActorHandle,
+        record: JobRecord,
+        deadline: float | None,
+    ) -> None:
+        actor_name = record.get("controller_actor_name")
+        if actor_name is not None and actor_name == self._validated_controller_actor_name:
+            return
+        descriptor = cast(
+            Mapping[str, Any],
+            _ray_get_with_backpressure(
+                lambda: controller.describe.remote(record.get("controller_token")),
+                timeout_s=self._control_call_timeout_s(deadline),
+                action=f"validating controller protocol for job {self._job_id!r}",
+            ),
+        )
+        expected_identity = {
+            "compatibility_version": CONTROLLER_COMPATIBILITY_VERSION,
+            "scope": self._scope,
+            "job_id": self._job_id,
+        }
+        actual_identity = {field: descriptor.get(field) for field in expected_identity}
+        if actual_identity != expected_identity:
+            raise RuntimeError(
+                f"incompatible controller for job {self._job_id!r}: "
+                f"expected {expected_identity!r}, got {actual_identity!r}"
+            )
+        self._validated_controller_actor_name = actor_name
 
     def _fetch_controller_state(
         self,
@@ -573,6 +671,7 @@ class RayJob(Job[CapabilityRunRef]):
         stale-heartbeat rule.
         """
         try:
+            self._validate_controller_compatibility(controller, record, deadline)
             raw_state = cast(
                 ControllerStatePayload,
                 _ray_get_with_backpressure(
@@ -583,7 +682,7 @@ class RayJob(Job[CapabilityRunRef]):
             )
             return _controller_state_from_raw(raw_state)
         except GetTimeoutError:
-            if record_status is JobStatus.RUNNING and not fail_unavailable_controller:
+            if record_status in {JobStatus.SCHEDULING, JobStatus.RUNNING} and not fail_unavailable_controller:
                 swept = self._sweep_stale_running_job(deadline)
                 if swept is not None and _job_status_from_fields(swept["status"], swept["result_ref"]).is_terminal:
                     return RegistrySnapshot(swept)
@@ -649,7 +748,7 @@ class RayJob(Job[CapabilityRunRef]):
                 deadline=deadline,
             )
 
-        if record_status is JobStatus.RUNNING and state.status is RegistryStatus.SUBMITTING:
+        if record_status in {JobStatus.SCHEDULING, JobStatus.RUNNING} and state.status is RegistryStatus.SUBMITTING:
             if fail_unavailable_controller:
                 return self._fail_unavailable_controller(
                     record,
@@ -836,9 +935,9 @@ class RayJob(Job[CapabilityRunRef]):
             return RuntimeError(str(snapshot.get("error") or "failed"))
         return None
 
-    def _request_registry_cancellation(self, snapshot: JobRecord) -> JobRecord | None:
+    def _request_registry_cancellation(self, snapshot: JobRecord) -> tuple[bool, JobRecord | None]:
         return cast(
-            JobRecord | None,
+            tuple[bool, JobRecord | None],
             _ray_get_with_backpressure(
                 lambda: self._registry.request_cancellation.remote(
                     self._scope,
@@ -851,7 +950,10 @@ class RayJob(Job[CapabilityRunRef]):
             ),
         )
 
-    def _request_registry_cancellation_best_effort(self, snapshot: JobRecord) -> tuple[bool, JobRecord | None]:
+    def _request_registry_cancellation_best_effort(
+        self,
+        snapshot: JobRecord,
+    ) -> tuple[bool | None, JobRecord | None]:
         try:
             requested = self._request_registry_cancellation(snapshot)
         except BackpressureError:
@@ -862,11 +964,8 @@ class RayJob(Job[CapabilityRunRef]):
                 extra={"job_id": self._job_id, "scope": self._scope},
                 exc_info=True,
             )
-            return False, None
-        return requested is not None and requested["status"] in {
-            RegistryStatus.CANCELLING,
-            RegistryStatus.CANCELLED,
-        }, requested
+            return None, None
+        return requested
 
     def cancel(self) -> bool:
         """Ask Ray to cancel this job.
@@ -888,17 +987,18 @@ class RayJob(Job[CapabilityRunRef]):
         if _job_status_from_fields(snapshot["status"], snapshot["result_ref"]).is_terminal:
             return False
 
+        cancel_requested, requested = self._request_registry_cancellation_best_effort(snapshot)
+        if requested is not None:
+            requested_status = self._remember_status(requested)
+            if requested_status.is_terminal and cancel_requested is not True:
+                return False
+        if cancel_requested is False:
+            return False
+
         controller = self._get_controller_actor(snapshot["controller_actor_name"], snapshot["controller_namespace"])
         if controller is None:
-            if _registry_status_from_raw(snapshot["status"]) is not RegistryStatus.SUBMITTING:
-                return False
-            _cancel_requested, cancelled = self._request_registry_cancellation_best_effort(snapshot)
-            if cancelled is None:
-                return False
-            self._remember_status(cancelled)
-            return _job_status_from_fields(cancelled["status"], cancelled["result_ref"]) is JobStatus.CANCELLED
+            return cancel_requested is not False
 
-        cancel_requested, _requested = self._request_registry_cancellation_best_effort(snapshot)
         try:
             controller_cancelled = bool(
                 _ray_get_with_backpressure(
@@ -907,11 +1007,11 @@ class RayJob(Job[CapabilityRunRef]):
                     action=f"cancelling controller for job {self._job_id!r}",
                 )
             )
-            return controller_cancelled or cancel_requested
+            return controller_cancelled or cancel_requested is not False
         except GetTimeoutError:
             return True
         except Exception:  # noqa: BLE001
-            return cancel_requested
+            return cancel_requested is not False
 
 
 class RayJobBackend:
@@ -990,6 +1090,16 @@ class RayJobBackend:
         )
 
     @staticmethod
+    def _validate_optional_job_limit(name: str, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{name} must be a non-negative integer or None")
+        if value < 0:
+            raise ValueError(f"{name} must be a non-negative integer or None")
+        return value
+
+    @staticmethod
     def _validate_max_pending_calls(name: str, value: int | None) -> int | None:
         """Validate an optional Ray actor pending-call limit."""
         if value is None:
@@ -1021,6 +1131,19 @@ class RayJobBackend:
             raise ValueError("registry_namespace must not have leading or trailing whitespace")
         return namespace
 
+    @staticmethod
+    def _validate_controller_timeout_settings(
+        startup_timeout_s: float,
+        scheduling_timeout_s: float | None,
+    ) -> tuple[float, float | None]:
+        startup_timeout_s = float(startup_timeout_s)
+        scheduling_timeout_s = None if scheduling_timeout_s is None else float(scheduling_timeout_s)
+        if startup_timeout_s <= 0:
+            raise ValueError("controller_startup_timeout_s must be > 0")
+        if scheduling_timeout_s is not None and scheduling_timeout_s <= 0:
+            raise ValueError("scheduling_timeout_s must be > 0 or None")
+        return startup_timeout_s, scheduling_timeout_s
+
     def __init__(
         self,
         analytics_store: AnalyticsStoreConfig | dict[str, Any],
@@ -1042,12 +1165,16 @@ class RayJobBackend:
         registry_sweep_batch_limit: int | None = DEFAULT_REGISTRY_SWEEP_BATCH_LIMIT,
         registry_update_timeout_s: float = DEFAULT_REGISTRY_UPDATE_TIMEOUT_S,
         controller_actor_prefix: str | None = None,
+        controller_startup_timeout_s: float = DEFAULT_CONTROLLER_STARTUP_TIMEOUT_S,
+        scheduling_timeout_s: float | None = DEFAULT_SCHEDULING_TIMEOUT_S,
         controller_heartbeat_interval_s: float = DEFAULT_CONTROLLER_HEARTBEAT_INTERVAL_S,
         controller_terminal_retry_interval_s: float = DEFAULT_CONTROLLER_TERMINAL_RETRY_INTERVAL_S,
         controller_retention_s: float | None = None,
         max_retained_terminal_controllers: int | None = None,
         terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
         max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+        max_active_jobs_per_scope: int | None = None,
+        max_scheduling_jobs_per_scope: int | None = None,
         controller_num_cpus: float | None = None,
         controller_memory: float | None = None,
         controller_resources: dict[str, float] | None = None,
@@ -1071,7 +1198,10 @@ class RayJobBackend:
             Ray runtime environment passed to ``ray.init`` when this job backend
             initializes Ray.
         max_retries
-            Number of retries Ray may use for each capability worker task.
+            Number of retries Ray may use for each capability worker task. The
+            backend reserves at least one retry for an ambiguous startup
+            handshake; capability application exceptions are not retried by
+            that reservation.
         force_reinit
             Shut down an already initialized local Ray runtime before connecting.
         idempotency_scope
@@ -1116,6 +1246,11 @@ class RayJobBackend:
             call.
         controller_actor_prefix
             Prefix for per-job controller actor names.
+        controller_startup_timeout_s
+            Maximum seconds to wait for a controller's cold-start acknowledgement.
+        scheduling_timeout_s
+            Maximum seconds a capability worker may wait for Ray resources.
+            Defaults to 30 minutes; ``None`` explicitly disables the deadline.
         controller_heartbeat_interval_s
             How often controllers send heartbeats while jobs are running.
         controller_terminal_retry_interval_s
@@ -1131,6 +1266,14 @@ class RayJobBackend:
         max_retained_terminal_jobs_per_scope
             Maximum terminal job records kept per scope; ``None`` disables this
             cap.
+        max_active_jobs_per_scope
+            Maximum non-terminal jobs admitted in one scope. Ray resources still
+            determine execution concurrency. Excess work fails with
+            ``BackpressureError``; ``None`` is unbounded.
+        max_scheduling_jobs_per_scope
+            Maximum worker requests waiting in Ray's scheduling queue for one
+            scope. Excess work fails with ``BackpressureError``. ``None`` is
+            unbounded.
         controller_num_cpus
             CPU reservation for each controller actor; ``None`` uses the default.
         controller_memory
@@ -1150,6 +1293,7 @@ class RayJobBackend:
                 "Pass a stable workspace/project scope so dedupe and reattach semantics are explicit."
             )
         registry_namespace = self._validate_registry_namespace(registry_namespace)
+        _warn_if_unbounded_scheduling_timeout(scheduling_timeout_s)
 
         (
             registry_update_timeout_s,
@@ -1208,12 +1352,22 @@ class RayJobBackend:
         self._last_registry_sweep_ts = 0.0
         self._registry_update_timeout_s = registry_update_timeout_s
         self._controller_actor_prefix = controller_actor_prefix or f"{DEFAULT_REGISTRY_ACTOR_NAME}_controller"
+        self._controller_startup_timeout_s, self._scheduling_timeout_s = self._validate_controller_timeout_settings(
+            controller_startup_timeout_s,
+            scheduling_timeout_s,
+        )
         self._controller_heartbeat_interval_s = controller_heartbeat_interval_s
         self._controller_terminal_retry_interval_s = controller_terminal_retry_interval_s
         self._controller_retention_s = float(controller_retention_s)
         self._max_retained_terminal_controllers = max_retained_terminal_controllers
         self._terminal_job_retention_s = terminal_job_retention_s
         self._max_retained_terminal_jobs_per_scope = max_retained_terminal_jobs_per_scope
+        self._max_active_jobs_per_scope = self._validate_optional_job_limit(
+            "max_active_jobs_per_scope", max_active_jobs_per_scope
+        )
+        self._max_scheduling_jobs_per_scope = self._validate_optional_job_limit(
+            "max_scheduling_jobs_per_scope", max_scheduling_jobs_per_scope
+        )
         self._controller_num_cpus = float(controller_num_cpus)
         self._controller_memory = None if controller_memory is None else float(controller_memory)
         self._controller_resources = controller_resources
@@ -1235,6 +1389,8 @@ class RayJobBackend:
             max_retained_terminal_controllers=self._max_retained_terminal_controllers,
             terminal_job_retention_s=self._terminal_job_retention_s,
             max_retained_terminal_jobs_per_scope=self._max_retained_terminal_jobs_per_scope,
+            max_active_jobs_per_scope=self._max_active_jobs_per_scope,
+            max_scheduling_jobs_per_scope=self._max_scheduling_jobs_per_scope,
             startup_timeout_s=self._registry_startup_timeout_s,
         )
         self._jobs: dict[str, RayJob] = {}
@@ -1340,6 +1496,8 @@ class RayJobBackend:
             created_at=_created_at_from_submitted_ts(record["submitted_at_ts"]),
             control_plane_timeout_s=self._registry_update_timeout_s,
             initial_status=_job_status_from_fields(record["status"], record["result_ref"]),
+            job_name=record["job_name"],
+            requested_resources=record.get("requested_resources"),
         )
 
     def _attach_job(self, record: JobRecord) -> RayJob:
@@ -1357,6 +1515,12 @@ class RayJobBackend:
         self._jobs[job_id] = job
         return job
 
+    def _run_submit_sweep(self, action: str, ref_factory: Callable[[], ray.ObjectRef[Any]]) -> None:
+        try:
+            ray.get(ref_factory(), timeout=self._registry_update_timeout_s)
+        except Exception:  # noqa: BLE001 - maintenance must not reject a new submission
+            logger.warning("Best-effort registry maintenance failed while %s", action, exc_info=True)
+
     def _sweep_registry_on_submit(self) -> None:
         """Occasionally ask the registry to clean up old records before submit.
 
@@ -1372,26 +1536,22 @@ class RayJobBackend:
         self._last_registry_sweep_ts = now
         limit = self._registry_sweep_batch_limit
 
-        with suppress(Exception):
-            ray.get(
-                self._registry.sweep_expired_submissions.remote(limit=limit),
-                timeout=self._registry_update_timeout_s,
-            )
-        with suppress(Exception):
-            ray.get(
-                self._registry.sweep_stale_running_jobs.remote(limit=limit),
-                timeout=self._registry_update_timeout_s,
-            )
-        with suppress(Exception):
-            ray.get(
-                self._registry.sweep_retained_job_records.remote(limit=limit),
-                timeout=self._registry_update_timeout_s,
-            )
-        with suppress(Exception):
-            ray.get(
-                self._registry.sweep_terminal_controllers.remote(limit=limit),
-                timeout=self._registry_update_timeout_s,
-            )
+        self._run_submit_sweep(
+            "expiring submissions",
+            lambda: self._registry.sweep_expired_submissions.remote(limit=limit),
+        )
+        self._run_submit_sweep(
+            "failing stale jobs",
+            lambda: self._registry.sweep_stale_running_jobs.remote(limit=limit),
+        )
+        self._run_submit_sweep(
+            "purging retained records",
+            lambda: self._registry.sweep_retained_job_records.remote(limit=limit),
+        )
+        self._run_submit_sweep(
+            "cleaning terminal controllers",
+            lambda: self._registry.sweep_terminal_controllers.remote(limit=limit),
+        )
 
     def sweep_registry(self, limit: int | None = DEFAULT_REGISTRY_SWEEP_BATCH_LIMIT) -> dict[str, int]:
         """Run one registry cleanup pass and return per-sweep counts.
@@ -1484,7 +1644,7 @@ class RayJobBackend:
                         self._max_retries,
                         reservation_token,
                     ),
-                    timeout_s=self._registry_update_timeout_s,
+                    timeout_s=self._controller_startup_timeout_s,
                     action=f"starting controller for job {job_id!r}",
                 ),
             )
@@ -1494,6 +1654,25 @@ class RayJobBackend:
                 extra={"job_id": job_id, "scope": self._idempotency_scope},
             )
             return None
+
+    def _fail_submission_reservation(
+        self,
+        *,
+        job_id: str,
+        reservation_token: str,
+        error: str,
+    ) -> None:
+        """Fail an unstarted reservation without relying on controller cleanup."""
+        with suppress(Exception):
+            ray.get(
+                self._registry.fail_submission.remote(
+                    self._idempotency_scope,
+                    job_id,
+                    reservation_token,
+                    error,
+                ),
+                timeout=self._registry_update_timeout_s,
+            )
 
     def _close_failed_submission(
         self,
@@ -1511,27 +1690,23 @@ class RayJobBackend:
         suppressed because this runs while another submission error is already
         being reported.
         """
+        if not attached:
+            self._fail_submission_reservation(
+                job_id=job_id,
+                reservation_token=reservation_token,
+                error=error,
+            )
+            return
         with suppress(Exception):
-            if attached:
-                ray.get(
-                    self._registry.update_terminal.remote(
-                        self._idempotency_scope,
-                        job_id,
-                        RegistryStatus.FAILED,
-                        error,
-                        None,
-                        controller_name,
-                        reservation_token,
-                    ),
-                    timeout=self._registry_update_timeout_s,
-                )
-                return
             ray.get(
-                self._registry.fail_submission.remote(
+                self._registry.update_terminal.remote(
                     self._idempotency_scope,
                     job_id,
-                    reservation_token,
+                    RegistryStatus.FAILED,
                     error,
+                    None,
+                    controller_name,
+                    reservation_token,
                 ),
                 timeout=self._registry_update_timeout_s,
             )
@@ -1562,6 +1737,29 @@ class RayJobBackend:
                 fallback_record["completed_at_ts"] = float(start_state["terminal_at_ts"])
         return fallback_record
 
+    @staticmethod
+    def _authoritative_start_failure(
+        start_state: ControllerStatePayload | None,
+        submission_record: _SubmissionRecord,
+    ) -> str | None:
+        """Return a confirmed startup error without guessing from fallback state."""
+        if start_state is None:
+            return None
+        start_failed = (
+            _job_status_from_fields(_registry_status_from_raw(start_state["status"]), start_state["result_ref"])
+            is JobStatus.FAILED
+        )
+        if not start_failed:
+            return None
+        record = submission_record.record
+        registry_failed = (
+            submission_record.authoritative
+            and _job_status_from_fields(record["status"], record["result_ref"]) is JobStatus.FAILED
+        )
+        if not start_state.get("terminal_authoritative", True) and not registry_failed:
+            return None
+        return record.get("error") or start_state["error"] or "job failed during start"
+
     def _record_after_submit_acceptance(
         self,
         registration: NewJobRegistrationRecord,
@@ -1570,13 +1768,8 @@ class RayJobBackend:
         controller_name: str,
         reservation_token: str,
         start_state: ControllerStatePayload | None,
-    ) -> JobRecord:
-        """Read the registry record after the controller accepts a new job.
-
-        If the registry read times out, this returns a fallback record with enough
-        controller information for a useful handle. If the registry has lost the
-        record, this raises because there is no shared metadata to attach to.
-        """
+    ) -> _SubmissionRecord:
+        """Read authoritative registry state or return a reattachable fallback."""
         try:
             record = cast(
                 JobRecord | None,
@@ -1586,21 +1779,65 @@ class RayJobBackend:
                     action=f"reading job {job_id!r}",
                 ),
             )
-        except GetTimeoutError:
+        except Exception:  # noqa: BLE001
             logger.warning(
-                "Timed out reading Ray job registry after controller accepted the job; returning a reattachable handle",
+                "Could not read Ray job registry after controller accepted the job; returning a reattachable handle",
                 extra={"job_id": job_id, "scope": self._idempotency_scope},
+                exc_info=True,
             )
-            return self._fallback_record_after_submit_timeout(
+            fallback = self._fallback_record_after_submit_timeout(
                 registration,
                 controller_name=controller_name,
                 reservation_token=reservation_token,
                 start_state=start_state,
             )
+            return _SubmissionRecord(fallback, authoritative=False)
 
         if record is None:
             raise RuntimeError(f"Registry lost job metadata for {job_id}")
-        return record
+        return _SubmissionRecord(record, authoritative=True)
+
+    def _prepare_submission(
+        self,
+        capability: CapabilityType,
+        kwargs: dict[str, Any],
+    ) -> tuple[str, dict[str, Any], RayTaskResources, str]:
+        try:
+            job_name = resolve_job_name(kwargs.pop("job_name", None), capability.id)
+            run_kwargs = prepare_job_submission_run_kwargs(kwargs)
+            resources = self._resolve_resources(capability, run_kwargs)
+            run_kwargs.pop("resources", None)
+            scoped_run_key = self._compute_scoped_run_key(capability, run_kwargs)
+            return job_name, run_kwargs, resources, scoped_run_key
+        except (TypeError, ValueError):
+            raise
+        except Exception as exc:
+            raise JobSubmissionError("validating submission", exc) from exc
+
+    def _register_submission(
+        self,
+        scoped_run_key: str,
+        job_name: str,
+        resources: RayTaskResources,
+    ) -> JobRegistrationRecord:
+        try:
+            return cast(
+                JobRegistrationRecord,
+                _ray_get_with_backpressure(
+                    lambda: self._registry.register_or_get.remote(
+                        self._idempotency_scope,
+                        scoped_run_key,
+                        job_name,
+                        resources.as_dict(),
+                    ),
+                    timeout_s=self._registry_update_timeout_s,
+                    action="registering job submission",
+                ),
+            )
+        except BackpressureError:
+            raise
+        except Exception as exc:
+            raise JobSubmissionError("registering submission", exc) from exc
 
     def submit_capability(self, capability: CapabilityType, **kwargs: Any) -> RayJob:
         """Submit a capability run to Ray and return a job handle.
@@ -1617,19 +1854,10 @@ class RayJobBackend:
         so the returned handle can be used to poll, cancel, or fetch the result
         even if this submitter process exits.
         """
-        run_kwargs = prepare_job_submission_run_kwargs(kwargs)
+        job_name, run_kwargs, resources, scoped_run_key = self._prepare_submission(capability, kwargs)
 
         self._sweep_registry_on_submit()
-
-        scoped_run_key = self._compute_scoped_run_key(capability, run_kwargs)
-        registration = cast(
-            JobRegistrationRecord,
-            _ray_get_with_backpressure(
-                lambda: self._registry.register_or_get.remote(self._idempotency_scope, scoped_run_key),
-                timeout_s=self._registry_update_timeout_s,
-                action="registering job submission",
-            ),
-        )
+        registration = self._register_submission(scoped_run_key, job_name, resources)
 
         decision = registration["decision"]
         if decision == "existing":
@@ -1647,9 +1875,8 @@ class RayJobBackend:
         attached = False
         start_state: ControllerStatePayload | None = None
 
+        phase = "preparing worker payload"
         try:
-            resources: RayTaskResources = self._resolve_resources(capability, run_kwargs)
-            run_kwargs.pop("resources", None)
             run_kwargs["_analytics_store"] = self._analytics_store.model_dump(mode="python")
             run_kwargs["_provenance"] = _ray_job_provenance(
                 job_id,
@@ -1657,6 +1884,7 @@ class RayJobBackend:
                 self._idempotency_scope,
             ).model_dump(mode="python")
 
+            phase = "starting controller"
             controller = get_or_create_controller_actor(
                 name=controller_name,
                 namespace=self._registry_namespace,
@@ -1667,13 +1895,17 @@ class RayJobBackend:
                 registry_update_timeout_s=self._registry_update_timeout_s,
                 controller_heartbeat_interval_s=self._controller_heartbeat_interval_s,
                 controller_terminal_retry_interval_s=self._controller_terminal_retry_interval_s,
+                scheduling_timeout_s=self._scheduling_timeout_s,
+                controller_retention_s=self._controller_retention_s,
                 controller_num_cpus=self._controller_num_cpus,
                 controller_memory=self._controller_memory,
                 controller_resources=self._controller_resources,
                 controller_max_pending_calls=self._controller_max_pending_calls,
                 controller_token=reservation_token,
+                startup_timeout_s=self._controller_startup_timeout_s,
             )
 
+            phase = "attaching controller"
             attached = bool(
                 _ray_get_with_backpressure(
                     lambda: self._registry.attach_controller.remote(
@@ -1690,6 +1922,7 @@ class RayJobBackend:
             if not attached:
                 return self._record_for_unattached_controller(controller, job_id)
 
+            phase = "starting worker scheduling"
             start_state = self._start_controller(
                 controller=controller,
                 capability=capability,
@@ -1698,8 +1931,13 @@ class RayJobBackend:
                 job_id=job_id,
                 reservation_token=reservation_token,
             )
-        except BackpressureError:
-            if controller is not None and not attached:
+        except BackpressureError as exc:
+            self._fail_submission_reservation(
+                job_id=job_id,
+                reservation_token=reservation_token,
+                error=str(exc),
+            )
+            if controller is not None:
                 with suppress(Exception):
                     ray.kill(controller, no_restart=True)
             raise
@@ -1714,25 +1952,32 @@ class RayJobBackend:
             if controller is not None and not attached:
                 with suppress(Exception):
                     ray.kill(controller, no_restart=True)
-            raise RuntimeError(f"Failed to submit capability job {job_id}: {exc}") from exc
+            raise JobSubmissionError(phase, exc, job_id) from exc
 
-        if (
-            start_state is not None
-            and _job_status_from_fields(_registry_status_from_raw(start_state["status"]), start_state["result_ref"])
-            is JobStatus.FAILED
-        ):
-            raise RuntimeError(
-                f"Failed to submit capability job {job_id}: {start_state['error'] or 'job failed during start'}"
-            )
-
-        record = self._record_after_submit_acceptance(
+        submission_record = self._record_after_submit_acceptance(
             new_registration,
             job_id=job_id,
             controller_name=controller_name,
             reservation_token=reservation_token,
             start_state=start_state,
         )
+        record = submission_record.record
+        start_error = self._authoritative_start_failure(start_state, submission_record)
+        if start_error is not None:
+            raise JobSubmissionError("starting worker scheduling", start_error, job_id)
         return self._attach_job(record)
+
+    @staticmethod
+    def _registry_status_values(status: JobStatus) -> list[RegistryStatus]:
+        if not isinstance(status, JobStatus):
+            raise TypeError("status_filter must be a JobStatus or a sequence of JobStatus values")
+        mapping = {
+            JobStatus.PENDING: [RegistryStatus.SUBMITTING],
+            JobStatus.SCHEDULING: [RegistryStatus.SCHEDULING],
+            JobStatus.RUNNING: [RegistryStatus.RUNNING, RegistryStatus.CANCELLING],
+        }
+        values = mapping.get(status)
+        return values if values is not None else [RegistryStatus[status.name]]
 
     @staticmethod
     def _registry_status_filter(
@@ -1748,17 +1993,8 @@ class RayJobBackend:
         if status_filter is None:
             return None
 
-        def values_for(status: JobStatus) -> list[RegistryStatus]:
-            if not isinstance(status, JobStatus):
-                raise TypeError("status_filter must be a JobStatus or a sequence of JobStatus values")
-            if status is JobStatus.PENDING:
-                return [RegistryStatus.SUBMITTING]
-            if status is JobStatus.RUNNING:
-                return [RegistryStatus.RUNNING, RegistryStatus.CANCELLING]
-            return [RegistryStatus[status.name]]
-
         if isinstance(status_filter, JobStatus):
-            values = values_for(status_filter)
+            values = RayJobBackend._registry_status_values(status_filter)
         else:
             try:
                 statuses = set(status_filter)
@@ -1768,7 +2004,7 @@ class RayJobBackend:
                 raise TypeError("status_filter must be a JobStatus or a sequence of JobStatus values")
             values = []
             for status in statuses:
-                values.extend(values_for(status))
+                values.extend(RayJobBackend._registry_status_values(status))
 
         values = list(dict.fromkeys(values))
         return values[0] if len(values) == 1 else values

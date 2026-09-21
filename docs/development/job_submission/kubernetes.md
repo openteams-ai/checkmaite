@@ -67,8 +67,10 @@ as long as the registry exists.
 For Kubernetes deployments, consider aggressive terminal-controller cleanup when
 reattach-through-controller is not needed after terminal state is committed, for
 example `controller_retention_s=0.0` and
-`max_retained_terminal_controllers=0`. Submit-triggered sweeps are not enough for
-reliable idle scale-down if the cluster becomes quiet after jobs finish.
+`max_retained_terminal_controllers=0`. Terminal controllers now request their
+own registry cleanup after retention expires, so quiet-cluster scale-down does
+not depend on a later submission. Keep an operator sweep as a recovery mechanism
+for actors that fail before scheduling that request.
 
 ## Head node placement
 
@@ -78,13 +80,15 @@ control-plane actors, configure the Ray head with `num-cpus: "0"` so nonzero-CPU
 user tasks and actors do not land there.
 
 Controller actors should normally reserve a small nonzero CPU amount, such as
-the default `controller_num_cpus=0.01`, or use a custom placement resource. Avoid
-`controller_num_cpus=0.0` in production Kubernetes unless placement is otherwise
-controlled.
+the default `controller_num_cpus=0.01`, or use a custom placement resource. A
+fractional reservation can fragment a one-CPU worker and leave only `0.99` CPU
+for a capability requesting one full CPU. Avoid `controller_num_cpus=0.0` in
+production Kubernetes unless placement is otherwise controlled.
 
 A clean production layout is often a small dedicated control-plane worker group
-for the registry actor, while normal worker groups run controller actors and
-capability tasks.
+advertising a custom resource such as `checkmaite-control`, while normal worker
+groups run capability tasks. Configure `controller_resources` so controllers
+consume that control resource and cannot occupy capability-only workers.
 
 ## Registry actor placement and resources
 

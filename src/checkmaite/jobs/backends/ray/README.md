@@ -69,8 +69,11 @@ To use `ray` well:
   storage reference instead of embedding them in submitted Python objects;
 - make capability code and analytics-store writes safe to repeat, because retries,
   duplicate submissions, cancellation races, or worker crashes can happen;
-- tune timeout, heartbeat, retention, placement, and cleanup settings for
-  long-running shared clusters or KubeRay deployments.
+- tune startup, scheduling, heartbeat, retention, placement, and admission
+  settings for long-running shared clusters or KubeRay deployments;
+- use `job_name` to identify listed jobs after a notebook crash; it defaults to
+  the capability ID when omitted. Treat `job.job_id` rather than a Ray driver ID
+  as the canonical Checkmaite job identity.
 
 If job history must survive RayCluster deletion or recreation, add an external
 database or object store as the long-lived source of truth. Neither `ray` nor
@@ -86,9 +89,9 @@ artifacts.
 
 Keep each registry record small. It should only contain information such as:
 
-- job id;
+- job id and a bounded job name;
 - job namespace and run key;
-- status and timestamps;
+- status, scheduling details, and timestamps;
 - controller actor name and owner token;
 - short error text;
 - a small `CapabilityRunRef` for completed jobs.
@@ -161,8 +164,9 @@ Clients share and reconnect to the same jobs only when they use the same:
 
 When a client reattaches to a registry, CheckMAITE validates one compatibility
 version covering its actor protocol and record/result schemas, plus a typed copy
-of the registry's immutable configuration. Ray itself remains responsible for
-Python and Ray runtime compatibility.
+of the registry's immutable configuration. Per-job controllers use the same
+single-version and typed-configuration handshake pattern. Ray itself remains
+responsible for Python and Ray runtime compatibility.
 When the same logical run is submitted again, the job backend is expected to return
 the existing active or completed job instead of starting duplicate work.
 
@@ -212,14 +216,22 @@ mark the job as failed. A `COMPLETED` job must include a valid, small
 `RayJob.status` is a lightweight polling API. It can return old information if a
 Ray call fails or times out.
 
-Status is intentionally simple:
+Status distinguishes control-plane handoff from resource scheduling and execution:
 
 - `SUBMITTING` is shown as `PENDING`;
+- `SCHEDULING` means Ray has not started the capability worker yet;
 - `RUNNING` and internal `CANCELLING` are shown as `RUNNING`;
 - `PENDING` can mean a normal submit handoff or an abandoned submit that is
   waiting to expire.
 
 Use `wait()` or `result()` when you need to wait for a final answer.
+`scheduling_timeout_s` bounds the cluster-owned resource wait independently of a
+client-side wait timeout and defaults to 30 minutes. Setting it to `None` emits a
+runtime warning because an unbounded wait may prevent idle scale-down, leave
+cluster nodes running, and cause significant additional compute charges. Ray
+remains the source of truth for worker placement and autoscaling. Per-scope
+active and scheduling-queue limits provide admission
+backpressure for calling services.
 
 `Job.cancel()` returning `True` means a cancel request was sent. It does not
 promise that the final state will be `CANCELLED`. If the job finishes at the

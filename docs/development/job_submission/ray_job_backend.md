@@ -52,8 +52,10 @@ sequenceDiagram
         Registry-->>JobBackend: new reservation
         JobBackend->>Controller: create/get named detached controller
         JobBackend->>Controller: start(capability, kwargs, resources)
-        Controller->>Registry: mark_running(...)
-        Controller->>Ray: ray.remote(_execute_capability_ref).remote(...)
+        Controller->>Registry: mark_scheduling(...)
+        Controller->>Ray: submit capability worker
+        Worker->>Controller: worker_started(node/pod metadata)
+        Controller->>Registry: mark_worker_running(...)
         JobBackend-->>Client: RayJob
         Ray->>Worker: execute _execute_capability_ref
         Worker->>Worker: capability.run(..., use_cache=False)
@@ -68,7 +70,7 @@ sequenceDiagram
 The registry/controller split is the key design shown in the flow:
 
 1. The **registry actor** is the shared directory for job metadata. `register_or_get(...)` either reserves a new job ID or returns an existing record for the same scoped run key. Later `get_job(...)` and `list_jobs(...)` calls read from this registry, so clients do not need the original submitting process to still be alive.
-2. The **controller actor** is the per-job owner of live execution. After the registry accepts a new reservation, the backend creates or finds the named detached controller, asks it to mark the job `RUNNING`, and the controller launches the Ray worker task.
+2. The **controller actor** is the per-job owner of live execution. After the registry accepts a new reservation, the backend creates or finds the named detached controller and records `SCHEDULING` while Ray places the worker. The worker's startup handshake records `RUNNING` only after execution begins.
 3. The **controller owns the Ray task `ObjectRef`**, not the notebook/client. It watches the task complete, handles cancellation requests, and writes terminal status plus the serialized `CapabilityRunRef` back to the registry.
 4. The public `RayJob` handle is therefore a lightweight client-side view over shared registry state and, while the controller is retained, controller reconciliation/cancellation methods.
 
@@ -143,6 +145,7 @@ job = submit_capability(
     models=[model],
     metrics=[metric],
     config=config,
+    job_name="September COCO evaluation",
     use_cache=False,
 )
 ```
@@ -156,7 +159,8 @@ future shared-cache support would need an explicit remote cache backend.
 ### 4. Inspect lifecycle and retrieve the result reference
 
 ```python
-print(job.job_id)
+print(job.job_id)       # Canonical Checkmaite job ID
+print(job.job_name)     # User label, or the capability ID by default
 print(job.status)
 print(job.wait(timeout=0.1))
 
@@ -167,6 +171,9 @@ print(ref.outputs_uri)  # None today
 ```
 
 The returned object is `CapabilityRunRef`, not a full `CapabilityRunBase`.
+The bounded job name is a display label and does not affect run identity or
+deduplication. It defaults to the capability ID when the user does not provide
+one. A duplicate submission keeps the original job's label.
 
 ### 5. List jobs
 
@@ -183,7 +190,42 @@ from listing are attached to the current backend instance, so `shutdown(wait=Tru
 treats them as tracked jobs. Use `before_submitted_at_ts` as a simple cursor for
 older pages.
 
+### Recover after a notebook failure
+
+Reconnect to the same Ray namespace and registry actor with the same stable
+`idempotency_scope`, then call `list_jobs()`. Use `job.job_name`,
+`job.created_at`, and `job.status` to identify a job whose ID was
+not saved. When the original logical inputs can be reconstructed, resubmitting
+them in the same scope also returns the canonical active or completed job through
+deduplication. `get_job(job_id)` is the direct path when the ID is known.
+
+`job.job_id` is the canonical Checkmaite identifier used by the registry,
+controllers, cancellation, and provenance. A Ray Dashboard driver ID identifies
+a client session instead: it can change after reconnecting, can own several
+Checkmaite submissions, and cannot be passed to `get_job()`.
+
+Reconfiguring the process-global backend calls `shutdown(wait=False)` on the old
+client object. It changes which backend top-level API calls use, but does not
+cancel detached jobs or invalidate existing job handles. Avoid
+`force_reinit=True` while work is active. Terminating a Ray Client driver also
+does not mean cancelling each Checkmaite job it submitted; retain or recover the
+job and call `job.cancel()` for job-specific cancellation.
+
 ## Resource scheduling
+
+The job backend distinguishes handing a submission to its controller, waiting
+for Ray resources, and executing capability code:
+
+```text
+PENDING -> SCHEDULING -> RUNNING -> terminal state
+```
+
+`SCHEDULING` begins when the controller submits the worker request to Ray.
+`RUNNING` begins only after the worker has actually started and completed a
+startup handshake. `job.scheduling_info` reports requested resources, elapsed
+scheduling time, worker start time, Ray node identity, and pod placement fields
+when the deployment exposes them. Configure the Kubernetes downward API as
+`CHECKMAITE_KUBERNETES_NODE_NAME` when the Kubernetes node name is required.
 
 The job backend resolves CPU/GPU requirements in the following order:
 
@@ -198,9 +240,38 @@ Example:
 job = submit_capability(
     capability,
     datasets=[dataset],
-    resources={"num_cpus": 4, "num_gpus": 1},
+    resources={"num_cpus": 4, "num_gpus": 1, "memory": 8_000_000_000},
 )
 ```
+
+Registry and controller startup use separate readiness handshakes and
+`registry_startup_timeout_s` / `controller_startup_timeout_s` budgets. Each
+handshake uses one Checkmaite compatibility version plus typed immutable actor
+configuration; Ray remains responsible for Python and Ray runtime compatibility.
+If this client creates a controller that fails its readiness handshake, it
+best-effort kills that controller before abandoning the registry reservation; a
+pre-existing controller is never killed merely because this client times out.
+Submission failures expose their phase through `JobSubmissionError.phase`, distinguishing
+validation, registration, controller startup, attachment, and worker scheduling.
+Capability and analytics/report dependencies are loaded lazily in the capability
+worker rather than during controller process startup.
+
+By default, `scheduling_timeout_s=1800` fails a task that Ray cannot place within
+30 minutes. This timer is owned by the detached controller and continues after
+the submitting notebook exits. It is separate from `job.wait(timeout=...)`,
+which is only a client-side wait limit. Setting `scheduling_timeout_s=None`
+explicitly allows an unbounded resource wait and emits a runtime warning that
+pending work may prevent idle scale-down, leave cluster nodes running, and cause
+significant additional compute charges.
+
+Checkmaite does not duplicate Ray's worker-discovery or autoscaling policy.
+Ray remains the source of truth for whether current or future cluster capacity
+can satisfy the request; `scheduling_timeout_s` bounds that wait.
+
+`max_active_jobs_per_scope` bounds accepted non-terminal work and
+`max_scheduling_jobs_per_scope` bounds worker requests waiting in Ray's resource
+queue. Capacity rejections raise `BackpressureError`; Ray resources continue to
+determine actual execution concurrency.
 
 ## Status mapping
 
@@ -209,6 +280,7 @@ job = submit_capability(
 Primary mapping comes from registry state:
 
 - `SUBMITTING` -> `PENDING`
+- `SCHEDULING` -> `SCHEDULING`
 - `RUNNING` / `CANCELLING` -> `RUNNING`
 - `COMPLETED` -> `COMPLETED`
 - `FAILED` -> `FAILED`
@@ -237,12 +309,15 @@ Notes:
 - timing out does **not** automatically cancel the remote task,
 - `job.cancel()` records shared cancellation intent (`CANCELLING`) and asks the
   detached controller actor to call `ray.cancel(...)` when the controller is reachable,
+- cancellation can be requested while `PENDING`, `SCHEDULING`, or `RUNNING`,
 - `CANCELLING` still maps to public `RUNNING` until the controller observes and
   commits a terminal state,
 - if the cancellation request is dispatched but the acknowledgement times out,
   `cancel()` may return `True` even though final cancellation is still pending,
-- if the controller cannot be reached, cancellation returns `False` because the
-  handle cannot prove that the underlying Ray task stopped,
+- if the registry accepts cancellation while the controller is temporarily
+  unreachable, `cancel()` returns `True`; a recovered controller observes the
+  shared intent through its heartbeat, while an expired controller lease
+  eventually finalizes the record as `CANCELLED`,
 - if the controller has already been cleaned up then the job is already terminal
   and cancellation is a no-op.
 
@@ -327,14 +402,21 @@ concurrency; CheckMAITE does not add a separate client-side queue.
 
 Dedupe policy in the current implementation:
 
-- `SUBMITTING`, `RUNNING`, and `COMPLETED` records keep the dedupe key, so a
+- `SUBMITTING`, `SCHEDULING`, `RUNNING`, and `COMPLETED` records keep the dedupe key, so a
   duplicate submit in the same scope returns the existing job.
 - `FAILED` and `CANCELLED` records release the dedupe key, so a later submit of
   the same logical work can create a fresh job.
 - expired `SUBMITTING` reservations are marked `FAILED` and also release the
   dedupe key.
-- stale `RUNNING`/`CANCELLING` records whose controller heartbeat lease expires
-  are marked `FAILED` by registry sweep and release the dedupe key.
+- stale `RUNNING` records whose controller heartbeat lease expires are marked
+  `FAILED`; stale `CANCELLING` records become `CANCELLED`. Both release the
+  dedupe key.
+
+Terminal controllers schedule their own retention sweep after successfully
+publishing terminal state. Consequently, `controller_retention_s=0` cleans a
+controller on a quiet cluster without requiring a later submission or an
+operator-triggered sweep. Explicit `sweep_registry()` remains available for
+maintenance and recovery.
 
 Controller terminal updates are best-effort and bounded by
 `registry_update_timeout_s` (default: 5 seconds). If one terminal update times

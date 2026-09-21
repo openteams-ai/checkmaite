@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from checkmaite.jobs._store import AnalyticsStoreConfig
-from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
+from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
 from checkmaite.jobs.backends.ray import RayJobBackend
 from checkmaite.jobs.backends.ray_simple import RaySimpleJobBackend
 
@@ -65,6 +65,7 @@ def submit_capability(
     metrics: Sequence[gen.Metric[Any, Any]] | None = None,
     config: CapabilityConfigBase | None = None,
     use_cache: bool = False,
+    job_name: str | None = None,
     **kwargs: Any,
 ) -> Job[CapabilityRunRef]:
     """Submit a capability run as an asynchronous job."""
@@ -76,6 +77,7 @@ def submit_capability(
         "config": config,
         "use_cache": use_cache,
     }
+    run_kwargs["job_name"] = resolve_job_name(job_name, capability.id)
     run_kwargs.update(kwargs)
     run_kwargs = prepare_job_submission_run_kwargs(run_kwargs)
 

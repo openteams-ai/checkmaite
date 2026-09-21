@@ -11,18 +11,23 @@ import ray
 from ray.actor import ActorHandle
 from ray.exceptions import GetTimeoutError
 
-from checkmaite.jobs.protocol import CapabilityRunRef, CapabilityRunRefPayload
+from checkmaite.jobs.protocol import BackpressureError, CapabilityRunRef, CapabilityRunRefPayload
 
 
 class RegistryStatus(str, enum.Enum):
     """Internal registry lifecycle states stored as plain string values."""
 
     SUBMITTING = "SUBMITTING"
+    SCHEDULING = "SCHEDULING"
     RUNNING = "RUNNING"
     CANCELLING = "CANCELLING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+
+
+WorkerStartResult: TypeAlias = tuple[bool, RegistryStatus | None]
+HeartbeatResult: TypeAlias = tuple[bool, RegistryStatus | None]
 
 
 REGISTRY_TERMINAL_STATUSES = {
@@ -83,6 +88,18 @@ class JobRecord(TypedDict):
         Submitter token for the initial ``SUBMITTING`` reservation.
     reservation_expires_at_ts
         Unix timestamp after which an unstarted reservation can be expired.
+    job_name
+        Bounded user-facing label, defaulting to the capability identifier.
+    requested_resources
+        Normalized worker resources requested from Ray.
+    scheduling_started_at_ts
+        Unix timestamp when the worker task was submitted to Ray.
+    scheduling_deadline_at_ts
+        Unix timestamp when resource scheduling times out, if configured.
+    worker_started_at_ts
+        Unix timestamp when the capability worker actually began executing.
+    worker_node_id, worker_pod_name, worker_kubernetes_node_name
+        Best-effort bounded worker placement diagnostics.
     """
 
     scope: str
@@ -104,6 +121,17 @@ class JobRecord(TypedDict):
     completed_at_ts: float | None
     reservation_token: str | None
     reservation_expires_at_ts: float | None
+    job_name: str
+    requested_resources: dict[str, Any]
+    scheduling_started_at_ts: float | None
+    scheduling_deadline_at_ts: float | None
+    worker_started_at_ts: float | None
+    worker_node_id: str | None
+    worker_pod_name: str | None
+    worker_kubernetes_node_name: str | None
+
+
+CancellationRequestResult: TypeAlias = tuple[bool, JobRecord | None]
 
 
 class ExistingJobRegistrationRecord(JobRecord):
@@ -146,6 +174,8 @@ class RegistryConfiguration(TypedDict):
     max_retained_terminal_controllers: int | None
     terminal_job_retention_s: float | None
     max_retained_terminal_jobs_per_scope: int | None
+    max_active_jobs_per_scope: int | None
+    max_scheduling_jobs_per_scope: int | None
     registry_num_cpus: float
     registry_memory: float | None
     registry_resources: dict[str, float] | None
@@ -174,6 +204,8 @@ def _registry_configuration(
     max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
     terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
     max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+    max_active_jobs_per_scope: int | None = None,
+    max_scheduling_jobs_per_scope: int | None = None,
     registry_num_cpus: float = DEFAULT_REGISTRY_NUM_CPUS,
     registry_memory: float | None = None,
     registry_resources: dict[str, float] | None = None,
@@ -185,6 +217,8 @@ def _registry_configuration(
         "max_retained_terminal_controllers": max_retained_terminal_controllers,
         "terminal_job_retention_s": None if terminal_job_retention_s is None else float(terminal_job_retention_s),
         "max_retained_terminal_jobs_per_scope": max_retained_terminal_jobs_per_scope,
+        "max_active_jobs_per_scope": max_active_jobs_per_scope,
+        "max_scheduling_jobs_per_scope": max_scheduling_jobs_per_scope,
         "registry_num_cpus": float(registry_num_cpus),
         "registry_memory": None if registry_memory is None else float(registry_memory),
         "registry_resources": None if registry_resources is None else dict(registry_resources),
@@ -252,6 +286,8 @@ class JobRegistry:
         max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
         terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
         max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+        max_active_jobs_per_scope: int | None = None,
+        max_scheduling_jobs_per_scope: int | None = None,
         deployment_configuration: RegistryConfiguration | None = None,
     ) -> None:
         """Create an empty registry and configure cleanup timeouts.
@@ -283,6 +319,8 @@ class JobRegistry:
         self._max_retained_terminal_controllers = max_retained_terminal_controllers
         self._terminal_job_retention_s = None if terminal_job_retention_s is None else float(terminal_job_retention_s)
         self._max_retained_terminal_jobs_per_scope = max_retained_terminal_jobs_per_scope
+        self._max_active_jobs_per_scope = max_active_jobs_per_scope
+        self._max_scheduling_jobs_per_scope = max_scheduling_jobs_per_scope
         self._deployment_configuration = copy.deepcopy(
             deployment_configuration
             or _registry_configuration(
@@ -292,6 +330,8 @@ class JobRegistry:
                 max_retained_terminal_controllers=max_retained_terminal_controllers,
                 terminal_job_retention_s=terminal_job_retention_s,
                 max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+                max_active_jobs_per_scope=max_active_jobs_per_scope,
+                max_scheduling_jobs_per_scope=max_scheduling_jobs_per_scope,
             )
         )
 
@@ -416,7 +456,13 @@ class JobRegistry:
         self._job_index.pop((str(record["scope"]), str(record["job_id"])), None)
         return True
 
-    def _new_record(self, scope: str, scoped_run_key: str) -> JobRecord:
+    def _new_record(
+        self,
+        scope: str,
+        scoped_run_key: str,
+        job_name: str,
+        requested_resources: dict[str, Any] | None,
+    ) -> JobRecord:
         now = time.time()
         return {
             "scope": scope,
@@ -438,6 +484,14 @@ class JobRegistry:
             "completed_at_ts": None,
             "reservation_token": uuid.uuid4().hex,
             "reservation_expires_at_ts": now + self._reservation_ttl_s,
+            "job_name": job_name,
+            "requested_resources": copy.deepcopy(requested_resources or {}),
+            "scheduling_started_at_ts": None,
+            "scheduling_deadline_at_ts": None,
+            "worker_started_at_ts": None,
+            "worker_node_id": None,
+            "worker_pod_name": None,
+            "worker_kubernetes_node_name": None,
         }
 
     def _cleanup_controller_for_record(self, record: JobRecord, now: float) -> bool:
@@ -534,19 +588,23 @@ class JobRegistry:
         self._release_dedupe_for_record(record)
 
     def _fail_stale_running_record(self, record: JobRecord, now: float) -> bool:
-        """Fail a running job whose controller lease has expired.
+        """Resolve a live job whose controller lease has expired.
 
-        Running jobs depend on their controller actor to watch the worker task
-        and publish the final result. If the controller stops heartbeating past
-        its lease deadline, the registry treats the job as failed, releases the
-        dedupe key for retry, and keeps controller metadata only long enough for
-        cleanup.
+        Scheduling and running jobs fail when their controller stops heartbeating.
+        A job that already accepted cancellation becomes cancelled instead. Both
+        outcomes release the dedupe key and trigger controller cleanup.
         """
-        if record["status"] not in {RegistryStatus.RUNNING, RegistryStatus.CANCELLING}:
+        if record["status"] not in {RegistryStatus.SCHEDULING, RegistryStatus.RUNNING, RegistryStatus.CANCELLING}:
             return False
         lease_expires_at = record.get("controller_lease_expires_at_ts")
         if lease_expires_at is None or float(lease_expires_at) > now:
             return False
+
+        if record["status"] is RegistryStatus.CANCELLING:
+            self._cancel_submission(record, now)
+            # Give a partitioned controller its retention window to observe the
+            # terminal record and finish cancelling worker work before cleanup.
+            return True
 
         record["status"] = RegistryStatus.FAILED
         record["error"] = "job controller heartbeat expired"
@@ -559,8 +617,52 @@ class JobRegistry:
         self._cleanup_controller_for_record(record, now)
         return True
 
-    def register_or_get(self, scope: str, scoped_run_key: str) -> JobRegistrationRecord:
-        """Atomically dedupe submission and create a reservation if needed."""
+    def _count_scope_statuses(self, scope: str, statuses: set[RegistryStatus]) -> int:
+        return sum(
+            record["status"] in statuses
+            for (record_scope, _job_id), record in self._job_index.items()
+            if record_scope == scope
+        )
+
+    def _check_scheduling_capacity(self, scope: str) -> None:
+        limit = self._max_scheduling_jobs_per_scope
+        if limit is not None and self._count_scope_statuses(scope, {RegistryStatus.SCHEDULING}) >= limit:
+            raise BackpressureError(f"Ray job scheduling queue limit reached for scope {scope!r} ({limit})")
+
+    def _check_active_capacity(self, scope: str) -> None:
+        limit = self._max_active_jobs_per_scope
+        active = {
+            RegistryStatus.SUBMITTING,
+            RegistryStatus.SCHEDULING,
+            RegistryStatus.RUNNING,
+            RegistryStatus.CANCELLING,
+        }
+        if limit is not None and self._count_scope_statuses(scope, active) >= limit:
+            raise BackpressureError(f"Ray job active limit reached for scope {scope!r} ({limit})")
+
+    @staticmethod
+    def _normalize_submission_metadata(
+        job_name: str,
+        requested_resources: dict[str, Any] | None,
+    ) -> str:
+        job_name = str(job_name).strip()
+        if not job_name:
+            raise ValueError("job_name must be non-empty")
+        if len(job_name.encode("utf-8")) > 256:
+            raise ValueError("job_name must be at most 256 UTF-8 bytes")
+        if requested_resources is not None and len(repr(requested_resources).encode("utf-8")) > 8192:
+            raise ValueError("requested_resources metadata must be at most 8192 UTF-8 bytes")
+        return job_name
+
+    def register_or_get(
+        self,
+        scope: str,
+        scoped_run_key: str,
+        job_name: str = "unknown",
+        requested_resources: dict[str, Any] | None = None,
+    ) -> JobRegistrationRecord:
+        """Atomically dedupe submission and create a bounded metadata reservation."""
+        job_name = self._normalize_submission_metadata(job_name, requested_resources)
         dedupe_key = (scope, scoped_run_key)
         existing_job_id = self._dedupe_index.get(dedupe_key)
 
@@ -576,7 +678,9 @@ class JobRegistry:
             else:
                 del self._dedupe_index[dedupe_key]
 
-        record = self._new_record(scope, scoped_run_key)
+        self._check_active_capacity(scope)
+        self._check_scheduling_capacity(scope)
+        record = self._new_record(scope, scoped_run_key, job_name, requested_resources)
         self._dedupe_index[dedupe_key] = record["job_id"]
         self._job_index[(scope, record["job_id"])] = record
 
@@ -647,37 +751,134 @@ class JobRegistry:
         if record.get("controller_token") != reservation_token:
             raise ValueError(f"Invalid controller token for job {job_id!r}")
 
-    def _mark_running_action(self, record: JobRecord, job_id: str, reservation_token: str) -> str:
-        """Decide what should happen before changing a reservation to running.
+    def mark_scheduling(
+        self,
+        scope: str,
+        job_id: str,
+        reservation_token: str,
+        controller_actor_name: str,
+        controller_namespace: str,
+        scheduling_timeout_s: float | None = None,
+    ) -> bool:
+        """Record that Ray owns the worker request but has not started it yet."""
+        record = self._job_index.get((scope, job_id))
+        if record is None:
+            raise KeyError(f"Unknown job_id {job_id!r} in scope {scope!r}")
+        if self._expire_if_needed(record) or record["status"] in REGISTRY_TERMINAL_STATUSES:
+            return False
 
-        The result is a small action string for ``mark_running``: the job may
-        already be running, may need to be cancelled because cancellation was
-        requested before launch, or may be ready to start. Invalid states or
-        tokens raise because they indicate a stale or incorrect caller.
-        """
-        if record["status"] == RegistryStatus.RUNNING:
-            return "already_running"
-        if record["status"] != RegistryStatus.SUBMITTING:
-            raise ValueError(f"Cannot mark job {job_id!r} running while status={record['status']!r}")
-        if record["reservation_token"] != reservation_token:
-            raise ValueError(f"Invalid reservation token for job {job_id!r}")
+        self._validate_mark_running_owner(
+            record, job_id, reservation_token, controller_actor_name, controller_namespace
+        )
+        if record["status"] is RegistryStatus.SCHEDULING:
+            return True
+        if record["status"] is not RegistryStatus.SUBMITTING:
+            raise ValueError(f"Cannot mark job {job_id!r} scheduling while status={record['status']!r}")
         if record.get("cancellation_requested_at_ts") is not None:
             self._cancel_submission(record, time.time())
-            return "cancelled"
-        return "start"
+            return False
 
-    def _mark_record_running(self, record: JobRecord, controller_actor_name: str, controller_namespace: str) -> None:
-        """Apply the registry field updates for a job that is now running."""
+        self._check_scheduling_capacity(scope)
         now = time.time()
-        record["status"] = RegistryStatus.RUNNING
-        record["controller_actor_name"] = controller_actor_name
-        record["controller_namespace"] = controller_namespace
-        if record.get("controller_created_at_ts") is None:
-            record["controller_created_at_ts"] = now
+        record["status"] = RegistryStatus.SCHEDULING
+        record["scheduling_started_at_ts"] = now
+        record["scheduling_deadline_at_ts"] = (
+            None if scheduling_timeout_s is None else now + float(scheduling_timeout_s)
+        )
         record["controller_heartbeat_at_ts"] = now
         record["controller_lease_expires_at_ts"] = now + self._controller_heartbeat_ttl_s
         record["reservation_token"] = None
         record["reservation_expires_at_ts"] = None
+        return True
+
+    @staticmethod
+    def _bounded_worker_value(value: object) -> str | None:
+        if value is None:
+            return None
+        return str(value)[:512]
+
+    def _update_worker_diagnostics(
+        self,
+        record: JobRecord,
+        worker_info: dict[str, Any],
+        now_ts: float,
+    ) -> None:
+        """Record the latest worker attempt's start time and placement."""
+        record["worker_started_at_ts"] = now_ts
+        record["worker_node_id"] = self._bounded_worker_value(worker_info.get("node_id"))
+        record["worker_pod_name"] = self._bounded_worker_value(worker_info.get("pod_name"))
+        record["worker_kubernetes_node_name"] = self._bounded_worker_value(worker_info.get("kubernetes_node_name"))
+
+    def mark_worker_running(
+        self,
+        scope: str,
+        job_id: str,
+        controller_actor_name: str,
+        controller_token: str,
+        worker_info: dict[str, Any] | None = None,
+        now_ts: float | None = None,
+    ) -> WorkerStartResult:
+        """Move a scheduling job to running and report the resulting state."""
+        record = self._job_index.get((scope, job_id))
+        if record is None:
+            return False, None
+        if not self._controller_update_matches(record, controller_actor_name, controller_token):
+            return False, None
+        if record["status"] in REGISTRY_TERMINAL_STATUSES:
+            return False, None
+        if record["status"] is RegistryStatus.RUNNING:
+            if worker_info:
+                now = float(time.time() if now_ts is None else now_ts)
+                self._update_worker_diagnostics(record, worker_info, now)
+            return True, RegistryStatus.RUNNING
+        if record["status"] is RegistryStatus.CANCELLING:
+            return False, RegistryStatus.CANCELLING
+        if record["status"] is not RegistryStatus.SCHEDULING:
+            raise ValueError(f"Cannot mark job {job_id!r} running while status={record['status']!r}")
+        if record.get("cancellation_requested_at_ts") is not None:
+            return False, RegistryStatus.CANCELLING
+
+        now = float(time.time() if now_ts is None else now_ts)
+        worker_info = worker_info or {}
+        record["status"] = RegistryStatus.RUNNING
+        self._update_worker_diagnostics(record, worker_info, now)
+        record["controller_heartbeat_at_ts"] = now
+        record["controller_lease_expires_at_ts"] = now + self._controller_heartbeat_ttl_s
+        return True, RegistryStatus.RUNNING
+
+    def resolve_scheduling_timeout(
+        self,
+        scope: str,
+        job_id: str,
+        controller_actor_name: str,
+        controller_token: str,
+        now_ts: float | None = None,
+    ) -> RegistryStatus | None:
+        """Atomically resolve an elapsed scheduling deadline against shared state."""
+        record = self._job_index.get((scope, job_id))
+        if record is None:
+            return None
+        if not self._controller_update_matches(record, controller_actor_name, controller_token):
+            return None
+        if record["status"] is not RegistryStatus.SCHEDULING:
+            return record["status"]
+
+        deadline = record.get("scheduling_deadline_at_ts")
+        now = float(time.time() if now_ts is None else now_ts)
+        if deadline is None or float(deadline) > now:
+            return RegistryStatus.SCHEDULING
+
+        started_at = record.get("scheduling_started_at_ts")
+        timeout_s = max(0.0, float(deadline) - float(started_at if started_at is not None else deadline))
+        self.update_terminal(
+            scope,
+            job_id,
+            RegistryStatus.FAILED,
+            error=f"worker was not scheduled within {timeout_s:.3f}s",
+            controller_actor_name=controller_actor_name,
+            controller_token=controller_token,
+        )
+        return record["status"]
 
     def mark_running(
         self,
@@ -687,31 +888,25 @@ class JobRegistry:
         controller_actor_name: str,
         controller_namespace: str,
     ) -> bool:
-        """Move a reserved job to ``RUNNING`` before worker launch.
-
-        The controller calls this immediately before starting the Ray worker
-        task. This is the last registry gate that prevents work from starting
-        for an expired, cancelled, terminal, or wrongly-owned reservation. A
-        ``False`` return means the controller must not launch the worker.
-        """
-        record = self._job_index.get((scope, job_id))
-        if record is None:
-            raise KeyError(f"Unknown job_id {job_id!r} in scope {scope!r}")
-
-        if self._expire_if_needed(record) or record["status"] in REGISTRY_TERMINAL_STATUSES:
-            return False
-
-        self._validate_mark_running_owner(
-            record, job_id, reservation_token, controller_actor_name, controller_namespace
-        )
-        action = self._mark_running_action(record, job_id, reservation_token)
-        if action == "already_running":
+        """Compatibility helper that advances a reservation through both start states."""
+        existing = self._job_index.get((scope, job_id))
+        if existing is not None and existing["status"] is RegistryStatus.RUNNING:
             return True
-        if action == "cancelled":
+        if not self.mark_scheduling(
+            scope,
+            job_id,
+            reservation_token,
+            controller_actor_name,
+            controller_namespace,
+        ):
             return False
-
-        self._mark_record_running(record, controller_actor_name, controller_namespace)
-        return True
+        worker_started, _status = self.mark_worker_running(
+            scope,
+            job_id,
+            controller_actor_name,
+            reservation_token,
+        )
+        return worker_started
 
     def heartbeat_controller(
         self,
@@ -720,29 +915,33 @@ class JobRegistry:
         controller_actor_name: str,
         controller_token: str,
         now_ts: float | None = None,
-    ) -> bool:
-        """Refresh the controller lease for a running or cancelling job.
+    ) -> HeartbeatResult:
+        """Refresh the controller lease for a scheduling, running, or cancelling job.
 
         The controller calls this periodically while it owns the worker task. The
         registry uses the refreshed lease deadline to distinguish a live
         controller from one that crashed or stopped heartbeating. Heartbeats from
         the wrong controller, with the wrong token, or for non-live jobs are
-        rejected with ``False``.
+        rejected explicitly; accepted heartbeats also return the authoritative
+        live status so registry-first cancellation can stop local work.
         """
         record = self._job_index.get((scope, job_id))
-        if record is None or record["status"] in REGISTRY_TERMINAL_STATUSES:
-            return False
+        if record is None:
+            return False, None
+        status = record["status"]
+        if status in REGISTRY_TERMINAL_STATUSES:
+            return False, status
         if record.get("controller_actor_name") != controller_actor_name:
-            return False
+            return False, status
         if record.get("controller_token") != controller_token:
-            return False
-        if record["status"] not in {RegistryStatus.RUNNING, RegistryStatus.CANCELLING}:
-            return False
+            return False, status
+        if status not in {RegistryStatus.SCHEDULING, RegistryStatus.RUNNING, RegistryStatus.CANCELLING}:
+            return False, status
 
         now = float(time.time() if now_ts is None else now_ts)
         record["controller_heartbeat_at_ts"] = now
         record["controller_lease_expires_at_ts"] = now + self._controller_heartbeat_ttl_s
-        return True
+        return True, status
 
     def request_cancellation(
         self,
@@ -750,7 +949,7 @@ class JobRegistry:
         job_id: str,
         controller_actor_name: str | None = None,
         controller_token: str | None = None,
-    ) -> JobRecord | None:
+    ) -> CancellationRequestResult:
         """Record that a caller wants this job cancelled.
 
         For a still-reserved job, cancellation is immediate because no worker has
@@ -762,26 +961,26 @@ class JobRegistry:
         """
         record = self._job_index.get((scope, job_id))
         if record is None:
-            return None
+            return False, None
         if self._expire_if_needed(record):
-            return self._copy_record(record)
+            return False, self._copy_record(record)
         if record["status"] in REGISTRY_TERMINAL_STATUSES:
-            return self._copy_record(record)
+            return False, self._copy_record(record)
 
         now = time.time()
         if not self._controller_update_matches(record, controller_actor_name, controller_token):
-            return self._copy_record(record)
+            return False, self._copy_record(record)
 
         if record["status"] == RegistryStatus.SUBMITTING:
             self._cancel_submission(record, now)
-            return self._copy_record(record)
+            return True, self._copy_record(record)
 
-        if record["status"] == RegistryStatus.RUNNING:
+        if record["status"] in {RegistryStatus.SCHEDULING, RegistryStatus.RUNNING}:
             record["status"] = RegistryStatus.CANCELLING
         record["cancellation_requested_at_ts"] = now
-        return self._copy_record(record)
+        return True, self._copy_record(record)
 
-    def update_terminal(
+    def commit_controller_terminal(
         self,
         scope: str,
         job_id: str,
@@ -790,25 +989,22 @@ class JobRegistry:
         result_ref: CapabilityRunRefPayload | None = None,
         controller_actor_name: str | None = None,
         controller_token: str | None = None,
-    ) -> bool:
-        """Write the final state for a job.
-
-        Terminal updates are accepted only once and only from the current
-        controller or valid reservation owner. Completed jobs must include a
-        valid result reference; failed and cancelled jobs store only status and
-        error metadata. Failed and cancelled jobs also release the dedupe key so
-        the same logical run can be submitted again.
-        """
+    ) -> RegistryStatus | None:
+        """Commit terminal state and return the authoritative resulting status."""
         status, error, result_ref = self._normalize_terminal_update(status, error, result_ref)
 
         record = self._job_index.get((scope, job_id))
         if record is None:
-            return False
-        if record["status"] in REGISTRY_TERMINAL_STATUSES:
-            return record["status"] == status
-
+            return None
         if not self._controller_update_matches(record, controller_actor_name, controller_token):
-            return False
+            return None
+        if record["status"] in REGISTRY_TERMINAL_STATUSES:
+            return record["status"]
+
+        if record["status"] is RegistryStatus.CANCELLING:
+            status = RegistryStatus.CANCELLED
+            error = None
+            result_ref = None
 
         now = time.time()
         record["status"] = status
@@ -825,7 +1021,33 @@ class JobRegistry:
 
         if status in REGISTRY_DEDUPE_RELEASE_STATUSES:
             self._release_dedupe_for_record(record)
-        return True
+        return status
+
+    def update_terminal(
+        self,
+        scope: str,
+        job_id: str,
+        status: RegistryStatus | str,
+        error: str | None = None,
+        result_ref: CapabilityRunRefPayload | None = None,
+        controller_actor_name: str | None = None,
+        controller_token: str | None = None,
+    ) -> bool:
+        """Write final state, preserving an earlier authoritative cancellation."""
+        requested_status, _, _ = self._normalize_terminal_update(status, error, result_ref)
+        record = self._job_index.get((scope, job_id))
+        if record is not None and record["status"] in REGISTRY_TERMINAL_STATUSES:
+            return record["status"] is requested_status
+        committed_status = self.commit_controller_terminal(
+            scope,
+            job_id,
+            status,
+            error,
+            result_ref,
+            controller_actor_name,
+            controller_token,
+        )
+        return committed_status is requested_status
 
     def fail_submission(self, scope: str, job_id: str, reservation_token: str, error: str) -> None:
         """Fail a reservation when submission cannot finish.
@@ -839,7 +1061,7 @@ class JobRegistry:
         record = self._job_index.get((scope, job_id))
         if record is None or record["status"] in REGISTRY_TERMINAL_STATUSES:
             return
-        if record["status"] != RegistryStatus.SUBMITTING:
+        if record["status"] is not RegistryStatus.SUBMITTING:
             return
         if record["reservation_token"] != reservation_token:
             return
@@ -962,12 +1184,12 @@ class JobRegistry:
         now_ts: float | None = None,
         limit: int | None = None,
     ) -> int:
-        """Fail live jobs whose controller lease has expired.
+        """Resolve live jobs whose controller lease has expired.
 
-        This is a bounded cleanup pass for ``RUNNING`` and ``CANCELLING`` jobs.
-        It can scan all scopes or a single scope/job. Jobs whose controllers have
-        stopped heartbeating are marked failed and made retryable. ``limit`` caps
-        the amount of cleanup done in one call.
+        This is a bounded cleanup pass for ``SCHEDULING``, ``RUNNING``, and
+        ``CANCELLING`` jobs. Scheduling and running jobs become failed; cancelling
+        jobs become cancelled. It can scan all scopes or a single scope/job, and
+        ``limit`` caps the amount of cleanup done in one call.
         """
         now = float(time.time() if now_ts is None else now_ts)
         swept = 0
@@ -1118,6 +1340,8 @@ def get_or_create_registry_actor(
     max_retained_terminal_controllers: int | None = DEFAULT_MAX_RETAINED_TERMINAL_CONTROLLERS,
     terminal_job_retention_s: float | None = DEFAULT_TERMINAL_JOB_RETENTION_S,
     max_retained_terminal_jobs_per_scope: int | None = DEFAULT_MAX_RETAINED_TERMINAL_JOBS_PER_SCOPE,
+    max_active_jobs_per_scope: int | None = None,
+    max_scheduling_jobs_per_scope: int | None = None,
     startup_timeout_s: float = DEFAULT_REGISTRY_STARTUP_TIMEOUT_S,
 ) -> ActorHandle:
     """Get or create a detached registry and verify that it is safe to reuse."""
@@ -1128,6 +1352,8 @@ def get_or_create_registry_actor(
         max_retained_terminal_controllers=max_retained_terminal_controllers,
         terminal_job_retention_s=terminal_job_retention_s,
         max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+        max_active_jobs_per_scope=max_active_jobs_per_scope,
+        max_scheduling_jobs_per_scope=max_scheduling_jobs_per_scope,
         registry_num_cpus=registry_num_cpus,
         registry_memory=registry_memory,
         registry_resources=registry_resources,
@@ -1160,6 +1386,8 @@ def get_or_create_registry_actor(
                     max_retained_terminal_controllers=max_retained_terminal_controllers,
                     terminal_job_retention_s=terminal_job_retention_s,
                     max_retained_terminal_jobs_per_scope=max_retained_terminal_jobs_per_scope,
+                    max_active_jobs_per_scope=max_active_jobs_per_scope,
+                    max_scheduling_jobs_per_scope=max_scheduling_jobs_per_scope,
                     deployment_configuration=deployment_configuration,
                 ),
             )

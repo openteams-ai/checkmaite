@@ -15,7 +15,7 @@ from checkmaite.core.analytics_store import AnalyticsStore, Provenance, Provenan
 from checkmaite.core.capability_core import CapabilityRunBase
 from checkmaite.jobs._result import build_capability_run_ref
 from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
-from checkmaite.jobs._submission import prepare_job_submission_run_kwargs
+from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
 from checkmaite.jobs.protocol import (
     CapabilityRunRef,
     CapabilityType,
@@ -90,10 +90,17 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
 class RaySimpleJob(Job[CapabilityRunRef]):
     """Thin CheckMAITE wrapper over Ray ObjectRef lifecycle primitives."""
 
-    def __init__(self, job_id: str, created_at: datetime, obj_ref: ray.ObjectRef[CapabilityRunRef]) -> None:
+    def __init__(
+        self,
+        job_id: str,
+        created_at: datetime,
+        obj_ref: ray.ObjectRef[CapabilityRunRef],
+        job_name: str = "unknown",
+    ) -> None:
         self._job_id = job_id
         self._created_at = created_at
         self._obj_ref = obj_ref
+        self._job_name = job_name
 
         self._terminal_status: JobStatus | None = None
         self._resolved_exception: BaseException | None = None
@@ -106,6 +113,10 @@ class RaySimpleJob(Job[CapabilityRunRef]):
     @property
     def created_at(self) -> datetime:
         return self._created_at
+
+    @property
+    def job_name(self) -> str:
+        return self._job_name
 
     @property
     def status(self) -> JobStatus:
@@ -230,6 +241,7 @@ class RaySimpleJobBackend:
         return {"num_gpus": float(num_gpus), "num_cpus": int(num_cpus)}
 
     def submit_capability(self, capability: CapabilityType, **kwargs: Any) -> RaySimpleJob:
+        job_name = resolve_job_name(kwargs.pop("job_name", None), capability.id)
         run_kwargs = prepare_job_submission_run_kwargs(kwargs)
         job_id = uuid.uuid4().hex
         created_at = datetime.now(timezone.utc)
@@ -251,7 +263,12 @@ class RaySimpleJobBackend:
         except Exception as exc:
             raise RuntimeError(f"Failed to submit capability job {job_id}: {exc}") from exc
 
-        job = RaySimpleJob(job_id=job_id, created_at=created_at, obj_ref=obj_ref)
+        job = RaySimpleJob(
+            job_id=job_id,
+            created_at=created_at,
+            obj_ref=obj_ref,
+            job_name=job_name,
+        )
 
         self._jobs[job_id] = job
         return job

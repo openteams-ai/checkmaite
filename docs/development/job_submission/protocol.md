@@ -21,6 +21,7 @@ A protocol buys us three things.
 Notebook code can work with `Job[CapabilityRunRef]` rather than job-backend-specific objects. That means callers can rely on:
 
 - `job.status`
+- `job.job_name` for discovery, defaulting to the capability ID
 - `job.wait(timeout=...)`
 - `job.result(timeout=...)`
 - `job.cancel()`
@@ -96,9 +97,12 @@ using worker-local cache state.
 ```mermaid
 flowchart LR
     submit["submit_capability()"] --> pending["PENDING"]
-    pending --> running["RUNNING"]
+    pending --> scheduling["SCHEDULING"]
     pending --> failed["FAILED"]
     pending --> cancelled["CANCELLED"]
+    scheduling --> running["RUNNING"]
+    scheduling --> failed
+    scheduling --> cancelled
     running --> completed["COMPLETED"]
     running --> failed
     running --> cancelled
@@ -107,8 +111,9 @@ flowchart LR
 
 ### Interpretation
 
-- `PENDING` means the work has been submitted but has not yet resolved to a terminal outcome.
-- `RUNNING` means the work is in progress from the client handle's point of view.
+- `PENDING` means the backend is handing off the submission.
+- `SCHEDULING` means a distributed backend is waiting for worker resources.
+- `RUNNING` means capability worker execution has begun.
 - `COMPLETED`, `FAILED`, and `CANCELLED` are terminal states.
 
 The shared `JobStatus` enum is intentionally small. Backends can derive those states however they like, but they should present the same lifecycle semantics to callers.
@@ -120,6 +125,7 @@ The protocol also standardizes how failures are exposed:
 - `JobTimeoutError` — the caller waited too long
 - `JobCancelledError` — the job was cancelled
 - `JobFailedError` — the remote work failed
-- `BackpressureError` — the backend control plane is overloaded and the caller should retry with backoff
+- `BackpressureError` — the backend control plane or configured admission limit rejected work and the caller should retry with backoff
+- `JobSubmissionError` — submission failed before a handle was returned; its `phase`, `job_id`, `error_type`, and `detail` fields identify where and why
 
 This lets notebook code write one error-handling path even if job backends change.

@@ -18,6 +18,7 @@ from checkmaite.jobs.protocol import (
     JobError,
     JobFailedError,
     JobStatus,
+    JobSubmissionError,
     JobTimeoutError,
     RunArtifactNotAvailableError,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "JobError",
     "JobFailedError",
     "JobStatus",
+    "JobSubmissionError",
     "JobTimeoutError",
     "RayJob",
     "RayJobBackend",

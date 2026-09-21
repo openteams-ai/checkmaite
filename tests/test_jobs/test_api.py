@@ -79,6 +79,7 @@ def test_api_helpers_forward_to_active_job_backend() -> None:
         metrics=["metric"],
         config=config,
         use_cache=False,
+        job_name="September evaluation",
         extra="value",
     )
     listed = _api.list_jobs(limit=5, status_filter=JobStatus.COMPLETED, submitted_before_ts=123.0)
@@ -96,6 +97,7 @@ def test_api_helpers_forward_to_active_job_backend() -> None:
                 "metrics": ["metric"],
                 "config": config,
                 "use_cache": False,
+                "job_name": "September evaluation",
                 "extra": "value",
             },
         )
@@ -110,6 +112,17 @@ def test_api_helpers_forward_to_active_job_backend() -> None:
     assert backend.get_calls == ["job-1"]
 
 
+@pytest.mark.parametrize("job_name", ["", "   ", "x" * 257])
+def test_submit_capability_rejects_invalid_job_name(job_name: str) -> None:
+    backend = RecordingJobBackend()
+    _api._active_job_backend = backend
+
+    with pytest.raises(ValueError, match="job_name"):
+        _api.submit_capability(TinyCapability(), config=TinyConfig(), job_name=job_name)
+
+    assert backend.submissions == []
+
+
 def test_submit_capability_defaults_to_no_cache_for_job_submission() -> None:
     backend = RecordingJobBackend()
     _api._active_job_backend = backend
@@ -117,6 +130,7 @@ def test_submit_capability_defaults_to_no_cache_for_job_submission() -> None:
     _api.submit_capability(TinyCapability(), config=TinyConfig())
 
     assert backend.submissions[0][1]["use_cache"] is False
+    assert backend.submissions[0][1]["job_name"] == TinyCapability().id
 
 
 def test_submit_capability_rejects_cache_for_job_submission() -> None:

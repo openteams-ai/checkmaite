@@ -24,18 +24,20 @@ class JobStatus(enum.Enum):
     ---------------
     Typical progression is::
 
-        submit_capability() -> PENDING -> RUNNING -> COMPLETED
+        submit_capability() -> PENDING -> SCHEDULING -> RUNNING -> COMPLETED
 
     with failure/cancellation branches from non-terminal states.
 
     Transition notes
     ----------------
-    - ``PENDING`` usually transitions to ``RUNNING`` or ``CANCELLED``.
+    - ``PENDING`` usually transitions to ``SCHEDULING`` or ``CANCELLED``.
       Some job backends may also report ``FAILED`` from ``PENDING`` when
       queue/wait timeout policies are enforced.
+    - ``SCHEDULING`` means a distributed backend is waiting for worker
+      resources. It transitions to ``RUNNING``, ``FAILED``, or ``CANCELLED``.
     - ``RUNNING`` transitions to ``COMPLETED``, ``FAILED``, or ``CANCELLED``.
-      In distributed schedulers, ``RUNNING`` may transiently return to
-      ``PENDING`` if the work is rescheduled after worker loss.
+      A backend that retries after worker loss may report ``SCHEDULING`` again
+      while replacement resources are assigned.
     - ``FAILED`` can represent user-code exceptions, repeated worker crashes
       (for example OOM/segfault) exhausting retries, client-side timeout
       policies, or scheduler-side timeout policies.
@@ -44,6 +46,7 @@ class JobStatus(enum.Enum):
     """
 
     PENDING = "pending"
+    SCHEDULING = "scheduling"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -131,6 +134,18 @@ class BackpressureError(RuntimeError):
     """Raised when a job backend rejects control-plane calls under load."""
 
 
+class JobSubmissionError(RuntimeError):
+    """Structured failure raised before a submitted job handle can be returned."""
+
+    def __init__(self, phase: str, error: BaseException | str, job_id: str | None = None) -> None:
+        self.phase = phase
+        self.job_id = job_id
+        self.error_type = type(error).__name__ if isinstance(error, BaseException) else "RuntimeError"
+        self.detail = str(error)
+        job_context = "" if job_id is None else f" for job {job_id}"
+        super().__init__(f"Job submission failed during {phase}{job_context}: {self.detail}")
+
+
 class RunArtifactNotAvailableError(JobError):
     """Raised when requested run artifacts are unavailable."""
 
@@ -168,6 +183,11 @@ class Job(Protocol, Generic[T]):
     @property
     def created_at(self) -> datetime:
         """Timestamp (UTC) when the job handle was created/submitted."""
+        ...
+
+    @property
+    def job_name(self) -> str:
+        """User-facing label, defaulting to the capability identifier."""
         ...
 
     def result(self, timeout: float | None = None) -> T:

@@ -10,12 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Multi-metric image-classification and object-detection evaluation through one shared MAITE inference pass, including when caching is disabled.
 - Attributed `MaiteEvaluationMetricError` failures for metric reset, update, compute, and result normalization.
+- Ray job scheduling status, scheduling deadlines, worker placement diagnostics, bounded job labels, and per-scope admission limits.
 - Cache schema version 1 for serialized Pydantic cache entries.
 - A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
 - MOT prediction, target, and metadata caching in flexible serialization mode, including `track_ids`.
 
 ### Changed
+- `JobStatus` now includes `SCHEDULING` for distributed jobs waiting on worker resources.
+- The public `Job` protocol now requires a `job_name` property.
+- Non-numeric Ray task resource quantities now raise `TypeError` before job registration.
 - `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed. Its run-cache identity now includes a schema version so incompatible single-metric run entries are not loaded as nested outputs.
 - Ray job clients now use one fixed internal registry actor per Ray namespace while retaining idempotency scopes as logical lookup and deduplication partitions; select another namespace for an independent registry.
 - Existing Ray registry actors now complete a version and immutable-configuration handshake before clients reuse them.
@@ -36,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.
 
 ### Fixed
+- Ray jobs now become `RUNNING` only after their capability worker begins execution, and terminal controllers can clean themselves up on quiet clusters.
 - Passed datum metadata to metrics when evaluating cached predictions.
 - Restored cache loading for Torch tensor subclasses on Torch 2.6 and later and for PIL images backed by temporary buffers.
 - Preserved generator-backed MOT frames in fresh augmented-data debugging responses.

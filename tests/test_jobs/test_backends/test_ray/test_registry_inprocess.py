@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from checkmaite.core.report import ArtifactReport, InlineTextReport
-from checkmaite.jobs import CapabilityRunRef
+from checkmaite.jobs import BackpressureError, CapabilityRunRef
 from checkmaite.jobs.backends.ray.registry import (
     REGISTRY_COMPATIBILITY_VERSION,
     JobRegistry,
@@ -40,6 +42,180 @@ def test_registry_descriptor_validation_rejects_configuration_mismatch() -> None
 
     with pytest.raises(RegistryCompatibilityError, match="configuration"):
         _validate_registry_descriptor(actual, expected)
+
+
+def test_registration_persists_bounded_discovery_and_resource_metadata() -> None:
+    registry = JobRegistry()
+
+    registration = registry.register_or_get(
+        "scope",
+        "key",
+        job_name="September evaluation",
+        requested_resources={"num_cpus": 4.0, "num_gpus": 1.0},
+    )
+
+    assert registration["job_name"] == "September evaluation"
+    assert registration["requested_resources"] == {"num_cpus": 4.0, "num_gpus": 1.0}
+
+    duplicate = registry.register_or_get("scope", "key", job_name="different")
+    assert duplicate["job_id"] == registration["job_id"]
+    assert duplicate["job_name"] == "September evaluation"
+
+
+@pytest.mark.parametrize("job_name", ["", "   ", "x" * 257])
+def test_registration_rejects_invalid_job_names(job_name: str) -> None:
+    with pytest.raises(ValueError, match="job_name"):
+        JobRegistry().register_or_get("scope", "key", job_name=job_name)
+
+
+def test_scheduling_and_worker_start_are_distinct_registry_states() -> None:
+    registry = JobRegistry()
+    registration = registry.register_or_get(
+        "scope",
+        "key",
+        job_name="tiny",
+        requested_resources={"num_cpus": 2.0},
+    )
+    job_id = registration["job_id"]
+    token = registration["reservation_token"]
+    assert token is not None
+    assert registry.attach_controller("scope", job_id, token, "controller", "namespace")
+
+    assert registry.mark_scheduling("scope", job_id, token, "controller", "namespace", 30.0)
+    scheduling = registry.get_job("scope", job_id)
+    assert scheduling is not None
+    assert scheduling["status"] is RegistryStatus.SCHEDULING
+    assert scheduling["scheduling_started_at_ts"] is not None
+    assert scheduling["scheduling_deadline_at_ts"] is not None
+    assert scheduling["worker_started_at_ts"] is None
+
+    worker_started_at = time.time()
+    assert registry.mark_worker_running(
+        "scope",
+        job_id,
+        "controller",
+        token,
+        {"node_id": "node-1", "pod_name": "worker-pod"},
+        now_ts=worker_started_at,
+    ) == (True, RegistryStatus.RUNNING)
+    running = registry.get_job("scope", job_id)
+    assert running is not None
+    assert running["status"] is RegistryStatus.RUNNING
+    assert running["worker_started_at_ts"] == worker_started_at
+    assert running["worker_node_id"] == "node-1"
+    assert running["worker_pod_name"] == "worker-pod"
+
+
+def test_worker_start_retry_refreshes_nonempty_placement_diagnostics() -> None:
+    registry = JobRegistry()
+    registration = registry.register_or_get("scope", "key")
+    job_id = registration["job_id"]
+    token = registration["reservation_token"]
+    assert token is not None
+    assert registry.attach_controller("scope", job_id, token, "controller", "namespace")
+    assert registry.mark_scheduling("scope", job_id, token, "controller", "namespace")
+    first_worker_started_at = time.time()
+    retried_worker_started_at = first_worker_started_at + 1.0
+
+    assert registry.mark_worker_running(
+        "scope",
+        job_id,
+        "controller",
+        token,
+        {
+            "node_id": "node-a",
+            "pod_name": "worker-pod-a",
+            "kubernetes_node_name": "kubernetes-node-a",
+        },
+        now_ts=first_worker_started_at,
+    ) == (True, RegistryStatus.RUNNING)
+    assert registry.mark_worker_running(
+        "scope",
+        job_id,
+        "controller",
+        token,
+        {
+            "node_id": "node-b",
+            "pod_name": "worker-pod-b",
+            "kubernetes_node_name": "kubernetes-node-b",
+        },
+        now_ts=retried_worker_started_at,
+    ) == (True, RegistryStatus.RUNNING)
+
+    retried = registry.get_job("scope", job_id)
+    assert retried is not None
+    assert retried["worker_started_at_ts"] == retried_worker_started_at
+    assert retried["worker_node_id"] == "node-b"
+    assert retried["worker_pod_name"] == "worker-pod-b"
+    assert retried["worker_kubernetes_node_name"] == "kubernetes-node-b"
+
+    assert registry.mark_worker_running(
+        "scope",
+        job_id,
+        "controller",
+        token,
+        {},
+        now_ts=retried_worker_started_at + 1.0,
+    ) == (True, RegistryStatus.RUNNING)
+    reentered = registry.get_job("scope", job_id)
+    assert reentered is not None
+    assert reentered["worker_started_at_ts"] == retried_worker_started_at
+    assert reentered["worker_node_id"] == "node-b"
+    assert reentered["worker_pod_name"] == "worker-pod-b"
+    assert reentered["worker_kubernetes_node_name"] == "kubernetes-node-b"
+
+
+def test_registry_admission_limits_bound_nonterminal_and_scheduling_jobs() -> None:
+    active_limited = JobRegistry(max_active_jobs_per_scope=1)
+    first = active_limited.register_or_get("scope", "key-1")
+    with pytest.raises(BackpressureError, match="active limit"):
+        active_limited.register_or_get("scope", "key-2")
+    active_limited.update_terminal(
+        "scope",
+        first["job_id"],
+        RegistryStatus.FAILED,
+        controller_token=first["reservation_token"],
+    )
+    assert active_limited.register_or_get("scope", "key-2")["decision"] == "new"
+
+    scheduling_limited = JobRegistry(max_scheduling_jobs_per_scope=1)
+    first = scheduling_limited.register_or_get("scope", "key-1")
+    first_token = first["reservation_token"]
+    assert first_token is not None
+    assert scheduling_limited.attach_controller("scope", first["job_id"], first_token, "controller-1", "namespace")
+    assert scheduling_limited.mark_scheduling("scope", first["job_id"], first_token, "controller-1", "namespace")
+
+    with pytest.raises(BackpressureError, match="scheduling queue limit"):
+        scheduling_limited.register_or_get("scope", "key-2")
+    assert len(scheduling_limited.list_jobs("scope")) == 1
+
+    # Keep the mark_scheduling check for two reservations admitted concurrently
+    # before either one has entered the scheduling queue.
+    racing = JobRegistry(max_scheduling_jobs_per_scope=1)
+    first = racing.register_or_get("scope", "key-1")
+    second = racing.register_or_get("scope", "key-2")
+    first_token = first["reservation_token"]
+    second_token = second["reservation_token"]
+    assert first_token is not None
+    assert second_token is not None
+    assert racing.attach_controller("scope", first["job_id"], first_token, "controller-1", "namespace")
+    assert racing.attach_controller("scope", second["job_id"], second_token, "controller-2", "namespace")
+    assert racing.mark_scheduling("scope", first["job_id"], first_token, "controller-1", "namespace")
+    with pytest.raises(BackpressureError, match="scheduling queue limit"):
+        racing.mark_scheduling("scope", second["job_id"], second_token, "controller-2", "namespace")
+
+    racing.fail_submission("scope", second["job_id"], second_token, "scheduling admission rejected")
+    rejected = racing.get_job("scope", second["job_id"])
+    assert rejected is not None
+    assert rejected["status"] is RegistryStatus.FAILED
+    racing.update_terminal(
+        "scope",
+        first["job_id"],
+        RegistryStatus.FAILED,
+        controller_actor_name="controller-1",
+        controller_token=first_token,
+    )
+    assert racing.register_or_get("scope", "key-2")["decision"] == "new"
 
 
 def _ref_payload(text: str = "ok") -> dict[str, object]:
@@ -146,26 +322,180 @@ def test_attach_and_mark_running_require_matching_reservation_and_controller_own
     assert running["controller_lease_expires_at_ts"] is not None
 
 
+def test_worker_start_reports_registry_first_cancellation() -> None:
+    registry = JobRegistry()
+    registration = registry.register_or_get("scope", "key")
+    job_id = registration["job_id"]
+    token = registration["reservation_token"]
+    assert token is not None
+    assert registry.attach_controller("scope", job_id, token, "controller", "namespace")
+    assert registry.mark_scheduling("scope", job_id, token, "controller", "namespace")
+
+    accepted, cancelling = registry.request_cancellation("scope", job_id, "controller", token)
+    assert accepted is True
+    assert cancelling is not None
+    assert cancelling["status"] is RegistryStatus.CANCELLING
+    assert registry.mark_worker_running("scope", job_id, "wrong-controller", token) == (False, None)
+    assert registry.mark_worker_running("scope", job_id, "controller", token) == (
+        False,
+        RegistryStatus.CANCELLING,
+    )
+
+
+def test_cancellation_wins_later_controller_failure_after_ambiguous_response() -> None:
+    registry = JobRegistry()
+    registration = registry.register_or_get("scope", "key")
+    job_id = registration["job_id"]
+    token = registration["reservation_token"]
+    assert token is not None
+    assert registry.attach_controller("scope", job_id, token, "controller", "namespace")
+    assert registry.mark_scheduling("scope", job_id, token, "controller", "namespace")
+    accepted, cancelling = registry.request_cancellation("scope", job_id, "controller", token)
+    assert accepted is True
+    assert cancelling is not None
+    assert cancelling["status"] is RegistryStatus.CANCELLING
+
+    assert (
+        registry.commit_controller_terminal(
+            "scope",
+            job_id,
+            RegistryStatus.FAILED,
+            error="worker rejected startup after the response was lost",
+            controller_actor_name="controller",
+            controller_token=token,
+        )
+        is RegistryStatus.CANCELLED
+    )
+    cancelled = registry.get_job("scope", job_id)
+    assert cancelled is not None
+    assert cancelled["status"] is RegistryStatus.CANCELLED
+    assert cancelled["error"] is None
+    assert (
+        registry.update_terminal(
+            "scope",
+            job_id,
+            RegistryStatus.FAILED,
+            error="retry arrived too late",
+            controller_actor_name="controller",
+            controller_token=token,
+        )
+        is False
+    )
+
+
+def test_scheduling_timeout_is_ordered_against_registry_cancellation() -> None:
+    registry = JobRegistry()
+
+    def scheduling_job(key: str) -> tuple[str, str, float]:
+        registration = registry.register_or_get("scope", key)
+        job_id = registration["job_id"]
+        token = registration["reservation_token"]
+        assert token is not None
+        assert registry.attach_controller("scope", job_id, token, f"controller-{key}", "namespace")
+        assert registry.mark_scheduling(
+            "scope",
+            job_id,
+            token,
+            f"controller-{key}",
+            "namespace",
+            scheduling_timeout_s=10.0,
+        )
+        record = registry.get_job("scope", job_id)
+        assert record is not None
+        deadline = record["scheduling_deadline_at_ts"]
+        assert deadline is not None
+        return job_id, token, deadline
+
+    cancelled_job_id, cancelled_token, cancelled_deadline = scheduling_job("cancelled")
+    assert (
+        registry.resolve_scheduling_timeout(
+            "scope",
+            cancelled_job_id,
+            "wrong-controller",
+            cancelled_token,
+            now_ts=cancelled_deadline,
+        )
+        is None
+    )
+    assert (
+        registry.resolve_scheduling_timeout(
+            "scope",
+            cancelled_job_id,
+            "controller-cancelled",
+            cancelled_token,
+            now_ts=cancelled_deadline - 1.0,
+        )
+        is RegistryStatus.SCHEDULING
+    )
+    accepted, cancelling = registry.request_cancellation(
+        "scope",
+        cancelled_job_id,
+        "controller-cancelled",
+        cancelled_token,
+    )
+    assert accepted is True
+    assert cancelling is not None
+    assert cancelling["status"] is RegistryStatus.CANCELLING
+    assert (
+        registry.resolve_scheduling_timeout(
+            "scope",
+            cancelled_job_id,
+            "controller-cancelled",
+            cancelled_token,
+            now_ts=cancelled_deadline,
+        )
+        is RegistryStatus.CANCELLING
+    )
+
+    timed_out_job_id, timed_out_token, timed_out_deadline = scheduling_job("timed-out")
+    assert (
+        registry.resolve_scheduling_timeout(
+            "scope",
+            timed_out_job_id,
+            "controller-timed-out",
+            timed_out_token,
+            now_ts=timed_out_deadline,
+        )
+        is RegistryStatus.FAILED
+    )
+    timed_out = registry.get_job("scope", timed_out_job_id)
+    assert timed_out is not None
+    assert timed_out["status"] is RegistryStatus.FAILED
+    assert timed_out["error"] == "worker was not scheduled within 10.000s"
+
+
 def test_heartbeat_and_cancellation_follow_controller_ownership() -> None:
     registry = JobRegistry(controller_heartbeat_ttl_s=10)
     _registration, job_id, token = _new_started_job(registry)
     controller = f"controller-{job_id}"
 
-    assert registry.heartbeat_controller("scope", job_id, "wrong-controller", token, now_ts=100.0) is False
-    assert registry.heartbeat_controller("scope", job_id, controller, "wrong-token", now_ts=100.0) is False
-    assert registry.heartbeat_controller("scope", job_id, controller, token, now_ts=100.0) is True
+    assert registry.heartbeat_controller("scope", job_id, "wrong-controller", token, now_ts=100.0) == (
+        False,
+        RegistryStatus.RUNNING,
+    )
+    assert registry.heartbeat_controller("scope", job_id, controller, "wrong-token", now_ts=100.0) == (
+        False,
+        RegistryStatus.RUNNING,
+    )
+    assert registry.heartbeat_controller("scope", job_id, controller, token, now_ts=100.0) == (
+        True,
+        RegistryStatus.RUNNING,
+    )
     assert registry._job_index[("scope", job_id)]["controller_lease_expires_at_ts"] == 110.0
 
-    unchanged = registry.request_cancellation("scope", job_id, "wrong-controller", token)
+    accepted, unchanged = registry.request_cancellation("scope", job_id, "wrong-controller", token)
+    assert accepted is False
     assert unchanged is not None
     assert unchanged["status"] is RegistryStatus.RUNNING
 
-    cancelling = registry.request_cancellation("scope", job_id, controller, token)
+    accepted, cancelling = registry.request_cancellation("scope", job_id, controller, token)
+    assert accepted is True
     assert cancelling is not None
     assert cancelling["status"] is RegistryStatus.CANCELLING
     assert cancelling["cancellation_requested_at_ts"] is not None
 
-    cancelled = registry.request_cancellation("scope", "missing")
+    accepted, cancelled = registry.request_cancellation("scope", "missing")
+    assert accepted is False
     assert cancelled is None
 
 
@@ -173,16 +503,18 @@ def test_cancellation_before_running_is_terminal_and_retryable() -> None:
     registry = JobRegistry()
     registration = registry.register_or_get("scope", "key")
 
-    denied = registry.request_cancellation("scope", registration["job_id"])
+    accepted, denied = registry.request_cancellation("scope", registration["job_id"])
+    assert accepted is False
     assert denied is not None
     assert denied["status"] is RegistryStatus.SUBMITTING
 
-    cancelled = registry.request_cancellation(
+    accepted, cancelled = registry.request_cancellation(
         "scope",
         registration["job_id"],
         controller_token=registration["reservation_token"],
     )
 
+    assert accepted is True
     assert cancelled is not None
     assert cancelled["status"] is RegistryStatus.CANCELLED
     retry = registry.register_or_get("scope", "key")
@@ -335,6 +667,30 @@ def test_expired_submission_and_stale_running_sweeps_release_dedupe_for_retry() 
     assert failed is not None
     assert failed["status"] is RegistryStatus.FAILED
     assert registry.register_or_get("scope", "stale-running")["decision"] == "new"
+
+
+def test_stale_cancelling_job_becomes_cancelled_instead_of_failed() -> None:
+    registry = JobRegistry(controller_heartbeat_ttl_s=1)
+    _registration, job_id, token, controller = _running_job(registry, key="stale-cancelling")
+    accepted, cancelling = registry.request_cancellation("scope", job_id, controller, token)
+    assert accepted is True
+    assert cancelling is not None
+    assert cancelling["status"] is RegistryStatus.CANCELLING
+
+    assert (
+        registry.sweep_stale_running_jobs(
+            scope="scope",
+            job_id=job_id,
+            now_ts=cancelling["controller_lease_expires_at_ts"] + 1,
+        )
+        == 1
+    )
+    cancelled = registry.get_job("scope", job_id)
+    assert cancelled is not None
+    assert cancelled["status"] is RegistryStatus.CANCELLED
+    assert cancelled["error"] is None
+    assert cancelled["controller_actor_name"] == controller
+    assert cancelled["controller_retain_until_ts"] is not None
 
 
 def test_retained_job_record_sweep_purges_terminal_records_without_controllers() -> None:
@@ -492,7 +848,7 @@ def test_mark_running_unknown_terminal_already_running_and_cancelled_before_star
 
 def test_heartbeat_controller_rejects_unknown_terminal_and_non_live_jobs() -> None:
     registry = JobRegistry()
-    assert registry.heartbeat_controller("scope", "missing", "controller", "token") is False
+    assert registry.heartbeat_controller("scope", "missing", "controller", "token") == (False, None)
 
     terminal = _registration(registry, key="terminal")
     assert registry.update_terminal(
@@ -502,16 +858,21 @@ def test_heartbeat_controller_rejects_unknown_terminal_and_non_live_jobs() -> No
         error="done",
         controller_token=terminal["reservation_token"],
     )
-    assert registry.heartbeat_controller("scope", terminal["job_id"], "controller", "token") is False
+    assert registry.heartbeat_controller("scope", terminal["job_id"], "controller", "token") == (
+        False,
+        RegistryStatus.FAILED,
+    )
 
     submitting = _registration(registry, key="submitting")
     record = registry._job_index[("scope", submitting["job_id"])]
     record["controller_actor_name"] = "controller"
     record["controller_token"] = submitting["reservation_token"]
-    assert (
-        registry.heartbeat_controller("scope", submitting["job_id"], "controller", submitting["reservation_token"])
-        is False
-    )
+    assert registry.heartbeat_controller(
+        "scope",
+        submitting["job_id"],
+        "controller",
+        submitting["reservation_token"],
+    ) == (False, RegistryStatus.SUBMITTING)
 
 
 def test_request_cancellation_terminal_expired_and_repeated_cancelling_paths() -> None:
@@ -524,22 +885,26 @@ def test_request_cancellation_terminal_expired_and_repeated_cancelling_paths() -
         error="done",
         controller_token=terminal["reservation_token"],
     )
-    terminal_cancel = registry.request_cancellation("scope", terminal["job_id"])
+    accepted, terminal_cancel = registry.request_cancellation("scope", terminal["job_id"])
+    assert accepted is False
     assert terminal_cancel is not None
     assert terminal_cancel["status"] is RegistryStatus.FAILED
 
     expired = _registration(registry, key="expired")
     registry._job_index[("scope", expired["job_id"])]["reservation_expires_at_ts"] = 0.0
-    expired_cancel = registry.request_cancellation("scope", expired["job_id"])
+    accepted, expired_cancel = registry.request_cancellation("scope", expired["job_id"])
+    assert accepted is False
     assert expired_cancel is not None
     assert expired_cancel["status"] is RegistryStatus.FAILED
 
     _registration_row, job_id, token, controller = _running_job(registry, key="running")
-    first = registry.request_cancellation("scope", job_id, controller, token)
+    accepted, first = registry.request_cancellation("scope", job_id, controller, token)
+    assert accepted is True
     assert first is not None
     assert first["status"] is RegistryStatus.CANCELLING
     first_requested_at = first["cancellation_requested_at_ts"]
-    second = registry.request_cancellation("scope", job_id, controller, token)
+    accepted, second = registry.request_cancellation("scope", job_id, controller, token)
+    assert accepted is True
     assert second is not None
     assert second["status"] is RegistryStatus.CANCELLING
     assert second["cancellation_requested_at_ts"] >= first_requested_at
@@ -552,6 +917,26 @@ def test_fail_submission_ignores_non_matching_or_non_submitting_records() -> Non
     wrong_token = _registration(registry, key="wrong-token")
     registry.fail_submission("scope", wrong_token["job_id"], "wrong", "ignored")
     assert registry.get_job("scope", wrong_token["job_id"])["status"] is RegistryStatus.SUBMITTING  # type: ignore[index]
+
+    scheduling = _registration(registry, key="scheduling")
+    scheduling_token = scheduling["reservation_token"]
+    assert scheduling_token is not None
+    assert registry.attach_controller(
+        "scope",
+        scheduling["job_id"],
+        scheduling_token,
+        "scheduling-controller",
+        "namespace",
+    )
+    assert registry.mark_scheduling(
+        "scope",
+        scheduling["job_id"],
+        scheduling_token,
+        "scheduling-controller",
+        "namespace",
+    )
+    registry.fail_submission("scope", scheduling["job_id"], scheduling_token, "ignored")
+    assert registry.get_job("scope", scheduling["job_id"])["status"] is RegistryStatus.SCHEDULING  # type: ignore[index]
 
     _registration_row, running_job_id, _token, _controller = _running_job(registry, key="running")
     registry.fail_submission("scope", running_job_id, _token, "ignored")

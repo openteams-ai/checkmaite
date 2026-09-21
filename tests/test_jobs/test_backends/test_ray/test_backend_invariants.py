@@ -52,6 +52,7 @@ def _record(**overrides):
         "completed_at_ts": None,
         "reservation_token": None,
         "reservation_expires_at_ts": None,
+        "job_name": "unknown",
     }
     record.update(overrides)
     return record
@@ -78,6 +79,7 @@ def test_registry_status_from_raw_rejects_unknown_values() -> None:
     ("registry_status", "result_ref", "expected"),
     [
         (RegistryStatus.SUBMITTING, None, JobStatus.PENDING),
+        (RegistryStatus.SCHEDULING, None, JobStatus.SCHEDULING),
         (RegistryStatus.RUNNING, None, JobStatus.RUNNING),
         (RegistryStatus.CANCELLING, None, JobStatus.RUNNING),
         (RegistryStatus.FAILED, None, JobStatus.FAILED),
@@ -288,6 +290,12 @@ def test_ray_job_backend_defaults_bound_actor_pending_calls() -> None:
     assert signature.parameters["registry_num_cpus"].default == 0.0
     assert signature.parameters["registry_max_pending_calls"].default == 1024
     assert signature.parameters["controller_max_pending_calls"].default == 64
+    assert signature.parameters["scheduling_timeout_s"].default == 30 * 60.0
+
+
+def test_unbounded_scheduling_timeout_warns_about_compute_charges() -> None:
+    with pytest.warns(RuntimeWarning, match="significant additional compute charges"):
+        job_backend_module._warn_if_unbounded_scheduling_timeout(None)
 
 
 @pytest.mark.parametrize("namespace", ["", "   ", " leading", "trailing "])
@@ -403,11 +411,35 @@ def test_ray_job_timeout_helpers_bound_control_plane_call_duration(monkeypatch) 
     assert job._control_call_timeout_s(12.0) == 2.0
 
 
-def test_record_after_submit_acceptance_builds_fallback_on_registry_timeout(monkeypatch) -> None:
-    def raise_timeout(*_args, **_kwargs):
-        raise job_backend_module.GetTimeoutError("timeout")
+def test_cancel_reports_unacknowledged_registry_request_with_missing_controller(monkeypatch) -> None:
+    job = RayJob(
+        registry=object(),
+        scope="scope",
+        job_id="job-1",
+        created_at=job_backend_module._created_at_from_submitted_ts(0),
+        control_plane_timeout_s=1.0,
+        initial_status=JobStatus.RUNNING,
+    )
+    snapshot = _record(status=RegistryStatus.RUNNING)
+    monkeypatch.setattr(job, "_fetch_record", lambda **_kwargs: snapshot)
+    monkeypatch.setattr(job, "_request_registry_cancellation_best_effort", lambda _snapshot: (None, None))
+    monkeypatch.setattr(job, "_get_controller_actor", lambda *_args: None)
 
-    monkeypatch.setattr(job_backend_module, "_ray_get_with_backpressure", raise_timeout)
+    assert job.cancel() is True
+
+
+@pytest.mark.parametrize(
+    "registry_error",
+    [job_backend_module.GetTimeoutError("timeout"), RuntimeError("registry unavailable")],
+)
+def test_record_after_submit_acceptance_builds_fallback_when_registry_is_unavailable(
+    monkeypatch,
+    registry_error,
+) -> None:
+    def raise_registry_error(*_args, **_kwargs):
+        raise registry_error
+
+    monkeypatch.setattr(job_backend_module, "_ray_get_with_backpressure", raise_registry_error)
 
     backend = object.__new__(RayJobBackend)
     backend._idempotency_scope = "scope"
@@ -420,7 +452,7 @@ def test_record_after_submit_acceptance_builds_fallback_on_registry_timeout(monk
     registration["decision"] = "new"
     result_ref = _ref_payload("done")
 
-    fallback = backend._record_after_submit_acceptance(
+    result = backend._record_after_submit_acceptance(
         registration,
         job_id="job-1",
         controller_name="controller-1",
@@ -433,13 +465,50 @@ def test_record_after_submit_acceptance_builds_fallback_on_registry_timeout(monk
             "terminal_at_ts": 123.5,
         },
     )
+    fallback = result.record
 
+    assert result.authoritative is False
     assert fallback["controller_actor_name"] == "controller-1"
     assert fallback["controller_namespace"] == "namespace"
     assert fallback["controller_token"] == reservation
     assert fallback["status"] is RegistryStatus.COMPLETED
     assert fallback["result_ref"] == result_ref
     assert fallback["completed_at_ts"] == 123.5
+
+
+def test_start_failure_requires_authoritative_local_or_registry_state() -> None:
+    start_state = {
+        "job_id": "job-1",
+        "status": RegistryStatus.FAILED,
+        "result_ref": None,
+        "error": "worker launch failed",
+        "terminal_at_ts": 123.5,
+        "terminal_authoritative": False,
+    }
+    failed = _record(status=RegistryStatus.FAILED, error="registry confirmed failure")
+    cancelled = _record(status=RegistryStatus.CANCELLED)
+
+    assert (
+        RayJobBackend._authoritative_start_failure(
+            start_state,
+            job_backend_module._SubmissionRecord(failed, authoritative=True),
+        )
+        == "registry confirmed failure"
+    )
+    assert (
+        RayJobBackend._authoritative_start_failure(
+            start_state,
+            job_backend_module._SubmissionRecord(cancelled, authoritative=True),
+        )
+        is None
+    )
+    assert (
+        RayJobBackend._authoritative_start_failure(
+            start_state,
+            job_backend_module._SubmissionRecord(failed, authoritative=False),
+        )
+        is None
+    )
 
 
 def test_close_failed_submission_marks_attached_or_reserved(monkeypatch) -> None:

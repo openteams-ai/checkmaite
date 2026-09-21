@@ -318,6 +318,7 @@ def test_registry_status_filter_rejects_non_job_status(status_filter) -> None:
     [
         (None, None),
         (JobStatus.PENDING, RegistryStatus.SUBMITTING),
+        (JobStatus.SCHEDULING, RegistryStatus.SCHEDULING),
         (JobStatus.RUNNING, [RegistryStatus.RUNNING, RegistryStatus.CANCELLING]),
         (JobStatus.COMPLETED, RegistryStatus.COMPLETED),
         (JobStatus.FAILED, RegistryStatus.FAILED),

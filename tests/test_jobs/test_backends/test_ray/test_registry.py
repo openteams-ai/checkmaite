@@ -18,6 +18,7 @@ from ray.exceptions import RayActorError, RayTaskError
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
 from checkmaite.core.report import InlineTextReport
 from checkmaite.jobs import (
+    BackpressureError,
     CapabilityRunRef,
     JobCancelledError,
     JobFailedError,
@@ -39,6 +40,7 @@ from checkmaite.jobs.backends.ray import (
     get_or_create_controller_actor,
     get_or_create_registry_actor,
 )
+from checkmaite.jobs.backends.ray import controller as controller_module
 from checkmaite.jobs.backends.ray.controller import _update_registry_terminal_best_effort
 from checkmaite.jobs.backends.ray.registry import (
     DEFAULT_REGISTRY_ACTOR_NAME,
@@ -158,6 +160,7 @@ def _registry_record(scope: str, job_id: str, submitted_at_ts: float, status: Re
         "completed_at_ts": submitted_at_ts,
         "reservation_token": None,
         "reservation_expires_at_ts": None,
+        "job_name": "unknown",
     }
 
 
@@ -219,6 +222,8 @@ def test_registry_duplicate_submission_same_scope_dedupes(local_ray_registry) ->
     job2 = submit_capability(capability, config=TinyConfig(text="dedupe"), use_cache=False)
 
     assert job1.job_id == job2.job_id
+    assert job1.job_name == capability.id
+    assert job2.job_name == capability.id
 
     ref1 = job1.result(timeout=30)
     ref2 = job2.result(timeout=30)
@@ -426,6 +431,164 @@ def test_different_ray_namespaces_select_independent_fixed_registries(tmp_path: 
 
 
 @pytest.mark.ray
+def test_job_discovery_metadata_and_worker_scheduling_info(local_ray_registry) -> None:
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
+        idempotency_scope=local_ray_registry["scope"],
+        controller_num_cpus=0.0,
+        registry_namespace=local_ray_registry["namespace"],
+    )
+
+    capability = TinyCapability()
+    job = backend.submit_capability(
+        capability,
+        config=TinyConfig(text="metadata"),
+        resources={"num_cpus": 1, "num_gpus": 0},
+        job_name="September evaluation",
+        use_cache=False,
+    )
+    assert job.result(timeout=30).capability_id == capability.id
+
+    recovered = backend.list_jobs()[0]
+    assert recovered.job_name == "September evaluation"
+    scheduling = recovered.scheduling_info
+    assert scheduling["requested_resources"]["num_cpus"] == 1.0
+    assert scheduling["scheduling_started_at"] is not None
+    assert scheduling["worker_started_at"] is not None
+    assert scheduling["worker_node_id"]
+
+
+@pytest.mark.ray
+def test_unscheduled_worker_request_fails_after_scheduling_timeout(tmp_path: Path) -> None:
+    namespace = f"checkmaite-timeout-{uuid4().hex}"
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        idempotency_scope=f"scope-{uuid4().hex}",
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+        scheduling_timeout_s=2.0,
+    )
+
+    job = backend.submit_capability(
+        TinyCapability(),
+        config=TinyConfig(text="never-scheduled"),
+        resources={"num_cpus": 10000},
+        use_cache=False,
+    )
+    assert job.status is JobStatus.SCHEDULING
+    assert job.wait(timeout=10) is JobStatus.FAILED
+    with pytest.raises(JobFailedError, match="not scheduled within"):
+        job.result(timeout=1)
+
+
+@pytest.mark.ray
+def test_cancel_resource_blocked_scheduling_job_raises_cancelled(tmp_path: Path) -> None:
+    namespace = f"checkmaite-cancel-scheduling-{uuid4().hex}"
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        idempotency_scope=f"scope-{uuid4().hex}",
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+        scheduling_timeout_s=30.0,
+    )
+    job = backend.submit_capability(
+        TinyCapability(),
+        config=TinyConfig(text="cancel-before-placement"),
+        resources={"num_cpus": 10000},
+        use_cache=False,
+    )
+
+    assert job.status is JobStatus.SCHEDULING
+    assert job.cancel() is True
+    assert job.wait(timeout=10) is JobStatus.CANCELLED
+    with pytest.raises(JobCancelledError):
+        job.result(timeout=1)
+
+
+@pytest.mark.ray
+def test_scope_admission_limit_rejects_an_unbounded_backlog(tmp_path: Path) -> None:
+    namespace = f"checkmaite-admission-{uuid4().hex}"
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        idempotency_scope=f"scope-{uuid4().hex}",
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+        max_active_jobs_per_scope=1,
+    )
+    first = backend.submit_capability(
+        TinyCapability(),
+        config=TinyConfig(text="first", sleep_s=2.0),
+        use_cache=False,
+    )
+
+    with pytest.raises(BackpressureError, match="active limit"):
+        backend.submit_capability(TinyCapability(), config=TinyConfig(text="second"), use_cache=False)
+
+    assert first.result(timeout=30).capability_id == TinyCapability().id
+
+
+@pytest.mark.ray
+def test_scheduling_admission_limit_rejects_before_controller_creation(tmp_path: Path) -> None:
+    namespace = f"checkmaite-scheduling-admission-{uuid4().hex}"
+    scope = f"scope-{uuid4().hex}"
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        idempotency_scope=scope,
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+        max_scheduling_jobs_per_scope=1,
+    )
+    first = backend.submit_capability(
+        TinyCapability(),
+        config=TinyConfig(text="blocked"),
+        resources={"num_cpus": 10000},
+        use_cache=False,
+    )
+    assert first.status is JobStatus.SCHEDULING
+
+    with pytest.raises(BackpressureError, match="scheduling queue limit"):
+        backend.submit_capability(TinyCapability(), config=TinyConfig(text="rejected"), use_cache=False)
+
+    records = ray.get(backend._registry.list_jobs.remote(scope))
+    assert [record["job_id"] for record in records] == [first.job_id]
+    assert first.cancel() is True
+    assert first.wait(timeout=10) is JobStatus.CANCELLED
+
+
+@pytest.mark.ray
+def test_terminal_controller_cleanup_is_autonomous_when_retention_is_zero(tmp_path: Path) -> None:
+    namespace = f"checkmaite-retirement-{uuid4().hex}"
+    scope = f"scope-{uuid4().hex}"
+    backend = RayJobBackend(
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        idempotency_scope=scope,
+        registry_namespace=namespace,
+        controller_num_cpus=0.0,
+        controller_retention_s=0.0,
+    )
+    capability = TinyCapability()
+    job = backend.submit_capability(capability, config=TinyConfig(text="retire"), use_cache=False)
+    record = ray.get(backend._registry.get_job.remote(scope, job.job_id))
+    controller_name = record["controller_actor_name"]
+    assert controller_name is not None
+
+    assert job.result(timeout=30).capability_id == capability.id
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        try:
+            ray.get_actor(controller_name, namespace=namespace)
+        except ValueError:
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError("terminal controller was not cleaned autonomously")
+
+    stored = ray.get(backend._registry.get_job.remote(scope, job.job_id))
+    assert stored["status"] == RegistryStatus.COMPLETED
+    assert stored["controller_actor_name"] is None
+
+
+@pytest.mark.ray
 def test_cross_client_duplicate_submit_dedupes_to_one_running_job(local_ray_registry) -> None:
     backend_a = RayJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
@@ -547,6 +710,14 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
                 "completed_at_ts": None,
                 "reservation_token": "token",
                 "reservation_expires_at_ts": now + 30.0,
+                "job_name": "unknown",
+                "requested_resources": {},
+                "scheduling_started_at_ts": None,
+                "scheduling_deadline_at_ts": None,
+                "worker_started_at_ts": None,
+                "worker_node_id": None,
+                "worker_pod_name": None,
+                "worker_kubernetes_node_name": None,
             }
 
         def ping(self) -> bool:
@@ -555,7 +726,15 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
         def describe(self) -> dict[str, Any]:
             return self.descriptor
 
-        def register_or_get(self, _scope: str, _scoped_run_key: str) -> dict[str, Any]:
+        def register_or_get(
+            self,
+            _scope: str,
+            _scoped_run_key: str,
+            job_name: str,
+            requested_resources: dict[str, Any],
+        ) -> dict[str, Any]:
+            self.record["job_name"] = job_name
+            self.record["requested_resources"] = requested_resources
             out = dict(self.record)
             out["decision"] = "new"
             return out
@@ -573,26 +752,48 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
             self.record["controller_token"] = token
             return True
 
-        def mark_running(
+        def mark_scheduling(
             self,
             _scope: str,
             _job_id: str,
             _token: str,
             controller_actor_name: str,
             controller_namespace: str,
+            scheduling_timeout_s: float | None,
         ) -> bool:
             now = time.time()
-            self.record["status"] = RegistryStatus.RUNNING.value
+            self.record["status"] = RegistryStatus.SCHEDULING.value
             self.record["controller_actor_name"] = controller_actor_name
             self.record["controller_namespace"] = controller_namespace
             self.record["controller_heartbeat_at_ts"] = now
             self.record["controller_lease_expires_at_ts"] = now + 30.0
+            self.record["scheduling_started_at_ts"] = now
+            self.record["scheduling_deadline_at_ts"] = (
+                None if scheduling_timeout_s is None else now + scheduling_timeout_s
+            )
             self.record["reservation_token"] = None
             self.record["reservation_expires_at_ts"] = None
             return True
 
-        def heartbeat_controller(self, *_args: object, **_kwargs: object) -> bool:
-            return True
+        def mark_worker_running(
+            self,
+            _scope: str,
+            _job_id: str,
+            _controller_actor_name: str,
+            _controller_token: str,
+            worker_info: dict[str, Any],
+        ) -> tuple[bool, RegistryStatus | None]:
+            self.record["status"] = RegistryStatus.RUNNING.value
+            self.record["worker_started_at_ts"] = time.time()
+            self.record["worker_node_id"] = worker_info.get("node_id")
+            return True, RegistryStatus.RUNNING
+
+        def heartbeat_controller(
+            self,
+            *_args: object,
+            **_kwargs: object,
+        ) -> tuple[bool, RegistryStatus]:
+            return True, RegistryStatus(self.record["status"])
 
         def update_terminal(
             self,
@@ -676,10 +877,11 @@ def test_registry_submit_failure_releases_dedupe_for_retry(local_ray_registry) -
 
 
 @pytest.mark.ray
-def test_registry_resource_resolution_failure_closes_reservation_and_allows_retry(local_ray_registry) -> None:
+def test_registry_resource_validation_failure_has_no_ray_side_effect_and_allows_retry(local_ray_registry) -> None:
     config = TinyConfig(text="retry-after-resource-failure")
 
-    with pytest.raises(RuntimeError):
+    before_ids = {job.job_id for job in list_jobs()}
+    with pytest.raises(TypeError, match="num_cpus"):
         submit_capability(
             TinyCapability(),
             config=config,
@@ -687,22 +889,21 @@ def test_registry_resource_resolution_failure_closes_reservation_and_allows_retr
             use_cache=False,
         )
 
-    failed_job_id = list_jobs()[0].job_id
+    assert {job.job_id for job in list_jobs()} == before_ids
     retry = submit_capability(TinyCapability(), config=config, resources={"num_cpus": 1}, use_cache=False)
 
-    assert retry.job_id != failed_job_id
+    assert retry.job_id not in before_ids
     assert retry.result(timeout=30).report.content == "retry-after-resource-failure:0.5"
 
 
 @pytest.mark.ray
 def test_controller_launch_failure_keeps_terminal_controller_for_retry(local_ray_registry) -> None:
-    class BadLaunchResourceJobBackend(RayJobBackend):
-        def _resolve_resources(self, capability: Any, run_kwargs: dict[str, Any]) -> Any:
-            del capability, run_kwargs
-            return {"num_cpus": "not-a-number", "num_gpus": 0.0}
+    class FailingControllerStartJobBackend(RayJobBackend):
+        def _start_controller(self, **_kwargs: Any) -> Any:
+            raise RuntimeError("controller launch failed")
 
     prefix = f"controller-launch-failure-{uuid4().hex}"
-    backend = BadLaunchResourceJobBackend(
+    backend = FailingControllerStartJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
@@ -929,7 +1130,7 @@ def test_registry_rejects_unsafe_heartbeat_config(tmp_path: Path) -> None:
 def test_registry_terminal_update_is_bounded_best_effort(local_ray_registry) -> None:
     @ray.remote
     class SlowTerminalRegistry:
-        def update_terminal(self, *args, **kwargs) -> None:
+        def commit_controller_terminal(self, *args, **kwargs) -> None:
             time.sleep(5.0)
 
     registry = SlowTerminalRegistry.remote()
@@ -944,7 +1145,7 @@ def test_registry_terminal_update_is_bounded_best_effort(local_ray_registry) -> 
     )
     elapsed = time.monotonic() - started
 
-    assert updated is False
+    assert updated.outcome is controller_module._RegistryCallOutcome.UNAVAILABLE
     assert elapsed < 1.0
 
 
@@ -964,6 +1165,9 @@ def test_ray_job_commits_controller_terminal_state_before_returning_result(tmp_p
         def __init__(self, job_id: str, result_ref: dict[str, object]) -> None:
             self._job_id = job_id
             self._result_ref = result_ref
+
+        def describe(self, _controller_token: str | None = None) -> dict[str, object]:
+            return {"compatibility_version": 1, "scope": scope, "job_id": self._job_id}
 
         def get_state(self, _controller_token: str | None = None) -> dict[str, object]:
             return {
@@ -1038,6 +1242,9 @@ def test_ray_job_status_and_result_use_bounded_controller_reads() -> None:
 
     @ray.remote
     class SlowController:
+        def describe(self, _controller_token: str | None = None) -> dict[str, object]:
+            return {"compatibility_version": 1, "scope": scope, "job_id": job_id}
+
         def get_state(self, _controller_token: str | None = None) -> dict[str, str]:
             time.sleep(5.0)
             return {"status": RegistryStatus.RUNNING.value}
@@ -1077,7 +1284,7 @@ def test_ray_job_status_and_result_use_bounded_controller_reads() -> None:
 
 
 @pytest.mark.ray
-def test_ray_job_read_and_cancel_do_not_fail_missing_controller() -> None:
+def test_ray_job_records_cancellation_when_controller_is_missing() -> None:
     actor_name = f"checkmaite-test-registry-{uuid4().hex}"
     namespace = f"checkmaite-test-ns-{uuid4().hex}"
     scope = "scope-missing-controller"
@@ -1112,10 +1319,10 @@ def test_ray_job_read_and_cancel_do_not_fail_missing_controller() -> None:
         assert job.wait(timeout=0.1) is JobStatus.RUNNING
         with pytest.raises(JobTimeoutError):
             job.result(timeout=0.1)
-        assert job.cancel() is False
+        assert job.cancel() is True
 
         stored = ray.get(registry.get_job.remote(scope, job_id))
-        assert stored["status"] == RegistryStatus.RUNNING.value
+        assert stored["status"] == RegistryStatus.CANCELLING.value
 
         swept = ray.get(
             registry.sweep_stale_running_jobs.remote(
@@ -1126,7 +1333,7 @@ def test_ray_job_read_and_cancel_do_not_fail_missing_controller() -> None:
         )
         assert swept == 1
         stored = ray.get(registry.get_job.remote(scope, job_id))
-        assert stored["status"] == RegistryStatus.FAILED.value
+        assert stored["status"] == RegistryStatus.CANCELLED.value
     finally:
         shutdown_job_backend(wait=False)
 
@@ -1234,6 +1441,9 @@ def test_cancel_records_cancelling_when_ack_times_out() -> None:
 
     @ray.remote
     class SlowCancelController:
+        def describe(self, _controller_token: str | None = None) -> dict[str, object]:
+            return {"compatibility_version": 1, "scope": scope, "job_id": job_id}
+
         def get_state(self, _controller_token: str | None = None) -> dict[str, str]:
             return {"status": RegistryStatus.RUNNING.value}
 
@@ -1365,18 +1575,21 @@ def test_controller_retries_terminal_registry_commit(tmp_path: Path) -> None:
             self.update_count = 0
             self.status = None
 
-        def mark_running(self, *args) -> bool:
+        def mark_scheduling(self, *args) -> bool:
             return True
 
-        def heartbeat_controller(self, *args, **kwargs) -> bool:
-            return True
+        def mark_worker_running(self, *args) -> tuple[bool, RegistryStatus | None]:
+            return True, RegistryStatus.RUNNING
 
-        def update_terminal(self, _scope, _job_id, status, *_args) -> bool:
+        def heartbeat_controller(self, *args, **kwargs) -> tuple[bool, RegistryStatus]:
+            return True, RegistryStatus.RUNNING
+
+        def commit_controller_terminal(self, _scope, _job_id, status, *_args) -> RegistryStatus:
             self.update_count += 1
             if self.update_count == 1:
                 raise RuntimeError("first terminal update fails")
             self.status = status
-            return True
+            return RegistryStatus(status)
 
         def snapshot(self) -> dict[str, object]:
             return {"update_count": self.update_count, "status": self.status}
@@ -1457,7 +1670,7 @@ def test_registry_sweeps_retained_terminal_controllers(tmp_path: Path) -> None:
         idempotency_scope=scope,
         controller_num_cpus=0.0,
         registry_namespace=namespace,
-        controller_retention_s=0.0,
+        controller_retention_s=3600.0,
         max_retained_terminal_controllers=0,
     )
     try:
