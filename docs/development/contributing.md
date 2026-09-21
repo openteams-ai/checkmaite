@@ -1,7 +1,7 @@
 # Contribution Guide
 
 ## Feature Requests  
-The CheckMAITE team encourages other JATIC teams to submit `CheckMAITE` feature requests by submitting an issue on the reference-implementation issue board using the [feature request template](https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/issues/new?issuable_template=feature-request).
+The CheckMAITE team encourages other JATIC teams to submit `CheckMAITE` feature requests by submitting an issue on this project's [issue board](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues) using the [feature request template](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues/new?issuable_template=feature-request).
 
 The CheckMAITE team periodically reviews these requests and then divides them according to scope and applicability across `CheckMAITE`:
 

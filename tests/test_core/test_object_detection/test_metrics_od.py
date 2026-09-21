@@ -6,9 +6,22 @@ import torch
 from maite.protocols import ArrayLike
 
 from checkmaite.core.object_detection.metrics import (
+    _MAP50_TORCHMETRIC_PARAMS,
+    _MC_MAP50_TORCHMETRIC_PARAMS,
     TorchODMetric,
     map50_torch_metric_factory,
     multiclass_map50_torch_metric_factory,
+)
+
+_TORCHMETRICS_1_0_0_MAP_KWARGS = frozenset(
+    {
+        "box_format",
+        "iou_type",
+        "iou_thresholds",
+        "rec_thresholds",
+        "max_detection_thresholds",
+        "class_metrics",
+    }
 )
 
 
@@ -118,3 +131,8 @@ def test_create_torch_od_metric_id_with_factory_functions():
     map_metric2 = multiclass_map50_torch_metric_factory()
 
     assert map_metric1.metadata["id"] != map_metric2.metadata["id"]
+
+
+def test_map_factory_kwargs_stay_on_torchmetrics_1_0_0_surface():
+    for params in (_MAP50_TORCHMETRIC_PARAMS, _MC_MAP50_TORCHMETRIC_PARAMS):
+        assert set(params) == _TORCHMETRICS_1_0_0_MAP_KWARGS

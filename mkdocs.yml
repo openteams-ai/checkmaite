@@ -1,5 +1,5 @@
 site_name: CheckMAITE
-site_url: !ENV [MKDOCS_SITE_URL, "https://jatic.pages.jatic.net/reference-implementation/reference-implementation/"]
+site_url: !ENV [MKDOCS_SITE_URL, "https://openteams-ai.github.io/checkmaite/"]
 use_directory_urls: false
 theme:
   name: material

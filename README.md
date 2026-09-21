@@ -11,6 +11,13 @@ It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jat
 
 To learn more please visit our [published documentation](https://openteams-ai.github.io/checkmaite/).
 
+## Supported environment
+
+- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested.
+- **Python:** 3.10, 3.11, and 3.12 with `uv` or pip. conda supports 3.10 and 3.11 only. `checkmaite-plugins` is `<3.12` on both paths.
+- **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
+- **Hardware:** any machine that can install those Python versions.
+
 ## Installation
 
 For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html)

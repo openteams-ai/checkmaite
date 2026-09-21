@@ -1,11 +1,18 @@
 # Setup `CheckMAITE`
 
+## Supported environment
+
+- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested.
+- **Python:** 3.10, 3.11, and 3.12 with `uv` or pip (`requires-python = ">=3.10, <3.13"`). conda supports 3.10 and 3.11 only (`python = ">=3.10,<3.12"`). `checkmaite-plugins` is `<3.12` on both paths.
+- **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
+- **Hardware:** any machine that can install those Python versions.
+
 ## Clone the project repository
 
 Ensure you have the right permissions, and clone the project repository:
 
 ```bash
-git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation.git
+git clone https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git
 ```
 
 ## Create environment and install the package

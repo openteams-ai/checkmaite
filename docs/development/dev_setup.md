@@ -8,12 +8,12 @@ Ensure you have the right permissions, and clone the project repository:
 
 ```bash
 # You need to set up personal-access-tokens
-git clone https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation.git
+git clone https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git
 
 # or
 
 # You need to set up SSH keys
-git clone git@gitlab.jatic.net:jatic/reference-implementation/reference-implementation.git
+git clone git@gitlab.jatic.net:jatic/orchestration-interoperability/checkmaite.git
 ```
 
 !!! warning "macOS: SSL certificates for non-Homebrew/non-conda Python"
@@ -180,7 +180,7 @@ uv run mkdocs build --site-dir public
 
 The `site-dir` flag is optional and it defaults to building the site under `./public` in the directory in which you ran the command.
 
-The CheckMAITE documentation website is deployed at [https://jatic.pages.jatic.net/reference-implementation/reference-implementation](https://jatic.pages.jatic.net/reference-implementation/reference-implementation/).
+The CheckMAITE documentation website is deployed at [https://openteams-ai.github.io/checkmaite/](https://openteams-ai.github.io/checkmaite/). GitLab Pages also publishes a copy from `main`.
 
 ## Setting minimum package versions
 

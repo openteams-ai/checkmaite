@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded MAITE from 0.9.2 to a `>=0.9.4,<0.10` range. The floor is 0.9.4, the release that introduced the native multi-object tracking protocols CheckMAITE imports unconditionally, and a range rather than an exact pin avoids lockstep bumps with checkmaite-plugins' circular test dependency. The resolved version is 0.9.5.
 - Relaxed the IPython dependency upper bound so Python 3.11+ can use IPython 9 while Python 3.10 resolves a compatible 8.x release.
 - Upgraded nrtk to 1.0.4.
+- Lowered declared floors for `torchmetrics` (1.0.0), `scikit-learn` (1.5.2), `matplotlib` (3.7.1), and `pytest` (7.3.1) to the SR-4-H-2 program table. Dropped `extended_summary` and `average` from object-detection mAP factory kwargs so the torchmetrics 1.0.0 constructor is usable. Metric cache identities that hash those kwargs will change.
+- Documented the supported OS, Python (uv vs conda), and GPU baseline in the README and install guide, and pointed clone, contributing, and docs URLs at this project.
 
 ### Removed
 - Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.

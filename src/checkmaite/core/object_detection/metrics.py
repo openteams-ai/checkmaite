@@ -190,6 +190,21 @@ class TorchODMultiClassMap50(TorchODMetric):
         )  # Added to indicate that the per-class mAP is present in the output
 
 
+_MAP50_TORCHMETRIC_PARAMS = {
+    "box_format": "xyxy",
+    "iou_type": "bbox",
+    "iou_thresholds": [0.5],
+    "rec_thresholds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    "max_detection_thresholds": [1, 10, 100],
+    "class_metrics": False,
+}
+
+_MC_MAP50_TORCHMETRIC_PARAMS = {
+    **_MAP50_TORCHMETRIC_PARAMS,
+    "class_metrics": True,
+}
+
+
 def map50_torch_metric_factory() -> od.Metric:
     """Create a MAITE-compliant wrapper of the MAP-50 torchmetric.
 
@@ -200,18 +215,8 @@ def map50_torch_metric_factory() -> od.Metric:
     od.Metric
         A MAITE-compliant object detection metric.
     """
-    map50_params = {
-        "box_format": "xyxy",
-        "iou_type": "bbox",
-        "iou_thresholds": [0.5],
-        "rec_thresholds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        "max_detection_thresholds": [1, 10, 100],
-        "class_metrics": False,
-        "extended_summary": False,
-        "average": "macro",
-    }
-    _tm_map50 = MeanAveragePrecision(**map50_params)
-    return TorchODMetric(_tm_map50, return_key="map_50", metric_id=f"mAP_50_{id_hash(**map50_params)}")
+    _tm_map50 = MeanAveragePrecision(**_MAP50_TORCHMETRIC_PARAMS)
+    return TorchODMetric(_tm_map50, return_key="map_50", metric_id=f"mAP_50_{id_hash(**_MAP50_TORCHMETRIC_PARAMS)}")
 
 
 def multiclass_map50_torch_metric_factory() -> od.Metric:
@@ -224,17 +229,9 @@ def multiclass_map50_torch_metric_factory() -> od.Metric:
     od.Metric
         A MAITE-compliant object detection metric.
     """
-    mc_map50_params = {
-        "box_format": "xyxy",
-        "iou_type": "bbox",
-        "iou_thresholds": [0.5],
-        "rec_thresholds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        "max_detection_thresholds": [1, 10, 100],
-        "class_metrics": True,
-        "extended_summary": False,
-        "average": "macro",
-    }
-    _class_map50 = MeanAveragePrecision(**mc_map50_params)
+    _class_map50 = MeanAveragePrecision(**_MC_MAP50_TORCHMETRIC_PARAMS)
     return TorchODMultiClassMap50(
-        _class_map50, return_key="map_50_classwise", metric_id=f"mAP_50_classwise_{id_hash(**mc_map50_params)}"
+        _class_map50,
+        return_key="map_50_classwise",
+        metric_id=f"mAP_50_classwise_{id_hash(**_MC_MAP50_TORCHMETRIC_PARAMS)}",
     )

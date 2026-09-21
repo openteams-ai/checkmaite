@@ -36,7 +36,10 @@ dependencies = [
     "httpx>=0.28.1",                   # arbitrary, needed to run visdrone model
     # IPython 9+ requires Python >=3.11; its package metadata keeps Python 3.10 on a compatible 8.x release.
     "ipython>=8.13",                    # necessary, rendering Markdown reports
-    "matplotlib>=3.8.4,<3.10.8",       # arbitrary, required by panel, 3.10.8 limit can be removed when artifact is released on PyPI
+    # required by panel. Lower bound is the program standards floor. It predates
+    # Python 3.12 and has no cp312 wheel, so #762 (install-at-floors CI) can only
+    # run its 3.10 and 3.11 legs until this floor moves to 3.8.0+.
+    "matplotlib>=3.7.1,<3.10.8",
     "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
     "opencv-python-headless>=4.9.0.80",# necessary lower pin, required by nrtk usage here
     "pandas>=2",                       # arbitrary, required for data handling
@@ -45,10 +48,10 @@ dependencies = [
     "pydantic>=2.12.0",                # necessary for PEP 728 TypedDict extra-item validation
     "typing-extensions>=4.14.1",        # necessary for PEP 728 TypedDict support on supported Python versions
     "ray[serve]>=2.9.0",               # necessary for Ray Serve endpoint deployment
-    "scikit-learn>=1.7.0",             # arbitrary, required for embeddings
+    "scikit-learn>=1.5.2",             # program standards floor, required for embeddings
     "setuptools>=78.1.1,<82.0.0",      # xaitk-saliency path still imports pkg_resources
     "torch>=2.2.0",                    # necessary lower pin (at least >=2.2.0 for security)
-    "torchmetrics>=1.4.0",             # arbitrary, required for metric computation
+    "torchmetrics>=1.0.0",             # program standards floor, required for metric computation
     "torchvision>=0.17.0",             # arbitrary, required for models
     "smqtk-core>=0.21.0",              # necessary lower pin for compatibility with pydantic
     "smqtk-detection>=0.22.0",         # necessary lower pin for running VisDrone model on Mac
@@ -72,7 +75,7 @@ dataeval-plots = {source = "pypi"}
 # Test tooling for the conda CI jobs. conda-lock cannot read PEP 735
 # [dependency-groups], so the conda-side test dependencies are declared here
 # (conda-only section; not part of the published package metadata).
-pytest = ">=8.3.0"
+pytest = ">=7.3.1"                                 # program standards floor
 pytest-cov = ">=4.0.0"
 pytest-mock = ">=3.6.1"
 pypdf = ">=4.0.0"
@@ -116,7 +119,7 @@ exclude = [
 dev = [
     "pre-commit>=3.0.0",                             # arbitrary
     "pyright[nodejs]>=1.1.400,!=1.1.401",  # necessary, typechecker will fail for some versions, https://github.com/microsoft/pyright/issues/10487
-    "pytest>=8.3.0",                                 # necessary lower pin for compatibility
+    "pytest>=7.3.1",                                 # program standards floor
     "pytest-cov>=4.0.0",                             # arbitrary
     "pytest-mock>=3.6.1",                            # arbitrary
     "pypdf>=4.0.0",                                  # arbitrary, used to assert PDF structure in reporting tests
