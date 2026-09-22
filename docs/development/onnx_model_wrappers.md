@@ -63,7 +63,7 @@ JATIC_ONNX v1 expects exactly one ONNX input tensor:
 - shape: NCHW
 - values: normalized pixels in `[0, 1]`
 
-CheckMAITE callers still provide CHW image arrays. The shared ONNX helpers in `src/checkmaite/core/_utils.py` validate CHW input, convert channels according to metadata (`RGB` or `GRAYSCALE`), normalize integer images to `[0, 1]`, stack the batch, and resize to configured height/width when needed.
+CheckMAITE callers still provide CHW image arrays. The shared ONNX helpers in [modelmaite](https://pypi.org/project/modelmaite/) (`modelmaite.object_detection`/`modelmaite.image_classification`) validate CHW input, convert channels according to metadata (`RGB` or `GRAYSCALE`), normalize integer images to `[0, 1]`, stack the batch, and resize to configured height/width when needed.
 
 `io.batchSize`, `io.input.height`, and `io.input.width` are read from metadata. The wrappers also accept runtime overrides for `batch_size`, `image_height`, and `image_width`, matching the JATIC Interoperability Requirements expectation that user configuration should take precedence over metadata.
 
@@ -120,7 +120,7 @@ This installs `onnxruntime-gpu` instead of `onnxruntime`. Use this only in envir
 
 ## Provider selection
 
-Provider selection happens in `get_onnx_providers`:
+Provider selection happens in modelmaite's `get_onnx_providers`:
 
 - explicit `device="cpu"` uses `CPUExecutionProvider`
 - explicit `device="cuda"` requires `CUDAExecutionProvider`

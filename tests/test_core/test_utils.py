@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from checkmaite.core._utils import CountAndDrop, get_index2label_from_model_config, set_device
+from checkmaite.core._utils import CountAndDrop, set_device
 
 
 @pytest.fixture
@@ -90,19 +90,6 @@ def test_save_figure_to_tempfile(metric_results, threshold_od):
     fig = create_metrics_bar_plot(metric_results, metric_key="map_50", threshold=threshold_od)
     filename = save_figure_to_tempfile(fig)
     assert Path(filename).exists
-
-
-def test_get_index2label_from_model_config_handles_lists_dicts_and_errors() -> None:
-    assert get_index2label_from_model_config("config.json", {"labels": ["cat", "dog"]}, "labels") == {
-        0: "cat",
-        1: "dog",
-    }
-    assert get_index2label_from_model_config("config.json", {"labels": {"1": "dog"}}, "labels") == {1: "dog"}
-
-    with pytest.raises(FileNotFoundError, match="missing"):
-        get_index2label_from_model_config("config.json", {}, "labels")
-    with pytest.raises(TypeError, match="dict or list"):
-        get_index2label_from_model_config("config.json", {"labels": "cat"}, "labels")
 
 
 def test_count_and_drop_counts_and_suppresses() -> None:

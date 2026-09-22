@@ -1,9 +1,7 @@
 import importlib.util
 import json
 import re
-import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -43,48 +41,10 @@ def test_visdrone_invalid_arch_name():
         VisdroneODModel(arch="invalid_arch", device="cpu")
 
 
-class _FakeStreamResponse:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def raise_for_status(self):
-        pass
-
-    def iter_bytes(self):
-        yield b"weights"
-
-
-class _FakeCenterNetVisdrone:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
-
-def test_visdrone_downloads_missing_default_weights(tmp_path, monkeypatch):
-    """Cover the missing-weights download path.
-
-    This is mainly here to boost test coverage and is a bit brittle; if it starts
-    failing, it may be easiest to disable rather than heavily maintain it.
-    """
-    monkeypatch.setitem(
-        sys.modules,
-        "smqtk_detection.impls.detect_image_objects.centernet",
-        SimpleNamespace(CenterNetVisdrone=_FakeCenterNetVisdrone),
-    )
-    monkeypatch.setattr("httpx.stream", lambda *args, **kwargs: _FakeStreamResponse())
-
-    model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=tmp_path)
-
-    assert model.name == "visdrone-centernet-centernet-resnet18"
-    assert (tmp_path / "centernet-resnet18.pth").exists()
-
-
 def test_visdrone_valid_model_initialization(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
-    assert model.name == f"visdrone-centernet-{fname}"
+    assert model.name == f"visdrone-{fname}"
     assert model.metadata["id"] == "visdrone_resnet18_kitware"
 
 
@@ -240,8 +200,8 @@ def test_torchvision_valid_user_weights_load(tmpdir, dummy_cpu_image_batch):
     # maybe overkill, but useful smoke-test
     random_img = dummy_cpu_image_batch[0]
     assert (
-        model_wrapper(input_batch=[random_img])[0].scores.numpy()
-        == model_wrapper_2(input_batch=[random_img])[0].scores.numpy()
+        np.asarray(model_wrapper(input_batch=[random_img])[0].scores)
+        == np.asarray(model_wrapper_2(input_batch=[random_img])[0].scores)
     ).all()
 
     assert all(
@@ -287,7 +247,7 @@ def test_torchvision_invalid_model_name():
 
 
 def test_torchvision_import_error_is_reported(monkeypatch):
-    import checkmaite.core.object_detection.models as models_module
+    import modelmaite.object_detection.models as models_module
 
     def raise_import_error(name):
         if name == "torchvision.models.detection":
@@ -296,7 +256,7 @@ def test_torchvision_import_error_is_reported(monkeypatch):
 
     monkeypatch.setattr(models_module.importlib, "import_module", raise_import_error)
 
-    with pytest.raises(ImportError, match="error importing"):
+    with pytest.raises(ImportError, match="optional dependency 'torchvision'"):
         TorchvisionODModel(model_name="ssdlite320_mobilenet_v3_large", device="cpu")
 
 

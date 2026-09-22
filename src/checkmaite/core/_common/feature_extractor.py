@@ -74,7 +74,7 @@ def _load_torchvision_classification_model_and_preprocess(
 
     if name not in SUPPORTED_TORCHVISION_CLASSIFICATION_MODELS:
         supported = ", ".join(sorted(SUPPORTED_TORCHVISION_CLASSIFICATION_MODELS))
-        raise ValueError(f"Unsupported torchvision classification model: '{name}'. " f"Supported: {supported}")
+        raise ValueError(f"Unsupported torchvision classification model: '{name}'. Supported: {supported}")
 
     weights_enum_name = SUPPORTED_TORCHVISION_CLASSIFICATION_MODELS[name]
 

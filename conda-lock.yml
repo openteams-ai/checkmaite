@@ -15,7 +15,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 950ac759ba0ea7878334b2ff086137ac1f3bab0ba0744294779499ac20e66b78
+    linux-64: 2dff09313bfc60a1d3eb5a3c9f7c23b0bd12e1eaa7ae07e0abee85af091ca053
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -4451,6 +4451,18 @@ package:
   hash:
     md5: 3575c034d908c0567c53ed6a33e9dfd9
     sha256: 0b903cfa21b1a3396b3468d41b8112d49a5bd7ff6642305791caca3af33fbaf2
+  category: main
+  optional: false
+- name: modelmaite
+  version: 0.1.0
+  manager: pip
+  platform: linux-64
+  dependencies:
+    numpy: '>=1.24,<2'
+    typing-extensions: '>=4.5'
+  url: https://files.pythonhosted.org/packages/dd/be/51aad3b24255f84e06368b42853f40559bdc5dfb8b5632637b6d60769d03/modelmaite-0.1.0-py3-none-any.whl
+  hash:
+    sha256: 4b25971e113a63b760bd7efbc87b182b9b0251cafda180a17ad89772420b9022
   category: main
   optional: false
 - name: mpc

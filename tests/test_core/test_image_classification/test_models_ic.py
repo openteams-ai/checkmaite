@@ -148,8 +148,9 @@ def test_onnx_ic_model_returns_jatic_scores(tmp_path: Path):
     assert model.name == "jatic_onnx"
     assert model.index2label == {0: "background", 1: "cat", 2: "dog"}
     assert len(predictions) == 2
-    assert torch.equal(predictions[0], torch.as_tensor(expected_scores[0]))
-    assert torch.equal(predictions[1], torch.as_tensor(expected_scores[1]))
+    # modelmaite wrappers return NumPy-backed MAITE scores, not torch tensors.
+    assert np.array_equal(np.asarray(predictions[0]), expected_scores[0])
+    assert np.array_equal(np.asarray(predictions[1]), expected_scores[1])
 
 
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
@@ -201,7 +202,7 @@ def test_onnx_ic_model_requires_index2label(tmp_path: Path):
         encoding="utf-8",
     )
 
-    with pytest.raises(FileNotFoundError, match="index2label"):
+    with pytest.raises(ValueError, match="index2label"):
         OnnxICModel(weights_path=model_path, config_path=config_path, device="cpu")
 
 

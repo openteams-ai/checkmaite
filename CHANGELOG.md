@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
 - MOT prediction, target, and metadata caching in flexible serialization mode, including `track_ids`.
+- Dependency on `modelmaite` 0.1.0 for the MAITE model wrappers (#718)
 
 ### Changed
 - `JobStatus` now includes `SCHEDULING` for distributed jobs waiting on worker resources.
@@ -36,8 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lowered declared floors for `torchmetrics` (1.0.0), `scikit-learn` (1.5.2), `matplotlib` (3.7.1), and `pytest` (7.3.1) to the SR-4-H-2 program table. Dropped `extended_summary` and `average` from object-detection mAP factory kwargs so the torchmetrics 1.0.0 constructor is usable. Metric cache identities that hash those kwargs will change.
 - Documented the supported OS, Python (uv vs conda), and GPU baseline in the README and install guide, and pointed clone, contributing, and docs URLs at this project.
 
+- Model wrappers (`TorchvisionODModel`, `VisdroneODModel`, `OnnxODModel`, `TorchvisionICModel`, `OnnxICModel`) are now modelmaite's, re-exported from their historical CheckMAITE import paths; `ModelSpecification`, `load_models`, and `SUPPORTED_MODELS` remain CheckMAITE's config-facing contract (#718)
+- `load_models` now delegates dispatch to modelmaite's native factories (IC re-exported directly; OD translates the legacy VisDrone `model_weights_path` key to `model_pickle_dir` first). Keyword arguments now reach VisDrone wrappers, a missing or unsupported `model_type` raises modelmaite's `ValueError` (previously `KeyError`/`RuntimeError`), and unsupported-type errors list the supported models (#718)
+- Model prediction targets are NumPy-backed (modelmaite) rather than Torch tensors; the VisDrone wrapper name dropped the doubled `centernet-` prefix; missing optional dependencies and failed weight downloads now raise modelmaite's stricter, hint-bearing errors (#718)
+- **Breaking:** the ONNX wrappers now accept only `uint8` integer images. CheckMAITE's removed `_normalize_image` accepted any non-negative integer dtype and scaled by that dtype's maximum; modelmaite 0.1.0 raises `TypeError` for any integer dtype other than `uint8`, so MAITE datasets yielding `uint16` or positive `int16` images must convert to `float32` in `[0, 1]` before calling the wrapper. Parity is restored upstream in modelmaite !15 and will return here with the pin bump to the release carrying it (#718)
+
 ### Removed
 - Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.
+- CheckMAITE's in-tree model wrapper implementations and their ONNX/torchvision helper utilities in `checkmaite.core._utils`, now maintained in modelmaite (#718)
 
 ### Fixed
 - Ray jobs now become `RUNNING` only after their capability worker begins execution, and terminal controllers can clean themselves up on quiet clusters.

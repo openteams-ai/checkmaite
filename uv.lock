@@ -723,6 +723,7 @@ dependencies = [
     { name = "ipython", version = "9.16.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "maite" },
     { name = "matplotlib" },
+    { name = "modelmaite" },
     { name = "nrtk", extra = ["pybsm"] },
     { name = "numba" },
     { name = "opencv-python-headless" },
@@ -816,6 +817,7 @@ requires-dist = [
     { name = "maite", specifier = ">=0.9.4,<0.10" },
     { name = "markdown", marker = "extra == 'reporting'", specifier = ">=3.5" },
     { name = "matplotlib", specifier = ">=3.7.1,<3.10.8" },
+    { name = "modelmaite", specifier = "==0.1.0" },
     { name = "nbconvert", marker = "extra == 'ui'", specifier = ">=7.16.6" },
     { name = "nrtk", extras = ["pybsm"], specifier = "==1.0.4" },
     { name = "numba", specifier = ">=0.60.0" },
@@ -3120,6 +3122,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/df/94/6ebb9094cfc7ac5e7950776b9d13a66bb4a34f83814f32ba2abc9494fc68/mmh3-5.2.1-cp312-cp312-win32.whl", hash = "sha256:7374d6e3ef72afe49697ecd683f3da12f4fc06af2d75433d0580c6746d2fa025", size = 40773, upload-time = "2026-03-05T15:54:40.077Z" },
     { url = "https://files.pythonhosted.org/packages/5b/3c/cd3527198cf159495966551c84a5f36805a10ac17b294f41f67b83f6a4d6/mmh3-5.2.1-cp312-cp312-win_amd64.whl", hash = "sha256:3a9fed49c6ce4ed7e73f13182760c65c816da006debe67f37635580dfb0fae00", size = 41560, upload-time = "2026-03-05T15:54:41.148Z" },
     { url = "https://files.pythonhosted.org/packages/15/96/6fe5ebd0f970a076e3ed5512871ce7569447b962e96c125528a2f9724470/mmh3-5.2.1-cp312-cp312-win_arm64.whl", hash = "sha256:bbfcb95d9a744e6e2827dfc66ad10e1020e0cac255eb7f85652832d5a264c2fc", size = 39313, upload-time = "2026-03-05T15:54:42.171Z" },
+]
+
+[[package]]
+name = "modelmaite"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/e0/33420a8068031b76a2d4757c5323e69f947d5b226b9387e0950e53d3fc7a/modelmaite-0.1.0.tar.gz", hash = "sha256:9cf16cba60b371f27778a6fffc5fc1f87cecfb62cbf03e598e650f54cd6bf351", size = 18857, upload-time = "2026-07-28T15:35:35.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/be/51aad3b24255f84e06368b42853f40559bdc5dfb8b5632637b6d60769d03/modelmaite-0.1.0-py3-none-any.whl", hash = "sha256:4b25971e113a63b760bd7efbc87b182b9b0251cafda180a17ad89772420b9022", size = 23922, upload-time = "2026-07-28T15:35:34.992Z" },
 ]
 
 [[package]]
