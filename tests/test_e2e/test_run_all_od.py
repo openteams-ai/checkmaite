@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from checkmaite.core.capability_core import Number
-from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.object_detection.dataset_loaders import load_coco_detection_dataset
 from checkmaite.core.object_detection.metrics import map50_torch_metric_factory
 from checkmaite.core.object_detection.models import TorchvisionODModel
 from checkmaite.ui.dashboard_utils import get_capability_from_app_config_od
@@ -27,7 +27,7 @@ def dataset_od():
     NOTE: this should be replaced by a faked od model when available
     """
     coco_dataset_dir = Path.cwd() / "tests" / "data_for_tests" / "coco_resized_val2017"
-    return CocoDetectionDataset(
+    return load_coco_detection_dataset(
         root=str(coco_dataset_dir),
         ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
     )
@@ -40,7 +40,7 @@ def dataset_od_mini():
     NOTE: this should be replaced by a faked od model when available
     """
     coco_dataset_dir = Path.cwd() / "tests" / "data_for_tests" / "coco_resized_val2017"
-    return CocoDetectionDataset(
+    return load_coco_detection_dataset(
         root=str(coco_dataset_dir),
         ann_file=str(coco_dataset_dir.joinpath("three_image.json")),
     )

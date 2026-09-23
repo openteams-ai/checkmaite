@@ -27,6 +27,7 @@ dynamic = ["version"]
 dependencies = [
     "dataeval==1.0.6",
     "dataeval-plots==0.0.6",           # we specify the pypi source in conda-lock as dataeval_plots won't be on conda-forge
+    "datamaite==0.5.0",                # dataset loading backend (#717); od/ic extras omitted: they pull opencv-python-headless, which conflicts with conda's opencv during conda-lock installs — checkmaite's own opencv dep already covers pixel decode
     "maite>=0.9.4,<0.10",              # necessary lower pin: ships maite.protocols.multiobject_tracking (#723); range avoids lockstep with checkmaite-plugins
     "modelmaite==0.1.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
     "nrtk[pybsm]==1.0.4",
@@ -73,6 +74,7 @@ libopengl = "*"                                    # patch for a missing depende
 pip = "*"                                          # ensure pip is available for conda-lock
 git = "*"                                          # required by uv-dynamic-versioning during package builds
 dataeval-plots = {source = "pypi"}
+datamaite = {source = "pypi"}                      # not packaged on conda-forge
 modelmaite = {source = "pypi"}                     # not packaged on conda-forge
 # Test tooling for the conda CI jobs. conda-lock cannot read PEP 735
 # [dependency-groups], so the conda-side test dependencies are declared here

@@ -58,13 +58,13 @@ logger = logging.getLogger()
 # mapping between the visible dataset labels in the UI and
 # the underlying wrapper class
 DATASET_LABEL_MAP_OD = {
-    "COCO dataset": "CocoDetectionDataset",
-    "YOLO dataset": "YoloDetectionDataset",
-    "Visdrone dataset": "VisdroneDetectionDataset",
+    "COCO dataset": "coco",
+    "YOLO dataset": "yolo",
+    "Visdrone dataset": "visdrone",
 }
 
 DATASET_LABEL_MAP_IC = {
-    "YOLO dataset": "YoloClassificationDataset",
+    "YOLO dataset": "yolo",
 }
 
 METRICS_LABEL_MAP_OD = {
@@ -691,13 +691,13 @@ class BaseTestbed(BaseApp):
         # gather dataset information from the widgets
         if self.task == "object_detection":
             dataset_1_meta: dataset_spec = {
-                "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
+                "dataset_format": self.dataset_label_map[self.dataset_1_selector.value],
                 "data_dir": self.dataset_1_directory.value,
                 "metadata_path": self.dataset_1_metadata_path.value,
             }
         else:
             dataset_1_meta: dataset_spec = {
-                "dataset_type": self.dataset_label_map[self.dataset_1_selector.value],
+                "dataset_format": self.dataset_label_map[self.dataset_1_selector.value],
                 "data_dir": self.dataset_1_directory.value,
                 "split_folder": self.dataset_1_metadata_path.value,
             }
@@ -712,13 +712,13 @@ class BaseTestbed(BaseApp):
 
             if self.task == "object_detection":
                 dataset_2_meta: dataset_spec = {
-                    "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
+                    "dataset_format": self.dataset_label_map[self.dataset_2_selector.value],
                     "data_dir": self.dataset_2_directory.value,
                     "metadata_path": self.dataset_2_metadata_path.value,
                 }
             else:
                 dataset_2_meta: dataset_spec = {
-                    "dataset_type": self.dataset_label_map[self.dataset_2_selector.value],
+                    "dataset_format": self.dataset_label_map[self.dataset_2_selector.value],
                     "data_dir": self.dataset_2_directory.value,
                     "split_folder": self.dataset_2_metadata_path.value,
                 }
@@ -772,9 +772,13 @@ class BaseTestbed(BaseApp):
 
         elif dataset_type == "YOLO dataset":
             if self.task == "object_detection":
-                path_name = "Annotations directory"
-                path_placeholder = "Full filepath to annotations directory."
-                path_description = "Full filepath to the directory containing the YOLO annotation files."
+                path_name = "Annotations directory (optional)"
+                path_placeholder = "Leave empty to infer the labels directory automatically."
+                path_description = (
+                    "Optional. When empty, the YOLO labels directory is inferred from the image "
+                    "directory using the standard 'images/ -> labels/' layout; set it to override "
+                    "with a non-standard annotations directory."
+                )
                 metadata_name = "Metadata filepath"
                 metadata_placeholder = "Full filepath to dataset metadata file."
                 metadata_description = "Full filepath to YOLO-formatted metadata YAML file."
@@ -880,8 +884,8 @@ class BaseTestbed(BaseApp):
             return False
         for stage_label, config in configs.items():
             if stage_label != "task":
-                self.status_source.emit(f'Loading {config["TYPE"]}')
-                logger.debug(f'Loading {config["TYPE"]}')
+                self.status_source.emit(f"Loading {config['TYPE']}")
+                logger.debug(f"Loading {config['TYPE']}")
                 if self.task == "object_detection":
                     stage = get_capability_from_app_config_od(config)
                 else:

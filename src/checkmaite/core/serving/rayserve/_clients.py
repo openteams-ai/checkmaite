@@ -8,9 +8,8 @@ from typing import Any
 import numpy as np
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
+from modelmaite.object_detection import DetectionTarget
 from ray.serve.handle import DeploymentHandle
-
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 
 _executor = ThreadPoolExecutor(max_workers=1)
 

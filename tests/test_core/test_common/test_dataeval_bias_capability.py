@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 import polars as pl
 import pytest
+from dataeval import Metadata
 from maite.protocols import DatasetMetadata
 from PIL import Image as PILImage
 
@@ -18,7 +19,11 @@ from checkmaite.core._common.dataeval_bias_capability import (
     DataevalBiasRecord,
     DataevalBiasRun,
 )
-from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.object_detection.dataset_loaders import (
+    load_coco_detection_dataset,
+    load_visdrone_detection_dataset,
+    load_yolo_detection_dataset,
+)
 from checkmaite.core.report._gradient import HAS_GRADIENT
 from tests.report_assertions import assert_inline_markdown_report
 
@@ -182,7 +187,7 @@ class TestOdDataevalBiasCapability:
         assert consumables  # smoke test
 
     def test_coco(self):
-        coco_dataset = CocoDetectionDataset(
+        coco_dataset = load_coco_detection_dataset(
             root=str(self.coco_dataset_dir),
             ann_file=str(self.coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
         )
@@ -193,7 +198,7 @@ class TestOdDataevalBiasCapability:
         pass  # no explosions
 
     def test_no_metadata(self):
-        coco_dataset = CocoDetectionDataset(
+        coco_dataset = load_coco_detection_dataset(
             root=str(self.coco_dataset_dir),
             ann_file=str(self.coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
         )
@@ -219,6 +224,37 @@ class TestOdDataevalBiasCapability:
 
         capability.run(use_cache=False, datasets=[coco_dataset], config=config)
         pass  # no explosions
+
+
+class TestNativeDatasetMetadataBecomesBiasFactors:
+    """The datum-metadata contract for datamaite-native datasets.
+
+    datamaite surfaces per-box annotation attributes as index-aligned lists, and
+    dataeval expands a list-valued datum-metadata key into a per-detection bias
+    factor. That is wanted for real annotation attributes and wrong for the
+    loader's own parsing provenance, so the boundary is the bias config's
+    default exclusion list rather than a checkmaite dataset wrapper.
+    """
+
+    ROOT = Path(__file__).parent.parent.parent / "data_for_tests"
+
+    def _factors(self, dataset) -> list[str]:
+        return list(Metadata(dataset, exclude=DataevalBiasConfig().metadata_to_exclude).factor_names)
+
+    def test_yolo_provenance_is_not_a_bias_factor(self):
+        dataset = load_yolo_detection_dataset(self.ROOT / "yolo_dataset" / "dataset.yaml")
+
+        # Present in the datum metadata...
+        assert {"yolo_bbox", "source_line"} <= set(dataset.get_metadata(0))
+        # ...but not offered to the user as something the data is biased on.
+        assert "yolo_bbox" not in self._factors(dataset)
+        assert "source_line" not in self._factors(dataset)
+
+    def test_visdrone_per_object_attributes_are_kept_as_factors(self):
+        dataset = load_visdrone_detection_dataset(self.ROOT / "visdrone_dataset")
+
+        factors = self._factors(dataset)
+        assert {"truncation", "occlusion", "visdrone_score"} <= set(factors)
 
 
 def test_bias_record_accepts_valid_fields():

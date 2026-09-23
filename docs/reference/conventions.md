@@ -71,10 +71,12 @@ For COCO object detection datasets, `CheckMAITE` treats COCO metadata as follows
 
 - `categories` define dataset-level class metadata and are exposed as `DatasetMetadata.index2label`.
 - Each entry in `images` is returned as datum-level metadata for that image. Extra user-defined fields in an `images` entry are preserved.
-- Extra fields in `annotations` are considered annotation-level metadata and are not currently surfaced by `CocoDetectionDataset`.
+- Extra fields in `annotations` are annotation-level metadata and **are** surfaced, as per-box lists index-aligned to `target.boxes`. Box `i` contributes its value for a key, or `None` when that box omits it. The same mechanism carries VisDrone's per-object `truncation`/`occlusion`/`visdrone_score`.
 - Extra fields in `info`, `licenses`, or `categories` are not currently surfaced, except for the category id/name mapping used to build `index2label`.
 
-If annotation-level metadata becomes necessary for downstream tools, `CheckMAITE` should expose it through an explicit typed metadata structure rather than merging it ambiguously into image-level datum metadata.
+DataEval expands a list-valued datum-metadata key into a per-detection bias factor, which is the point: a real annotation attribute is something the dataset can be biased on. The loader's own provenance is not, so `DataevalBiasConfig.metadata_to_exclude` drops it by default (`source_line`, `label_file`, `annotation_file`, `source_file_name`, `source_format`, `variant`, and `yolo_bbox` — a re-encoding of the target itself). Genuine annotation attributes are deliberately kept; add them to `metadata_to_exclude` to opt a specific one out.
+
+Datum metadata survives CheckMAITE's prediction cache: extra keys are preserved rather than dropped, so a cache hit and a cache miss return the same metadata. The cache is JSON-backed, so values are JSON-normalized — a tuple reads back as a list.
 
 ### Supported dataset annotation formats
 

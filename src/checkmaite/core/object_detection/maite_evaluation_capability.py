@@ -2,6 +2,7 @@ from collections.abc import Callable, Sequence
 
 import maite.protocols.object_detection as od
 import numpy as np
+from modelmaite.object_detection import DetectionTarget
 from pydantic import Field, model_validator
 
 from checkmaite.core._common.maite_evaluation_capability import (
@@ -13,7 +14,6 @@ from checkmaite.core._common.maite_evaluation_capability import (
 from checkmaite.core._common.maite_evaluation_capability import (
     MaiteEvaluationRun as BaseMaiteEvaluationRun,
 )
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 
 ODPredictionBatches = Sequence[Sequence[od.TargetType]]
 ODCpuPredictionPostprocessor = Callable[[ODPredictionBatches], Sequence[Sequence[od.TargetType]]]

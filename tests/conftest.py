@@ -15,9 +15,9 @@ import numpy.typing as npt
 import pytest
 import torch
 from maite.protocols import ArrayLike, DatasetMetadata, DatumMetadata, MetricMetadata, ModelMetadata
+from modelmaite.object_detection import DetectionTarget
 
 import checkmaite
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 
 if tuple(int(v) for v in np.__version__.split(".")[:2]) >= (2, 1):
     np_unstack = np.unstack

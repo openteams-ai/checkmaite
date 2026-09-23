@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+from modelmaite.object_detection import DetectionTarget
 
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 from checkmaite.core.serving.rayserve._clients import (
     RayImageClassificationClient,
     RayObjectDetectionClient,

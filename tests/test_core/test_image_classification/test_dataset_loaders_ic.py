@@ -1,388 +1,141 @@
-import os
-import time
+"""Tests for checkmaite's native-datamaite IC loading boundary."""
+
+from pathlib import Path
 
 import numpy as np
 import pytest
+from datamaite.image_classification import ImageClassificationDataset
 from PIL import Image
 
 from checkmaite.core.image_classification.dataset_loaders import (
     MissingYoloDataSplitError,
     YoloClassificationDataLoader,
-    YoloClassificationDataset,
     load_datasets,
+    load_yolo_classification_dataset,
 )
 
-CLASSES = ["cat", "dog"]
-NUM_IMAGES_PER_CLASS = 4
-IMG_SHAPE = (64, 128)
+
+def _make_dataset(root: Path) -> None:
+    for split in ("train", "test", "val"):
+        for class_name in ("cat", "dog"):
+            class_dir = root / split / class_name
+            class_dir.mkdir(parents=True)
+            Image.new("RGB", (16, 12), color=(1, 2, 3)).save(class_dir / f"{class_name}.jpg")
 
 
-def create_fake_yolo_dataset(
-    root_dir,
-    split,
-    classes,
-    num_images_per_class,
-    image_shape,
-) -> None:
-    """Create a fake YOLO dataset structure.
+def test_factory_returns_native_datamaite_dataset(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    dataset = load_yolo_classification_dataset(tmp_path, split="test", dataset_id="ic-test")
 
-    Parameters
-    ----------
-    root_dir
-        The root directory where the dataset will be created.
-    split
-        The dataset split (e.g., "train", "test").
-    classes
-        A list of class names.
-    num_images_per_class
-        The number of images to create for each class.
-    image_shape
-        The shape (width, height) of the images to create.
-    """
-    os.makedirs(root_dir / split, exist_ok=True)
-    for class_name in classes:
-        class_dir = root_dir / split / class_name
-        os.makedirs(class_dir, exist_ok=True)
-        for i in range(num_images_per_class):
-            img = Image.new("RGB", image_shape, color=(i, i, i))
-            img.save(class_dir / f"{i}_{class_name}.jpg")
+    assert type(dataset) is ImageClassificationDataset
+    assert dataset.metadata["id"] == "ic-test"
+    assert dataset.metadata["index2label"] == {0: "cat", 1: "dog"}
 
-
-@pytest.fixture(scope="session")
-def fake_dataset(
-    tmp_path_factory,
-):
-    """Create a fake YOLO dataset for testing.
-
-    Parameters
-    ----------
-    tmp_path_factory
-        Pytest fixture for creating temporary directories.
-
-    Returns
-    -------
-        A tuple containing:
-        - The root directory of the created dataset.
-        - The list of class names.
-        - The number of images per class.
-        - The shape of the images.
-    """
-    dataset_root = tmp_path_factory.mktemp("yolo_dataset")
-
-    for split in ["test", "train"]:
-        create_fake_yolo_dataset(
-            root_dir=dataset_root,
-            split=split,
-            classes=CLASSES,
-            num_images_per_class=NUM_IMAGES_PER_CLASS,
-            image_shape=IMG_SHAPE,
-        )
-    return str(dataset_root), CLASSES, NUM_IMAGES_PER_CLASS, IMG_SHAPE
-
-
-def test_yolo_dataset_initialization(fake_dataset):
-    dataset_root, classes, num_images_per_class, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    assert len(dataset) == len(classes) * num_images_per_class
-    assert dataset.metadata["id"] == "test_dataset"
-    assert dataset.metadata["index2label"] == dict(enumerate(classes))
-    assert dataset.metadata["index2label"][0] == CLASSES[0]
-    assert dataset.metadata["index2label"][1] == CLASSES[1]
-
-
-def test_yolo_get_item(fake_dataset):
-    dataset_root, classes, _, image_shape = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    img, label, metadata = dataset[0]
-
-    width, height = image_shape
-    assert img.shape == (3, height, width)  # CHW format
-    assert len(label) == len(classes)
-    assert label.sum() == 1  # One-hot encoded
-    assert isinstance(metadata["id"], str)
-    assert "/" in metadata["id"]  # Should be in format "class/filename"
-
-
-def test_yolo_unique_datum_ids(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-
-    datum_ids = set()
-    for i in range(len(dataset)):
-        _, _, metadata = dataset[i]
-        datum_id = metadata["id"]
-        assert datum_id not in datum_ids, f"Duplicate datum ID found: {datum_id}"
-        datum_ids.add(datum_id)
-
-    assert len(datum_ids) == len(dataset), "Not all datums have unique IDs"
-
-
-def test_yolo_iteration_over_dataset(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    count = 0
-    for _ in dataset:
-        count += 1
-
-    assert count == len(dataset), "Iteration count does not match dataset length"
-
-
-def test_yolo_missing_data_split(tmp_path):
-    # Create a directory without the expected split subdirectory
-    dataset_root = tmp_path / "empty_dataset"
-    dataset_root.mkdir()
-    with pytest.raises(
-        MissingYoloDataSplitError,
-        match="The following data split subdirectory does not exist",
-    ):
-        YoloClassificationDataset(dataset_id="test_dataset", root_dir=str(dataset_root), split="validation")
-
-
-def test_yolo_load_datasets(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    spec = {
-        "dataset_type": "YoloClassificationDataset",
-        "data_dir": str(dataset_root),
-        "split_folder": "test",
-    }
-    datasets = {
-        "dataset1": spec,
-    }
-    loaded = load_datasets(datasets=datasets)
-
-    assert loaded
-
-
-def test_yolo_different_splits_no_id_match(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-
-    dataset1 = YoloClassificationDataset(root_dir=dataset_root, split="test")
-
-    dataset2 = YoloClassificationDataset(root_dir=dataset_root, split="train")
-
-    assert dataset1.metadata["id"] != dataset2.metadata["id"]
-
-
-def test_get_input(fake_dataset):
-    dataset_root, _, _, image_shape = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    image = dataset.get_input(0)
-
-    width, height = image_shape
+    image, target, metadata = dataset[0]
     assert isinstance(image, np.ndarray)
-    assert image.shape == (3, height, width)
-
-
-def test_get_target_does_not_load_image(fake_dataset):
-    """Test that get_target returns the label without loading the image."""
-    dataset_root, classes, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    target = dataset.get_target(0)
-
+    assert image.shape == (3, 12, 16)
     assert isinstance(target, np.ndarray)
-    assert len(target) == len(classes)
-    assert target.sum() == 1  # One-hot encoded
+    assert target.dtype == np.float32
+    assert target.sum() == 1
+    # The datum id is relative to the dataset root, so it carries the split:
+    # checkmaite now hands datamaite the root plus ``split=`` instead of the
+    # split directory as its own root.
+    assert metadata["id"] == "test/cat/cat.jpg"
 
 
-def test_get_metadata_does_not_load_image(fake_dataset):
-    """Test that get_metadata returns without loading the image."""
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    metadata = dataset.get_metadata(0)
-
-    assert isinstance(metadata, dict)
-    assert "id" in metadata
-    assert "/" in metadata["id"]  # Should be in format "class/filename"
+def test_validation_alias_uses_val_folder(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    dataset = load_yolo_classification_dataset(tmp_path, split="validation")
+    assert len(dataset) == 2
 
 
-def test_fieldwise_methods_consistent_with_getitem(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-
-    for i in range(len(dataset)):
-        image_full, target_full, metadata_full = dataset[i]
-        image_field = dataset.get_input(i)
-        target_field = dataset.get_target(i)
-        metadata_field = dataset.get_metadata(i)
-
-        assert np.array_equal(image_full, image_field)
-        assert np.array_equal(target_full, target_field)
-        assert metadata_full == metadata_field
+def test_missing_split_preserves_actionable_error(tmp_path: Path) -> None:
+    # datamaite warns and yields an empty dataset; checkmaite's policy is to
+    # fail loudly, and to say which splits the root actually has.
+    with pytest.raises(MissingYoloDataSplitError, match="data split 'test'"):
+        load_yolo_classification_dataset(tmp_path, split="test")
 
 
-def test_get_input_index_error(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    with pytest.raises(IndexError):
-        dataset.get_input(100)
+def test_empty_split_directory_also_fails_loudly(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    for image in (tmp_path / "test").rglob("*.jpg"):
+        image.unlink()
+    with pytest.raises(MissingYoloDataSplitError, match=r"Split subdirectories present: \['test', 'train', 'val'\]"):
+        load_yolo_classification_dataset(tmp_path, split="test")
 
 
-def test_get_target_index_error(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    with pytest.raises(IndexError):
-        dataset.get_target(100)
+def test_nested_images_below_class_directories_are_discovered(tmp_path: Path) -> None:
+    # Regression boundary for the reader this migration removed: images nested
+    # below a class directory keep the top-level directory as their class and
+    # keep the nested path in the datum id (datamaite #90). A nested-only split
+    # must not load as an empty dataset.
+    for class_name, subdir in (("cat", "roll-01"), ("dog", "roll-02/day-1")):
+        nested = tmp_path / "test" / class_name / subdir
+        nested.mkdir(parents=True)
+        Image.new("RGB", (16, 12), color=(1, 2, 3)).save(nested / f"{class_name}.jpg")
+
+    dataset = load_yolo_classification_dataset(tmp_path, split="test")
+
+    assert len(dataset) == 2
+    assert dataset.metadata["index2label"] == {0: "cat", 1: "dog"}
+    datum_ids = sorted(dataset.get_metadata(index)["id"] for index in range(len(dataset)))
+    assert datum_ids == ["test/cat/roll-01/cat.jpg", "test/dog/roll-02/day-1/dog.jpg"]
+    # The nested directories are path, not taxonomy.
+    assert "roll-01" not in dataset.metadata["index2label"].values()
 
 
-def test_get_metadata_index_error(fake_dataset):
-    dataset_root, _, _, _ = fake_dataset
-    dataset = YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
-    with pytest.raises(IndexError):
-        dataset.get_metadata(100)
+def test_mixed_flat_and_nested_images_load_together(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    nested = tmp_path / "test" / "cat" / "roll-01"
+    nested.mkdir()
+    Image.new("RGB", (16, 12), color=(4, 5, 6)).save(nested / "nested.jpg")
+
+    dataset = load_yolo_classification_dataset(tmp_path, split="test")
+
+    # Flat 2 (cat, dog) + 1 nested: a mixed split must not silently drop the
+    # nested image.
+    assert len(dataset) == 3
 
 
-class TestAccessorMethodPerformance:
-    """Performance tests comparing accessor methods to __getitem__.
-
-    The accessor methods (get_input, get_target, get_metadata) are designed to
-    provide performance benefits when only a subset of the data is needed:
-    - get_target: Skips image loading, should be significantly faster than __getitem__
-    - get_metadata: Skips image loading, should be significantly faster than __getitem__
-    - get_input: Still loads the image, expected to have similar performance to __getitem__
-    """
-
-    def test_get_target_faster_than_getitem(self, fake_dataset):
-        """Verify get_target is faster than __getitem__ by skipping image loading."""
-        dataset_root, _, _, _ = fake_dataset
-        dataset = YoloClassificationDataset(dataset_id="test_perf", root_dir=dataset_root, split="test")
-        n_iterations = 50
-
-        # Warm up
-        _ = dataset[0]
-        _ = dataset.get_target(0)
-
-        # Measure __getitem__ time
-        start = time.perf_counter()
-        for i in range(n_iterations):
-            _ = dataset[i % len(dataset)]
-        getitem_time = time.perf_counter() - start
-
-        # Measure get_target time
-        start = time.perf_counter()
-        for i in range(n_iterations):
-            _ = dataset.get_target(i % len(dataset))
-        get_target_time = time.perf_counter() - start
-
-        assert get_target_time < getitem_time, (
-            f"get_target ({get_target_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
-            "because it skips image loading"
-        )
-
-    def test_get_metadata_faster_than_getitem(self, fake_dataset):
-        """Verify get_metadata is faster than __getitem__ by skipping image loading."""
-        dataset_root, _, _, _ = fake_dataset
-        dataset = YoloClassificationDataset(dataset_id="test_perf", root_dir=dataset_root, split="test")
-        n_iterations = 50
-
-        # Warm up
-        _ = dataset[0]
-        _ = dataset.get_metadata(0)
-
-        # Measure __getitem__ time
-        start = time.perf_counter()
-        for i in range(n_iterations):
-            _ = dataset[i % len(dataset)]
-        getitem_time = time.perf_counter() - start
-
-        # Measure get_metadata time
-        start = time.perf_counter()
-        for i in range(n_iterations):
-            _ = dataset.get_metadata(i % len(dataset))
-        get_metadata_time = time.perf_counter() - start
-
-        assert get_metadata_time < getitem_time, (
-            f"get_metadata ({get_metadata_time:.4f}s) should be faster than __getitem__ ({getitem_time:.4f}s) "
-            "because it skips image loading"
-        )
+def test_native_dataset_provides_maite_fieldwise_access(tmp_path: Path) -> None:
+    # datamaite >=0.4.0 implements the MAITE fieldwise accessors natively;
+    # checkmaite intentionally has no adapter layer re-adding them.
+    _make_dataset(tmp_path)
+    dataset = load_yolo_classification_dataset(tmp_path, split="test")
+    image, target, metadata = dataset[0]
+    np.testing.assert_array_equal(dataset.get_input(0), image)
+    np.testing.assert_array_equal(dataset.get_target(0), target)
+    assert dataset.get_metadata(0) == metadata
 
 
-# ─── New tests for IC fixes and DataLoader ────────────────────────────────────
+def test_taxonomy_includes_empty_class_directories(tmp_path: Path) -> None:
+    # datamaite >=0.4.0 derives the split-local taxonomy from all class
+    # directories, not just image-bearing ones, so label indices stay stable
+    # when one split is missing a class's images.
+    _make_dataset(tmp_path)
+    (tmp_path / "test" / "zebra").mkdir()
+    dataset = load_yolo_classification_dataset(tmp_path, split="test")
+    assert dataset.metadata["index2label"] == {0: "cat", 1: "dog", 2: "zebra"}
+    assert len(dataset) == 2
 
 
-def _make_rgb(path):
-    Image.new("RGB", (10, 10), color=(64, 128, 32)).save(path)
+def test_load_datasets_dispatches_by_format_not_class_name(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    loaded = load_datasets(
+        {
+            "evaluation": {
+                "dataset_format": "yolo",
+                "data_dir": str(tmp_path),
+                "split_folder": "test",
+            }
+        }
+    )
+    assert type(loaded["evaluation"]) is ImageClassificationDataset
 
 
-def test_yolo_classification_val_split_loads(tmp_path):
-    (tmp_path / "val" / "cat").mkdir(parents=True)
-    (tmp_path / "val" / "dog").mkdir(parents=True)
-    _make_rgb(tmp_path / "val" / "cat" / "a.jpg")
-    _make_rgb(tmp_path / "val" / "dog" / "b.jpg")
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
-    assert len(ds) == 2
-    assert ds.metadata["index2label"] == {0: "cat", 1: "dog"}
-
-
-def test_yolo_classification_validation_alias_uses_val_when_validation_missing(tmp_path):
-    (tmp_path / "val" / "cat").mkdir(parents=True)
-    _make_rgb(tmp_path / "val" / "cat" / "a.jpg")
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="validation")
-    assert len(ds) == 1
-
-
-def test_yolo_classification_ignores_non_image_files(tmp_path):
-    cls_dir = tmp_path / "val" / "cat"
-    cls_dir.mkdir(parents=True)
-    _make_rgb(cls_dir / "a.jpg")
-    (cls_dir / ".DS_Store").touch()
-    (cls_dir / "README.md").touch()
-    (cls_dir / "notes.txt").touch()
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
-    assert len(ds) == 1
-
-
-def test_yolo_classification_nested_images_use_top_level_class(tmp_path):
-    (tmp_path / "val" / "cat" / "nested").mkdir(parents=True)
-    (tmp_path / "val" / "dog" / "deeper").mkdir(parents=True)
-    _make_rgb(tmp_path / "val" / "cat" / "nested" / "a.jpg")
-    _make_rgb(tmp_path / "val" / "dog" / "deeper" / "b.png")
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
-    assert len(ds) == 2
-
-    result = [(ds._index2label[int(ds.get_target(i).argmax())], ds.get_metadata(i)["id"]) for i in range(len(ds))]
-    labels = {label for label, _ in result}
-    ids = {id_ for _, id_ in result}
-
-    assert labels == {"cat", "dog"}
-    # IDs must carry the nested path, not just the filename
-    assert any("nested" in id_ or "deeper" in id_ for id_ in ids)
-
-
-def test_yolo_classification_dataloader_batches(tmp_path):
-    for cls in ["cat", "dog"]:
-        (tmp_path / "val" / cls).mkdir(parents=True)
-    for i in range(3):
-        _make_rgb(tmp_path / "val" / "cat" / f"{i}.jpg")
-    for i in range(2):
-        _make_rgb(tmp_path / "val" / "dog" / f"{i}.jpg")
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
-    loader = YoloClassificationDataLoader(ds, batch_size=2, shuffle=False)
-
-    batches = list(loader)
-    assert [len(b[0]) for b in batches] == [2, 2, 1]
-    for inputs, targets, metadata in batches:
-        assert len(inputs) == len(targets) == len(metadata)
-
-
-def test_yolo_classification_dataloader_shuffle_seed_is_deterministic(tmp_path):
-    for cls in ["cat", "dog", "fish"]:
-        (tmp_path / "val" / cls).mkdir(parents=True)
-        for i in range(2):
-            _make_rgb(tmp_path / "val" / cls / f"{i}.jpg")
-
-    ds = YoloClassificationDataset(root_dir=str(tmp_path), split="val")
-
-    l1 = YoloClassificationDataLoader(ds, batch_size=6, shuffle=True, seed=123)
-    l2 = YoloClassificationDataLoader(ds, batch_size=6, shuffle=True, seed=123)
-    ids1 = [m["id"] for m in list(l1)[0][2]]
-    ids2 = [m["id"] for m in list(l2)[0][2]]
-    assert ids1 == ids2
-
-    l_plain = YoloClassificationDataLoader(ds, batch_size=6, shuffle=False)
-    ids_plain = [m["id"] for m in list(l_plain)[0][2]]
-    assert ids1 != ids_plain
+def test_batch_loader_accepts_native_maite_dataset(tmp_path: Path) -> None:
+    _make_dataset(tmp_path)
+    dataset = load_yolo_classification_dataset(tmp_path, split="test")
+    batches = list(YoloClassificationDataLoader(dataset, batch_size=1))
+    assert len(batches) == len(dataset)
+    assert all(len(inputs) == len(targets) == len(metadata) == 1 for inputs, targets, metadata in batches)

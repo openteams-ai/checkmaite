@@ -15,7 +15,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 2dff09313bfc60a1d3eb5a3c9f7c23b0bd12e1eaa7ae07e0abee85af091ca053
+    linux-64: 4312dc37b08909085a2cdb0ee0511b1fdf2f018c5ffdc7dcc8effd666cfa69cc
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -916,6 +916,20 @@ package:
   hash:
     md5: 9ea24f6bb8fd236bfc709df82d333aba
     sha256: a07354155463042550fa0fc88cadec2dcce077675a46cd56c103d5d8987cc839
+  category: main
+  optional: false
+- name: datamaite
+  version: 0.5.0
+  manager: pip
+  platform: linux-64
+  dependencies:
+    fsspec: '>=2024.5.0'
+    numpy: '>=1.24'
+    pydantic: '>=2.0'
+    universal-pathlib: '>=0.3.8'
+  url: https://files.pythonhosted.org/packages/08/28/f52c47ade2298d1145c7a09c6d9334a6bd31d3e220a4500d571c91cc9b9b/datamaite-0.5.0-py3-none-any.whl
+  hash:
+    sha256: 3a8d8510dc227e27602f3cdf4294b7777d4bfdf719e8eb970a933958a26db8bd
   category: main
   optional: false
 - name: dav1d

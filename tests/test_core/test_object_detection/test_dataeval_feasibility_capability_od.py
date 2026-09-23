@@ -3,13 +3,13 @@ import pytest
 import torch
 from maite.protocols import DatasetMetadata, DatumMetadata
 from maite.protocols import object_detection as od
+from modelmaite.object_detection import DetectionTarget
 
 from checkmaite.core.object_detection.dataeval_feasibility_capability import (
     DataevalFeasibility,
     DataevalFeasibilityConfig,
     _extract_instance_crops,
 )
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 from checkmaite.core.report._gradient import HAS_GRADIENT
 from tests.report_assertions import assert_inline_markdown_report
 

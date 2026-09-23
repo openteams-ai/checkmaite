@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Dependency on `datamaite` 0.5.0 for native MAITE-compatible dataset loading (#717)
+- Native MAITE fieldwise access (`get_input`/`get_target`/`get_metadata`), full COCO `images[]` datum-metadata fields, per-box VisDrone truncation/occlusion metadata, YOLO `split`/`yaml_file`/`ann_dir` loader options, and recursive YOLO image-classification discovery, all provided by datamaite 0.5.0 with no checkmaite-side adapters (#717)
+- Remote (fsspec/UPath) dataset roots for COCO, YOLO, and VisDrone still-image datasets, with `storage_options` on the loader factories. A configured `UPath` root or override is passed through as an object, so its own filesystem options (credentials, endpoints) are kept. A local `ann_file`/`ann_dir` override stays local under a remote root; a local YOLO `ann_dir` under a remote root raises `ValueError` on datamaite 0.5.0 instead of loading images with no labels (#717)
+- `DatasetSourceError`: with `strict_annotations=True` (the default), recognized datamaite row-rejection warnings -- skipped or dropped records, unreadable annotation files, and annotations stripped of their label -- fail dataset loading with aggregated `file:line` diagnostics. This is a best-effort guard that matches datamaite's log text; it does not currently guarantee complete source integrity. `strict_annotations=False` restores best-effort loading and reports the same diagnostics as a warning (#717)
 - Multi-metric image-classification and object-detection evaluation through one shared MAITE inference pass, including when caching is disabled.
 - Attributed `MaiteEvaluationMetricError` failures for metric reset, update, compute, and result normalization.
 - Ray job scheduling status, scheduling deadlines, worker placement diagnostics, bounded job labels, and per-scope admission limits.
@@ -21,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `JobStatus` now includes `SCHEDULING` for distributed jobs waiting on worker resources.
 - The public `Job` protocol now requires a `job_name` property.
 - Non-numeric Ray task resource quantities now raise `TypeError` before job registration.
+- Dataset factories now return datamaite `ObjectDetectionDataset` and `ImageClassificationDataset` objects directly; images and targets use datamaite's NumPy MAITE surface rather than a second Torch-backed checkmaite representation (#717)
+- Dataset configuration dispatches by wire format (`coco`, `yolo`, `visdrone`) rather than by CheckMAITE implementation-class name (#717)
+- Image-classification datum ids are root-relative and include the split (`test/cat/cat.jpg`); `MissingYoloDataSplitError` now lists the splits present under the root and covers empty splits (#717)
+- Loader provenance metadata (`source_line`, `yolo_bbox`, `label_file`, `annotation_file`, `source_file_name`, `source_format`, `variant`) is excluded from DataEval bias factors by default through `DataevalBiasConfig.metadata_to_exclude`; real annotation attributes such as VisDrone truncation and occlusion remain per-object factors (#717)
+- Dataset loading uses datamaite's lazy OpenCV image decoding and image-driven VisDrone discovery (#717)
 - `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed. Its run-cache identity now includes a schema version so incompatible single-metric run entries are not loaded as nested outputs.
 - Ray job clients now use one fixed internal registry actor per Ray namespace while retaining idempotency scopes as logical lookup and deduplication partitions; select another namespace for an independent registry.
 - Existing Ray registry actors now complete a version and immutable-configuration handshake before clients reuse them.
@@ -45,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.
 - CheckMAITE's in-tree model wrapper implementations and their ONNX/torchvision helper utilities in `checkmaite.core._utils`, now maintained in modelmaite (#718)
+- CheckMAITE's `YoloClassificationDataset`, `CocoDetectionDataset`, `YoloDetectionDataset`, and `VisdroneDetectionDataset` objects and their concrete Torch-output contract (#717)
+- CheckMAITE's own `DetectionTarget` dataclass. Dataset code, the XAITK prediction-backed dataset, and the Ray Serve client now use `modelmaite.object_detection.DetectionTarget`, the same type the modelmaite model wrappers return (#717)
 
 ### Fixed
 - Ray jobs now become `RUNNING` only after their capability worker begins execution, and terminal controllers can clean themselves up on quiet clusters.

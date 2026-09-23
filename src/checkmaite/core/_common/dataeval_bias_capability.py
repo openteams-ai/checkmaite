@@ -15,6 +15,7 @@ from dataeval.extractors import TorchExtractor
 from pydantic import Field
 
 from checkmaite import cache_path
+from checkmaite.core._common.dataset_utils import DATASET_PROVENANCE_METADATA_KEYS
 from checkmaite.core._common.feature_extractor import load_feature_extractor, pca_projector, to_unit_interval_01
 from checkmaite.core._types import Device, Image, ModelSpec, TorchvisionModelSpec
 from checkmaite.core._utils import (
@@ -49,7 +50,12 @@ class DataevalBiasConfig(CapabilityConfigBase):
     device: Device = Field(default_factory=lambda: set_device(None))
 
     metadata_to_exclude: list[str] = Field(
-        default_factory=lambda: ["id", "file_name"], description="Dataset metadata to exclude from bias analysis"
+        default_factory=lambda: ["id", "file_name", *DATASET_PROVENANCE_METADATA_KEYS],
+        description=(
+            "Dataset metadata to exclude from bias analysis. The default drops datum identifiers and the "
+            "loader's own parsing provenance (source file/line, the raw yolo_bbox re-encoding of the target); "
+            "genuine annotation attributes such as VisDrone truncation/occlusion are kept as per-object factors."
+        ),
     )
     num_neighbors: int = Field(
         default=5, description="Number of neighbors to consider when computing mutual information between factors"

@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 import torch
+from modelmaite.object_detection import DetectionTarget
 from pydantic import ValidationError
 
 from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationConfig as BaseMaiteEvaluationConfig
-from checkmaite.core.object_detection.dataset_loaders import DetectionTarget
 from checkmaite.core.object_detection.maite_evaluation_capability import (
     MaiteEvaluation,
     MaiteEvaluationConfig,

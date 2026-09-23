@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from checkmaite.core.capability_core import Number
-from checkmaite.core.image_classification.dataset_loaders import YoloClassificationDataset
+from checkmaite.core.image_classification.dataset_loaders import load_yolo_classification_dataset
 from checkmaite.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
 from checkmaite.core.image_classification.models import TorchvisionICModel
 from checkmaite.ui.dashboard_utils import get_capability_from_app_config_ic
@@ -95,7 +95,7 @@ def dataset_ic(fake_dataset):
     NOTE: this should be replaced by a faked ic model when available
     """
     dataset_root, _, _, _ = fake_dataset
-    return YoloClassificationDataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
+    return load_yolo_classification_dataset(dataset_id="test_dataset", root_dir=dataset_root, split="test")
 
 
 @pytest.mark.unsupported

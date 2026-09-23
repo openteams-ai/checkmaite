@@ -717,6 +717,7 @@ source = { editable = "." }
 dependencies = [
     { name = "dataeval" },
     { name = "dataeval-plots" },
+    { name = "datamaite" },
     { name = "fsspec" },
     { name = "httpx" },
     { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -807,6 +808,7 @@ requires-dist = [
     { name = "adlfs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
     { name = "dataeval", specifier = "==1.0.6" },
     { name = "dataeval-plots", specifier = "==0.0.6" },
+    { name = "datamaite", specifier = "==0.5.0" },
     { name = "fsspec", specifier = ">=2023.1.0" },
     { name = "gcsfs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
     { name = "gcsfs", marker = "extra == 'gcs'", specifier = ">=2023.1.0" },
@@ -1346,6 +1348,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e2/f5/ad41b80fbec129387e7298b22818b95ce50d102e6c8dd7fa34b6e5a4a20f/dataeval_plots-0.0.6.tar.gz", hash = "sha256:371699e5d61ee56ae738ebb8ee0de33fcbb1f5f5d190bd6cf3f75f7bf8fb9497", size = 33773, upload-time = "2026-02-06T07:52:02.158Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/55/8da0a3934303c65390ecc1d27c7ac9ee4d92d0059f1274d808ca877431dd/dataeval_plots-0.0.6-py3-none-any.whl", hash = "sha256:97b3f33f486ac26ce52b0414eca7a5bd61f1c1e75cf14fcf320ff665038319e5", size = 42251, upload-time = "2026-02-06T07:52:00.909Z" },
+]
+
+[[package]]
+name = "datamaite"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fsspec" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "universal-pathlib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/df/cb14a8573a32cc1224f51f9930610ab780412e1b9700de561f2fa4f8556b/datamaite-0.5.0.tar.gz", hash = "sha256:5c3d30034b80d1c6b4ef7f77bb5cfcda8a786e74c4269c4f61012081e5d332af", size = 408546, upload-time = "2026-08-28T18:06:38.574Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/28/f52c47ade2298d1145c7a09c6d9334a6bd31d3e220a4500d571c91cc9b9b/datamaite-0.5.0-py3-none-any.whl", hash = "sha256:3a8d8510dc227e27602f3cdf4294b7777d4bfdf719e8eb970a933958a26db8bd", size = 284546, upload-time = "2026-08-28T18:06:36.952Z" },
 ]
 
 [[package]]

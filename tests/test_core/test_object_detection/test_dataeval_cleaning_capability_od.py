@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from checkmaite.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
-from checkmaite.core.object_detection.dataset_loaders import CocoDetectionDataset
+from checkmaite.core.object_detection.dataset_loaders import load_coco_detection_dataset
 from checkmaite.core.report._gradient import HAS_GRADIENT
 from tests.report_assertions import assert_inline_markdown_report
 
@@ -55,7 +55,7 @@ def test_collect_md_report(fake_od_dataset_default):
 def test_coco_run():
     root = Path(__file__).parents[2] / "data_for_tests"
     coco_dataset_dir = root / "coco_resized_val2017"
-    coco_dataset = CocoDetectionDataset(
+    coco_dataset = load_coco_detection_dataset(
         root=str(coco_dataset_dir),
         ann_file=str(coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
     )

@@ -1,381 +1,141 @@
-import random
-from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+"""Load native datamaite image-classification datasets for checkmaite.
 
-import numpy as np
-from maite.protocols import DatasetMetadata, DatumMetadata
-from maite.protocols.image_classification import FieldwiseDataset
-from PIL import Image
+Unlike the former CheckMAITE dataset wrappers, the factories in this module
+return :class:`datamaite.image_classification.ImageClassificationDataset`
+instances directly. Datamaite datasets already satisfy MAITE structurally:
+``dataset[index]`` lazily decodes an image and returns the MAITE
+``(input, target, metadata)`` tuple.
+
+Split selection, split-name aliasing (``validation`` -> ``val``), split-local
+taxonomies including empty class directories, and recursive image discovery
+below each class directory are all datamaite loader behaviour. The only policy
+kept here is CheckMAITE's fail-loud one: datamaite warns and yields an empty
+dataset where CheckMAITE raises.
+"""
+
+import random
+from collections.abc import Iterator, Mapping
+from dataclasses import replace
+from typing import Any, Literal, TypedDict
+
+import maite.protocols.image_classification as ic
+from datamaite import load_ic
+from datamaite.image_classification import ImageClassificationDataset
 from upath import UPath
 
-from checkmaite.core._common.dataset_utils import _is_image_path
+from checkmaite.core._common.dataset_utils import (
+    collect_source_warnings,
+    datamaite_root,
+    enforce_source_integrity,
+)
 from checkmaite.core._utils import id_hash
 
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
+StorageOptions = Mapping[str, Any] | None
 
 
 class ClassificationDatasetWrapperError(Exception):
-    """Base class for catching errors in image classification dataset wrapper."""
-
-    pass
+    """Base class retained for callers handling dataset-load errors."""
 
 
 class MissingYoloDataSplitError(ClassificationDatasetWrapperError):
     """The provided YOLO dataset is missing the requested data split."""
 
-    pass
+
+def _available_splits(root: UPath) -> list[str]:
+    """Top-level directory names under ``root``, for an actionable error."""
+    try:
+        return sorted(child.name for child in root.iterdir() if child.is_dir())
+    except (OSError, ValueError):  # pragma: no cover - unreadable or missing root
+        return []
 
 
-class YoloClassificationDataset(FieldwiseDataset):
-    """A dataset handler for YOLO image classification datasets.
+def load_yolo_classification_dataset(
+    root_dir: str | UPath,
+    dataset_id: str | None = None,
+    split: str = "test",
+    *,
+    storage_options: StorageOptions = None,
+    strict_annotations: bool = True,
+) -> ImageClassificationDataset:
+    """Load one YOLO classification split as a native datamaite dataset.
 
-    This class is designed to load datasets formatted as per the YOLO image
-    classification dataset specification. See the official documentation at
-    https://docs.ultralytics.com/datasets/classify/ for more details.
+    Images and targets remain in datamaite's representation. In particular,
+    this function does not introduce another CheckMAITE dataset object and does
+    not convert MAITE-compatible NumPy arrays to Torch tensors.
 
-    Attributes
-    ----------
-    metadata
-        A typed dictionary containing at least an 'id' field of type str
-        and a index2label mapping from id to labels.
+    ``root_dir`` is the dataset root (the directory holding the split folders)
+    and may be local or a remote URL; ``split`` is passed straight to datamaite,
+    which owns the alias handling and builds a split-local taxonomy. Images
+    nested below a class directory (``<split>/<class>/**/<image>``) are
+    discovered recursively, with the top-level directory as the class and the
+    nested relative path preserved in the datum id. A configured ``UPath`` keeps
+    its filesystem options.
 
-    Methods
-    -------
-    __getitem__(index)
-        Provide mapping-style access to dataset elements.
-    __len__()
-        Return the number of data elements in the dataset.
-    get_input(index)
-        Get only the image data at the given index.
-    get_target(index)
-        Get only the target label at the given index.
-    get_metadata(index)
-        Get only the metadata at the given index.
-
+    ``strict_annotations`` (default) promotes recognized datamaite row-rejection
+    warnings to :class:`DatasetSourceError`. It is a best-effort guard and does
+    not currently guarantee complete source integrity.
     """
+    root = root_dir if isinstance(root_dir, UPath) else UPath(root_dir)
+    with collect_source_warnings() as source_warnings:
+        dataset = load_ic(
+            # Pass path objects through: stringifying a configured UPath would
+            # drop its filesystem options (credentials) before datamaite sees it.
+            datamaite_root(root_dir),
+            dataset_format="yolo",
+            split=split,
+            # CheckMAITE's API is explicitly root-plus-split, so the layout is
+            # never inferred: a class directory that happens to be named like a
+            # split cannot flip the interpretation.
+            layout="split",
+            storage_options=storage_options,
+        )
+    enforce_source_integrity(
+        source_warnings, source=f"YOLO classification dataset {root} (split {split!r})", strict=strict_annotations
+    )
+    if not dataset.samples:
+        raise MissingYoloDataSplitError(
+            f"No images were loaded for data split {split!r} under {root} — the split subdirectory is "
+            f"missing or empty. Split subdirectories present: {_available_splits(root) or 'none'}."
+        )
 
-    def __init__(
-        self,
-        root_dir: str | UPath,
-        dataset_id: str | None = None,
-        split: Literal["train", "val", "test", "validation"] = "test",
-    ) -> None:
-        """Initialize YoloClassificationDataset.
-
-        Parameters
-        ----------
-        root_dir
-            Root directory of the YOLO classification dataset containing split
-            folders (e.g., train/, val/, test/).
-        dataset_id
-            Optional identifier for dataset. If omitted, a unique one will be
-            generated from the other input arguments. By default None.
-        split
-            Dataset split to use. Accepted values: "train", "val", "test".
-            The value "validation" is also accepted for backward compatibility:
-            if a ``validation/`` directory exists it is used directly, otherwise
-            it falls back to ``val/``.
-            Defaults to "test".
-
-        Raises
-        ------
-        MissingYoloDataSplitError
-            If the resolved split subdirectory does not exist.
-        """
-        root = UPath(root_dir)
-        split_path = root / split
-
-        if split == "validation" and not split_path.exists():
-            split_path = root / "val"
-
-        if not split_path.exists():
-            raise MissingYoloDataSplitError(f"The following data split subdirectory does not exist {split_path}")
-
-        self._split_path = split_path
-
-        # convention adopted is to order labels alphabetically
-        self._images = sorted(self._get_filepaths_by_split(split_path))
-        labels = sorted([p.name for p in split_path.iterdir() if p.is_dir()])
-
-        self._index2label = dict(enumerate(labels))  # 0-indexing
-        self._label2index = {val: idx for idx, val in enumerate(labels)}  # 0-indexing
-
-        # Generate dataset_id if not provided
-        if dataset_id is None:
-            dataset_id = f"yolo_classification_{id_hash(root_dir=root_dir, split=split)}"
-        self.metadata = DatasetMetadata({"id": dataset_id, "index2label": self._index2label})
-
-    @staticmethod
-    def _get_filepaths_by_split(dataset_split: UPath) -> list[UPath]:
-        """Get the filepaths for images in a YOLO classification dataset structure.
-
-        Parameters
-        ----------
-        dataset_split : UPath
-            Path to the dataset split directory e.g. "<dataset_root>/val".
-
-        Returns
-        -------
-        list[UPath]
-            List of image filepaths for all images under the split directory.
-            Non-image files (e.g. .DS_Store, README.md) are excluded.
-            Nested subdirectories under each class directory are scanned
-            recursively; the class label is always the first directory under
-            the split folder.
-        """
-        filepaths: list[UPath] = []
-        for class_dir in dataset_split.iterdir():
-            if class_dir.is_dir():
-                filepaths.extend(p for p in class_dir.rglob("*") if p.is_file() and _is_image_path(p))
-        return filepaths
-
-    def __len__(self) -> int:
-        """Length of the dataset.
-
-        Returns
-        -------
-        The number of items in the dataset.
-        """
-        return len(self._images)
-
-    def __getitem__(self, index: int) -> tuple["NDArray[Any]", "NDArray[Any]", DatumMetadata]:
-        """Get `index`-th element from dataset.
-
-        Parameters
-        ----------
-        index
-            Index of the element to retrieve.
-
-        Returns
-        -------
-            A tuple containing:
-            - Image data as a NumPy array (CHW format).
-            - One-hot encoded label as a NumPy array.
-            - Datum metadata.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range.
-        """
-        try:
-            image_path = self._images[index]
-        except IndexError as e:
-            raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self)}",
-            ) from e
-
-        # Use UPath to support both local and remote filesystems
-        with image_path.open("rb") as f, Image.open(f) as img:
-            img = img.convert("RGB")
-            arr = np.asarray(img)  # HWC
-
-        # PIL loads data as HWC, but MAITE requires CHW
-        img_chw = np.moveaxis(arr, -1, 0)
-
-        rel = image_path.relative_to(self._split_path)
-        label = rel.parts[0]  # first dir under split — always the class, even for nested images
-
-        one_hot_encode = np.zeros([len(self._label2index)])
-        one_hot_encode[self._label2index[label]] = 1
-
-        metadata: DatumMetadata = {"id": str(rel)}
-
-        return img_chw, one_hot_encode, metadata
-
-    def get_input(self, index: int, /) -> "NDArray[Any]":
-        """Get only the image data at the given index.
-
-        Parameters
-        ----------
-        index : int
-            The index of the element to retrieve.
-
-        Returns
-        -------
-        NDArray[Any]
-            The image data as a NumPy array in CHW format.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range.
-
-        """
-        try:
-            image_path = self._images[index]
-        except IndexError as e:
-            raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self)}",
-            ) from e
-
-        with image_path.open("rb") as f, Image.open(f) as img:
-            img = img.convert("RGB")
-            arr = np.asarray(img)
-
-        return np.moveaxis(arr, -1, 0)
-
-    def get_target(self, index: int, /) -> "NDArray[Any]":
-        """Get only the target label at the given index without loading the image.
-
-        Parameters
-        ----------
-        index : int
-            The index of the element to retrieve.
-
-        Returns
-        -------
-        NDArray[Any]
-            The one-hot encoded label as a NumPy array.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range.
-
-        """
-        try:
-            image_path = self._images[index]
-        except IndexError as e:
-            raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self)}",
-            ) from e
-
-        label = image_path.relative_to(self._split_path).parts[0]
-
-        one_hot_encode = np.zeros([len(self._label2index)])
-        one_hot_encode[self._label2index[label]] = 1
-
-        return one_hot_encode
-
-    def get_metadata(self, index: int, /) -> DatumMetadata:
-        """Get only the metadata at the given index without loading the image.
-
-        Parameters
-        ----------
-        index : int
-            The index of the element to retrieve.
-
-        Returns
-        -------
-        DatumMetadata
-            The metadata dictionary for the datum.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range.
-
-        """
-        try:
-            image_path = self._images[index]
-        except IndexError as e:
-            raise IndexError(
-                f"The index number {index} is out of range for the dataset which has length {len(self)}",
-            ) from e
-
-        rel = image_path.relative_to(self._split_path)
-        return {"id": str(rel)}
+    if dataset_id is None:
+        dataset_id = f"yolo_classification_{id_hash(root_dir=root_dir, split=split)}"
+    storage = dataset._runtime_storage_options  # noqa: SLF001  # datamaite's documented runtime accessor
+    return replace(dataset, dataset_id=dataset_id).with_storage_options(storage)
 
 
 class DatasetSpecification(TypedDict):
-    """Dataset metadata required for loading datasets via CheckMAITE wrappers.
+    """Configuration for a native datamaite image-classification dataset."""
 
-    Attributes
-    ----------
-    dataset_type : Literal["YoloClassificationDataset"]
-        Dataset class as a string.
-        TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194
-        and maite pyright<=1.1.320
-    data_dir : str
-        Root directory of the YOLO classification dataset containing split
-        folders (e.g., train/, val/, test/). This is passed as ``root_dir``
-        to ``YoloClassificationDataset``; the split folder is appended
-        internally.
-    split_folder : Literal["train", "val", "test", "validation"]
-        Name of the split folder to load inside the root dataset directory.
-        Use "val" for the standard YOLO validation split. "validation" is
-        accepted for backward compatibility and falls back to "val/" if a
-        "validation/" directory does not exist.
-    """
-
-    # Dataset class as a string
-    # TODO: hard-coded due to https://github.com/microsoft/pyright/issues/9194 and maite pyright<=1.1.320
-    dataset_type: Literal["YoloClassificationDataset"]
-    # Root directory of the YOLO classification dataset containing split folders
-    # (e.g., train/, val/, test/). Passed as root_dir to YoloClassificationDataset.
+    dataset_format: Literal["yolo"]
     data_dir: str
-    # Name of the split folder to load (e.g., "train", "val", "test").
-    # "validation" is accepted for backward compatibility.
-    split_folder: Literal["train", "val", "test", "validation"]
+    split_folder: str
 
 
-def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, YoloClassificationDataset]:
-    """Simplified programmatic loading of datasets from a dictionary of DatasetSpecifications.
-
-    Parameters
-    ----------
-    datasets : dict[str, DatasetSpecification]
-        A dictionary where keys are dataset names and values are DatasetSpecification
-        objects.
-
-    Returns
-    -------
-    dict[str, YoloClassificationDataset]
-        A dictionary of loaded datasets, where keys are dataset names and values
-        are YoloClassificationDataset instances.
-
-    Raises
-    ------
-    RuntimeError
-        If an unsupported dataset type is encountered.
-    """
-    loaded = {}
-    for name, dataset_metadata in datasets.items():
-        if dataset_metadata["dataset_type"] == "YoloClassificationDataset":
-            loaded[name] = YoloClassificationDataset(
-                root_dir=dataset_metadata["data_dir"],
-                split=dataset_metadata["split_folder"],
-            )
-        else:
-            raise RuntimeError(f"Dataset type {dataset_metadata['dataset_type']} is not supported.")
+def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, ImageClassificationDataset]:
+    """Load configured datasets, returning datamaite objects directly."""
+    loaded: dict[str, ImageClassificationDataset] = {}
+    for name, specification in datasets.items():
+        if specification["dataset_format"] != "yolo":
+            raise RuntimeError(f"Dataset format {specification['dataset_format']} is not supported.")
+        loaded[name] = load_yolo_classification_dataset(
+            root_dir=specification["data_dir"],
+            split=specification["split_folder"],
+        )
     return loaded
 
 
 class YoloClassificationDataLoader:
-    """MAITE-compliant DataLoader for YoloClassificationDataset.
+    """Small re-iterable batcher for any MAITE image-classification dataset.
 
-    Yields batches of ``(inputs, targets, metadata)`` tuples where each
-    element is a list of the corresponding per-sample values from the dataset.
-    The loader is re-iterable: calling ``list(loader)`` twice produces the same
-    result (with ``shuffle=False``) or an equivalently shuffled result when the
-    same seed is supplied.
-
-    Parameters
-    ----------
-    dataset : YoloClassificationDataset
-        The dataset to iterate over.
-    batch_size : int, optional
-        Number of samples per batch.  Must be >= 1.  Defaults to 1.
-    shuffle : bool, optional
-        Whether to shuffle sample order at the start of each iteration.
-        Defaults to ``False``.
-    seed : int or None, optional
-        Random seed used for shuffling.  When provided, repeated iterations
-        produce the same order.  Defaults to ``None``.
-
-    Examples
-    --------
-    >>> dataset = YoloClassificationDataset("path/to/root", split="val")
-    >>> loader = YoloClassificationDataLoader(dataset, batch_size=4, shuffle=True, seed=0)
-    >>> for inputs, targets, metadata in loader:
-    ...     assert len(inputs) == len(targets) == len(metadata)
+    The historical name is retained because this is a batching utility, not an
+    on-disk dataset implementation. Its input is the MAITE protocol rather than
+    the removed ``YoloClassificationDataset`` wrapper.
     """
 
     def __init__(
         self,
-        dataset: YoloClassificationDataset,
+        dataset: ic.Dataset,
         batch_size: int = 1,
         shuffle: bool = False,
         seed: int | None = None,
@@ -393,8 +153,7 @@ class YoloClassificationDataLoader:
             rng = random.Random(self._seed)  # noqa: S311  # nosec B311
             rng.shuffle(indices)
         for start in range(0, len(indices), self._batch_size):
-            batch_indices = indices[start : start + self._batch_size]
-            batch = [self._dataset[i] for i in batch_indices]
+            batch = [self._dataset[index] for index in indices[start : start + self._batch_size]]
             inputs, targets, metadata = zip(*batch, strict=True)
             yield list(inputs), list(targets), list(metadata)
 

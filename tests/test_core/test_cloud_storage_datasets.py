@@ -1,296 +1,305 @@
-"""Unit tests for fsspec-based dataset loading.
+"""Boundary tests for loading datasets from non-local (fsspec) roots.
 
-These tests verify that the dataset loaders correctly use the fsspec filesystem
-contract, using fsspec's in-memory filesystem. This ensures our code will work
-with any fsspec-compatible backend (S3, GCS, Azure, etc.) without needing to
-test against actual cloud services.
+These use fsspec's in-memory filesystem: they exercise the same code path any
+cloud backend takes (``s3://``, ``gs://``, ``az://``) without credentials or a
+network. Remote roots are handled entirely inside datamaite 0.5.0's
+storage-agnostic I/O; checkmaite's job is to not get in the way — not to
+convert a URL through ``Path``, and not to drop the fsspec options a dataset
+was opened with when it stamps the checkmaite-facing ``dataset_id``.
 """
 
 import io
+import shutil
 from pathlib import Path
 
 import fsspec
 import numpy as np
 import pytest
-import torch
+from fsspec.implementations.memory import MemoryFileSystem
 from PIL import Image
 from upath import UPath
 
-from checkmaite.core.image_classification.dataset_loaders import (
-    YoloClassificationDataset,
-)
+from checkmaite.core.image_classification.dataset_loaders import load_yolo_classification_dataset
 from checkmaite.core.object_detection.dataset_loaders import (
-    CocoDetectionDataset,
-    DetectionTarget,
-    VisdroneDetectionDataset,
-    YoloDetectionDataset,
+    load_coco_detection_dataset,
+    load_visdrone_detection_dataset,
+    load_yolo_detection_dataset,
 )
 
-# Test data directory
 TEST_DATA_DIR = Path(__file__).parents[1] / "data_for_tests"
+BUCKET = "memory://checkmaite-test"
 
 
 @pytest.fixture
-def memory_coco_dataset():
-    """Create a COCO dataset in fsspec memory filesystem."""
+def memory_fs():
     fs = fsspec.filesystem("memory")
+    yield fs
+    if fs.exists(BUCKET):
+        fs.rm(BUCKET, recursive=True)
 
-    # Copy test data to memory filesystem
-    local_coco = TEST_DATA_DIR / "coco_dataset"
 
-    # Copy annotation file
-    ann_file = local_coco / "ann_file.json"
-    fs.pipe_file("memory://test-bucket/coco_dataset/ann_file.json", ann_file.read_bytes())
-
-    # Copy images
-    for img_path in local_coco.glob("*.jpg"):
-        fs.pipe_file(f"memory://test-bucket/coco_dataset/{img_path.name}", img_path.read_bytes())
-    for img_path in local_coco.glob("*.png"):
-        fs.pipe_file(f"memory://test-bucket/coco_dataset/{img_path.name}", img_path.read_bytes())
-
-    yield {
-        "root": "memory://test-bucket/coco_dataset",
-        "ann_file": "memory://test-bucket/coco_dataset/ann_file.json",
-    }
-
-    # Cleanup
-    fs.rm("memory://test-bucket", recursive=True)
+def _upload_tree(fs, local: Path, remote: str) -> None:
+    for path in sorted(local.rglob("*")):
+        if path.is_file():
+            fs.pipe_file(f"{remote}/{path.relative_to(local).as_posix()}", path.read_bytes())
 
 
 @pytest.fixture
-def memory_visdrone_dataset():
-    """Create a VisDrone dataset in fsspec memory filesystem."""
-    fs = fsspec.filesystem("memory")
-
-    local_visdrone = TEST_DATA_DIR / "visdrone_dataset"
-
-    # Copy images
-    images_dir = local_visdrone / "images"
-    for img_path in images_dir.glob("*"):
-        if img_path.is_file():
-            fs.pipe_file(f"memory://test-bucket/visdrone_dataset/images/{img_path.name}", img_path.read_bytes())
-
-    # Copy annotations
-    ann_dir = local_visdrone / "annotations"
-    for ann_path in ann_dir.glob("*"):
-        if ann_path.is_file():
-            fs.pipe_file(f"memory://test-bucket/visdrone_dataset/annotations/{ann_path.name}", ann_path.read_bytes())
-
-    yield {"root": "memory://test-bucket/visdrone_dataset"}
-
-    fs.rm("memory://test-bucket", recursive=True)
+def memory_coco(memory_fs):
+    _upload_tree(memory_fs, TEST_DATA_DIR / "coco_dataset", f"{BUCKET}/coco")
+    return f"{BUCKET}/coco"
 
 
 @pytest.fixture
-def memory_yolo_dataset():
-    """Create a YOLO dataset in fsspec memory filesystem."""
-    fs = fsspec.filesystem("memory")
-
-    local_yolo = TEST_DATA_DIR / "yolo_dataset"
-
-    # Write a YAML that points directly to the memory:// image path
-    yaml_content = (
-        "train: memory://test-bucket/yolo_dataset/images\n"
-        "val:\n"
-        "test:\n"
-        "names:\n"
-        "    0: person\n"
-        "    1: bicycle\n"
-    )
-    fs.pipe_file("memory://test-bucket/yolo_dataset/dataset.yaml", yaml_content.encode())
-
-    # Copy images directory
-    images_dir = local_yolo / "images"
-    if images_dir.exists():
-        for img_path in images_dir.rglob("*"):
-            if img_path.is_file():
-                rel_path = img_path.relative_to(local_yolo)
-                fs.pipe_file(f"memory://test-bucket/yolo_dataset/{rel_path}", img_path.read_bytes())
-
-    # Copy annotations directory
-    ann_dir = local_yolo / "ann_dir"
-    if ann_dir.exists():
-        for ann_path in ann_dir.rglob("*"):
-            if ann_path.is_file():
-                rel_path = ann_path.relative_to(local_yolo)
-                fs.pipe_file(f"memory://test-bucket/yolo_dataset/{rel_path}", ann_path.read_bytes())
-
-    yield {
-        "yaml": "memory://test-bucket/yolo_dataset/dataset.yaml",
-        "ann_dir": "memory://test-bucket/yolo_dataset/ann_dir",
-    }
-
-    fs.rm("memory://test-bucket", recursive=True)
+def memory_yolo(memory_fs):
+    _upload_tree(memory_fs, TEST_DATA_DIR / "yolo_dataset", f"{BUCKET}/yolo")
+    return f"{BUCKET}/yolo"
 
 
-class TestMemoryFilesystemDatasetLoading:
-    """Tests for loading datasets using fsspec's memory filesystem.
+@pytest.fixture
+def memory_visdrone(memory_fs):
+    _upload_tree(memory_fs, TEST_DATA_DIR / "visdrone_dataset", f"{BUCKET}/visdrone")
+    return f"{BUCKET}/visdrone"
 
-    This verifies our code correctly uses the fsspec contract without
-    needing actual cloud credentials or mocks.
+
+@pytest.fixture
+def memory_classification(memory_fs):
+    for split in ("train", "test"):
+        for class_name in ("cat", "dog"):
+            for index in range(2):
+                buffer = io.BytesIO()
+                Image.new("RGB", (16, 12), color=(index * 40, 0, 0)).save(buffer, format="JPEG")
+                memory_fs.pipe_file(f"{BUCKET}/classification/{split}/{class_name}/{index}.jpg", buffer.getvalue())
+    return f"{BUCKET}/classification"
+
+
+def _assert_decodes(dataset) -> None:
+    """A remote dataset must still be able to reopen its own images lazily."""
+    image, _target, metadata = dataset[0]
+    assert isinstance(image, np.ndarray)
+    assert image.shape[0] == 3
+    assert "id" in metadata
+
+
+class TestRemoteObjectDetectionRoots:
+    def test_coco_loads_from_remote_root(self, memory_coco) -> None:
+        dataset = load_coco_detection_dataset(memory_coco, f"{memory_coco}/ann_file.json", dataset_id="memory-coco")
+
+        assert dataset.metadata["id"] == "memory-coco"
+        assert len(dataset) == 4
+        assert dataset.num_detections == 57
+        _assert_decodes(dataset)
+
+    def test_yolo_loads_from_remote_root(self, memory_yolo) -> None:
+        dataset = load_yolo_detection_dataset(f"{memory_yolo}/dataset.yaml", dataset_id="memory-yolo")
+
+        assert dataset.metadata["id"] == "memory-yolo"
+        assert len(dataset) == 4
+        assert dataset.num_detections == 56
+        _assert_decodes(dataset)
+
+    def test_yolo_remote_ann_dir_override_is_not_reanchored(self, memory_yolo, memory_fs) -> None:
+        for path in memory_fs.ls(f"{memory_yolo}/labels", detail=False):
+            memory_fs.pipe_file(f"{memory_yolo}/custom_labels/{Path(path).name}", memory_fs.cat_file(path))
+        memory_fs.rm(f"{memory_yolo}/labels", recursive=True)
+
+        dataset = load_yolo_detection_dataset(f"{memory_yolo}/dataset.yaml", ann_dir=f"{memory_yolo}/custom_labels")
+
+        assert dataset.num_detections == 56
+
+    def test_visdrone_loads_from_remote_root(self, memory_visdrone) -> None:
+        dataset = load_visdrone_detection_dataset(memory_visdrone, dataset_id="memory-visdrone")
+
+        assert dataset.metadata["id"] == "memory-visdrone"
+        assert len(dataset) == 3
+        _assert_decodes(dataset)
+
+
+class TestRemoteImageClassificationRoots:
+    def test_yolo_classification_loads_from_remote_root(self, memory_classification) -> None:
+        dataset = load_yolo_classification_dataset(memory_classification, split="test", dataset_id="memory-ic")
+
+        assert dataset.metadata["id"] == "memory-ic"
+        assert dataset.metadata["index2label"] == {0: "cat", 1: "dog"}
+        assert len(dataset) == 4
+        _assert_decodes(dataset)
+
+
+class TestRemoteRootsAreNotTreatedAsLocalPaths:
+    """A URL must survive the boundary intact.
+
+    ``Path(str("memory://bucket/x"))`` collapses the ``//`` and produces a
+    nonexistent relative path, so any local-path handling applied to a remote
+    root turns into a confusing filesystem error.
     """
 
-    def test_coco_detection_from_memory_fs(self, memory_coco_dataset):
-        """Test loading CocoDetectionDataset from memory filesystem."""
-        dataset = CocoDetectionDataset(
-            root=memory_coco_dataset["root"],
-            ann_file=memory_coco_dataset["ann_file"],
-            dataset_id="memory_coco_test",
+    def test_remote_root_is_not_collapsed_by_local_path_handling(self, memory_coco) -> None:
+        assert str(Path(memory_coco)) != memory_coco  # the trap this guards
+
+        dataset = load_coco_detection_dataset(memory_coco, f"{memory_coco}/ann_file.json")
+
+        assert len(dataset) == 4
+
+    def test_remote_dataset_keeps_working_after_dataset_id_is_applied(self, memory_classification) -> None:
+        dataset = load_yolo_classification_dataset(memory_classification, split="test", dataset_id="renamed")
+
+        # Images are decoded lazily, so this only works if the runtime storage
+        # options survived the dataset_id replacement.
+        assert all(dataset.get_input(index).shape[0] == 3 for index in range(len(dataset)))
+
+
+PRIVATE = "memory://checkmaite-private"
+# Not a credential: the fake backend below only checks that options arrive.
+FAKE_TOKEN = "secret"  # noqa: S105
+
+
+class _PrivateMemoryFileSystem(MemoryFileSystem):
+    """In-memory backend that refuses access without ``token=FAKE_TOKEN``.
+
+    Stands in for s3fs/gcsfs/adlfs credentials or endpoint options: it only
+    works if the options configured on a ``UPath`` actually reach the
+    filesystem datamaite opens.
+    """
+
+    protocol = "memory"
+
+    def __init__(self, *args, token=None, **kwargs):
+        self.token = token
+        super().__init__(*args, **kwargs)
+
+    def _check(self) -> None:
+        if self.token != FAKE_TOKEN:
+            raise PermissionError("private store requires the fake token")
+
+    def ls(self, path, detail=True, **kwargs):
+        self._check()
+        return super().ls(path, detail=detail, **kwargs)
+
+    def info(self, path, **kwargs):
+        self._check()
+        return super().info(path, **kwargs)
+
+    def _open(self, path, mode="rb", block_size=None, autocommit=True, cache_options=None, **kwargs):
+        self._check()
+        return super()._open(path, mode, block_size, autocommit, cache_options, **kwargs)
+
+
+@pytest.fixture
+def private_fs():
+    """Swap the authenticated backend in for ``memory://``, and always restore it."""
+    fsspec.register_implementation("memory", _PrivateMemoryFileSystem, clobber=True)
+    _PrivateMemoryFileSystem.clear_instance_cache()
+    fs = fsspec.filesystem("memory", token=FAKE_TOKEN, skip_instance_cache=True)
+    try:
+        yield fs
+    finally:
+        if fs.exists(PRIVATE):
+            fs.rm(PRIVATE, recursive=True)
+        fsspec.register_implementation("memory", MemoryFileSystem, clobber=True)
+        _PrivateMemoryFileSystem.clear_instance_cache()
+        MemoryFileSystem.clear_instance_cache()
+
+
+class TestCredentialedUPathRoots:
+    """A configured ``UPath`` must reach datamaite as an object, not a string.
+
+    ``str(UPath(..., token=...))`` keeps the URL and drops the options, so the
+    backend sees an anonymous request.
+    """
+
+    def test_backend_really_enforces_credentials(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "coco_dataset", f"{PRIVATE}/coco")
+        with pytest.raises((PermissionError, FileNotFoundError)):
+            load_coco_detection_dataset(f"{PRIVATE}/coco", f"{PRIVATE}/coco/ann_file.json")
+
+    def test_coco(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "coco_dataset", f"{PRIVATE}/coco")
+
+        dataset = load_coco_detection_dataset(
+            UPath(f"{PRIVATE}/coco", token=FAKE_TOKEN), f"{PRIVATE}/coco/ann_file.json"
         )
 
         assert len(dataset) == 4
-        assert dataset.metadata["id"] == "memory_coco_test"
+        assert dataset.num_detections == 57
+        _assert_decodes(dataset)
 
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert image.ndim == 3
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
+    def test_coco_remote_ann_file_path_object_keeps_its_options(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "coco_dataset", f"{PRIVATE}/coco")
 
-    def test_visdrone_detection_from_memory_fs(self, memory_visdrone_dataset):
-        """Test loading VisdroneDetectionDataset from memory filesystem."""
-        dataset = VisdroneDetectionDataset(
-            root=memory_visdrone_dataset["root"],
-            dataset_id="memory_visdrone_test",
+        dataset = load_coco_detection_dataset(
+            UPath(f"{PRIVATE}/coco", token=FAKE_TOKEN),
+            UPath(f"{PRIVATE}/coco/ann_file.json", token=FAKE_TOKEN),
         )
+
+        assert dataset.num_detections == 57
+
+    def test_yolo(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "yolo_dataset", f"{PRIVATE}/yolo")
+
+        dataset = load_yolo_detection_dataset(UPath(f"{PRIVATE}/yolo/dataset.yaml", token=FAKE_TOKEN))
+
+        assert len(dataset) == 4
+        assert dataset.num_detections == 56
+        _assert_decodes(dataset)
+
+    def test_yolo_remote_ann_dir_path_object_keeps_its_options(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "yolo_dataset", f"{PRIVATE}/yolo")
+
+        dataset = load_yolo_detection_dataset(
+            UPath(f"{PRIVATE}/yolo/dataset.yaml", token=FAKE_TOKEN),
+            ann_dir=UPath(f"{PRIVATE}/yolo/labels", token=FAKE_TOKEN),
+        )
+
+        assert dataset.num_detections == 56
+
+    def test_visdrone(self, private_fs) -> None:
+        _upload_tree(private_fs, TEST_DATA_DIR / "visdrone_dataset", f"{PRIVATE}/visdrone")
+
+        dataset = load_visdrone_detection_dataset(UPath(f"{PRIVATE}/visdrone", token=FAKE_TOKEN))
 
         assert len(dataset) == 3
-        assert dataset.metadata["id"] == "memory_visdrone_test"
+        _assert_decodes(dataset)
 
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
+    def test_yolo_classification(self, private_fs) -> None:
+        for class_name in ("cat", "dog"):
+            for index in range(2):
+                buffer = io.BytesIO()
+                Image.new("RGB", (16, 12)).save(buffer, format="JPEG")
+                private_fs.pipe_file(f"{PRIVATE}/ic/test/{class_name}/{index}.jpg", buffer.getvalue())
 
-    def test_yolo_detection_from_memory_fs(self, memory_yolo_dataset):
-        """Test loading YoloDetectionDataset from memory filesystem."""
-        dataset = YoloDetectionDataset(
-            yaml_dataset=memory_yolo_dataset["yaml"],
-            ann_dir=memory_yolo_dataset["ann_dir"],
-            dataset_id="memory_yolo_test",
-        )
+        dataset = load_yolo_classification_dataset(UPath(f"{PRIVATE}/ic", token=FAKE_TOKEN), split="test")
 
         assert len(dataset) == 4
-        assert dataset.metadata["id"] == "memory_yolo_test"
-
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert image.ndim == 3
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
+        _assert_decodes(dataset)
 
 
-class TestYoloClassificationWithFsspec:
-    """Tests for YoloClassificationDataset with fsspec filesystems."""
+class TestLocalOverridesUnderRemoteRoots:
+    """A local annotation override keeps its local identity under a remote root.
 
-    @pytest.fixture
-    def memory_yolo_classification_dataset(self):
-        """Create a YOLO classification dataset in memory filesystem."""
-        fs = fsspec.filesystem("memory")
-        classes = ["cat", "dog"]
+    Forwarded as a bare absolute path, datamaite would look it up on the remote
+    root's backend: YOLO then loaded every image with no labels at all.
+    """
 
-        for split in ["test", "train"]:
-            for class_name in classes:
-                for i in range(2):
-                    img = Image.new("RGB", (64, 64), color=(i * 50, i * 50, i * 50))
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG")
-                    fs.pipe_file(
-                        f"memory://test-bucket/yolo_classification/{split}/{class_name}/{i}_{class_name}.jpg",
-                        buf.getvalue(),
-                    )
+    def test_coco_local_ann_file(self, memory_fs, tmp_path, monkeypatch) -> None:
+        _upload_tree(memory_fs, TEST_DATA_DIR / "coco_dataset", f"{BUCKET}/coco")
+        memory_fs.rm(f"{BUCKET}/coco/ann_file.json")  # the only copy is local
+        shutil.copy(TEST_DATA_DIR / "coco_dataset" / "ann_file.json", tmp_path / "ann_file.json")
+        monkeypatch.chdir(tmp_path)
 
-        yield {"root": "memory://test-bucket/yolo_classification", "classes": classes}
+        absolute = load_coco_detection_dataset(f"{BUCKET}/coco", str(tmp_path / "ann_file.json"))
+        relative = load_coco_detection_dataset(f"{BUCKET}/coco", "ann_file.json")
 
-        fs.rm("memory://test-bucket", recursive=True)
+        for dataset in (absolute, relative):
+            assert len(dataset) == 4
+            assert dataset.num_detections == 57
+            _assert_decodes(dataset)
 
-    def test_yolo_classification_from_memory_fs(self, memory_yolo_classification_dataset):
-        """Test YoloClassificationDataset with memory filesystem."""
-        dataset = YoloClassificationDataset(
-            root_dir=memory_yolo_classification_dataset["root"],
-            split="test",
-            dataset_id="memory_classification_test",
-        )
+    def test_yolo_local_ann_dir_is_refused_rather_than_silently_unlabelled(self, memory_fs) -> None:
+        # datamaite 0.5.0 cannot relate a local label path to a remote root.
+        _upload_tree(memory_fs, TEST_DATA_DIR / "yolo_dataset", f"{BUCKET}/yolo")
+        memory_fs.rm(f"{BUCKET}/yolo/labels", recursive=True)
 
-        assert len(dataset) == len(memory_yolo_classification_dataset["classes"]) * 2
-        assert dataset.metadata["id"] == "memory_classification_test"
-
-        image, _, metadata = dataset[0]
-        assert image.shape[0] == 3  # CHW format
-        assert isinstance(metadata, dict)
-
-
-class TestBackwardCompatibility:
-    """Tests to ensure backward compatibility with local filesystem paths."""
-
-    COCO_ROOT = str(TEST_DATA_DIR / "coco_dataset")
-    COCO_ANN_FILE = str(TEST_DATA_DIR / "coco_dataset" / "ann_file.json")
-    VISDRONE_ROOT = str(TEST_DATA_DIR / "visdrone_dataset")
-    YOLO_ROOT = TEST_DATA_DIR / "yolo_dataset"
-    YOLO_YAML = str(YOLO_ROOT / "dataset.yaml")
-    YOLO_ANN_DIR = str(YOLO_ROOT / "ann_dir")
-
-    def test_coco_detection_local_path_still_works(self):
-        """Verify CocoDetectionDataset still works with local string paths."""
-        dataset = CocoDetectionDataset(
-            root=self.COCO_ROOT,
-            ann_file=self.COCO_ANN_FILE,
-            dataset_id="local_coco_test",
-        )
-
-        assert len(dataset) == 4
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
-
-    def test_visdrone_detection_local_path_still_works(self):
-        """Verify VisdroneDetectionDataset still works with local paths."""
-        dataset = VisdroneDetectionDataset(
-            root=self.VISDRONE_ROOT,
-            dataset_id="local_visdrone_test",
-        )
-
-        assert len(dataset) == 3
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
-
-    def test_yolo_detection_local_path_still_works(self):
-        """Verify YoloDetectionDataset still works with local paths."""
-        dataset = YoloDetectionDataset(
-            yaml_dataset=self.YOLO_YAML,
-            ann_dir=self.YOLO_ANN_DIR,
-            dataset_id="local_yolo_test",
-        )
-
-        assert len(dataset) == 4
-        assert dataset.metadata["id"] == "local_yolo_test"
-        image, target, metadata = dataset[0]
-        assert isinstance(image, torch.Tensor)
-        assert isinstance(target, DetectionTarget)
-        assert isinstance(metadata, dict)
-
-
-class TestImageLoadingEquivalence:
-    """Tests to verify fsspec-based image loading produces identical results to direct PIL loading."""
-
-    def test_upath_loading_matches_direct_pil_loading(self, tmp_path):
-        """Verify UPath-based loading produces byte-for-byte identical results to Image.open(path)."""
-        img_path = tmp_path / "test.png"
-        test_img = Image.new("RGB", (64, 64), color=(100, 150, 200))
-        test_img.save(img_path)
-
-        # Original direct PIL approach
-        img_direct = Image.open(img_path)
-        result_direct = np.array(img_direct).transpose(2, 0, 1)
-
-        # Current fsspec-compatible approach (mirrors dataset_loaders implementation)
-        upath = UPath(img_path)
-        with upath.open("rb") as f, Image.open(f) as img_upath:
-            img_upath = img_upath.convert("RGB")
-            arr = np.asarray(img_upath)
-        result_upath = np.moveaxis(arr, -1, 0)
-
-        np.testing.assert_array_equal(result_direct, result_upath)
+        with pytest.raises(ValueError, match="local ann_dir .* not supported by datamaite 0.5.0"):
+            load_yolo_detection_dataset(
+                f"{BUCKET}/yolo/dataset.yaml", ann_dir=str(TEST_DATA_DIR / "yolo_dataset" / "labels")
+            )

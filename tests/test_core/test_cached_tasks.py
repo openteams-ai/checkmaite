@@ -1297,3 +1297,95 @@ def test_evaluate_from_predictions_no_cache_warning_when_use_cache_false(recwarn
         use_cache=False,
     )
     assert len(recwarn) == 0
+
+
+def _native_yolo_cache_fixture(*, dataset_id: str, model_id: str):
+    from pathlib import Path
+
+    from maite.protocols import ModelMetadata
+
+    from checkmaite.core.object_detection.dataset_loaders import load_yolo_detection_dataset
+    from tests.conftest import FakeODModel
+
+    dataset_root = Path(__file__).parents[1] / "data_for_tests" / "yolo_dataset"
+    dataset = load_yolo_detection_dataset(dataset_root / "dataset.yaml", dataset_id=dataset_id)
+    model = CountingModel(
+        FakeODModel(model_metadata=ModelMetadata(id="fake_od_model", index2label=dataset.metadata["index2label"])),
+        model_id=model_id,
+    )
+    return dataset, model
+
+
+class _RecordingMetric:
+    """Keeps every datum-metadata mapping it is shown, so a cache hit can be compared with a miss."""
+
+    def __init__(self, metric_id: str):
+        self.metadata = {"id": metric_id}
+        self.seen: list[dict] = []
+
+    def reset(self):
+        self.seen = []
+
+    def update(self, preds, targets, metadata):
+        self.seen.extend(dict(item) for item in metadata)
+
+    def compute(self):
+        return {"count": len(self.seen)}
+
+
+def test_cached_predictions_preserve_native_dataset_datum_metadata():
+    """A metric run from cached predictions sees the same datum metadata as the fresh run.
+
+    datamaite-native datasets carry real datum metadata — COCO ``images[]``
+    extras, per-box VisDrone factors, YOLO provenance — and dataeval reads it as
+    bias factors. If the cache round trip dropped it, the first metric would see
+    rich metadata and every later metric only ``{"id": ...}``.
+    """
+    from checkmaite.core import cached_tasks
+
+    dataset, model = _native_yolo_cache_fixture(dataset_id="native-yolo-metadata", model_id="fake-od-native-metadata")
+    fresh_metric = _RecordingMetric("native-metadata-fresh")
+    cached_metric = _RecordingMetric("native-metadata-cached")
+
+    cached_tasks.evaluate(model=model, dataset=dataset, metric=fresh_metric)
+    calls_after_miss = model.calls
+    cached_tasks.evaluate(model=model, dataset=dataset, metric=cached_metric)
+
+    assert model.calls == calls_after_miss, "second evaluation should reuse the cached predictions"
+    assert len(fresh_metric.seen) == len(cached_metric.seen) == len(dataset)
+
+    for fresh_metadata, cached_metadata in zip(fresh_metric.seen, cached_metric.seen, strict=True):
+        assert {"yolo_bbox", "source_line", "label_file"} <= set(fresh_metadata)
+        assert set(cached_metadata) == set(fresh_metadata)
+        assert cached_metadata["id"] == fresh_metadata["id"]
+        assert cached_metadata["source_line"] == fresh_metadata["source_line"]
+        # The cache is JSON-backed, so datamaite's per-box tuples read back as
+        # lists. That normalization is part of the contract, not an accident.
+        assert cached_metadata["yolo_bbox"] == [list(box) for box in fresh_metadata["yolo_bbox"]]
+
+
+def test_strict_cache_mode_declines_native_yolo_datasets():
+    """Strict (lossless) caching warns and re-runs inference for native YOLO datasets.
+
+    Two independent reasons, both by design of the strict policy: datamaite's
+    ``ObjectDetectionTarget`` is not a registered strict cache type (no OD target
+    class is), and ``yolo_bbox`` provenance is a list of tuples, which JSON cannot
+    round-trip losslessly. Compatibility mode, the default, caches both.
+    """
+    from checkmaite.core import cached_tasks
+    from checkmaite.core._cached_metadata import validate_metadata_value
+
+    dataset, model = _native_yolo_cache_fixture(dataset_id="native-yolo-strict", model_id="fake-od-native-strict")
+
+    datum_metadata = dict(dataset[0][2])
+    with pytest.raises(TypeError, match=r"yolo_bbox\[0\]"):
+        validate_metadata_value(datum_metadata, strict=True)
+    validate_metadata_value({key: value for key, value in datum_metadata.items() if key != "yolo_bbox"}, strict=True)
+
+    with pytest.warns(UserWarning, match="Cache publication is disabled"):
+        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+    calls_after_first_run = model.calls
+    with pytest.warns(UserWarning, match="Cache publication is disabled"):
+        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+
+    assert model.calls > calls_after_first_run
