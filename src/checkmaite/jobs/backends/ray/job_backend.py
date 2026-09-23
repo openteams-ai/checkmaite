@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - compatibility with Ray versions lackin
     PendingCallsLimitExceeded = type("PendingCallsLimitExceeded", (Exception,), {})
 
 from checkmaite.core.analytics_store import Provenance, get_provenance_defaults
-from checkmaite.jobs._store import AnalyticsStoreConfig
+from checkmaite.jobs._store import AnalyticsStoreConfig, ArtifactStoreConfig, resolve_artifact_store_config
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
 from checkmaite.jobs.protocol import (
     BackpressureError,
@@ -1179,6 +1179,8 @@ class RayJobBackend:
         controller_memory: float | None = None,
         controller_resources: dict[str, float] | None = None,
         controller_max_pending_calls: int | None = DEFAULT_CONTROLLER_MAX_PENDING_CALLS,
+        *,
+        artifact_store: ArtifactStoreConfig | dict[str, Any],
     ) -> None:
         """Create a Ray job backend and connect it to the shared job registry.
 
@@ -1190,8 +1192,12 @@ class RayJobBackend:
         Parameters
         ----------
         analytics_store
-            Storage config used by worker tasks when they persist completed runs.
-            Accepts an ``AnalyticsStoreConfig`` or a matching dict.
+            Storage config used by worker tasks when they persist structured
+            records. Accepts an ``AnalyticsStoreConfig`` or a matching dict.
+        artifact_store
+            Required independent storage config for worker report artifacts.
+            Accepts an ``ArtifactStoreConfig`` or a matching dict using an
+            absolute shared local path or an S3, GCS, or Azure URI.
         address
             Ray address passed to ``ray.init`` when this job backend initializes Ray.
         runtime_env
@@ -1310,6 +1316,8 @@ class RayJobBackend:
             registry_sweep_interval_s,
             registry_sweep_batch_limit,
         )
+        self._analytics_store = AnalyticsStoreConfig.model_validate(analytics_store)
+        self._artifact_store = resolve_artifact_store_config(artifact_store)
 
         if force_reinit and ray.is_initialized():
             ray.shutdown()
@@ -1329,7 +1337,6 @@ class RayJobBackend:
         if controller_num_cpus is None:
             controller_num_cpus = DEFAULT_CONTROLLER_NUM_CPUS
 
-        self._analytics_store = AnalyticsStoreConfig.model_validate(analytics_store)
         self._max_retries = max_retries
 
         self._idempotency_scope = idempotency_scope
@@ -1848,8 +1855,8 @@ class RayJobBackend:
         existing job.
 
         For a new run, the job backend reserves a job ID, resolves worker resources,
-        removes backend-only kwargs such as ``resources``, injects the analytics
-        store config for the worker, creates the per-job controller actor, and
+        removes backend-only kwargs such as ``resources``, injects independent
+        analytics and artifact store configs for the worker, creates the per-job controller actor, and
         asks that controller to start the Ray task. The controller owns the task,
         so the returned handle can be used to poll, cancel, or fetch the result
         even if this submitter process exits.
@@ -1878,6 +1885,7 @@ class RayJobBackend:
         phase = "preparing worker payload"
         try:
             run_kwargs["_analytics_store"] = self._analytics_store.model_dump(mode="python")
+            run_kwargs["_artifact_store"] = self._artifact_store.model_dump(mode="python")
             run_kwargs["_provenance"] = _ray_job_provenance(
                 job_id,
                 _created_at_from_submitted_ts(new_registration["submitted_at_ts"]),

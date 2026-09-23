@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from checkmaite.jobs._store import AnalyticsStoreConfig
+from checkmaite.jobs._store import AnalyticsStoreConfig, ArtifactStoreConfig, resolve_artifact_store_config
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
 from checkmaite.jobs.backends.ray import RayJobBackend
 from checkmaite.jobs.backends.ray_simple import RaySimpleJobBackend
@@ -22,7 +22,8 @@ _active_job_backend: JobBackend | None = None
 def _require_job_backend() -> JobBackend:
     if _active_job_backend is None:
         raise RuntimeError(
-            "No active job backend. Call configure_job_backend(..., analytics_store=...) before submitting jobs."
+            "No active job backend. Call configure_job_backend(..., analytics_store=..., artifact_store=...) "
+            "before submitting jobs."
         )
 
     return _active_job_backend
@@ -32,6 +33,7 @@ def configure_job_backend(
     kind: str = "ray",
     *,
     analytics_store: AnalyticsStoreConfig | dict[str, Any],
+    artifact_store: ArtifactStoreConfig | dict[str, Any],
     **kwargs: Any,
 ) -> None:
     """Configure the active job backend.
@@ -41,18 +43,30 @@ def configure_job_backend(
     the runtime when you need new address/runtime_env settings to apply.
 
     ``analytics_store`` is required and is forwarded to all worker tasks so
-    writes target an explicit client-chosen durable location.
+    structured writes target an explicit client-chosen durable location.
+    ``artifact_store`` is required and independently configures the durable
+    destination used to externalize oversized inline reports.
     """
     global _active_job_backend
+
+    resolved_artifact_store = resolve_artifact_store_config(artifact_store)
 
     if _active_job_backend is not None:
         _active_job_backend.shutdown(wait=False)
 
     if kind == "ray":
-        _active_job_backend = RayJobBackend(analytics_store=analytics_store, **kwargs)
+        _active_job_backend = RayJobBackend(
+            analytics_store=analytics_store,
+            artifact_store=resolved_artifact_store,
+            **kwargs,
+        )
         return
     if kind == "ray-simple":
-        _active_job_backend = RaySimpleJobBackend(analytics_store=analytics_store, **kwargs)
+        _active_job_backend = RaySimpleJobBackend(
+            analytics_store=analytics_store,
+            artifact_store=resolved_artifact_store,
+            **kwargs,
+        )
         return
 
     raise ValueError(f"Unknown job backend: {kind!r}")

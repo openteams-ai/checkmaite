@@ -9,4 +9,6 @@ def assert_inline_markdown_report(report: object, *, capability_id: str) -> Inli
     assert report.media_type == "text/markdown"
     assert report.filename == f"{capability_id}.md"
     assert report.content.strip()
+    assert "](/tmp/" not in report.content
+    assert "](file://" not in report.content
     return report

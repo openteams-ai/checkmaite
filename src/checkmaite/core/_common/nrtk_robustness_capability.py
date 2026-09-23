@@ -371,7 +371,7 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
             f"{perturbation_label} perturber is applied.  The {theta_label} varies from {min(thetas)} to {max(thetas)}."
             f" Model Performance below the red line indicates when a model has failed and should not be used."
         )
-        md.add_image(save_figure_to_tempfile(fig), alt_text="NRTK Robustness Curve")
+        md.add_embedded_image(save_figure_to_tempfile(fig), alt_text="NRTK Robustness Curve", remove_source=True)
         plt.close(fig)
 
         md.add_table(headers=[theta_label, metric_label], rows=rows)

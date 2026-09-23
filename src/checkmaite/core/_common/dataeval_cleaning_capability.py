@@ -1,8 +1,11 @@
 import logging
+import shutil
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -314,55 +317,66 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         dataset_id = self.dataset_metadata[0]["id"]
         index2label = self.dataset_metadata[0]["index2label"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
 
-        artifact_dir = Path(cache_path() / "cleaning-artifacts")
+        artifact_dir = Path(cache_path() / "cleaning-artifacts" / self.run_uid / uuid4().hex)
         artifact_dir.mkdir(parents=True, exist_ok=True)
 
-        md = MarkdownOutput(f"Dataset Cleaning Analysis - {dataset_id}")
+        try:
+            md = MarkdownOutput(f"Dataset Cleaning Analysis - {dataset_id}")
 
-        generate_table_of_contents_md(md)
-
-        md.add_section_divider()
-        generate_duplicates_report_md(md, outputs.duplicates, outputs.label_stats.image_count)
-
-        md.add_section_divider()
-        generate_image_property_histograms_report_md(
-            md,
-            img_stats=outputs.image_stats,
-        )
-
-        md.add_section_divider()
-        generate_image_outliers_report_md(
-            md,
-            img_outliers=outputs.image_outliers,
-            img_stats=outputs.image_stats,
-            dataset_size=outputs.label_stats.image_count,
-        )
-
-        md.add_section_divider()
-        generate_label_analysis_report_md(
-            md,
-            label_stats=outputs.label_stats,
-            index2label=index2label,
-        )
-
-        if outputs.box_stats is not None:
-            md.add_section_divider()
-            generate_target_property_histograms_report_md(md, box_stats=outputs.box_stats)
+            generate_table_of_contents_md(md)
 
             md.add_section_divider()
-            generate_target_outliers_report_md(
+            generate_duplicates_report_md(md, outputs.duplicates, outputs.label_stats.image_count)
+
+            md.add_section_divider()
+            generate_image_property_histograms_report_md(
                 md,
-                target_outliers=outputs.box_outliers,
-                box_stats=outputs.box_stats,
-                total_targets=outputs.label_stats.label_count,
+                img_stats=outputs.image_stats,
+                artifact_dir=artifact_dir,
             )
 
-        md.add_section_divider()
-        generate_next_steps_report_md(md, dataset_id)
+            md.add_section_divider()
+            generate_image_outliers_report_md(
+                md,
+                img_outliers=outputs.image_outliers,
+                img_stats=outputs.image_stats,
+                dataset_size=outputs.label_stats.image_count,
+            )
+
+            md.add_section_divider()
+            generate_label_analysis_report_md(
+                md,
+                label_stats=outputs.label_stats,
+                index2label=index2label,
+            )
+
+            if outputs.box_stats is not None:
+                md.add_section_divider()
+                generate_target_property_histograms_report_md(
+                    md,
+                    box_stats=outputs.box_stats,
+                    artifact_dir=artifact_dir,
+                )
+
+                md.add_section_divider()
+                generate_target_outliers_report_md(
+                    md,
+                    target_outliers=outputs.box_outliers,
+                    box_stats=outputs.box_stats,
+                    total_targets=outputs.label_stats.label_count,
+                )
+
+            md.add_section_divider()
+            generate_next_steps_report_md(md, dataset_id)
+            content = md.render()
+        finally:
+            shutil.rmtree(artifact_dir, ignore_errors=True)
+            with suppress(OSError):
+                artifact_dir.parent.rmdir()
 
         return InlineTextReport(
             media_type="text/markdown",
-            content=md.render(),
+            content=content,
             filename=f"{self.capability_id}.md",
         )
 
@@ -1397,6 +1411,7 @@ def generate_next_steps_report_md(
 def generate_image_property_histograms_report_md(
     md: MarkdownOutput,
     img_stats: DataevalCleaningStatsOutputs,
+    artifact_dir: Path | None = None,
 ) -> None:
     """Markdown analogue of the 'Image Property Histograms' slide."""
     md.add_section(heading="Image Property Histograms")
@@ -1408,13 +1423,13 @@ def generate_image_property_histograms_report_md(
 
     img_hist_list = prepare_histograms((img_stats.dim_stats, img_stats.vis_stats))
 
-    dir_ = Path(cache_path() / "cleaning-artifacts")
-    dir_.mkdir(parents=True, exist_ok=True)
-    filepath = dir_ / "img_stats_histogram_plots.png"
+    artifact_dir = artifact_dir or Path(cache_path() / "cleaning-artifacts")
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    filepath = artifact_dir / "img_stats_histogram_plots.png"
 
     plot_stat_metrics(is_image=True, plot_list=img_hist_list, filepath=filepath)
 
-    md.add_image(filepath, alt_text="Image Property Histograms")
+    md.add_embedded_image(filepath, alt_text="Image Property Histograms", remove_source=True)
 
 
 def generate_label_analysis_report_md(
@@ -1456,7 +1471,9 @@ def generate_label_analysis_report_md(
 
 
 def generate_target_property_histograms_report_md(
-    md: MarkdownOutput, box_stats: DataevalCleaningStatsOutputs | None
+    md: MarkdownOutput,
+    box_stats: DataevalCleaningStatsOutputs | None,
+    artifact_dir: Path | None = None,
 ) -> None:
     """Markdown analogue of the 'Target Property Histograms' slide."""
     if box_stats is None or box_stats.ratio_stats is None:
@@ -1472,10 +1489,10 @@ def generate_target_property_histograms_report_md(
     box_hist_list = prepare_histograms((box_stats.dim_stats, box_stats.vis_stats))
     box_hist_list = prepare_ratio_histograms(box_stats.ratio_stats, box_hist_list)
 
-    dir_ = Path(cache_path() / "cleaning-artifacts")
-    dir_.mkdir(parents=True, exist_ok=True)
-    filepath = dir_ / "box_stats_histogram_plots.png"
+    artifact_dir = artifact_dir or Path(cache_path() / "cleaning-artifacts")
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    filepath = artifact_dir / "box_stats_histogram_plots.png"
 
     plot_stat_metrics(is_image=False, plot_list=box_hist_list, filepath=filepath)
 
-    md.add_image(filepath, alt_text="Target Property Histograms")
+    md.add_embedded_image(filepath, alt_text="Target Property Histograms", remove_source=True)

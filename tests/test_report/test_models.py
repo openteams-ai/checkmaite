@@ -92,11 +92,17 @@ def test_artifact_report_rejects_empty_uri_and_extra_fields() -> None:
         )
 
 
-def test_inline_report_rejects_content_over_byte_limit() -> None:
+def test_capability_run_ref_rejects_inline_content_over_byte_limit() -> None:
     content = "é" * (MAX_INLINE_REPORT_BYTES // 2 + 1)
+    report = InlineTextReport(media_type="text/plain", content=content, filename="results.txt")
 
     with pytest.raises(ValidationError, match="return ArtifactReport instead"):
-        InlineTextReport(media_type="text/plain", content=content, filename="results.txt")
+        CapabilityRunRef(
+            run_uid="run-1",
+            capability_id="capability-1",
+            store_uri=None,
+            report=report,
+        )
 
 
 def test_report_models_are_frozen() -> None:

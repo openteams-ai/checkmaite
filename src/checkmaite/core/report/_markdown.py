@@ -5,6 +5,8 @@ This module provides a builder class for generating structured Markdown reports
 in a consistent and maintainable way. Used within the collect_md_report methods.
 """
 
+import base64
+import mimetypes
 import os
 import re
 from collections.abc import Iterable
@@ -261,20 +263,58 @@ class MarkdownOutput:
         Parameters
         ----------
         path : str | Path
-            Filesystem path to the image.
+            Filesystem path or URI for the image.
         alt_text : str, optional
             Alt text for the image, by default "".
         caption : str | None, optional
             Optional caption rendered as italic text below the image.
         """
 
-        self._append(f"![{alt_text}]({Path(path).as_posix()})")
+        source = path.as_posix() if isinstance(path, Path) else path
+        self._append(f"![{alt_text}]({source})")
 
         if caption:
             self._append(f"*{caption}*")
         self._append_blank()
 
         return self
+
+    def add_embedded_image(
+        self,
+        path: str | Path,
+        alt_text: str = "",
+        caption: str | None = None,
+        *,
+        remove_source: bool = False,
+    ) -> "MarkdownOutput":
+        """Embed an image as a data URI so the report has no file dependency.
+
+        Parameters
+        ----------
+        path : str | Path
+            Filesystem path to the image bytes.
+        alt_text : str, optional
+            Alt text for the image, by default "".
+        caption : str | None, optional
+            Optional caption rendered below the image.
+        remove_source : bool, optional
+            Remove the source after reading it. Use this for generated temporary
+            files, by default False.
+        """
+        source = Path(path)
+        media_type, _ = mimetypes.guess_type(source.name)
+        if media_type is None or not media_type.startswith("image/"):
+            raise ValueError(f"Could not determine an image media type for {source.name!r}")
+        try:
+            encoded = base64.b64encode(source.read_bytes()).decode("ascii")
+            return self.add_image(
+                f"data:{media_type};base64,{encoded}",
+                alt_text=alt_text,
+                caption=caption,
+            )
+        finally:
+            if remove_source:
+                source.unlink(missing_ok=True)
 
     def add_metric(
         self,

@@ -23,8 +23,10 @@ from checkmaite.jobs import (
     submit_capability,
 )
 from checkmaite.jobs.backends.ray import RegistryStatus
-from tests.test_jobs.fakes import TinyCapability, TinyConfig, TinyDatasetCapability
+from tests.test_jobs.fakes import OversizedReportTinyCapability, TinyCapability, TinyConfig, TinyDatasetCapability
 from tests.test_jobs.ray_test_utils import init_local_ray
+
+TEST_ARTIFACT_STORE_URI = str((Path.cwd() / ".checkmaite-test-artifacts").resolve())
 
 
 def test_maite_evaluation_scoped_key_is_metric_order_independent(
@@ -75,6 +77,7 @@ def local_ray(ray_runtime, tmp_path: Path):
 
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,
@@ -96,6 +99,7 @@ def isolated_local_ray(tmp_path: Path):
 
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,
@@ -135,6 +139,7 @@ def ray_job_backend_smoke(_jobs_smoke_ray_runtime, tmp_path: Path) -> tuple[RayJ
 
     try:
         backend = RayJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             address=None,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
             idempotency_scope=f"smoke-{uuid4().hex}",
@@ -292,6 +297,32 @@ def test_result_timeout_and_cancel(local_ray: Path) -> None:
 
 
 @pytest.mark.ray
+def test_artifact_publication_failure_fails_job_and_releases_dedupe(ray_runtime, tmp_path: Path) -> None:
+    shutdown_job_backend(wait=False)
+    blocked_artifact_path = tmp_path / "blocked-artifact-path"
+    blocked_artifact_path.write_text("not a directory")
+    configure_job_backend(
+        "ray",
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
+        artifact_store={"uri": str(blocked_artifact_path)},
+        idempotency_scope=f"scope-{uuid4().hex}",
+        controller_num_cpus=0.0,
+        registry_startup_timeout_s=90.0,
+    )
+    capability = OversizedReportTinyCapability()
+    kwargs = {"config": TinyConfig(text="oversized"), "use_cache": False}
+
+    failed = submit_capability(capability, **kwargs)
+    with pytest.raises(JobFailedError, match="configured artifact_store"):
+        failed.result(timeout=90)
+
+    retry = submit_capability(capability, **kwargs)
+    assert retry.job_id != failed.job_id
+    with pytest.raises(JobFailedError, match="configured artifact_store"):
+        retry.result(timeout=90)
+
+
+@pytest.mark.ray
 def test_failure_is_mapped_to_job_failed_error(local_ray: Path) -> None:
     capability = TinyCapability()
 
@@ -385,6 +416,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray: Path)
     # Default reconfigure path should be non-blocking and not tear down runtime.
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,
@@ -403,6 +435,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(tmp_path:
     try:
         configure_job_backend(
             "ray",
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             address="local",
             force_reinit=True,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
@@ -423,6 +456,7 @@ def test_backend_reconfigure_applies_new_runtime_env_with_force_reinit(tmp_path:
 
         configure_job_backend(
             "ray",
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             address="local",
             force_reinit=True,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
@@ -457,6 +491,7 @@ def test_store_write_failure_raises_by_default(isolated_local_ray: Path) -> None
 
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(bad_store_root)},
         idempotency_scope=f"scope-{uuid4().hex}",
         controller_num_cpus=0.0,

@@ -79,12 +79,19 @@ The registry/controller split is the key design shown in the flow:
 ### 1. Configure the job backend
 
 ```python
+from pathlib import Path
+
 from checkmaite.jobs import configure_job_backend
 
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray",
     address="local",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
+    analytics_store={
+        "backend": "parquet",
+        "uri": str(output_root / "analytics"),
+    },
+    artifact_store={"uri": str(output_root / "report-artifacts")},
     idempotency_scope="team-a-notebooks",
     registry_namespace="checkmaite_jobs",
 )
@@ -98,7 +105,10 @@ Important:
   is rejected because Ray workers are ephemeral and do not share a local cache,
 - the scope should be a stable workspace, project, or experiment identifier,
 - analytics-store configuration is separate from Ray connection/runtime settings,
-- and it is forwarded to worker tasks so they know where durable results should be written.
+- it is forwarded to worker tasks so they know where structured results should be written,
+- `artifact_store=...` is independently required and must point to supported
+  object storage or an absolute local path mounted identically for the client,
+  every worker, and report consumers,
 - submission is deduplicated by `(idempotency_scope, scoped_run_key)`, and
   `get_job(job_id)` / `list_jobs()` can reattach across client restarts as
   long as the same Ray cluster, `registry_namespace`, and scope are reused.
@@ -448,9 +458,32 @@ or platform logging systems. Terminal job records are retained only for the
 configured registry retention window/count; once purged, their dedupe entries are
 also removed and identical future submissions may create fresh jobs. Small,
 self-contained text reports use `CapabilityRunRef.report` with
-`kind="inline_text"`; inline UTF-8 content is limited to 256 KiB. Large, binary,
-or multi-file reports, including reports that depend on worker-local assets, use
-an artifact report containing a durable URI.
+`kind="inline_text"`; inline UTF-8 content is limited to 256 KiB. A larger
+inline report is published through `artifact_store` to a run- and
+job-scoped, path-safe content-addressed key and returned as an artifact report.
+Retries reuse a verified matching object. A mismatched object is replaced through
+a supported atomic local rename or object-store commit; if safe replacement is
+unavailable or fails, publication fails without deleting the existing key. Supported
+remote implementations are S3, GCS, and Azure through `s3fs`, `gcsfs`, and `adlfs`.
+The configured `artifact_store.uri` must be a concrete directory or object-store
+prefix, not a wildcard or glob. Publication uses a temporary key before the
+final key becomes visible, so retries cannot truncate an existing artifact. A publication or verification
+failure fails the job, allowing the logical run to be submitted again after the
+storage problem is corrected. Optional `artifact_store.storage_options` are
+forwarded to the selected supported filesystem implementation.
+
+Report dependencies are a producer concern, not a backend discovery mechanism.
+Inline reports must be self-contained: embed generated resources with forms such
+as `data:` URIs, or link only to locations that report consumers can already
+reach. Large, binary, or multi-file report producers must publish those products
+themselves and return an `ArtifactReport` with a durable URI. The Ray worker does
+not parse Markdown, copy referenced files, verify producer-owned remote URIs, or
+rewrite links. A worker-local path, relative file link, or `file://` URI will not
+be usable after execution and must not be returned.
+
+Artifact storage is deliberately independent from the analytics store:
+deployments may colocate both under one bucket, but they can use different
+backends, credentials, and retention policies.
 
 During `controller.start(...)`, the controller temporarily receives the
 capability and run arguments so it can launch the worker task. It does not retain

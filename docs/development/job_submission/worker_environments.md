@@ -17,11 +17,15 @@ Both `"ray"` and `"ray-simple"` use Ray workers and the same `runtime_env` mecha
 For local development, Ray workers run from the developer's current Python environment. Use `"ray"` when you want registry-backed reattach behavior, or `"ray-simple"` when a process-local direct Ray task-based job backend is enough.
 
 ```python
+from pathlib import Path
+
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray",
     address="local",
     idempotency_scope="local-dev",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
 
@@ -85,6 +89,10 @@ configure_job_backend(
         "uri": "s3://team-checkmaite/analytics-store",
         "storage_options": {"anon": False},
     },
+    artifact_store={
+        "uri": "s3://team-checkmaite/report-artifacts",
+        "storage_options": {"anon": False},
+    },
 )
 ```
 
@@ -94,11 +102,17 @@ Both Ray job backends accept:
 
 - Ray connection and environment options through `configure_job_backend(..., **kwargs)`
 - analytics-store configuration through the explicit `analytics_store=...` argument
+- report-artifact configuration through the independent `artifact_store=...` argument
 
 Those concerns are separate on purpose:
 
 - `runtime_env` controls how Ray workers are prepared,
-- `analytics_store` tells workers where durable run data should be written.
+- `analytics_store` tells workers where structured run data should be written,
+- the required `artifact_store` tells workers where oversized inline reports should be externalized.
+
+Report producers must still make inline content self-contained and must publish
+any producer-owned `ArtifactReport` before returning its URI. The backend does
+not discover worker-local files referenced from report content.
 
 ## Platform-team checklist
 
@@ -124,9 +138,9 @@ For a production cluster, make sure workers can:
 
 The default `"ray"` job backend also needs the worker image to import the registry/controller code. The `"ray-simple"` job backend only needs the worker task code and submitted capability dependencies.
 
-## Example: object-store analytics store
+## Example: object-store result storage
 
-The current jobs analytics-store configuration supports the Parquet backend with a URI and optional storage options.
+The jobs configuration accepts independent analytics and report-artifact locations.
 
 ```python
 configure_job_backend(
@@ -139,6 +153,10 @@ configure_job_backend(
         "storage_options": {
             "anon": False,
         },
+    },
+    artifact_store={
+        "uri": "s3://team-checkmaite/report-artifacts",
+        "storage_options": {"anon": False},
     },
     runtime_env={
         "env_vars": {

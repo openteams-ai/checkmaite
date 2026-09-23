@@ -7,10 +7,19 @@ from checkmaite.jobs import configure_job_backend
 
 configure_job_backend(
     "ray",
-    analytics_store={"backend": "parquet", "uri": "./job-results"},
+    analytics_store={"backend": "parquet", "uri": "s3://my-project/analytics"},
+    artifact_store={"uri": "s3://my-project/report-artifacts"},
     idempotency_scope="my-workspace-or-experiment",
 )
 ```
+
+The required `artifact_store` externalizes inline reports that exceed the job
+metadata size limit. Its URI must be an absolute local path on a filesystem shared
+by every Ray node and the client, or a supported S3, GCS, or Azure prefix rather
+than a glob. Publication or verification failure fails the job. It does not inspect
+report content or copy linked files. Capabilities must
+return self-contained inline reports or producer-published `ArtifactReport` URIs;
+worker-local and relative paths are not valid distributed outputs.
 
 The `ray` job backend stores (small) job metadata in a `JobRegistryActor` and
 starts one `JobControllerActor` for each new capability run. In Ray, an actor is

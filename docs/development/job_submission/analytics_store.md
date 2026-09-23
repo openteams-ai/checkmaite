@@ -29,16 +29,28 @@ That is why `configure_job_backend(...)` requires explicit analytics-store
 configuration:
 
 ```python
+from pathlib import Path
+
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray",
+    address="local",
+    idempotency_scope="local-dev",
     analytics_store={
         "backend": "parquet",
-        "uri": "./analytics_store",
+        "uri": str(output_root / "analytics"),
     },
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
 
-The job backend forwards that store configuration to worker tasks. Workers then
+The analytics configuration covers structured, queryable records only. Both Ray
+backends also require the independent `artifact_store` configuration; report
+producers remain responsible for durable URIs for their own binary or multi-file
+products.
+The stores may be colocated, but neither is nested inside or managed by the other.
+
+The job backend forwards the analytics-store configuration to worker tasks. Workers then
 build their own `AnalyticsStore` instance from the forwarded config rather than
 guessing a local default. The backend also forwards provenance metadata so the
 `runs` table records the job that produced each persisted run.
@@ -55,7 +67,7 @@ sequenceDiagram
     participant Worker
     participant Store as AnalyticsStore
 
-    Client->>JobBackend: configure_job_backend(..., analytics_store=...)
+    Client->>JobBackend: configure_job_backend(..., analytics_store=..., artifact_store=...)
     Client->>JobBackend: submit_capability(...)
     JobBackend->>Worker: send task + analytics_store config + provenance
     Worker->>Store: build store from forwarded config

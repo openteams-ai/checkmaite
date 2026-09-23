@@ -221,7 +221,7 @@ class DataevalSufficiency(DataevalSufficiencyBase[ic.Dataset, ic.Model]):
     | 33750.0 | 0.7572000026702881 |
     | 37500.0 | 0.7626399993896484 |
 
-    ![Sufficiency Visualization](/tmp/tmpumqesyqv.png)
+    ![Sufficiency Visualization](data:image/png;base64,...)
     ```
 
     """

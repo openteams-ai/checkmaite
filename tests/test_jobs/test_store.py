@@ -8,8 +8,159 @@ from pydantic import ValidationError
 
 from checkmaite.core.analytics_store import AnalyticsStore, Provenance, StorageWriteReceipt
 from checkmaite.core.analytics_store import _provenance as provenance_module
-from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
+from checkmaite.jobs._store import (
+    AnalyticsStoreConfig,
+    ArtifactStoreConfig,
+    build_analytics_store,
+    resolve_artifact_store_config,
+    write_run_and_get_store_uri,
+)
+from checkmaite.jobs.backends.ray import RayJobBackend
+from checkmaite.jobs.backends.ray_simple import RaySimpleJobBackend
 from tests.test_jobs.fakes import EmptyTinyCapability, TinyCapability, TinyConfig, TinyDatasetCapability
+
+
+def test_artifact_store_config_is_independent_from_analytics_store(tmp_path: Path) -> None:
+    analytics = AnalyticsStoreConfig(uri="memory://analytics")
+    artifact_uri = str(tmp_path / "artifacts")
+    artifacts = ArtifactStoreConfig(uri=artifact_uri, storage_options={"auto_mkdir": True})
+
+    assert analytics.model_dump() == {
+        "backend": "parquet",
+        "uri": "memory://analytics",
+        "storage_options": {},
+    }
+    assert artifacts.model_dump() == {
+        "uri": artifact_uri,
+        "storage_options": {"auto_mkdir": True},
+    }
+    with pytest.raises(ValidationError, match="artifact_uri"):
+        AnalyticsStoreConfig.model_validate({"uri": "memory://analytics", "artifact_uri": "memory://artifacts"})
+
+
+@pytest.mark.parametrize("uri", ["", "   "])
+def test_artifact_store_config_rejects_empty_uri(uri: str) -> None:
+    with pytest.raises(ValidationError):
+        ArtifactStoreConfig(uri=uri)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "file:///tmp/reports*",
+        "s3://bucket/reports[production]",
+    ],
+)
+def test_artifact_store_config_rejects_glob_prefix(uri: str) -> None:
+    with pytest.raises(ValidationError, match="concrete prefix without glob patterns"):
+        ArtifactStoreConfig(uri=uri)
+
+
+def test_artifact_store_config_requires_query_credentials_in_storage_options() -> None:
+    with pytest.raises(ValidationError, match="use storage_options instead"):
+        ArtifactStoreConfig(uri="abfs://container/reports?sv=1&sig=secret")
+
+    config = ArtifactStoreConfig(
+        uri="abfs://container/reports",
+        storage_options={"sas_token": "sv=1&sig=secret"},
+    )
+    assert config.storage_options == {"sas_token": "sv=1&sig=secret"}
+
+
+def test_artifact_store_config_is_frozen_and_resolved_as_a_deep_snapshot(tmp_path: Path) -> None:
+    config = ArtifactStoreConfig(
+        uri=str(tmp_path / "artifacts"),
+        storage_options={"client_kwargs": {"endpoint_url": "original"}},
+    )
+
+    with pytest.raises(ValidationError):
+        config.uri = str(tmp_path / "changed")
+
+    resolved = resolve_artifact_store_config(config)
+    config.storage_options["client_kwargs"]["endpoint_url"] = "changed"
+
+    assert resolved is not config
+    assert resolved.storage_options == {"client_kwargs": {"endpoint_url": "original"}}
+
+
+@pytest.mark.parametrize(
+    "uri",
+    ["memory://reports", "hdfs://namenode/reports", "https://example.test/reports", "adl://account/reports"],
+)
+def test_artifact_store_config_rejects_unsupported_protocol(uri: str) -> None:
+    with pytest.raises(ValidationError, match="unsupported artifact store protocol"):
+        ArtifactStoreConfig(uri=uri)
+
+
+@pytest.mark.parametrize("uri", ["./report-artifacts", "report-artifacts", "file:report-artifacts"])
+def test_artifact_store_config_rejects_relative_local_path(uri: str) -> None:
+    with pytest.raises(ValidationError, match="absolute path shared by every Ray node"):
+        ArtifactStoreConfig(uri=uri)
+
+
+@pytest.mark.parametrize(
+    ("backend_type", "extra_kwargs"),
+    [
+        (RayJobBackend, {"idempotency_scope": "scope"}),
+        (RaySimpleJobBackend, {}),
+    ],
+)
+def test_job_backends_require_artifact_store_before_initializing_ray(
+    backend_type,
+    extra_kwargs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ray_init = Mock()
+    ray_shutdown = Mock()
+    monkeypatch.setattr("ray.is_initialized", lambda: True)
+    monkeypatch.setattr("ray.init", ray_init)
+    monkeypatch.setattr("ray.shutdown", ray_shutdown)
+
+    with pytest.raises(TypeError, match="artifact_store"):
+        backend_type(
+            analytics_store={"uri": "memory://analytics"},
+            force_reinit=True,
+            **extra_kwargs,
+        )
+
+    ray_init.assert_not_called()
+    ray_shutdown.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("backend_type", "extra_kwargs"),
+    [
+        (RayJobBackend, {"idempotency_scope": "scope"}),
+        (RaySimpleJobBackend, {}),
+    ],
+)
+@pytest.mark.parametrize(
+    "invalid_uri",
+    ["  ", "memory://reports", "./report-artifacts", "file:///tmp/reports*", "hdfs://namenode/reports"],
+)
+def test_job_backends_reject_invalid_artifact_uri_before_initializing_ray(
+    backend_type,
+    extra_kwargs,
+    invalid_uri: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ray_init = Mock()
+    ray_shutdown = Mock()
+    invalid_config = ArtifactStoreConfig.model_construct(uri=invalid_uri, storage_options={})
+    monkeypatch.setattr("ray.is_initialized", lambda: True)
+    monkeypatch.setattr("ray.init", ray_init)
+    monkeypatch.setattr("ray.shutdown", ray_shutdown)
+
+    with pytest.raises(ValidationError):
+        backend_type(
+            analytics_store={"uri": "memory://analytics"},
+            artifact_store=invalid_config,
+            force_reinit=True,
+            **extra_kwargs,
+        )
+
+    ray_init.assert_not_called()
+    ray_shutdown.assert_not_called()
 
 
 def test_build_analytics_store_accepts_config_dict_and_config_model(tmp_path: Path) -> None:

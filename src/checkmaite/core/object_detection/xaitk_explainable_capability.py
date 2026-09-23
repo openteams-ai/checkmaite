@@ -285,7 +285,9 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                 md.add_text(f"**Prediction**: {index2label[int(datum.labels[sal_idx])]}")
                 md.add_text(f"**Confidence**: {scores[sal_idx]:.2f}")
                 md.add_blank_line()
-                md.add_image(img_path, alt_text=f"Saliency Map for Detection {sal_idx + 1}")
+                md.add_embedded_image(
+                    img_path, alt_text=f"Saliency Map for Detection {sal_idx + 1}", remove_source=True
+                )
 
         return InlineTextReport(
             media_type="text/markdown",

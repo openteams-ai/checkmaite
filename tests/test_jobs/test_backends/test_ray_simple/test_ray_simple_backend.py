@@ -20,7 +20,9 @@ from checkmaite.jobs import (
     submit_capability,
 )
 from checkmaite.jobs.backends.ray_simple import RaySimpleJob, RaySimpleJobBackend
-from tests.test_jobs.fakes import AppendMarkerCapability, TinyCapability, TinyConfig
+from tests.test_jobs.fakes import AppendMarkerCapability, OversizedReportTinyCapability, TinyCapability, TinyConfig
+
+TEST_ARTIFACT_STORE_URI = str((Path.cwd() / ".checkmaite-test-artifacts").resolve())
 
 
 @pytest.fixture(name="ray_simple_runtime")
@@ -44,6 +46,7 @@ def local_ray_simple(ray_simple_runtime, tmp_path: Path):
     shutdown_job_backend(wait=False)
     configure_job_backend(
         "ray-simple",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(store_path)},
     )
 
@@ -66,6 +69,7 @@ def test_ray_simple_job_backend_smoke_contract_exercises_default_backend_coverag
 
     try:
         backend = RaySimpleJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             address=None,
             analytics_store={"backend": "parquet", "uri": str(store_path)},
         )
@@ -104,6 +108,27 @@ def test_ray_simple_job_backend_smoke_contract_exercises_default_backend_coverag
     finally:
         if backend is not None:
             backend.shutdown(wait=False)
+
+
+@pytest.mark.ray
+def test_ray_simple_artifact_publication_failure_fails_job(ray_simple_runtime, tmp_path: Path) -> None:
+    blocked_artifact_path = tmp_path / "blocked-artifact-path"
+    blocked_artifact_path.write_text("not a directory")
+    configure_job_backend(
+        "ray-simple",
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        artifact_store={"uri": str(blocked_artifact_path)},
+    )
+
+    job = submit_capability(
+        OversizedReportTinyCapability(),
+        config=TinyConfig(text="oversized"),
+        use_cache=False,
+    )
+
+    with pytest.raises(JobFailedError, match="configured artifact_store"):
+        job.result(timeout=90)
+    assert job.status is JobStatus.FAILED
 
 
 def _listed_job(job_id: str, created_at: datetime, status: JobStatus) -> RaySimpleJob:
@@ -311,6 +336,7 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray_simple
     # Default reconfigure path should be non-blocking and not tear down runtime.
     configure_job_backend(
         "ray-simple",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_simple)},
     )
 
@@ -320,7 +346,10 @@ def test_reconfigure_wait_false_does_not_interrupt_inflight_job(local_ray_simple
 
 @pytest.mark.ray
 def test_shutdown_wait_false_leaves_ray_initialized(ray_simple_runtime, tmp_path: Path) -> None:
-    backend = RaySimpleJobBackend(analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")})
+    backend = RaySimpleJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
+        analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
+    )
 
     backend.shutdown(wait=False)
 
@@ -332,6 +361,7 @@ def test_shutdown_wait_true_waits_for_jobs_and_shuts_down_ray(ray_simple_runtime
     store_path = tmp_path / "analytics-store"
     finish_marker = tmp_path / "shutdown-finished.txt"
     backend = RaySimpleJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(store_path)},
     )
 
@@ -359,6 +389,7 @@ def test_store_write_failure_raises_by_default(local_ray_simple: Path) -> None:
 
     configure_job_backend(
         "ray-simple",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(bad_store_root)},
     )
 

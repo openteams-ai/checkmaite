@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 from typing_extensions import TypedDict
 
 MAX_INLINE_REPORT_BYTES = 256 * 1024
-"""Maximum UTF-8 size allowed for an inline report's content."""
+"""Maximum UTF-8 size allowed when a report is embedded in job-result metadata."""
 
 _NonEmptyString: TypeAlias = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -44,17 +44,11 @@ class InlineTextReport(_ReportBase):
         if not content.strip():
             raise ValueError("inline report content must not be empty")
 
-        size = len(content.encode("utf-8"))
-        if size > MAX_INLINE_REPORT_BYTES:
-            raise ValueError(
-                f"inline report content is {size} bytes; the limit is {MAX_INLINE_REPORT_BYTES} bytes. "
-                "Store large reports externally and return ArtifactReport instead."
-            )
         return content
 
 
 class ArtifactReport(_ReportBase):
-    """Report stored as a durable artifact outside capability job metadata."""
+    """Producer-published report stored durably outside capability job metadata."""
 
     kind: Literal["artifact"] = "artifact"
     uri: _NonEmptyString

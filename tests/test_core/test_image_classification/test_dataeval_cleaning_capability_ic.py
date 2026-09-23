@@ -41,3 +41,5 @@ def test_collect_md_report(fake_ic_dataset_default):
     output = capability.run(use_cache=False, datasets=[fake_ic_dataset_default])
     report = output.collect_md_report(threshold=0.5)
     assert_inline_markdown_report(report, capability_id=output.capability_id)
+    assert "data:image/png;base64," in report.content
+    assert "cleaning-artifacts" not in report.content

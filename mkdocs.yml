@@ -96,6 +96,9 @@ markdown_extensions:
 plugins:
   - mkdocs-jupyter:
       execute: true
+      execute_ignore:
+        - "**/checkmaite_ray_serve.ipynb"
+        - "**/ray_job_submission_tutorial.ipynb"
       kernel_name: python3
       allow_errors: false
   - search

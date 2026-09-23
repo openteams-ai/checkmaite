@@ -5,9 +5,14 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, TypedDict, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-from checkmaite.core.report import CapabilityReport, CapabilityReportPayload
+from checkmaite.core.report import (
+    MAX_INLINE_REPORT_BYTES,
+    CapabilityReport,
+    CapabilityReportPayload,
+    InlineTextReport,
+)
 
 if TYPE_CHECKING:
     from checkmaite.core.capability_core import Capability as _Capability
@@ -99,6 +104,18 @@ class CapabilityRunRef(BaseModel):
     store_uri: str | None
     outputs_uri: str | None = None
     report: CapabilityReport | None
+
+    @field_validator("report")
+    @classmethod
+    def _validate_inline_report_size(cls, report: CapabilityReport | None) -> CapabilityReport | None:
+        if isinstance(report, InlineTextReport):
+            size = len(report.content.encode("utf-8"))
+            if size > MAX_INLINE_REPORT_BYTES:
+                raise ValueError(
+                    f"inline job report content is {size} bytes; the limit is {MAX_INLINE_REPORT_BYTES} bytes. "
+                    "Store large reports externally and return ArtifactReport instead."
+                )
+        return report
 
 
 class JobError(Exception):

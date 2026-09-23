@@ -5,7 +5,7 @@ from checkmaite.jobs._api import (
     shutdown_job_backend,
     submit_capability,
 )
-from checkmaite.jobs._store import AnalyticsStoreConfig
+from checkmaite.jobs._store import AnalyticsStoreConfig, ArtifactStoreConfig
 from checkmaite.jobs.backends.ray import RayJob, RayJobBackend
 from checkmaite.jobs.backends.ray_simple import RaySimpleJob, RaySimpleJobBackend
 from checkmaite.jobs.protocol import (
@@ -25,6 +25,7 @@ from checkmaite.jobs.protocol import (
 
 __all__ = [
     "AnalyticsStoreConfig",
+    "ArtifactStoreConfig",
     "BackpressureError",
     "CapabilityRunRef",
     "CapabilityRunRefPayload",

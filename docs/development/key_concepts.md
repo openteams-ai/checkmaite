@@ -328,7 +328,7 @@ This means internal code never needs to check input types — it can always assu
 
 ## Reporting and Visualization
 
-A Run can implement `collect_md_report()` to return a typed `InlineTextReport` or `ArtifactReport`. The base implementation continues to raise `NotImplementedError` for backward compatibility. Inline reports include a media type, filename, and up to 256 KiB of self-contained textual `content`; artifact reports include a media type, filename, and durable `uri` for large, binary, or multi-file reports. Report models are exported from `checkmaite.core.report`.
+A Run can implement `collect_md_report()` to return a typed `InlineTextReport` or `ArtifactReport`. The base implementation continues to raise `NotImplementedError` for backward compatibility. Inline reports include a media type, filename, and self-contained textual `content`; embedded resources should use forms such as `data:` URIs rather than local file paths. Job-result metadata accepts up to 256 KiB inline and can externalize a larger report through its configured artifact store. Artifact reports include a media type, filename, and producer-owned durable `uri` for large, binary, or multi-file reports. Report models are exported from `checkmaite.core.report`.
 
 Report generation is handled by utilities located in the `report/` submodule:
 

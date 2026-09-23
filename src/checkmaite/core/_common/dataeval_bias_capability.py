@@ -782,7 +782,7 @@ def report_coverage_md(md: MarkdownOutput, coverage: DataevalBiasCoverageOutputs
 
     if coverage.image is not None:
         img_path = temp_image_file(coverage.image)
-        md.add_image(img_path, alt_text="Coverage Visualization")
+        md.add_embedded_image(img_path, alt_text="Coverage Visualization", remove_source=True)
 
 
 def report_balance_metadata_factors_md(md: MarkdownOutput, outputs: DataevalBiasBalanceOutputs) -> None:
@@ -809,7 +809,7 @@ def report_balance_metadata_factors_md(md: MarkdownOutput, outputs: DataevalBias
 
     if outputs.image_metadata is not None:
         img_path = temp_image_file(outputs.image_metadata)
-        md.add_image(img_path, alt_text="Balance Metadata Visualization")
+        md.add_embedded_image(img_path, alt_text="Balance Metadata Visualization", remove_source=True)
 
     md.add_subsection(heading="Balance Scores")
     md.add_table(dataframe=outputs.balance)
@@ -837,7 +837,7 @@ def report_balance_classwise_md(md: MarkdownOutput, outputs: DataevalBiasBalance
     )
 
     img_path = temp_image_file(outputs.image_classwise)
-    md.add_image(img_path, alt_text="Balance Classwise Visualization")
+    md.add_embedded_image(img_path, alt_text="Balance Classwise Visualization", remove_source=True)
 
 
 def report_diversity_md(md: MarkdownOutput, outputs: DataevalBiasDiversityOutputs) -> None:
@@ -869,6 +869,6 @@ def report_diversity_md(md: MarkdownOutput, outputs: DataevalBiasDiversityOutput
     )
 
     img_path = temp_image_file(outputs.image)
-    md.add_image(img_path, alt_text="Diversity Visualization")
+    md.add_embedded_image(img_path, alt_text="Diversity Visualization", remove_source=True)
     md.add_subsection(heading="Diversity Index Scores")
     md.add_table(dataframe=outputs.factors)

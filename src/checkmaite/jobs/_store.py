@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+import os
+from glob import has_magic
+from typing import TYPE_CHECKING, Annotated, Any, Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field
+from fsspec.utils import get_protocol
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend, ProvenanceLike
 
@@ -11,11 +15,52 @@ if TYPE_CHECKING:
 
 
 class AnalyticsStoreConfig(BaseModel):
-    """Configuration describing where job workers persist analytics records."""
+    """Configuration describing where job workers persist structured analytics records."""
+
+    model_config = ConfigDict(extra="forbid")
 
     backend: Literal["parquet"] = "parquet"
     uri: str
     storage_options: dict[str, Any] = Field(default_factory=dict)
+
+
+LOCAL_ARTIFACT_STORE_PROTOCOLS = frozenset({"file", "local"})
+REMOTE_ARTIFACT_STORE_PROTOCOLS = frozenset({"s3", "s3a", "gs", "gcs", "abfs", "az"})
+SUPPORTED_ARTIFACT_STORE_PROTOCOLS = LOCAL_ARTIFACT_STORE_PROTOCOLS | REMOTE_ARTIFACT_STORE_PROTOCOLS
+
+
+class ArtifactStoreConfig(BaseModel):
+    """Configuration for a supported durable report-artifact filesystem."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, revalidate_instances="always")
+
+    uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    storage_options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("uri")
+    @classmethod
+    def _require_concrete_uri_prefix(cls, uri: str) -> str:
+        parsed = urlsplit(uri)
+        if has_magic(parsed.path):
+            raise ValueError("artifact store uri path must be a concrete prefix without glob patterns")
+        if parsed.query:
+            raise ValueError("artifact store uri must not contain query credentials; use storage_options instead")
+        protocol = get_protocol(uri)
+        if protocol not in SUPPORTED_ARTIFACT_STORE_PROTOCOLS:
+            supported = ", ".join(sorted(SUPPORTED_ARTIFACT_STORE_PROTOCOLS))
+            raise ValueError(f"unsupported artifact store protocol {protocol!r}; supported protocols: {supported}")
+        if protocol in LOCAL_ARTIFACT_STORE_PROTOCOLS:
+            local_path = parsed.path if parsed.scheme else uri
+            if not os.path.isabs(local_path):
+                raise ValueError("local artifact store uri must use an absolute path shared by every Ray node")
+        return uri
+
+
+def resolve_artifact_store_config(
+    config: ArtifactStoreConfig | dict[str, Any],
+) -> ArtifactStoreConfig:
+    """Validate and detach artifact configuration from caller-owned mutable data."""
+    return ArtifactStoreConfig.model_validate(config).model_copy(deep=True)
 
 
 def build_analytics_store(config: AnalyticsStoreConfig | dict[str, Any]) -> AnalyticsStore:

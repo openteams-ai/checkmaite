@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from checkmaite.jobs import JobStatus, _api
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
@@ -160,7 +161,11 @@ def test_configure_job_backend_rejects_unknown_backend_after_shutting_down_exist
     _api._active_job_backend = backend
 
     with pytest.raises(ValueError, match="Unknown job backend"):
-        _api.configure_job_backend("unknown", analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")})
+        _api.configure_job_backend(
+            "unknown",
+            analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+            artifact_store={"uri": str(tmp_path / "artifacts")},
+        )
 
     assert backend.shutdown_calls == [False]
 
@@ -182,12 +187,51 @@ def test_configure_job_backend_instantiates_requested_backend(
     monkeypatch.setattr(_api, "RaySimpleJobBackend", FakeRaySimpleJobBackend)
 
     store = {"backend": "parquet", "uri": str(tmp_path / "store")}
+    artifact_store = {"uri": str(tmp_path / "artifacts")}
 
-    _api.configure_job_backend(kind, analytics_store=store, option="value")
+    _api.configure_job_backend(
+        kind,
+        analytics_store=store,
+        artifact_store=artifact_store,
+        option="value",
+    )
 
     backend = _api._active_job_backend
     assert isinstance(backend, expected_backend_type)
-    assert backend.kwargs == {"analytics_store": store, "option": "value"}
+    assert backend.kwargs["analytics_store"] == store
+    assert backend.kwargs["artifact_store"].model_dump() == {"uri": str(tmp_path / "artifacts"), "storage_options": {}}
+    assert backend.kwargs["option"] == "value"
+
+
+def test_configure_job_backend_requires_artifact_store_before_shutting_down_existing_backend(tmp_path) -> None:
+    previous = RecordingJobBackend()
+    _api._active_job_backend = previous
+
+    with pytest.raises(TypeError, match="artifact_store"):
+        _api.configure_job_backend(
+            "ray",
+            analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        )
+
+    assert previous.shutdown_calls == []
+    assert _api._active_job_backend is previous
+
+
+def test_configure_job_backend_rejects_unsupported_artifact_store_before_shutting_down_existing_backend(
+    tmp_path,
+) -> None:
+    previous = RecordingJobBackend()
+    _api._active_job_backend = previous
+
+    with pytest.raises(ValidationError, match="unsupported artifact store protocol"):
+        _api.configure_job_backend(
+            "ray",
+            analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+            artifact_store={"uri": "hdfs://namenode/reports"},
+        )
+
+    assert previous.shutdown_calls == []
+    assert _api._active_job_backend is previous
 
 
 def test_configure_job_backend_shuts_down_existing_job_backend(monkeypatch, tmp_path) -> None:
@@ -198,6 +242,7 @@ def test_configure_job_backend_shuts_down_existing_job_backend(monkeypatch, tmp_
     _api.configure_job_backend(
         "ray",
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
+        artifact_store={"uri": str(tmp_path / "artifacts")},
     )
 
     assert previous.shutdown_calls == [False]

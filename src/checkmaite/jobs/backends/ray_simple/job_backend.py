@@ -11,11 +11,10 @@ from typing import Any
 import ray
 from ray.exceptions import GetTimeoutError, TaskCancelledError
 
-from checkmaite.core.analytics_store import AnalyticsStore, Provenance, ProvenanceLike, get_provenance_defaults
-from checkmaite.core.capability_core import CapabilityRunBase
-from checkmaite.jobs._result import build_capability_run_ref
-from checkmaite.jobs._store import AnalyticsStoreConfig, build_analytics_store, write_run_and_get_store_uri
+from checkmaite.core.analytics_store import Provenance, get_provenance_defaults
+from checkmaite.jobs._store import AnalyticsStoreConfig, ArtifactStoreConfig, resolve_artifact_store_config
 from checkmaite.jobs._submission import prepare_job_submission_run_kwargs, resolve_job_name
+from checkmaite.jobs._worker import execute_capability_and_build_ref
 from checkmaite.jobs.protocol import (
     CapabilityRunRef,
     CapabilityType,
@@ -40,19 +39,6 @@ def _ray_simple_job_provenance(job_id: str, submitted_at: datetime) -> Provenanc
     )
 
 
-def _get_worker_store(store_config: AnalyticsStoreConfig | dict[str, Any]) -> AnalyticsStore:
-    return build_analytics_store(store_config)
-
-
-def _write_run_and_collect_store_metadata(
-    store: AnalyticsStore,
-    run: CapabilityRunBase[Any, Any],
-    *,
-    provenance: ProvenanceLike | None = None,
-) -> str | None:
-    return write_run_and_get_store_uri(store, run, provenance=provenance)
-
-
 def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, Any]) -> CapabilityRunRef:
     """Execute one capability submission inside a Ray worker process.
 
@@ -61,30 +47,7 @@ def _execute_capability_ref(capability: CapabilityType, run_kwargs: dict[str, An
     it on a worker, where it runs the capability, writes analytics-store data,
     and returns a lightweight :class:`CapabilityRunRef` to the client.
     """
-    # TODO: Future work should support a remote/shared cache backend
-    # (for example object storage) that workers can read from. At that point,
-    # worker execution can safely opt into cache usage.
-    run_kwargs = prepare_job_submission_run_kwargs(run_kwargs)
-
-    report_threshold = float(run_kwargs.pop("report_threshold", 0.5))
-    raw_store_config = run_kwargs.pop("_analytics_store")
-    raw_provenance = run_kwargs.pop("_provenance", None)
-
-    run = capability.run(**run_kwargs)
-
-    store = _get_worker_store(raw_store_config)
-    provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(timezone.utc)})
-    store_uri = _write_run_and_collect_store_metadata(
-        store,
-        run,
-        provenance=provenance,
-    )
-
-    return build_capability_run_ref(
-        run,
-        store_uri=store_uri,
-        report_threshold=report_threshold,
-    )
+    return execute_capability_and_build_ref(capability, run_kwargs)
 
 
 class RaySimpleJob(Job[CapabilityRunRef]):
@@ -205,7 +168,12 @@ class RaySimpleJobBackend:
         runtime_env: dict[str, Any] | None = None,
         max_retries: int = 0,
         force_reinit: bool = False,
+        *,
+        artifact_store: ArtifactStoreConfig | dict[str, Any],
     ) -> None:
+        self._analytics_store = AnalyticsStoreConfig.model_validate(analytics_store)
+        self._artifact_store = resolve_artifact_store_config(artifact_store)
+
         if force_reinit and ray.is_initialized():
             ray.shutdown()
 
@@ -217,7 +185,6 @@ class RaySimpleJobBackend:
                 "Pass force_reinit=True to reconnect (may interrupt in-flight jobs)."
             )
 
-        self._analytics_store = AnalyticsStoreConfig.model_validate(analytics_store)
         self._max_retries = max_retries
         self._jobs: dict[str, RaySimpleJob] = {}
 
@@ -256,6 +223,7 @@ class RaySimpleJobBackend:
         )(_execute_capability_ref)
 
         run_kwargs["_analytics_store"] = self._analytics_store.model_dump(mode="python")
+        run_kwargs["_artifact_store"] = self._artifact_store.model_dump(mode="python")
         run_kwargs["_provenance"] = _ray_simple_job_provenance(job_id, created_at).model_dump(mode="python")
 
         try:

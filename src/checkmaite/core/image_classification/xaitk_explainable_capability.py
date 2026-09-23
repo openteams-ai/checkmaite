@@ -268,7 +268,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                         md.add_text(f"**Fill Color**: {color_value}")
                         md.add_text(f"**Ground Truth**: {gt_label}")
                         md.add_text(f"**Prediction**: {index2label[sal_idx]}")
-                        md.add_image(img_path, alt_text=f"Saliency Map {sal_idx}")
+                        md.add_embedded_image(img_path, alt_text=f"Saliency Map {sal_idx}", remove_source=True)
             else:
                 for sal_idx, sal_map in enumerate(sal_maps):
                     fig = plt.figure()
@@ -288,7 +288,7 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     md.add_text(f"**Image**: {i}")
                     md.add_text(f"**Ground Truth**: {gt_label}")
                     md.add_text(f"**Prediction**: {index2label[sal_idx]}")
-                    md.add_image(img_path, alt_text=f"Saliency Map {sal_idx}")
+                    md.add_embedded_image(img_path, alt_text=f"Saliency Map {sal_idx}", remove_source=True)
 
         return InlineTextReport(
             media_type="text/markdown",

@@ -14,7 +14,7 @@ from checkmaite.core.capability_core import (
     CapabilityRunBase,
     Number,
 )
-from checkmaite.core.report import MAX_INLINE_REPORT_BYTES, InlineTextReport
+from checkmaite.core.report import MAX_INLINE_REPORT_BYTES, ArtifactReport, CapabilityReport, InlineTextReport
 
 
 class TinyRecord(BaseRecord, table_name="tiny_jobs"):
@@ -36,6 +36,15 @@ class TinyOutputs(CapabilityOutputsBase):
     text: str
 
 
+class ConfigurableReportTinyConfig(TinyConfig):
+    """Tiny capability config for tests that need a specific typed report."""
+
+    report_content: str = "report"
+    report_media_type: str = "text/markdown"
+    report_filename: str = "report.md"
+    report_uri: str | None = None
+
+
 class TinyRun(CapabilityRunBase[TinyConfig, TinyOutputs]):
     config: TinyConfig
     outputs: TinyOutputs
@@ -49,6 +58,26 @@ class TinyRun(CapabilityRunBase[TinyConfig, TinyOutputs]):
 
     def extract(self) -> Sequence[BaseRecord]:
         return [TinyRecord(run_uid=self.run_uid, payload=self.outputs.text)]
+
+
+class ConfigurableReportTinyRun(TinyRun):
+    """Run that returns a report completely described by its immutable config."""
+
+    config: ConfigurableReportTinyConfig
+
+    def collect_md_report(self, threshold: float) -> CapabilityReport:
+        _ = threshold
+        if self.config.report_uri is not None:
+            return ArtifactReport(
+                media_type=self.config.report_media_type,
+                filename=self.config.report_filename,
+                uri=self.config.report_uri,
+            )
+        return InlineTextReport(
+            media_type=self.config.report_media_type,
+            content=self.config.report_content,
+            filename=self.config.report_filename,
+        )
 
 
 class EmptyTinyRun(TinyRun):
@@ -134,6 +163,16 @@ class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
             finish_marker.write_text("finished")
 
         return TinyOutputs(text=output_text)
+
+
+class ConfigurableReportTinyCapability(TinyCapability):
+    """Tiny capability used to exercise arbitrary report finalization."""
+
+    _RUN_TYPE = ConfigurableReportTinyRun
+
+    @classmethod
+    def _create_config(cls) -> ConfigurableReportTinyConfig:
+        return ConfigurableReportTinyConfig()
 
 
 class EmptyTinyCapability(TinyCapability):

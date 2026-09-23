@@ -3,13 +3,25 @@
 `ray-simple` is the lightweight Ray job backend for `CheckMAITE` jobs:
 
 ```python
+from pathlib import Path
+
 from checkmaite.jobs import configure_job_backend
 
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray-simple",
-    analytics_store={"backend": "parquet", "uri": "./job-results"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
+
+The required `artifact_store` externalizes inline reports that exceed the job
+metadata size limit. Its URI must be an absolute local path on a filesystem shared
+by every Ray node and the client, or a supported S3, GCS, or Azure prefix rather
+than a glob. Publication or verification failure fails the job. It does not inspect
+report content or copy linked files. Capabilities must
+return self-contained inline reports or producer-published `ArtifactReport` URIs;
+worker-local and relative paths are not valid distributed outputs.
 
 It submits one Ray task for each capability run and returns a local `RaySimpleJob`
 handle. It is intentionally much simpler than the default `ray` job backend.

@@ -51,6 +51,8 @@ from checkmaite.jobs.backends.ray.registry import (
 from tests.test_jobs.fakes import TinyCapability, TinyConfig
 from tests.test_jobs.ray_test_utils import init_local_ray
 
+TEST_ARTIFACT_STORE_URI = str((Path.cwd() / ".checkmaite-test-artifacts").resolve())
+
 
 @pytest.fixture(scope="module", name="ray_registry_runtime")
 def _ray_registry_runtime():
@@ -77,6 +79,7 @@ def local_ray_registry(ray_registry_runtime, tmp_path: Path):
 
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
         controller_num_cpus=0.0,
@@ -107,6 +110,7 @@ def _configure_registry_backend(
 ) -> None:
     configure_job_backend(
         "ray",
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         address=address,
         force_reinit=force_reinit,
         analytics_store={"backend": "parquet", "uri": str(store_path)},
@@ -316,6 +320,7 @@ configure_job_backend(
     "ray",
     address="auto",
     analytics_store={"backend": "parquet", "uri": store_path},
+    artifact_store={"uri": str(Path(store_path).parent / "artifacts")},
     idempotency_scope=scope,
     controller_num_cpus=0.0,
     registry_namespace=namespace,
@@ -383,12 +388,14 @@ def test_default_registry_is_shared_across_scopes_but_jobs_remain_partitioned(tm
 
     namespace = f"checkmaite-shared-default-{uuid4().hex}"
     backend_a = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "a")},
         idempotency_scope="workspace-a",
         registry_namespace=namespace,
         controller_num_cpus=0.0,
     )
     backend_b = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "b")},
         idempotency_scope="workspace-b",
         registry_namespace=namespace,
@@ -415,12 +422,14 @@ def test_different_ray_namespaces_select_independent_fixed_registries(tmp_path: 
         init_local_ray()
 
     backend_a = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "a")},
         idempotency_scope="same-scope",
         registry_namespace=f"namespace-a-{uuid4().hex}",
         controller_num_cpus=0.0,
     )
     backend_b = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "b")},
         idempotency_scope="same-scope",
         registry_namespace=f"namespace-b-{uuid4().hex}",
@@ -433,6 +442,7 @@ def test_different_ray_namespaces_select_independent_fixed_registries(tmp_path: 
 @pytest.mark.ray
 def test_job_discovery_metadata_and_worker_scheduling_info(local_ray_registry) -> None:
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
@@ -462,6 +472,7 @@ def test_job_discovery_metadata_and_worker_scheduling_info(local_ray_registry) -
 def test_unscheduled_worker_request_fails_after_scheduling_timeout(tmp_path: Path) -> None:
     namespace = f"checkmaite-timeout-{uuid4().hex}"
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
         idempotency_scope=f"scope-{uuid4().hex}",
         registry_namespace=namespace,
@@ -485,6 +496,7 @@ def test_unscheduled_worker_request_fails_after_scheduling_timeout(tmp_path: Pat
 def test_cancel_resource_blocked_scheduling_job_raises_cancelled(tmp_path: Path) -> None:
     namespace = f"checkmaite-cancel-scheduling-{uuid4().hex}"
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
         idempotency_scope=f"scope-{uuid4().hex}",
         registry_namespace=namespace,
@@ -509,6 +521,7 @@ def test_cancel_resource_blocked_scheduling_job_raises_cancelled(tmp_path: Path)
 def test_scope_admission_limit_rejects_an_unbounded_backlog(tmp_path: Path) -> None:
     namespace = f"checkmaite-admission-{uuid4().hex}"
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
         idempotency_scope=f"scope-{uuid4().hex}",
         registry_namespace=namespace,
@@ -532,6 +545,7 @@ def test_scheduling_admission_limit_rejects_before_controller_creation(tmp_path:
     namespace = f"checkmaite-scheduling-admission-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
         idempotency_scope=scope,
         registry_namespace=namespace,
@@ -560,6 +574,7 @@ def test_terminal_controller_cleanup_is_autonomous_when_retention_is_zero(tmp_pa
     namespace = f"checkmaite-retirement-{uuid4().hex}"
     scope = f"scope-{uuid4().hex}"
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(tmp_path / "store")},
         idempotency_scope=scope,
         registry_namespace=namespace,
@@ -591,12 +606,14 @@ def test_terminal_controller_cleanup_is_autonomous_when_retention_is_zero(tmp_pa
 @pytest.mark.ray
 def test_cross_client_duplicate_submit_dedupes_to_one_running_job(local_ray_registry) -> None:
     backend_a = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
@@ -649,12 +666,14 @@ def test_registry_shared_list_and_get_across_clients(local_ray_registry) -> None
     capability = TinyCapability()
 
     backend_a = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
@@ -822,6 +841,7 @@ def test_submit_returns_handle_when_final_registry_read_times_out(tmp_path: Path
         )
         assert ray.get(registry.ping.remote()) is True
         backend = RayJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             address="local",
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             idempotency_scope=scope,
@@ -905,6 +925,7 @@ def test_controller_launch_failure_keeps_terminal_controller_for_retry(local_ray
     prefix = f"controller-launch-failure-{uuid4().hex}"
     backend = FailingControllerStartJobBackend(
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
+        artifact_store={"uri": str(local_ray_registry["store_path"].parent / "artifacts")},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
         registry_namespace=local_ray_registry["namespace"],
@@ -1076,12 +1097,14 @@ def test_running_job_is_not_swept_by_submission_ttl() -> None:
 @pytest.mark.ray
 def test_registry_cancel_updates_shared_state(local_ray_registry) -> None:
     backend_a = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
         registry_namespace=local_ray_registry["namespace"],
     )
     backend_b = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         analytics_store={"backend": "parquet", "uri": str(local_ray_registry["store_path"])},
         idempotency_scope=local_ray_registry["scope"],
         controller_num_cpus=0.0,
@@ -1108,6 +1131,7 @@ def test_registry_cancel_updates_shared_state(local_ray_registry) -> None:
 def test_registry_requires_explicit_scope(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="idempotency_scope is required"):
         RayJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             registry_namespace=f"checkmaite-test-ns-{uuid4().hex}",
         )
@@ -1116,6 +1140,7 @@ def test_registry_requires_explicit_scope(tmp_path: Path) -> None:
 def test_registry_rejects_unsafe_heartbeat_config(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="registry_controller_heartbeat_ttl_s"):
         RayJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             idempotency_scope=f"scope-{uuid4().hex}",
             controller_num_cpus=0.0,
@@ -1399,6 +1424,7 @@ def test_controller_heartbeat_keeps_running_job_from_being_swept(tmp_path: Path)
         init_local_ray()
 
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         address="local",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
@@ -1536,6 +1562,7 @@ def test_registry_sweeps_retained_terminal_job_records(tmp_path: Path) -> None:
         init_local_ray()
 
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         address="local",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
@@ -1614,6 +1641,7 @@ def test_controller_retries_terminal_registry_commit(tmp_path: Path) -> None:
                     "config": TinyConfig(text="terminal-retry"),
                     "use_cache": False,
                     "_analytics_store": {"backend": "parquet", "uri": str(store_path)},
+                    "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
                 },
                 {"num_cpus": 1, "num_gpus": 0.0},
                 0,
@@ -1665,6 +1693,7 @@ def test_registry_sweeps_retained_terminal_controllers(tmp_path: Path) -> None:
         init_local_ray()
 
     backend = RayJobBackend(
+        artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
         address="local",
         analytics_store={"backend": "parquet", "uri": str(store_path)},
         idempotency_scope=scope,
@@ -1970,6 +1999,7 @@ def test_registry_reuse_does_not_compare_handle_pending_call_limits(tmp_path: Pa
         assert ray.get(reattached.describe.remote())["configuration"] == _registry_configuration()
 
         backend = RayJobBackend(
+            artifact_store={"uri": TEST_ARTIFACT_STORE_URI},
             analytics_store={"backend": "parquet", "uri": str(tmp_path / "analytics-store")},
             idempotency_scope=f"scope-{uuid4().hex}",
             registry_namespace=namespace,

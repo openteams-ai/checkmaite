@@ -3,13 +3,21 @@
 `ray-simple` is the lightweight Ray job backend for `CheckMAITE` jobs:
 
 ```python
+from pathlib import Path
+
 from checkmaite.jobs import configure_job_backend
 
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray-simple",
-    analytics_store={"backend": "parquet", "uri": "./job-results"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
+
+Local artifact-store paths must be absolute and mounted at the same path for the
+client and every Ray worker. Use S3, GCS, or Azure when that shared filesystem
+contract is unavailable; process-local `memory` storage is rejected.
 
 It submits one Ray task for each capability run and returns a local `RaySimpleJob`
 handle. It is intentionally much simpler than the default `ray` job backend.
@@ -95,12 +103,16 @@ registry and no detached per-job controller actor.
 ### 1. Configure the job backend
 
 ```python
+from pathlib import Path
+
 from checkmaite.jobs import configure_job_backend
 
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray-simple",
     address="local",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
 

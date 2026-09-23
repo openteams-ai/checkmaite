@@ -20,7 +20,8 @@ So the backend needs explicit configuration for the execution environment and co
 - which backend implementation to use (`"ray"`, `"ray-simple"`, or future backends),
 - where to connect for execution (`address` for Ray clusters),
 - how workers should be prepared (`runtime_env`),
-- where workers should persist analytics results (`analytics_store`),
+- where workers should persist structured analytics results (`analytics_store`),
+- where workers should independently externalize oversized inline reports (`artifact_store`),
 - that job-submission workers run with capability-local caching disabled
   (`use_cache=False`) because worker-local caches are ephemeral and not shared,
 - which clients should share job identity, dedupe, and reattach behavior (`idempotency_scope` for the registry-backed Ray backend),
@@ -56,10 +57,42 @@ configure_job_backend(
         # optional:
         # "storage_options": {...},
     },
+    artifact_store={
+        "uri": "s3://team-checkmaite/report-artifacts",
+        # optional:
+        # "storage_options": {...},
+    },
 )
 ```
 
 The first positional argument selects the job backend. All other keyword arguments are backend-specific configuration forwarded to that backend's constructor.
+
+`analytics_store` and `artifact_store` are deliberately separate. The former
+stores structured, queryable records; the latter stores opaque report files.
+They may point into the same bucket, but can use different storage systems,
+credentials, and retention policies.
+
+`artifact_store` is required for both Ray backends and is not a file-discovery
+service. Its `uri` must be a concrete directory or object-store prefix such as
+`s3://team-checkmaite/report-artifacts`, not a glob such as
+`s3://team-checkmaite/report-artifacts/*`. Supported protocols are local/file,
+S3 (`s3`/`s3a`), GCS (`gs`/`gcs`), and Azure Gen2 (`abfs`/`az`). Local paths
+must be absolute and must identify a filesystem mounted at the same path for the
+client and every Ray worker. Process-local `memory` storage is not supported.
+Remote stores require their corresponding `s3fs`, `gcsfs`,
+or `adlfs` implementation. Put credentials, including Azure SAS tokens, in
+`storage_options`; URI query credentials are rejected so they cannot become part
+of an artifact path or returned report URI. The job backend
+uses it only to externalize an `InlineTextReport` that exceeds the 256 KiB metadata limit.
+Report producers must return self-contained inline content: embedded resources
+should use forms such as `data:` URIs, and any external links must already be
+reachable by report consumers. An `ArtifactReport` must likewise contain a URI
+to an artifact that the producer has already placed in durable storage. Ray
+workers do not inspect Markdown, copy referenced files, or rewrite report links.
+If the configured store cannot publish and verify an oversized report, the job
+fails rather than recording
+successful completion with a missing report. Never return worker-local paths, relative file references, or `file://` URIs from
+a capability intended for distributed execution.
 
 Ray job backend choices:
 
@@ -73,21 +106,29 @@ Ray job backend choices:
 ### Local development with reattachable jobs
 
 ```python
+from pathlib import Path
+
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray",
     address="local",
     idempotency_scope="local-dev",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
 
 ### Local development with the simple Ray job backend
 
 ```python
+from pathlib import Path
+
+output_root = (Path.cwd() / "checkmaite-job-output").resolve()
 configure_job_backend(
     "ray-simple",
     address="local",
-    analytics_store={"backend": "parquet", "uri": "./analytics_store"},
+    analytics_store={"backend": "parquet", "uri": str(output_root / "analytics")},
+    artifact_store={"uri": str(output_root / "report-artifacts")},
 )
 ```
 
@@ -107,6 +148,10 @@ configure_job_backend(
         "uri": "s3://team-checkmaite/analytics-store",
         "storage_options": {"anon": False},
     },
+    artifact_store={
+        "uri": "s3://team-checkmaite/report-artifacts",
+        "storage_options": {"anon": False},
+    },
 )
 ```
 
@@ -117,6 +162,7 @@ configure_job_backend(
     "ray",
     address="ray://cluster-head:10001",
     analytics_store={"backend": "parquet", "uri": "s3://team-checkmaite/analytics-store"},
+    artifact_store={"uri": "s3://team-checkmaite/report-artifacts"},
     idempotency_scope="team-a-notebooks",
     # Use a different Ray namespace when an independent registry is required.
     registry_namespace="checkmaite_jobs",

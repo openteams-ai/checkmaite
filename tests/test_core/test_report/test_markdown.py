@@ -403,6 +403,25 @@ class TestMarkdownOutputImages:
         output = md.render()
         assert "![](images/chart.png)" in output
 
+    def test_add_image_preserves_data_uri(self):
+        """Test adding a self-contained image URI without path normalization."""
+        md = MarkdownOutput("Report")
+        md.add_image("data:image/png;base64,cGxvdA==", alt_text="Plot")
+
+        output = md.render()
+        assert "![Plot](data:image/png;base64,cGxvdA==)" in output
+
+    def test_add_embedded_image_removes_generated_source(self, tmp_path):
+        """Test embedding generated image bytes and cleaning up their temporary file."""
+        image = tmp_path / "plot.png"
+        image.write_bytes(b"plot")
+        md = MarkdownOutput("Report")
+
+        md.add_embedded_image(image, alt_text="Plot", remove_source=True)
+
+        assert "![Plot](data:image/png;base64,cGxvdA==)" in md.render()
+        assert not image.exists()
+
     def test_image_chaining(self):
         """Test that add_image returns self for chaining."""
         md = MarkdownOutput("Report")

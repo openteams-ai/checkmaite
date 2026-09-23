@@ -218,13 +218,17 @@ def test_generate_next_steps_report_md():
     assert len(output) > 0
 
 
-def test_generate_image_property_histograms_report_md(sample_image_stats):
-    """Test generate_image_property_histograms_report_md generates proper markdown."""
+def test_generate_image_property_histograms_report_md(sample_image_stats, tmp_path):
+    """Test image histogram reports embed generated plots without local references."""
     md = MarkdownOutput("Test Report")
-    generate_image_property_histograms_report_md(md, sample_image_stats)
+    artifact_dir = tmp_path / "run-a"
+    generate_image_property_histograms_report_md(md, sample_image_stats, artifact_dir=artifact_dir)
 
     output = md.render()
-    assert len(output) > 0
+    artifact = artifact_dir / "img_stats_histogram_plots.png"
+    assert not artifact.exists()
+    assert "![Image Property Histograms](data:image/png;base64," in output
+    assert str(artifact) not in output
 
 
 def test_generate_label_analysis_report_md(sample_label_stats):
@@ -237,13 +241,17 @@ def test_generate_label_analysis_report_md(sample_label_stats):
     assert len(output) > 0
 
 
-def test_generate_target_property_histograms_report_md(sample_box_stats):
-    """Test generate_target_property_histograms_report_md generates proper markdown."""
+def test_generate_target_property_histograms_report_md(sample_box_stats, tmp_path):
+    """Test target histogram reports embed generated plots without local references."""
     md = MarkdownOutput("Test Report")
-    generate_target_property_histograms_report_md(md, sample_box_stats)
+    artifact_dir = tmp_path / "run-b"
+    generate_target_property_histograms_report_md(md, sample_box_stats, artifact_dir=artifact_dir)
 
     output = md.render()
-    assert len(output) > 0
+    artifact = artifact_dir / "box_stats_histogram_plots.png"
+    assert not artifact.exists()
+    assert "![Target Property Histograms](data:image/png;base64," in output
+    assert str(artifact) not in output
 
 
 def test_dataeval_cleaning_ic_supports():

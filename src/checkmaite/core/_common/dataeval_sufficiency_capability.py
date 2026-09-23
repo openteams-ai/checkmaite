@@ -702,4 +702,4 @@ def report_sufficiency_md(md: MarkdownOutput, target_metric_value: float, output
     md.add_table(dataframe=output.sufficiency_table)
 
     img_path = temp_image_file(output.sufficiency_plot)
-    md.add_image(img_path, alt_text="Sufficiency Visualization")
+    md.add_embedded_image(img_path, alt_text="Sufficiency Visualization", remove_source=True)

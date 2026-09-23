@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-metric image-classification and object-detection evaluation through one shared MAITE inference pass, including when caching is disabled.
 - Attributed `MaiteEvaluationMetricError` failures for metric reset, update, compute, and result normalization.
 - Ray job scheduling status, scheduling deadlines, worker placement diagnostics, bounded job labels, and per-scope admission limits.
+- Independent `artifact_store` configuration for Ray job backends, providing durable local, S3, GCS, or Azure storage for oversized inline reports without coupling report storage to the analytics store.
 - Cache schema version 1 for serialized Pydantic cache entries.
 - A strict, lossless cache validation option alongside the more flexible default serialization.
 - Support for extension fields in cached MAITE datum metadata.
@@ -33,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MaiteEvaluation` now accepts one or more metrics, canonicalizes them by metadata ID, and returns results under `outputs.metrics[metric_id]`. The previous single-metric output attributes have been removed. Its run-cache identity now includes a schema version so incompatible single-metric run entries are not loaded as nested outputs.
 - Ray job clients now use one fixed internal registry actor per Ray namespace while retaining idempotency scopes as logical lookup and deduplication partitions; select another namespace for an independent registry.
 - Existing Ray registry actors now complete a version and immutable-configuration handshake before clients reuse them.
+- **Breaking:** Ray job backends now require `artifact_store` during configuration so missing or unsupported report storage is rejected before any capability runs or analytics are committed. Process-local `memory` stores and relative local paths are rejected; local paths must be absolute and shared by the client and every Ray node.
+- Ray workers now externalize oversized inline reports under job- and run-scoped, path-safe content-addressed keys that deduplicate retries. Mismatched objects are replaced through a supported atomic local rename or object-store commit; if safe replacement is unavailable or fails, publication fails without deleting the existing key. Report producers remain responsible for returning self-contained inline content or durable `ArtifactReport` URIs; job backends do not attempt to discover or rewrite embedded file references.
+- The 256 KiB inline-report limit is now enforced when constructing job-result metadata, allowing report producers to generate a larger self-contained `InlineTextReport` for the backend to externalize.
+- Built-in Markdown reports now embed generated plots and saliency images instead of returning worker-local image paths.
 - Raised the minimum Pydantic version to 2.12.0 and typing-extensions to 4.14.1 for PEP 728 TypedDict support.
 - Cache entries and binary files now use failure-safe publication and clean up partial writes.
 - Binary cache references are decoded only while loading cache entries.

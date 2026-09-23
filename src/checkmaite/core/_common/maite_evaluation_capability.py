@@ -285,7 +285,9 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
                     class_metrics=class_metrics,
                     threshold=threshold,
                 )
-                md.add_image(save_figure_to_tempfile(figure), alt_text=f"Per-Class Metrics: {metric_id}")
+                md.add_embedded_image(
+                    save_figure_to_tempfile(figure), alt_text=f"Per-Class Metrics: {metric_id}", remove_source=True
+                )
                 if missing_classes:
                     md.add_subsection(f"Classes Missing for {metric_id}")
                     md.add_bulleted_list(missing_classes)
@@ -297,7 +299,9 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
                     threshold=threshold,
                     width=0.4,
                 )
-                md.add_image(save_figure_to_tempfile(figure), alt_text=f"Overall Metrics: {metric_id}")
+                md.add_embedded_image(
+                    save_figure_to_tempfile(figure), alt_text=f"Overall Metrics: {metric_id}", remove_source=True
+                )
 
         return InlineTextReport(
             media_type="text/markdown",
@@ -411,8 +415,8 @@ class MaiteEvaluationBase(
         )
         if result is None:
             raise RuntimeError(
-                f'Evaluate returned no results for model ID {model.metadata["id"]!r} and '
-                f'dataset ID {dataset.metadata["id"]!r}.'
+                f"Evaluate returned no results for model ID {model.metadata['id']!r} and "
+                f"dataset ID {dataset.metadata['id']!r}."
             )
 
         normalized_results: dict[str, MaiteMetricResult] = {}

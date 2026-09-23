@@ -12,7 +12,7 @@ import ray
 from ray.actor import ActorHandle
 
 from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
-from checkmaite.core.report import InlineTextReport
+from checkmaite.core.report import ArtifactReport, InlineTextReport
 from checkmaite.jobs import BackpressureError, CapabilityRunRef, shutdown_job_backend
 from checkmaite.jobs.backends.ray import controller as controller_module
 from checkmaite.jobs.backends.ray.controller import (
@@ -27,7 +27,15 @@ from checkmaite.jobs.backends.ray.controller import (
     get_or_create_controller_actor,
 )
 from checkmaite.jobs.backends.ray.registry import RegistryStatus, get_or_create_registry_actor
-from tests.test_jobs.fakes import EmptyTinyCapability, TinyCapability, TinyConfig, TinyDatasetCapability
+from tests.test_jobs.fakes import (
+    EmptyTinyCapability,
+    OversizedReportTinyCapability,
+    TinyCapability,
+    TinyConfig,
+    TinyDatasetCapability,
+)
+
+TEST_ARTIFACT_STORE_URI = str((Path.cwd() / ".checkmaite-test-artifacts").resolve())
 
 
 def _ref_payload(text: str = "ok") -> dict[str, object]:
@@ -1191,6 +1199,7 @@ def test_worker_task_retries_unavailable_startup_handshake(tmp_path: Path) -> No
                 "config": TinyConfig(text="retried-startup"),
                 "use_cache": False,
                 "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+                "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
             },
             controller=controller,
             controller_token=uuid4().hex,
@@ -1212,6 +1221,7 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
             "use_cache": False,
             "report_threshold": 0.75,
             "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+            "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
         },
     )
 
@@ -1226,6 +1236,63 @@ def test_execute_capability_ref_runs_capability_writes_store_and_returns_referen
     }
 
 
+def test_execute_capability_ref_requires_artifact_store_before_running_capability(tmp_path: Path) -> None:
+    marker = tmp_path / "worker-started.txt"
+
+    with pytest.raises(RuntimeError, match="artifact_store configuration is required"):
+        _execute_capability_ref(
+            OversizedReportTinyCapability(),
+            {
+                "config": TinyConfig(text="oversized", start_marker_path=str(marker)),
+                "use_cache": False,
+                "report_threshold": 0.5,
+                "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+            },
+        )
+
+    assert not marker.exists()
+    assert not (tmp_path / "store").exists()
+
+
+def test_execute_capability_ref_publishes_oversized_report_artifact(tmp_path: Path) -> None:
+    artifact_dir = tmp_path / "report-artifacts"
+    ref = _execute_capability_ref(
+        OversizedReportTinyCapability(),
+        {
+            "config": TinyConfig(text="oversized"),
+            "use_cache": False,
+            "report_threshold": 0.5,
+            "_analytics_store": {
+                "backend": "parquet",
+                "uri": str(tmp_path / "store"),
+            },
+            "_artifact_store": {"uri": str(artifact_dir)},
+            "_provenance": {"job_id": "job-1"},
+        },
+    )
+
+    assert isinstance(ref.report, ArtifactReport)
+    assert Path(ref.report.uri.removeprefix("file://")).is_file()
+    assert str(artifact_dir) in ref.report.uri
+
+
+def test_execute_capability_ref_fails_when_oversized_report_publication_fails(tmp_path: Path) -> None:
+    blocked_artifact_path = tmp_path / "blocked-artifact-path"
+    blocked_artifact_path.write_text("not a directory")
+
+    with pytest.raises(RuntimeError, match="configured artifact_store"):
+        _execute_capability_ref(
+            OversizedReportTinyCapability(),
+            {
+                "config": TinyConfig(text="oversized"),
+                "use_cache": False,
+                "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+                "_artifact_store": {"uri": str(blocked_artifact_path)},
+                "_provenance": {"job_id": "job-1"},
+            },
+        )
+
+
 def test_execute_capability_ref_completes_with_empty_analytics(tmp_path: Path) -> None:
     ref = _execute_capability_ref(
         EmptyTinyCapability(),
@@ -1234,6 +1301,7 @@ def test_execute_capability_ref_completes_with_empty_analytics(tmp_path: Path) -
             "use_cache": False,
             "report_threshold": 0.5,
             "_analytics_store": {"backend": "parquet", "uri": str(tmp_path / "store")},
+            "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
         },
     )
 
@@ -1250,6 +1318,7 @@ def test_execute_capability_ref_writes_provenance_to_runs_table(tmp_path: Path, 
             "config": TinyConfig(text="worker"),
             "use_cache": False,
             "_analytics_store": {"backend": "parquet", "uri": str(store_path)},
+            "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
             "_provenance": {
                 "user_id": "alice",
                 "workspace_id": "workspace-a",
@@ -1546,7 +1615,12 @@ def test_controller_actor_smoke_completes_and_cancels_with_real_ray(tmp_path: Pa
         started = ray.get(
             controller.start.remote(
                 TinyCapability(),
-                {"config": TinyConfig(text="controller-smoke"), "use_cache": False, "_analytics_store": store_config},
+                {
+                    "config": TinyConfig(text="controller-smoke"),
+                    "use_cache": False,
+                    "_analytics_store": store_config,
+                    "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
+                },
                 {"num_cpus": 1, "num_gpus": 0.0},
                 0,
                 job.token,
@@ -1575,6 +1649,7 @@ def test_controller_actor_smoke_completes_and_cancels_with_real_ray(tmp_path: Pa
                     "config": TinyConfig(text="cancel", sleep_s=3.0, start_marker_path=str(cancel_started)),
                     "use_cache": False,
                     "_analytics_store": store_config,
+                    "_artifact_store": {"uri": TEST_ARTIFACT_STORE_URI},
                 },
                 {"num_cpus": 1, "num_gpus": 0.0},
                 0,

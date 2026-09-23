@@ -44,6 +44,8 @@ def test_collect_md_report(fake_od_dataset_default):
     output = capability.run(use_cache=False, datasets=[fake_od_dataset_default])
     report = output.collect_md_report(threshold=0.5)
     assert_inline_markdown_report(report, capability_id=output.capability_id)
+    assert "data:image/png;base64," in report.content
+    assert "cleaning-artifacts" not in report.content
 
 
 @pytest.mark.filterwarnings(r"ignore:Image must be larger than \d+x\d+:UserWarning")
