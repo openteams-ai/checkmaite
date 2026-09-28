@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import numpy as np
+from maite.protocols import ModelMetadata
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
 from modelmaite.object_detection import DetectionTarget
@@ -43,7 +44,7 @@ class RayObjectDetectionClient:
 
     def __init__(self, handle: DeploymentHandle) -> None:
         self._handle = handle
-        self.metadata: dict[str, Any] = _get_result(handle.get_metadata.remote())
+        self.metadata: ModelMetadata = _get_result(handle.get_metadata.remote())
 
     def __call__(self, input_batch: Sequence[od.InputType]) -> Sequence[od.TargetType]:
         """Run object detection on a batch of images via the remote deployment.
@@ -81,7 +82,7 @@ class RayImageClassificationClient:
 
     def __init__(self, handle: DeploymentHandle) -> None:
         self._handle = handle
-        self.metadata: dict[str, Any] = _get_result(handle.get_metadata.remote())
+        self.metadata: ModelMetadata = _get_result(handle.get_metadata.remote())
 
     def __call__(self, input_batch: Sequence[ic.InputType]) -> Sequence[ic.TargetType]:
         """Run image classification on a batch of images via the remote deployment.

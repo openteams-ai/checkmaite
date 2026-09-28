@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `maite.protocols.*` and `maite.tasks` entry points for the MAITE components CheckMAITE contains: metrics, YOLO DataLoaders, the XAI explainable-detection baseline dataset, the Ray Serve object-detection and image-classification clients, and the cached `predict` / `evaluate` / `evaluate_from_predictions` tasks. Model wrappers are advertised by modelmaite and the on-disk dataset classes by datamaite.
 - Dependency on `datamaite` 0.5.0 for native MAITE-compatible dataset loading (#717)
 - Native MAITE fieldwise access (`get_input`/`get_target`/`get_metadata`), full COCO `images[]` datum-metadata fields, per-box VisDrone truncation/occlusion metadata, YOLO `split`/`yaml_file`/`ann_dir` loader options, and recursive YOLO image-classification discovery, all provided by datamaite 0.5.0 with no checkmaite-side adapters (#717)
 - Remote (fsspec/UPath) dataset roots for COCO, YOLO, and VisDrone still-image datasets, with `storage_options` on the loader factories. A configured `UPath` root or override is passed through as an object, so its own filesystem options (credentials, endpoints) are kept. A local `ann_file`/`ann_dir` override stays local under a remote root; a local YOLO `ann_dir` under a remote root raises `ValueError` on datamaite 0.5.0 instead of loading images with no labels (#717)

@@ -14,7 +14,7 @@ dataset where CheckMAITE raises.
 """
 
 import random
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Literal, TypedDict
 
@@ -147,7 +147,9 @@ class YoloClassificationDataLoader:
         self._shuffle = shuffle
         self._seed = seed
 
-    def __iter__(self) -> Iterator[tuple[list, list, list]]:
+    def __iter__(
+        self,
+    ) -> Iterator[tuple[Sequence[ic.InputType], Sequence[ic.TargetType], Sequence[ic.DatumMetadataType]]]:
         indices = list(range(len(self._dataset)))
         if self._shuffle:
             rng = random.Random(self._seed)  # noqa: S311  # nosec B311

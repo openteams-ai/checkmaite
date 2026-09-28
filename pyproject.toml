@@ -157,6 +157,37 @@ constraint-dependencies = [
 [project.scripts]
 checkmaite-serve = "checkmaite.ui.app:main"
 
+# IR-1-H-3 advertises the MAITE components this package *contains*. Model wrappers
+# live in modelmaite and on-disk dataset classes in datamaite, so those re-exports
+# are not advertised here. The Ray Serve clients are CheckMAITE-only serving
+# wrappers, and the XAI baseline dataset is capability-specific; both stay.
+[project.entry-points."maite.protocols.object_detection.Dataset"]
+checkmaite_XaitkExplainableDetectionBaselineDataset = "checkmaite.core.object_detection.dataset_loaders:XaitkExplainableDetectionBaselineDataset"
+
+[project.entry-points."maite.protocols.object_detection.Metric"]
+checkmaite_TorchODMetric = "checkmaite.core.object_detection.metrics:TorchODMetric"
+checkmaite_TorchODMultiClassMap50 = "checkmaite.core.object_detection.metrics:TorchODMultiClassMap50"
+
+[project.entry-points."maite.protocols.image_classification.Metric"]
+checkmaite_TorchICMulticlassMetric = "checkmaite.core.image_classification.metrics:TorchICMulticlassMetric"
+
+[project.entry-points."maite.protocols.object_detection.DataLoader"]
+checkmaite_YoloDetectionDataLoader = "checkmaite.core.object_detection.dataset_loaders:YoloDetectionDataLoader"
+
+[project.entry-points."maite.protocols.image_classification.DataLoader"]
+checkmaite_YoloClassificationDataLoader = "checkmaite.core.image_classification.dataset_loaders:YoloClassificationDataLoader"
+
+[project.entry-points."maite.protocols.object_detection.Model"]
+checkmaite_RayObjectDetectionClient = "checkmaite.core.serving.rayserve:RayObjectDetectionClient"
+
+[project.entry-points."maite.protocols.image_classification.Model"]
+checkmaite_RayImageClassificationClient = "checkmaite.core.serving.rayserve:RayImageClassificationClient"
+
+[project.entry-points."maite.tasks"]
+checkmaite_predict = "checkmaite.core.cached_tasks:predict"
+checkmaite_evaluate = "checkmaite.core.cached_tasks:evaluate"
+checkmaite_evaluate_from_predictions = "checkmaite.core.cached_tasks:evaluate_from_predictions"
+
 [project.optional-dependencies]
 ui = [
     "holoviews>=1.20.0",

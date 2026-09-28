@@ -15,6 +15,12 @@ Ensure you have the right permissions, and clone the project repository:
 git clone https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git
 ```
 
+On macOS, install OpenMP before creating the environment (`dataeval` → LightGBM needs `libomp.dylib`):
+
+```bash
+brew install libomp
+```
+
 ## Create environment and install the package
 
 The supported install path is `uv`. We also provide a conda-based alternative.

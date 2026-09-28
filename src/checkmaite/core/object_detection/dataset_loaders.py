@@ -12,7 +12,7 @@ complete source integrity (see :mod:`checkmaite.core._common.dataset_utils`).
 """
 
 import random
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Literal, TypedDict
 
@@ -213,10 +213,11 @@ class XaitkExplainableDetectionBaselineDataset(od.Dataset):
     """Replace ground-truth targets with a model's top predictions for XAITK."""
 
     def __init__(self, dataset: od.Dataset, model: od.Model, dets_limit: int = 10) -> None:
-        metadata_args: dict = {"id": f"xai_temp_{dataset.metadata['id']}"}
+        metadata_id = f"xai_temp_{dataset.metadata['id']}"
         if "index2label" in dataset.metadata:
-            metadata_args["index2label"] = dataset.metadata["index2label"]
-        self.metadata = DatasetMetadata(**metadata_args)
+            self.metadata = DatasetMetadata(id=metadata_id, index2label=dataset.metadata["index2label"])
+        else:
+            self.metadata = DatasetMetadata(id=metadata_id)
         self.items = self._construct_dataset(dataset, model, dets_limit)
 
     def __getitem__(self, index: int) -> tuple[Tensor, DetectionTarget, od.DatumMetadataType]:
@@ -265,7 +266,9 @@ class YoloDetectionDataLoader:
         self._shuffle = shuffle
         self._seed = seed
 
-    def __iter__(self) -> Iterator[tuple[list, list, list]]:
+    def __iter__(
+        self,
+    ) -> Iterator[tuple[Sequence[od.InputType], Sequence[od.TargetType], Sequence[od.DatumMetadataType]]]:
         indices = list(range(len(self._dataset)))
         if self._shuffle:
             rng = random.Random(self._seed)  # noqa: S311  # nosec B311

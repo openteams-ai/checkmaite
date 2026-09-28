@@ -37,6 +37,7 @@ stages:
   - test
   - docs
   - dr-compliance
+  - ir-compliance
   - publish-test
   - publish
 
@@ -259,6 +260,7 @@ pyright-internal:
   script:
     - uv sync --locked --extra ui
     - uv run --no-sync pyright src/
+    - uv run --no-sync python scripts/statically_verify_maite_entrypoints.py
 
 # DOCUMENTATION
 # deploy docs for merge requests
@@ -533,4 +535,11 @@ include:
       sast_search_max_depth: "4"
       image: harbor.jatic.net:443/platform-team/base-images/python-base-image:3.11
       full_execution_on_commit: true # set full_execution_on_commit: true to run the component on every pushed commit
+      allow_failure: true
+
+  - component: gitlab.jatic.net/jatic/devsecops/components/ir-compliance@1.2.0
+    inputs:
+      stage: ir-compliance
+      maite_interop_scope: "provider"
+      full_execution_on_commit: true
       allow_failure: true
