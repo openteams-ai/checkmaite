@@ -1,14 +1,14 @@
 # User Personas
 
-CheckMAITE has multiple interfaces which can be utilized by several different personas of varying skills. The personas
-below represent the core users we support. 
+CheckMAITE's Python API supports several personas with varying skill levels. The personas below represent the core
+users we support.
 
 ## Data Scientist
 
 ### Who They Are
 
 * Researchers / analytics / data scientists working with dataset and models
-* Most comfortable using Jupyter Notebooks or other UI frameworks, but can read/write some Python code as needed
+* Most comfortable using Jupyter Notebooks, but can read/write some Python code as needed
 * Focused on analysis and experimentation, not infrastructure
 
 ### Key Workflows
@@ -28,7 +28,7 @@ below represent the core users we support.
 
 ### What they need
 * Low barrier to entry for new tooling
-* Jupyter Notebook and/or UI interfaces to execute workflows
+* Jupyter Notebook workflows with clear, reusable Python examples
 * Reproducibility of workflows
 * Ability to search previously executed workflows
 * High level guidance on JATIC tool usage through reasonable defaults and documentation

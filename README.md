@@ -5,7 +5,7 @@
 ## Description
 
 **What is CheckMAITE?**
-CheckMAITE is an API and a UI application which makes testing and evaluation of models and datasets straightforward and reproducible. It can be used to run a wide variety of **Model Evaluation** and **Dataset Analysis** investigations for both **Object Detection** and **Image Classification** computer vision problems.
+CheckMAITE is a Python API which makes testing and evaluation of models and datasets straightforward and reproducible. It can be used to run a wide variety of **Model Evaluation** and **Dataset Analysis** investigations for both **Object Detection** and **Image Classification** computer vision problems.
 
 It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jatic.net/public/) tools and has since expanded focus. Our goal is to make T&E easier for analysts!
 

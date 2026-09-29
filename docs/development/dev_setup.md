@@ -57,10 +57,9 @@ To contribute to the documentation, install with the docs dependencies:
 uv sync --group docs
 ```
 
-There are also optional dependency extras, `ui` and `reporting`:
+There is also an optional `reporting` dependency extra:
 
 ```bash
-uv sync --extra ui
 uv sync --extra reporting   # PDF report export (markdown + xhtml2pdf)
 ```
 
@@ -99,9 +98,8 @@ To set up a conda environment, [install `conda`](https://docs.conda.io/projects/
 conda create -n checkmaite "conda-lock>=3"
 # activate the environment
 conda activate checkmaite
-# use conda-lock to install dependencies (include the `ui` extra so the full
-# test suite can be collected)
-conda-lock install -n checkmaite --extras ui conda-lock.yml
+# use conda-lock to install dependencies
+conda-lock install -n checkmaite conda-lock.yml
 # finally, install the `checkmaite` package
 pip install -e . --no-deps
 ```

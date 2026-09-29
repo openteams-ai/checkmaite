@@ -12,7 +12,7 @@ Use the narrowest model-integration path that fits the model:
 - Use JATIC_ONNX for generic model interchange when the model can be exported with the JATIC_ONNX input/output contract.
 - Use CheckMAITE plugins for Python/PyTorch models that require custom architecture code, preprocessing, or postprocessing.
 
-CheckMAITE does not currently load arbitrary local Python model modules from the UI. Custom Python execution should live in a wrapper or plugin where it can be tested and reviewed explicitly.
+CheckMAITE does not load arbitrary local Python model modules directly. Custom Python execution should live in a wrapper or plugin where it can be tested and reviewed explicitly.
 
 ## Supported interface
 

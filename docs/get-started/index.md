@@ -1,9 +1,6 @@
 # Get started
 
-We offer two key ways of executing workflows on `CheckMAITE`:
-
-* An interactive web-based __user interface__ (UI)
-* An __API__ for programmatic access via Python object interfaces
+`CheckMAITE` workflows are executed through a Python __API__ for programmatic access via Python object interfaces.
 
 Click on the respective pages below to get started.
 
@@ -13,11 +10,6 @@ Click on the respective pages below to get started.
 
     ---
     Install and setup `CheckMAITE` on your local machine to start using it!
-
-* :material-tab:{ .lg .middle } [__Interactive Access to `CheckMAITE`__ :octicons-arrow-right-24:](checkmaite_interactive.md)
-
-    ---
-    Interactive access to the application (web UI) for Object Detection and Image Classification workflows.
 
 * :material-connection:{ .lg .middle } [__Object Detection Workflow via API__ :octicons-arrow-right-24:](checkmaite_api_od.ipynb)
 

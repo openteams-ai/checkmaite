@@ -36,7 +36,6 @@ uv sync
 Optional extras:
 
 ```bash
-uv sync --extra ui         # UI dependencies
 uv sync --extra reporting  # PDF report export (markdown + xhtml2pdf)
 uv sync --extra cloud      # cloud storage dependencies (aws+gcs+azure)
 ```

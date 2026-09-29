@@ -31,7 +31,6 @@ nav:  # navigation links on sidebar
   - Get started:
     - get-started/index.md
     - Setup: get-started/install_setup.md
-    - Run `CheckMAITE` interactively: get-started/checkmaite_interactive.md
     - Object Detection Workflow via API: get-started/checkmaite_api_od.ipynb
     - Image Classification Workflow via API: get-started/checkmaite_api_ic.ipynb
     - Remote Inference with Ray Serve: get-started/checkmaite_ray_serve.ipynb

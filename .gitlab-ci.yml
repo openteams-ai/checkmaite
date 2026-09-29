@@ -160,10 +160,8 @@ stages:
     - *git_config
     # Regenerate conda-lock.yml from pyproject.toml so dynamic-conda-test
     # exercises a freshly resolved lockfile (catches upstream dep drift).
-    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras --extras ui -p linux-64 --lockfile conda-lock.yml
-    # --extras ui: install the ui-category packages from the lockfile too
-    # (conda-lock install skips extras categories by default).
-    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS --extras ui conda-lock.yml
+    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras -p linux-64 --lockfile conda-lock.yml
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
 
@@ -196,10 +194,8 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - uv sync --locked --extra ui --extra onnx
+    - uv sync --locked --extra onnx
     - *install_checkmaite_plugins
-    - uv run --no-sync python src/checkmaite/ui/configuration_pages/object_detection/nrtk_app.py --ci
-    - uv run --no-sync python src/checkmaite/ui/configuration_pages/object_detection/xaitk_app.py --ci
     - uv run --no-sync pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -244,9 +240,7 @@ conda-lock-test:
     - eval "$(micromamba shell hook --shell bash)"
     - micromamba activate $CONDA_ENV_NAME
     - *git_config
-    # --extras ui: install the ui-category packages from the lockfile too
-    # (conda-lock install skips extras categories by default).
-    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS --extras ui conda-lock.yml
+    - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
   script:
@@ -258,7 +252,7 @@ pyright-internal:
   stage: pyright
   needs: []
   script:
-    - uv sync --locked --extra ui
+    - uv sync --locked
     - uv run --no-sync pyright src/
     - uv run --no-sync python scripts/statically_verify_maite_entrypoints.py
 

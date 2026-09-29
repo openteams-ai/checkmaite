@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-24
+
 ### Added
 - `maite.protocols.*` and `maite.tasks` entry points for the MAITE components CheckMAITE contains: metrics, YOLO DataLoaders, the XAI explainable-detection baseline dataset, the Ray Serve object-detection and image-classification clients, and the cached `predict` / `evaluate` / `evaluate_from_predictions` tasks. Model wrappers are advertised by modelmaite and the on-disk dataset classes by datamaite.
 - Dependency on `datamaite` 0.5.0 for native MAITE-compatible dataset loading (#717)
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-metric image-classification and object-detection evaluation through one shared MAITE inference pass, including when caching is disabled.
 - Attributed `MaiteEvaluationMetricError` failures for metric reset, update, compute, and result normalization.
 - Ray job scheduling status, scheduling deadlines, worker placement diagnostics, bounded job labels, and per-scope admission limits.
+- `JobSubmissionError`, exported from `checkmaite.jobs`, which the Ray job backend raises with the failed submission phase and, when known, the job ID if a job fails before its handle is returned.
 - Independent `artifact_store` configuration for Ray job backends, providing durable local, S3, GCS, or Azure storage for oversized inline reports without coupling report storage to the analytics store.
 - Cache schema version 1 for serialized Pydantic cache entries.
 - A strict, lossless cache validation option alongside the more flexible default serialization.
@@ -51,13 +54,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded nrtk to 1.0.4.
 - Lowered declared floors for `torchmetrics` (1.0.0), `scikit-learn` (1.5.2), `matplotlib` (3.7.1), and `pytest` (7.3.1) to the SR-4-H-2 program table. Dropped `extended_summary` and `average` from object-detection mAP factory kwargs so the torchmetrics 1.0.0 constructor is usable. Metric cache identities that hash those kwargs will change.
 - Documented the supported OS, Python (uv vs conda), and GPU baseline in the README and install guide, and pointed clone, contributing, and docs URLs at this project.
-
 - Model wrappers (`TorchvisionODModel`, `VisdroneODModel`, `OnnxODModel`, `TorchvisionICModel`, `OnnxICModel`) are now modelmaite's, re-exported from their historical CheckMAITE import paths; `ModelSpecification`, `load_models`, and `SUPPORTED_MODELS` remain CheckMAITE's config-facing contract (#718)
 - `load_models` now delegates dispatch to modelmaite's native factories (IC re-exported directly; OD translates the legacy VisDrone `model_weights_path` key to `model_pickle_dir` first). Keyword arguments now reach VisDrone wrappers, a missing or unsupported `model_type` raises modelmaite's `ValueError` (previously `KeyError`/`RuntimeError`), and unsupported-type errors list the supported models (#718)
 - Model prediction targets are NumPy-backed (modelmaite) rather than Torch tensors; the VisDrone wrapper name dropped the doubled `centernet-` prefix; missing optional dependencies and failed weight downloads now raise modelmaite's stricter, hint-bearing errors (#718)
 - **Breaking:** the ONNX wrappers now accept only `uint8` integer images. CheckMAITE's removed `_normalize_image` accepted any non-negative integer dtype and scaled by that dtype's maximum; modelmaite 0.1.0 raises `TypeError` for any integer dtype other than `uint8`, so MAITE datasets yielding `uint16` or positive `int16` images must convert to `float32` in `[0, 1]` before calling the wrapper. Parity is restored upstream in modelmaite !15 and will return here with the pin bump to the release carrying it (#718)
+- The deprecated Gradient table-of-contents slides for DataEval bias, cleaning, and sufficiency reports now show a short text column instead of a decorative image, and the packaged `checkmaite/assets` image directory has been removed.
+- Release publishing now pins the build backend (`hatchling` 1.31.0, `uv-dynamic-versioning` 0.14.0), bounds the upload wait, skips artifacts already accepted when a publish job is retried, and verifies every published artifact's digest against the locally built artifact.
 
 ### Removed
+- **Breaking:** Removed the Panel-based web UI (`checkmaite.ui`), the `checkmaite-serve` console script, and the `ui` optional-dependency extra (`holoviews`, `jupyterlab`, `nbconvert`, `panel`, `streamz`), along with the UI tests, the UI-driven end-to-end tests, and the interactive UI documentation. Use the Python API to configure and run capabilities.
 - Removed the Ray backend's `registry_actor_name` option. New clients use one fixed registry actor per Ray namespace and do not discover registries created with the previous scope-hashed names. Before upgrading, finish or cancel in-flight jobs with the previous CheckMAITE release, or keep that client available until the Ray cluster is recycled.
 - CheckMAITE's in-tree model wrapper implementations and their ONNX/torchvision helper utilities in `checkmaite.core._utils`, now maintained in modelmaite (#718)
 - CheckMAITE's `YoloClassificationDataset`, `CocoDetectionDataset`, `YoloDetectionDataset`, and `VisdroneDetectionDataset` objects and their concrete Torch-output contract (#717)
@@ -68,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Passed datum metadata to metrics when evaluating cached predictions.
 - Restored cache loading for Torch tensor subclasses on Torch 2.6 and later and for PIL images backed by temporary buffers.
 - Preserved generator-backed MOT frames in fresh augmented-data debugging responses.
+- `DataevalCleaningRun.collect_md_report()` now writes its temporary histogram plots to a per-run directory and removes them after embedding, so concurrent Markdown report runs no longer overwrite each other's plots.
 
 ## [0.3.0] - 2026-07-24
 
@@ -268,7 +274,8 @@ Initial public release of CheckMAITE.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...HEAD
+[0.4.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...0.4.0
 [0.3.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.2...0.3.0
 [0.2.2]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.1...0.2.2
 [0.2.1]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.0...0.2.1

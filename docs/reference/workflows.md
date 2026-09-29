@@ -1,57 +1,12 @@
 # Workflows
 
-CheckMAITE supports T&E analyses utilizing JATIC tooling through several different workflows. Each workflow may be appropriate for a different user group or a different usecase.
+CheckMAITE supports T&E analyses utilizing JATIC tooling through its Python API. This workflow can be adapted to different user groups and use cases.
 
 Several aspects of the workflow are under active development.
 
 !!! info "Feature Status"
     - [x] = Implemented
     - [ ] = Not yet implemented
-
-## UI Workflow
-
-### Key Points
-* User-friendly, low code introduction to JATIC tools
-* May be run within a Jupyter Notebook, deployed locally, or deployed as a web app on an external server
-
-
-### Walkthrough
-
-Below is a typical walkthough of a user interacting with the UI to perform T&E analytics using JATIC tools.
-
-1. Launch the dashboard (or navigates to a deployment of the dashboard)
-2. Select the tools to be applied.
-3. Configure tools through the interface (only applicable to some tools)
-4. Define model(s) to be analyzed
-5. Define dataset(s) to be analyzed
-6. Click "Run Analysis" to begin the execution of all the analyses
-7. Once execution is complete, review the output results
-
-### Target Audience
-
-* Data Scientists and junior ML Engineers
-* Program leads
-* Demo drivers running a demo of JATIC tools
-* Users wanting to see the JATIC tools in action but not interested in a deep dive into each tool just yet
-* Users wanting to conduct T&E analysis using JATIC tools in a simplified interface
-
-### Local vs Deployed
-
-This workflow has a few implementation changes depending on if the workflow is run locally or in a deployed, multi-user environment. 
-
-#### Local
-
-- [x] User is expected to launch the dashboard. Options are to deploy the web app via the Panel CLI or run inside of a Jupyter Notebook. 
-- [x] Models are stored locally (i.e. not being served anywhere)
-- [x] Datasets are stored locally
-- [x] Execution happens on the same machine that is running the UI
-
-#### Deployed platform
-
-- [x] Launching the dashboard may be completed by the user or by a system admin (in which case user may just navigate to the web app). Running in a Jupyter Notebook is also an option. 
-- [ ] Models are served on the platform (UI queries the model service for available options and presents those to the user)
-- [ ] Datasets are served on the platform (UI queries the datasets that are available on the platform and presents those to the user)
-- [ ] Execution happens on a separate server from the UI server
 
 ## Python API Workflow
 
@@ -87,7 +42,7 @@ This workflow has a few implementation changes depending on if the workflow is r
 - [x] User creates a python script 
 - [x] Models are stored locally (i.e. not being served anywhere)
 - [x] Datasets are stored locally
-- [x] Execution happens on the same machine that is running the UI
+- [x] Execution happens on the same machine that is running the script
 
 #### Deployed platform
 

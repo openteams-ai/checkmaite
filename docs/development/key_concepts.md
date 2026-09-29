@@ -417,9 +417,3 @@ To add analytics store support to a new capability, define a `BaseRecord` subcla
 For a complete list of available tables and their fields, see the [Record Schema Reference](analytics_store_guide.ipynb) (Part 5).
 
 For hands-on usage examples (creating a store, writing runs, querying via SQL), see the [Analytics Store Tutorial](../tool-usage/analytics_store_tutorial.ipynb).
-
----
-
-## Optional Dependencies
-
-UI-related dependencies (Panel, HoloViews, JupyterLab, etc.) are **optional** and not installed by default. This keeps the base package lightweight for use in non-interactive / production environments.

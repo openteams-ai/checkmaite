@@ -795,13 +795,10 @@ def generate_table_of_contents(deck: str) -> dict[str, Any]:  # pragma: no cover
         "* Next Steps",
     ]
 
-    left_item = gd.GradientImage(
-        src=Path(__file__).parents[2] / "assets/toc.png",
-        width=100,
-        height=100,
-        top=0.5,
-        left=0.5,
-    )
+    left_item = [
+        "\n",
+        "This report covers the following analyses:",
+    ]
     return gd.create_two_item_text_slide(
         deck=deck, title="Table of Contents", left_item=left_item, right_item=right_item
     )

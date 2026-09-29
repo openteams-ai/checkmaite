@@ -1,18 +1,17 @@
 # CheckMAITE Documentation
 
-CheckMAITE is an API and a UI application which makes testing and evaluation of models and datasets straightforward and reproducible. It can be used to run a wide variety of **Model Evaluation** and **Dataset Analysis** investigations for both **Object Detection** and **Image Classification** computer vision problems.
+CheckMAITE is a Python API which makes testing and evaluation of models and datasets straightforward and reproducible. It can be used to run a wide variety of **Model Evaluation** and **Dataset Analysis** investigations for both **Object Detection** and **Image Classification** computer vision problems.
 
 It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jatic.net/public/) tools and has since expanded focus. Our goal is to make T&E easier for analysts!
 
 ## Who is CheckMAITE for?
 
-* **Low code users** - Our UI users are typically interested in testing and evaluation, likely have a good understanding of the domain, but may or may not be Data Scientists. They interact with CheckMAITE through the UI applications we provide.
 * **No prior knowledge of specific JATIC tools** - Our users may or may not be familiar with the individual [JATIC products](https://cdao.pages.jatic.net/public/products/). They are familiar with their datasets and models and simply want to perform testing without needing to learn a new tool (or suite of tools).
 * **Have their own models and datasets** - Our users are expected to come with arbitrary models and datasets. Among other out-of-the-box models, we enable loading default weights from torchvision while also providing a framework for users to bring their own. 
 
 ## Quick start
 
-New to CheckMAITE? Start with the [Get started guide](get-started/index.md) for setup, interactive UI access, API workflows, remote inference, and saving or querying results.
+New to CheckMAITE? Start with the [Get started guide](get-started/index.md) for setup, API workflows, remote inference, and saving or querying results.
 
 ## About the JATIC program and CDAO
 
