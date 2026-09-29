@@ -1,6 +1,9 @@
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      variables:
+        # Keep MR pipelines off main's model-weights cache (see .model-weights-cache).
+        MODEL_WEIGHTS_CACHE_SUFFIX: "-mr"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
@@ -28,6 +31,7 @@ variables:
   CHECKMAITE_PLUGINS_INSTALL_SPEC:
     value: "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
     description: "Direct install spec for checkmaite-plugins; kept out of package metadata for PyPI compatibility."
+  MODEL_WEIGHTS_CACHE_SUFFIX: ""  # "-mr" in MR pipelines, set in workflow:rules
 
 
 stages:
@@ -96,6 +100,7 @@ stages:
       free -m | grep Mem
       df -h / | tail -1
       cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null | awk '{printf "cgroup mem: %.0f MB\n", $1/1024/1024}' || true
+      sleep 30
     done >> artifacts/resource-monitor.txt 2>&1) &
     echo $! > /tmp/monitor_pid
     echo "Diagnostics started (PID: $(cat /tmp/monitor_pid))"
@@ -120,6 +125,9 @@ stages:
     - when: never  # explicit fail-exclude terminal condition.
   variables:
     ARTIFACT_DIR: "artifacts"  # must match test.artifacts.path below
+    # Model weights land here so test jobs can cache them (see .model-weights-cache).
+    TORCH_HOME: "$CI_PROJECT_DIR/.cache/torch"
+    HF_HOME: "$CI_PROJECT_DIR/.cache/huggingface"
   after_script:
     # Capture final resource state even on SIGKILL/failure
     - |
@@ -139,6 +147,16 @@ stages:
     paths:
       - artifacts/*
 
+# Tests download pretrained weights (torchvision, HuggingFace) with no network
+# timeout; a stalled download hung CI. Cache them so tests don't hit the network.
+# Maintainer-started MR pipelines get GitLab's "-protected" cache suffix, same as
+# main, so MRs use their own key to avoid writing the cache main reads.
+.model-weights-cache: &model_weights_cache
+  key: model-weights-v1${MODEL_WEIGHTS_CACHE_SUFFIX}
+  paths:
+    - .cache/torch
+    - .cache/huggingface
+
 .conda-setup:
   # Overrides the image from .python-matrix; Python version is
   # installed via micromamba create python=$VERSION instead
@@ -150,6 +168,7 @@ stages:
         prefix: conda-env-py${VERSION}
       paths:
         - .conda-env/
+    - *model_weights_cache
   before_script:
     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'
@@ -190,13 +209,16 @@ test:
   extends: [.python-matrix, .shared-setup, .uv-setup]
   stage: test
   needs: []
-  timeout: 3h
+  timeout: 1h
+  cache:
+    - *model_weights_cache
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
     - uv sync --locked --extra onnx
     - *install_checkmaite_plugins
-    - uv run --no-sync pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
+    # SIGABRT a hung pytest (mid-test or at exit) so PYTHONFAULTHANDLER dumps every thread's stack.
+    - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -232,6 +254,7 @@ conda-lock-test:
         prefix: conda-lock-env
       paths:
         - .conda-env/
+    - *model_weights_cache
   before_script:
     # Diagnostics skipped in conda jobs — mambaorg/micromamba image lacks standard Linux tools (free, nproc, df)
     - export CONDA_ENV_NAME='test-env' CONDA_LOCK_ARGS='--micromamba'

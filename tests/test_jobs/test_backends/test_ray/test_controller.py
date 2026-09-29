@@ -1172,7 +1172,8 @@ def test_worker_translates_non_timeout_controller_rpc_failure(monkeypatch) -> No
 
 @pytest.mark.usefixtures("_jobs_smoke_ray_runtime")
 def test_worker_task_retries_unavailable_startup_handshake(tmp_path: Path) -> None:
-    @ray.remote
+    # Threaded so the retry's handshake isn't queued behind the first attempt's sleep.
+    @ray.remote(max_concurrency=2)
     class RetryStartupController:
         def __init__(self) -> None:
             self.attempts = 0
@@ -1180,7 +1181,7 @@ def test_worker_task_retries_unavailable_startup_handshake(tmp_path: Path) -> No
         def worker_started(self, _token, _worker_info):
             self.attempts += 1
             if self.attempts == 1:
-                time.sleep(0.1)
+                time.sleep(5)
                 return None
             return True
 
@@ -1203,7 +1204,7 @@ def test_worker_task_retries_unavailable_startup_handshake(tmp_path: Path) -> No
             },
             controller=controller,
             controller_token=uuid4().hex,
-            startup_timeout_s=0.08,
+            startup_timeout_s=2.0,
         ),
         timeout=30,
     )
