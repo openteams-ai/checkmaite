@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
+
 ## [0.4.0] - 2026-09-24
 
 ### Added
