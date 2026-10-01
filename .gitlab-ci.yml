@@ -536,6 +536,25 @@ publish-pypi:
       allow_failure: false
     - when: never
 
+# Create the GitLab Release once the package is on PyPI.
+create-gitlab-release:
+  stage: publish
+  image:
+    name: registry.gitlab.com/gitlab-org/cli:v1.120.0
+    entrypoint: [""]
+  needs: [publish-pypi]
+  interruptible: false
+  variables:
+    GIT_DEPTH: "0"
+    GLAB_ENABLE_CI_AUTOLOGIN: "true"
+  script:
+    - apk add --no-cache curl git jq
+    - git fetch --force origin "+refs/tags/*:refs/tags/*"
+    - sh scripts/create_gitlab_release.sh "$RELEASE_TAG"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+
 
 # SECURITY STAGES
 include:
