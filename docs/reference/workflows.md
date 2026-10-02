@@ -4,6 +4,8 @@ CheckMAITE supports T&E analyses utilizing JATIC tooling through its Python API.
 
 Several aspects of the workflow are under active development.
 
+This page covers the steps of a single analysis. For how the tutorials fit into a full project, from curating a dataset to choosing a model, see the [T&E workflow](personas.md#te-workflow).
+
 !!! info "Feature Status"
     - [x] = Implemented
     - [ ] = Not yet implemented

@@ -62,3 +62,48 @@ users we support.
 * Ability to run workflows on external resources (e.g. cloud)
 * Ability to discovery models and datasets available
 * Deep understanding of JATIC tools in order to build interfaces for data scientists
+
+## T&E workflow
+
+A typical CheckMAITE project curates a new dataset, then uses it to pick the most suitable of the available models.
+Each tutorial covers one stage of that workflow.
+
+### 1. Bring your model and dataset
+
+**Led by:** ML Engineer
+
+Wrap the model and dataset so CheckMAITE can run them. Every later stage depends on this step.
+Tutorial: [ONNX object detection wrapper](../tool-usage/onnx_object_detection_wrapper.ipynb).
+
+### 2. Curate the dataset
+
+**Led by:** Data Scientist
+
+Check that the dataset is fit to evaluate models against before trusting any model result on it. Remove low-quality
+data, look for biases and correlations, compare it with operational data, and check that the task is achievable.
+Tutorials: [Cleaning](../tool-usage/dataeval_linting_tutorial.ipynb), [Bias](../tool-usage/dataeval_bias_tutorial.ipynb),
+[Shift](../tool-usage/dataeval_shift_tutorial.ipynb), [Feasibility](../tool-usage/dataeval_feasibility_tutorial.ipynb).
+
+### 3. Evaluate the model
+
+**Led by:** Data Scientist
+
+Measure how each candidate model holds up under realistic perturbations and inspect what drives its predictions, so
+the team can choose which model to fine-tune.
+Tutorials: [NRTK](../tool-usage/nrtk_tutorial.ipynb), [XAITK](../tool-usage/xaitk_tutorial.ipynb).
+
+### 4. Record and compare results
+
+**Led by:** Data Scientist
+
+Store results from every stage so they can be compared across runs, datasets, and models without re-running anything.
+Tutorial: [Analytics Store](../tool-usage/analytics_store_tutorial.ipynb).
+
+### 5. Run at scale
+
+**Led by:** ML Engineer, with Data Scientists using it when local compute isn't enough
+
+Move stages 2–4 off the local machine when they need more compute or have to be shared, and serve models remotely.
+Tutorials: [Ray Simple Job Submission](../tool-usage/ray_simple_job_submission_tutorial.ipynb),
+[Ray Job Submission](../tool-usage/ray_job_submission_tutorial.ipynb),
+[Remote Inference with Ray Serve](../get-started/checkmaite_ray_serve.ipynb).

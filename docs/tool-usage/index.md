@@ -1,5 +1,7 @@
 # Using JATIC tools
 
+These tutorials follow the [T&E workflow](../reference/personas.md#te-workflow). Each one names its persona and the workflow stage it covers.
+
 ## Dataset evaluation
 
 <div class="grid cards" markdown >

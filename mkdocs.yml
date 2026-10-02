@@ -73,7 +73,6 @@ nav:  # navigation links on sidebar
       - Worker environments: development/job_submission/worker_environments.md
       - Kubernetes and KubeRay: development/job_submission/kubernetes.md
       - Distributed analytics store: development/job_submission/analytics_store.md
-    - User persona: development/persona.md
     - Plugin system: development/plugins.md
     - Releasing: RELEASING.md
     - ONNX model wrappers: development/onnx_model_wrappers.md

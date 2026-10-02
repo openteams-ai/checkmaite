@@ -12,10 +12,6 @@ Documentation for CheckMAITE developers and contributors.
 
     Branching, merging, and release strategy.
 
--  [__User persona__ :octicons-arrow-right-24:](persona.md)
-
-    Persona for a typical user of CheckMAITE, to guide development decisions.
-
 -  [__Plugin system__ :octicons-arrow-right-24:](plugins.md)
 
     How to create, install, and debug CheckMAITE plugins.
