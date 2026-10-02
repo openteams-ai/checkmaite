@@ -17,10 +17,12 @@ To learn more please visit our [published documentation](https://openteams-ai.gi
 - **Python:** 3.10, 3.11, and 3.12 with `uv` or pip. conda supports 3.10 and 3.11 only. `checkmaite-plugins` is `<3.12` on both paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
 - **Hardware:** any machine that can install those Python versions.
+- **Container:** a batch container is built from the repository `Dockerfile` for Linux AMD64, with `cpu` and NVIDIA `cuda` targets. See [Run CheckMAITE in a container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
 
 ## Installation
 
-For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html)
+For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html).
+To run CheckMAITE as a batch container instead of installing the package, see [Run CheckMAITE in a container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
 
 On macOS, `brew install libomp` is required (`dataeval` loads LightGBM, which needs `libomp.dylib`).
 

@@ -148,7 +148,7 @@ constraint-dependencies = [
     "urllib3>=2.6.3",
     "cryptography>=46.0.5",
     "nbconvert>=7.17.0",
-    "pillow==12.1.1",
+    "pillow==12.3.0",
     "protobuf==6.33.5",
 ]
 
@@ -313,5 +313,5 @@ filterwarnings = [
 xfail_strict = true
 
 [tool.coverage.run]
-source = ["checkmaite"]
+source = ["checkmaite", "checkmaite_container"]
 omit = ["src/checkmaite/_docs.py"]

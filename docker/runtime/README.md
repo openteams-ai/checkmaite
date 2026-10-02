@@ -154,6 +154,9 @@ uv lock --directory docker/runtime --python 3.12
 uv run python docker/ci/check_runtime_lock.py
 ```
 
+See the [container maintenance runbook](../../docs/development/container_maintenance.md)
+for the complete base, snapshot, lock, tool, scan, and validation workflow.
+
 ## Run-plan schema
 
 The Pydantic models in `src/checkmaite_container/_plan.py` define the run-plan

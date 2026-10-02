@@ -13,6 +13,27 @@ YAML language-server support can validate and complete a plan that starts with:
 # yaml-language-server: $schema=<path or URL to run-plan-v1.schema.json>
 ```
 
+## Product variants and platforms
+
+| Variant | Build target | Supported platform | Accelerator packages |
+| --- | --- | --- | --- |
+| CPU | `cpu` | Linux AMD64 | CPU-only PyTorch and ONNX Runtime |
+| NVIDIA CUDA | `cuda` | Linux AMD64 | CUDA 13 PyTorch, ONNX Runtime GPU, cuDNN, NCCL, and Triton |
+
+The CUDA container requires a compatible NVIDIA GPU, host driver, NVIDIA
+Container Toolkit, and a runtime that exposes the device. Installing or running
+the CUDA container does not add a GPU to a CPU-only host. The CPU container does
+not contain CUDA, NVIDIA, or Triton Python packages.
+
+The CPU container is built on the Docker Official `ubuntu:24.04` image. The CUDA
+container is built on NVIDIA's CUDA 13 cuDNN runtime image for Ubuntu 24.04.
+Both are digest-pinned, and every operating-system package is fixed to one
+Ubuntu archive snapshot. Neither image contains a package manager.
+
+Both variants run as UID:GID `10001:10001`. The application environment under
+`/opt/venv` and the working directory `/checkmaite` are root-owned and are not
+writable by that account.
+
 ## Run the command from a checkout
 
 The command lives in an unpublished package under `docker/runtime`, which has
@@ -77,7 +98,7 @@ checkmaite-container run [--config PLAN] [--output DIR] [--cache DIR]
 | `--threads auto\|N` | `CHECKMAITE_THREADS`, plan `resources.threads`, then `auto` | Process thread budget; `N` must be positive and is capped at visible CPUs |
 | `--device auto\|cpu\|cuda\|cuda:N` | `CHECKMAITE_DEVICE`, plan `resources.device`, then `auto` | Execution device |
 | `--batch-size N` | `CHECKMAITE_BATCH_SIZE`, each task's `config.batch_size`, then capability default | Positive override for every task whose capability has a `batch_size` field |
-| `--log-level LEVEL` | `CHECKMAITE_LOG_LEVEL`, then `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `--log-level LEVEL` | `CHECKMAITE_LOG_LEVEL`, then `INFO` | `DEBUG`, `INFO`, `WARNING` (or `WARN`), `ERROR`, or `CRITICAL` |
 | `--version` | - | Print the CheckMAITE version and exit |
 | `--help`, `-h` | - | Print the operational interface and exit |
 
@@ -109,7 +130,9 @@ The selected cache directory always sets `HOME`, so it stays writable when
 `--cache` moves away from `/cache`. It also provides defaults for `TMPDIR`,
 `XDG_CACHE_HOME`, `MPLCONFIGDIR`, `HF_HOME`, and `TORCH_HOME`. Existing values
 for those five variables are kept, so a deployment can point them at a
-separately mounted, pre-populated library cache.
+separately mounted, pre-populated library cache. The CUDA variant inherits
+NVIDIA's runtime variables and driver compatibility constraints directly from
+its pinned NVIDIA base.
 
 ## Input precedence
 
@@ -137,6 +160,16 @@ The built-in runtime requires no secrets. A trusted plugin that needs a
 password, token, key, or certificate must read it from a file in the directory
 named by `CHECKMAITE_SECRETS_DIR`. Do not put secrets in environment variables,
 the run plan, command-line arguments, or scheduler metadata.
+
+In the container, the conventional input layout places `run.yaml` at the root of
+`/checkmaite`, datasets under `/checkmaite/data/`, and models under
+`/checkmaite/models/`. Results default to `/output/results/`. Every path remains
+explicit in the plan or command line when a deployment needs a different
+mounted layout.
+
+The output and cache mounts must be writable by `10001:10001`. Large datasets,
+models, reports, and analytics belong in mounted storage, not in environment
+variables, ConfigMaps, database rows, or orchestration metadata.
 
 ## Run-plan format
 
@@ -297,3 +330,69 @@ is called, so an unknown or missing argument exits `2`. Every task's capability,
 config, object names, and number of datasets, models, and metrics are checked
 before any object is built or any task runs, so those errors also exit `2`. Logs go to standard
 error and include a timestamp, severity, logger name, and message.
+
+## Hardware, storage, and network
+
+Actual requirements depend on the selected model, dataset, metrics, and batch
+size. A minimum practical CPU invocation needs one CPU, enough memory for the
+selected objects, and storage for the approximately 2.64 GiB unpacked CPU
+container plus input, output, and cache data. As a starting point for non-trivial
+evaluation, allocate
+4 CPUs, 16 GiB of memory, and storage sized for the container plus at least
+twice the working dataset/model footprint. Measure the real workload before
+setting production limits.
+
+CUDA execution needs an AMD64 host, a compatible NVIDIA GPU and driver, and GPU
+memory sufficient for the selected model and batch. The CUDA container is
+approximately 9.55 GiB unpacked before input, output, and cache data. No physical
+CUDA
+performance or minimum-memory claim can be inferred from package metadata;
+validate the intended workload on the target GPU.
+
+The built-in runtime needs no network when all artifacts and plugin dependencies
+are mounted or already included. A selected class or trusted plugin may require
+network access for a remote object store or model service. Prefer mounting or
+pre-populating large artifacts. If network access is necessary, allow only the
+required destinations.
+
+## Hardened deployment
+
+A Docker invocation with the expected least-privilege controls is:
+
+```bash
+docker run --rm \
+  --read-only \
+  --user 10001:10001 \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --network none \
+  --mount type=bind,source="$PWD/input",target=/checkmaite,readonly \
+  --mount type=bind,source="$PWD/output",target=/output \
+  --mount type=bind,source="$PWD/cache",target=/cache \
+  checkmaite-batch:cpu
+```
+
+Remove `--network none` only when a selected class or plugin has a documented
+network dependency. On Kubernetes, set `runAsNonRoot: true`, `runAsUser: 10001`,
+`runAsGroup: 10001`, `readOnlyRootFilesystem: true`,
+`allowPrivilegeEscalation: false`, and drop `ALL` capabilities. Mount only
+`/output` and `/cache` writable, mount inputs and secrets read-only, and apply a
+default-deny NetworkPolicy with narrow egress exceptions when required.
+
+## Licences
+
+CheckMAITE and the container runtime are licensed under Apache-2.0. Each
+container also redistributes third-party software under its own terms:
+
+- Ubuntu packages, under the licences recorded in each package's
+  `/usr/share/doc/<package>/copyright` file, which the image retains.
+- Python packages in `/opt/venv`, under the licences in their `.dist-info`
+  metadata, including PyTorch (BSD-3-Clause) and Ray (Apache-2.0).
+- In the CUDA container only, NVIDIA CUDA, cuDNN, and NCCL, under the
+  [NVIDIA Deep Learning Container License](https://developer.download.nvidia.com/licenses/NVIDIA_Deep_Learning_Container_License.pdf)
+  (included in the image as `/NGC-DL-CONTAINER-LICENSE`) and the CUDA EULA.
+  These are proprietary. The CUDA image's `org.opencontainers.image.licenses`
+  label is therefore `Apache-2.0 AND LicenseRef-NVIDIA-Proprietary`.
+
+The SBOM published with each image lists every package and its declared
+licence.

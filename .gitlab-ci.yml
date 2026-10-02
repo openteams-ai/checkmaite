@@ -219,7 +219,7 @@ test:
     - uv sync --locked --extra onnx --extra reporting
     - *install_checkmaite_plugins
     # SIGABRT a hung pytest (mid-test or at exit) so PYTHONFAULTHANDLER dumps every thread's stack.
-    - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
+    - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing $PYTEST_OPTS
 
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -250,7 +250,7 @@ dynamic-conda-test:
   stage: test
   needs: []
   script:
-    - pytest tests -vvv --cov=checkmaite --cov-report term-missing --cov-report xml:coverage_report.xml
+    - pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing --cov-report xml:coverage_report.xml
 
 # build conda env from conda-lock in the repo and activate it
 conda-lock-test:
@@ -278,7 +278,7 @@ conda-lock-test:
     - pip install . --no-deps
     - micromamba list
   script:
-    - pytest tests -vvv --cov=checkmaite --cov-report term-missing
+    - pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing
 
 pyright-internal:
   extends: [.shared-setup, .uv-setup]
@@ -287,7 +287,7 @@ pyright-internal:
   needs: []
   script:
     - uv sync --locked
-    - uv run --no-sync pyright src/ docker/runtime/src docker/ci
+    - uv run --no-sync pyright src/ docker/runtime/src docker/ci docker/*.py
     - uv run --no-sync python scripts/statically_verify_maite_entrypoints.py
     - uv run --no-sync python docker/ci/check_runtime_lock.py
 
@@ -589,6 +589,7 @@ export-merged-sbom:
 include:
   - template: Jobs/Secret-Detection.gitlab-ci.yml
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+  - local: .gitlab/container.gitlab-ci.yml
 
   - component: gitlab.jatic.net/jatic/devsecops/components/pre-commit@1.1.0
     inputs:

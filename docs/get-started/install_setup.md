@@ -6,6 +6,10 @@
 - **Python:** 3.10, 3.11, and 3.12 with `uv` or pip (`requires-python = ">=3.10, <3.13"`). conda supports 3.10 and 3.11 only (`python = ">=3.10,<3.12"`). `checkmaite-plugins` is `<3.12` on both paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
 - **Hardware:** any machine that can install those Python versions.
+- **Container:** CheckMAITE is also available as a batch container for Linux
+  AMD64, with CPU and NVIDIA CUDA variants, built from the repository
+  `Dockerfile`. It needs no Python environment on the host. See
+  [Run CheckMAITE in a container](container.md).
 
 ## Clone the project repository
 

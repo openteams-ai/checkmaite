@@ -31,6 +31,7 @@ nav:  # navigation links on sidebar
   - Get started:
     - get-started/index.md
     - Setup: get-started/install_setup.md
+    - Run in a container: get-started/container.md
     - Object Detection Workflow via API: get-started/checkmaite_api_od.ipynb
     - Image Classification Workflow via API: get-started/checkmaite_api_ic.ipynb
     - Remote Inference with Ray Serve: get-started/checkmaite_ray_serve.ipynb
@@ -54,14 +55,15 @@ nav:  # navigation links on sidebar
 
   - Reference:
     - reference/index.md
+    - Batch container: reference/container.md
     - Conventions: reference/conventions.md
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
-    - Batch container: reference/container.md
   - CheckMAITE development:
     - development/index.md
     - Development setup: development/dev_setup.md
     - Development strategy: development/dev_strategy.md
+    - Container maintenance: development/container_maintenance.md
     - Key concepts: development/key_concepts.md
     - Analytics store guide: development/analytics_store_guide.ipynb
     - Job submission:

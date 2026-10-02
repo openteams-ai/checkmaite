@@ -1,0 +1,94 @@
+################################################################################
+# Product containers: build and exercise supported platforms on relevant MRs and
+# every main pipeline. Nothing is pushed to a registry.
+################################################################################
+
+.container-build:
+  stage: build
+  # Docker 25+ is required (CS-1-S-1). All three CI images are digest-pinned.
+  image: docker:29.8.2-cli@sha256:b1805116a6a86cc591b5d5f60a910a0715cdcc9d18d866ad68b1457ead25c35c
+  services:
+    - docker:29.8.2-dind@sha256:7dcdfc4a20246236f558175182ccace1eb15a41bd3eb119dd2284f393498b7c1
+  tags: [docker]
+  interruptible: true
+  # The container build does not depend on lint or type-check results.
+  needs: []
+  timeout: 45m
+  variables:
+    TARGET_PLATFORM: "linux/amd64"
+    BUILDKIT_IMAGE: "moby/buildkit:v0.29.0@sha256:0039c1d47e8748b5afea56f4e85f14febaf34452bd99d9552d2daa82262b5cc5"
+  before_script:
+    - apk add --no-cache curl jq
+    - |
+      server_version=$(docker version --format '{{.Server.Version}}')
+      server_major=${server_version%%.*}
+      test "${server_major}" -ge 25
+      docker buildx version
+  script:
+    - |
+      # The "g" keeps the local version alphanumeric; an all-digit SHA with a
+      # leading zero would otherwise be normalized under PEP 440.
+      build_version="0.0.0+ci.g${CI_COMMIT_SHORT_SHA}"
+      build_revision=${CI_COMMIT_SHA}
+      export build_revision build_version
+    - docker buildx create --use --name "checkmaite-${CI_JOB_ID}" --driver-opt "image=${BUILDKIT_IMAGE}"
+    - |
+      image="checkmaite-batch:${ARTIFACT_VARIANT}-ci-${CI_COMMIT_SHORT_SHA}"
+      docker buildx build --load \
+        --platform "${TARGET_PLATFORM}" \
+        --target "${VARIANT}" \
+        --build-arg "CHECKMAITE_VERSION=${build_version}" \
+        --label "org.opencontainers.image.revision=${build_revision}" \
+        --tag "${image}" \
+        .
+      export image
+    - |
+      # Print each check with its values so a failure identifies itself.
+      (
+      set -x
+      test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "${image}")" = "${build_version}"
+      test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "${image}")" = "${build_revision}"
+      test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "${image}")" = "${TARGET_PLATFORM}"
+      test "$(docker run --rm --platform "${TARGET_PLATFORM}" "${image}" --version)" = "checkmaite-container ${build_version}"
+      )
+    - CONTAINER_TEST_PLATFORM="${TARGET_PLATFORM}" sh docker/ci/verify_container.sh "${image}" "${VARIANT}"
+    - sh docker/ci/check_container_size.sh "${image}" "${ARTIFACT_VARIANT}"
+    - sh docker/ci/install_security_tools.sh
+    - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" report
+  artifacts:
+    when: always
+    paths:
+      - artifacts/container/
+    expire_in: 1 week
+
+container-cpu-amd64:
+  extends: .container-build
+  variables:
+    VARIANT: "cpu"
+    ARTIFACT_VARIANT: "cpu-amd64"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cpu-amd64/]
+    reports:
+      container_scanning: artifacts/container/cpu-amd64/gl-container-scanning-report.json
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: [Dockerfile, .dockerignore, .gitlab-ci.yml, .gitlab/container.gitlab-ci.yml, docker/**/*, pyproject.toml, uv.lock, src/**/*]
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG == ""'
+
+container-cuda-amd64:
+  extends: .container-build
+  variables:
+    VARIANT: "cuda"
+    ARTIFACT_VARIANT: "cuda"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cuda/]
+    reports:
+      container_scanning: artifacts/container/cuda/gl-container-scanning-report.json
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: [Dockerfile, .dockerignore, .gitlab-ci.yml, .gitlab/container.gitlab-ci.yml, docker/**/*, pyproject.toml, uv.lock, src/**/*]
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG == ""'
