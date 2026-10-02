@@ -287,8 +287,9 @@ pyright-internal:
   needs: []
   script:
     - uv sync --locked
-    - uv run --no-sync pyright src/
+    - uv run --no-sync pyright src/ docker/runtime/src docker/ci
     - uv run --no-sync python scripts/statically_verify_maite_entrypoints.py
+    - uv run --no-sync python docker/ci/check_runtime_lock.py
 
 # DOCUMENTATION
 # deploy docs for merge requests

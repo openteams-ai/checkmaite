@@ -57,6 +57,7 @@ nav:  # navigation links on sidebar
     - Conventions: reference/conventions.md
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md
+    - Batch container: reference/container.md
   - CheckMAITE development:
     - development/index.md
     - Development setup: development/dev_setup.md

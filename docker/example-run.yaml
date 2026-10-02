@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=runtime/schema/run-plan-v1.schema.json
+
+version: 1
+
+resources:
+  threads: auto
+  device: auto
+
+datasets:
+  evaluation:
+    class: checkmaite.core.object_detection.dataset_loaders.load_coco_detection_dataset
+    args:
+      root: data/evaluation/images
+      ann_file: data/evaluation/annotations.json
+
+models:
+  candidate:
+    class: checkmaite.core.object_detection.models.OnnxODModel
+    args:
+      weights_path: models/candidate/model.onnx
+      config_path: models/candidate/config.json
+
+metrics:
+  map50:
+    class: checkmaite.core.object_detection.metrics.TorchODMetric
+    args:
+      od_metric:
+        _class: torchmetrics.detection.MeanAveragePrecision
+        args:
+          box_format: xyxy
+          iou_type: bbox
+      return_key: map_50
+      metric_id: map50
+
+tasks:
+  - name: baseline
+    capability: builtin:MaiteEvaluation
+    dataset: evaluation
+    model: candidate
+    metrics: map50
+    config:
+      batch_size: 32

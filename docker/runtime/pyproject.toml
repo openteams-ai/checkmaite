@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "checkmaite-container-runtime"
+version = "0.1.0"
+description = "Private runtime for the CheckMAITE batch container"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "checkmaite",
+    "pyyaml>=6.0.2",
+    "threadpoolctl>=3.6.0",
+]
+
+[project.optional-dependencies]
+# Keep CPU and CUDA on the same PyTorch release; uv selects the local
+# +cpu or +cu130 build from the explicit index below.
+cpu = [
+    "checkmaite[onnx]",
+    "torch==2.13.0",
+    "torchvision==0.28.0",
+]
+cuda = [
+    "checkmaite[onnx-cuda]",
+    "torch==2.13.0",
+    "torchvision==0.28.0",
+]
+
+[project.scripts]
+checkmaite-container = "checkmaite_container.cli:container_main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/checkmaite_container"]
+
+[tool.uv.sources]
+checkmaite = { path = "../..", editable = false }
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cuda" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv]
+conflicts = [[
+    { extra = "cpu" },
+    { extra = "cuda" },
+]]

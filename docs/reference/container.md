@@ -1,0 +1,299 @@
+# Batch container reference
+
+The `checkmaite-container` command executes one finite version 1 YAML run plan
+on one host, writes durable results, and exits. It is the entry point of the
+CheckMAITE batch container. It is a command-line program, not a long-running
+service, so it has no HTTP interface or health endpoint.
+
+The generated [run-plan JSON Schema](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/blob/main/docker/runtime/schema/run-plan-v1.schema.json)
+is the machine-readable form of the plan contract described here. Editors with
+YAML language-server support can validate and complete a plan that starts with:
+
+```yaml
+# yaml-language-server: $schema=<path or URL to run-plan-v1.schema.json>
+```
+
+## Run the command from a checkout
+
+The command lives in an unpublished package under `docker/runtime`, which has
+its own lock with CPU and CUDA PyTorch builds. From a CheckMAITE checkout with
+[uv](https://docs.astral.sh/uv/) installed, run it with the `cpu` extra (or
+`cuda` on Linux AMD64 with an NVIDIA GPU):
+
+```bash
+uv run --project docker/runtime --extra cpu checkmaite-container --help
+```
+
+The first call creates `docker/runtime/.venv`. To run the sample plan,
+[`docker/example-run.yaml`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/blob/main/docker/example-run.yaml),
+copy it into a directory laid out like this:
+
+```text
+input/
+├── run.yaml
+├── data/evaluation/
+│   ├── annotations.json      # COCO annotations
+│   └── images/
+└── models/candidate/
+    ├── model.onnx
+    └── config.json           # ONNX model metadata
+```
+
+and run it, choosing writable output and cache directories:
+
+```bash
+uv run --project docker/runtime --extra cpu checkmaite-container run \
+  --config input/run.yaml --output output --cache cache
+```
+
+Relative paths inside the plan are resolved from the directory that contains
+the plan, so the same plan runs unchanged from a checkout or from a container
+mount.
+
+## Command line
+
+Running the command with no arguments is equivalent to:
+
+```text
+checkmaite-container run --config /checkmaite/run.yaml
+```
+
+The complete syntax is:
+
+```text
+checkmaite-container run [--config PLAN] [--output DIR] [--cache DIR]
+                         [--secrets DIR]
+                         [--threads auto|N]
+                         [--device auto|cpu|cuda|cuda:N]
+                         [--batch-size N] [--log-level LEVEL]
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--config PLAN` | `CHECKMAITE_CONFIG`, then `/checkmaite/run.yaml` | Version 1 YAML run plan |
+| `--output DIR` | `CHECKMAITE_OUTPUT_DIR`, then `/output/results` | Durable output directory |
+| `--cache DIR` | `CHECKMAITE_CACHE_DIR`, then `/cache` | Reusable cache and temporary-data directory |
+| `--secrets DIR` | `CHECKMAITE_SECRETS_DIR`, then `/run/secrets` | Directory of secret files for trusted plugins; it need not exist |
+| `--threads auto\|N` | `CHECKMAITE_THREADS`, plan `resources.threads`, then `auto` | Process thread budget; `N` must be positive and is capped at visible CPUs |
+| `--device auto\|cpu\|cuda\|cuda:N` | `CHECKMAITE_DEVICE`, plan `resources.device`, then `auto` | Execution device |
+| `--batch-size N` | `CHECKMAITE_BATCH_SIZE`, each task's `config.batch_size`, then capability default | Positive override for every task whose capability has a `batch_size` field |
+| `--log-level LEVEL` | `CHECKMAITE_LOG_LEVEL`, then `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `--version` | - | Print the CheckMAITE version and exit |
+| `--help`, `-h` | - | Print the operational interface and exit |
+
+Every option is optional. An option beginning with `-` is treated as an option
+to the default `run` command. For example, passing only `--threads 2` runs the
+default plan with two threads.
+
+## Environment variables
+
+No environment variable is required. These variables configure the command:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CHECKMAITE_CONFIG` | `/checkmaite/run.yaml` | Default for `--config` |
+| `CHECKMAITE_OUTPUT_DIR` | `/output/results` | Default for `--output` |
+| `CHECKMAITE_CACHE_DIR` | `/cache` | Default for `--cache` |
+| `CHECKMAITE_SECRETS_DIR` | `/run/secrets` | Default for `--secrets` |
+| `CHECKMAITE_THREADS` | Plan value, then `auto` | Default for `--threads` |
+| `CHECKMAITE_DEVICE` | Plan value, then `auto` | Default for `--device` |
+| `CHECKMAITE_BATCH_SIZE` | Task/capability value | Default for `--batch-size` |
+| `CHECKMAITE_LOG_LEVEL` | `INFO` | Default for `--log-level` |
+
+While the plan runs, the command sets `CHECKMAITE_SECRETS_DIR` to the selected
+secrets directory, and `CHECKMAITE_THREADS` and `CHECKMAITE_DEVICE` to the
+resolved thread count and device, so trusted capabilities and plugins can read
+them.
+
+The selected cache directory always sets `HOME`, so it stays writable when
+`--cache` moves away from `/cache`. It also provides defaults for `TMPDIR`,
+`XDG_CACHE_HOME`, `MPLCONFIGDIR`, `HF_HOME`, and `TORCH_HOME`. Existing values
+for those five variables are kept, so a deployment can point them at a
+separately mounted, pre-populated library cache.
+
+## Input precedence
+
+When a setting is available from more than one source, precedence is:
+
+1. command-line option;
+2. environment variable;
+3. run-plan value, where the setting has a plan field;
+4. built-in default.
+
+So `--threads` and `--device` override `resources` in the plan, and
+`--batch-size` overrides a task's `config.batch_size` when the capability
+supports that field.
+
+## Directories and secrets
+
+| Default path | Access | Purpose |
+| --- | --- | --- |
+| `/checkmaite` | Read-only | Run plan, datasets, models, and trusted plugin files |
+| `/output` | Writable | Result summary, task runs, reports, and analytics |
+| `/cache` | Writable | CheckMAITE caches, library caches, and temporary files |
+| `/run/secrets` | Read-only | Secret files, only for plugins that need them |
+
+The built-in runtime requires no secrets. A trusted plugin that needs a
+password, token, key, or certificate must read it from a file in the directory
+named by `CHECKMAITE_SECRETS_DIR`. Do not put secrets in environment variables,
+the run plan, command-line arguments, or scheduler metadata.
+
+## Run-plan format
+
+A run plan is a UTF-8 YAML file. The top-level value must be a mapping, unknown
+fields are rejected, and `version` must be `1`.
+
+### Top-level fields
+
+| Field | Type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `version` | integer | Yes | - | Must be `1` |
+| `resources` | [resource mapping](#resources) | No | `threads: auto`, `device: auto` | Host-resource policy |
+| `datasets` | mapping of names to [object specifications](#object-specifications) | No | `{}` | Dataset objects |
+| `models` | mapping of names to object specifications | No | `{}` | Model objects |
+| `metrics` | mapping of names to object specifications | No | `{}` | Metric objects |
+| `tasks` | list of [tasks](#tasks) | Yes | - | At least one capability invocation |
+
+### Resources
+
+| Field | Type | Default | Behavior |
+| --- | --- | --- | --- |
+| `threads` | `auto` or positive integer | `auto` | `auto` uses every CPU allowed by CPU affinity and cgroup quota; an integer is capped at that count |
+| `device` | `auto`, `cpu`, `cuda`, or `cuda:N` | `auto` | `auto` selects `cuda:0` when CUDA is visible, otherwise `cpu` |
+
+`cuda` means `cuda:0`. Requesting a CUDA device that is not visible fails the
+run with exit status `2`. At most one device is used for the whole run.
+
+The thread budget sets PyTorch's thread count and limits the BLAS and OpenMP
+thread pools that NumPy, SciPy, and PyTorch load. It does not start processes
+or run tasks concurrently. ONNX models ignore it: CheckMAITE's ONNX models
+create their ONNX Runtime session with default options, so ONNX Runtime
+chooses its own thread count.
+
+### Object specifications
+
+Each entry under `datasets`, `models`, or `metrics` has this form:
+
+```yaml
+name:
+  class: package.module.ClassName
+  args: {}
+```
+
+| Field | Type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `class` | non-empty string | Yes | - | Import path or [plugin reference](#plugins) for a trusted class or factory function |
+| `args` | mapping | No | `{}` | Keyword constructor arguments |
+
+An argument that is itself an object uses `_class` instead of `class`, so that
+ordinary arguments can contain a `class` key:
+
+```yaml
+metrics:
+  map50:
+    class: checkmaite.core.object_detection.metrics.TorchODMetric
+    args:
+      od_metric:
+        _class: torchmetrics.detection.MeanAveragePrecision
+        args:
+          box_format: xyxy
+          iou_type: bbox
+      return_key: map_50
+      metric_id: map50
+```
+
+A mapping is treated as a nested object only when its keys are `_class` and,
+optionally, `args`.
+
+The resolved device is passed as a `device` argument to model constructors that
+accept one (or accept `**kwargs`), unless the plan already sets it. Dataset,
+metric, and nested-object constructors never receive it.
+
+Dataset and model file formats are not fixed by the runtime. They are defined
+by the selected CheckMAITE class or plugin. For example, the sample plan reads
+COCO data and an ONNX model because it selects the COCO dataset loader and the
+ONNX model class.
+
+### Tasks
+
+| Field | Type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `name` | string | Yes | - | Unique output name of letters, digits, `_`, `.`, and `-`, starting with a letter or digit |
+| `capability` | non-empty string | Yes | - | Built-in, import-path, or plugin capability reference |
+| `capability_args` | mapping | No | `{}` | Capability constructor arguments |
+| `dataset` | name, list of names, or null | No | `null` | Objects selected from `datasets` |
+| `model` | name, list of names, or null | No | `null` | Objects selected from `models` |
+| `metrics` | name, list of names, or null | No | `null` | Objects selected from `metrics` |
+| `config` | mapping | No | `{}` | Capability-specific run configuration |
+| `use_cache` | boolean | No | `true` | Reuse cached predictions and evaluations from earlier runs |
+| `report_threshold` | number | No | `0.5` | Threshold passed to Markdown report generation |
+
+Every name a task references must exist in the corresponding top-level mapping.
+The capability decides which object kinds, and how many of each, a task
+accepts.
+
+`builtin:MaiteEvaluation` selects a built-in capability and infers the problem
+type from the task's CheckMAITE objects. The explicit forms
+`builtin:object_detection.Name` and `builtin:image_classification.Name` are
+needed when every object in the task comes from a plugin.
+
+### Plugins
+
+A plugin is a trusted Python file referenced as `file:<path>:<Name>`, for
+example `file:plugins/detector.py:FixedBoxDetector`. It can be used anywhere a
+`class`, `_class`, or `capability` reference is accepted.
+
+- **Paths** are resolved from the directory containing the plan unless they are
+  absolute. The text after the last `:` names the class or factory function.
+- **One self-contained file.** The file is imported directly from its path. It
+  is not added to `sys.path`, so it cannot import a sibling file or use relative
+  imports.
+- **Dependencies must already be installed.** A plugin can import CheckMAITE
+  and any installed package; nothing is installed at run time.
+- **Loaded once per run.** Every reference to the same file shares one module.
+
+Plugins and import paths run with the full permissions of the process. They are
+not sandboxed.
+
+## Execution
+
+The command validates the plan, then builds every dataset, model, and metric
+that some task references. Objects no task references are logged and skipped.
+Tasks then run one after another, in the order listed, in a single process.
+There is no retry, resume, or checkpointing.
+
+The first failure stops the run. If task 3 fails, tasks 4 onward don't run.
+Earlier tasks' outputs stay on disk.
+
+## Outputs and exit status
+
+A successful plan writes:
+
+```text
+OUTPUT_DIR/
+├── run-results.json
+├── analytics/
+└── tasks/
+    └── TASK_NAME/
+        ├── run.json
+        └── REPORT_FILE
+```
+
+`run-results.json` records each task's run UID, capability ID, run file, and
+report file or URI. It is removed when a run starts and written only when every
+task succeeds, so a failed run has no summary. Analytics are written as Parquet
+files at the end of a successful run. Analytics files from earlier runs in the
+same output directory are not removed. A capability that has no Markdown report
+still writes `run.json`.
+
+| Exit status | Meaning |
+| --- | --- |
+| `0` | Every task succeeded |
+| `1` | A constructor or task failed while running, including on bad input data, or the host could not be inspected |
+| `2` | The plan, arguments, imports, or configuration are invalid |
+
+Constructor arguments are checked against the constructor's signature before it
+is called, so an unknown or missing argument exits `2`. Every task's capability,
+config, object names, and number of datasets, models, and metrics are checked
+before any object is built or any task runs, so those errors also exit `2`. Logs go to standard
+error and include a timestamp, severity, logger name, and message.

@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "ObjectSpec": {
+      "additionalProperties": false,
+      "description": "Import reference and constructor arguments for a runtime object.",
+      "properties": {
+        "args": {
+          "additionalProperties": true,
+          "title": "Args",
+          "type": "object"
+        },
+        "class": {
+          "minLength": 1,
+          "title": "Class",
+          "type": "string"
+        }
+      },
+      "required": [
+        "class"
+      ],
+      "title": "ObjectSpec",
+      "type": "object"
+    },
+    "ResourceSpec": {
+      "additionalProperties": false,
+      "description": "Resources requested by a run plan.",
+      "properties": {
+        "device": {
+          "default": "auto",
+          "pattern": "^(?:auto|cpu|cuda(?::\\d+)?)$",
+          "title": "Device",
+          "type": "string"
+        },
+        "threads": {
+          "anyOf": [
+            {
+              "const": "auto",
+              "type": "string"
+            },
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          ],
+          "default": "auto",
+          "title": "Threads"
+        }
+      },
+      "title": "ResourceSpec",
+      "type": "object"
+    },
+    "TaskSpec": {
+      "additionalProperties": false,
+      "description": "One finite capability invocation in a run plan.",
+      "properties": {
+        "capability": {
+          "minLength": 1,
+          "title": "Capability",
+          "type": "string"
+        },
+        "capability_args": {
+          "additionalProperties": true,
+          "title": "Capability Args",
+          "type": "object"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metrics"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "name": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "report_threshold": {
+          "default": 0.5,
+          "title": "Report Threshold",
+          "type": "number"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "capability"
+      ],
+      "title": "TaskSpec",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A complete finite CheckMAITE container run.",
+  "properties": {
+    "datasets": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ObjectSpec"
+      },
+      "title": "Datasets",
+      "type": "object"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ObjectSpec"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "models": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ObjectSpec"
+      },
+      "title": "Models",
+      "type": "object"
+    },
+    "resources": {
+      "$ref": "#/$defs/ResourceSpec"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/TaskSpec"
+      },
+      "minItems": 1,
+      "title": "Tasks",
+      "type": "array"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "tasks"
+  ],
+  "title": "CheckMAITE container run plan v1",
+  "type": "object"
+}

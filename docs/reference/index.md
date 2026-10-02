@@ -14,4 +14,8 @@
 
     Model, dataset, and metrics conventions.
 
+-  [__Batch container__ :octicons-arrow-right-24:](container.md)
+
+    Command line, environment variables, and run-plan format for batch runs.
+
 </div>

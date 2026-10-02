@@ -265,7 +265,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
-known-first-party = ["checkmaite"]
+known-first-party = ["checkmaite", "checkmaite_container"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -274,6 +274,7 @@ convention = "numpy"
 minversion = "6.0"
 addopts = "-ra --tb=short -m 'not (real_data or unsupported or ray)'"
 testpaths = ["tests"]
+pythonpath = ["docker/runtime/src"]
 # Dump all thread stacks when a test runs past 10 min, so CI hangs show where they're stuck.
 faulthandler_timeout = 600
 markers = [
