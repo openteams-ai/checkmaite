@@ -32,6 +32,7 @@ variables:
     value: "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
     description: "Direct install spec for checkmaite-plugins; kept out of package metadata for PyPI compatibility."
   MODEL_WEIGHTS_CACHE_SUFFIX: ""  # "-mr" in MR pipelines, set in workflow:rules
+  AST_ENABLE_MR_PIPELINES: "true"
 
 
 stages:
@@ -558,6 +559,9 @@ create-gitlab-release:
 
 # SECURITY STAGES
 include:
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+
   - component: gitlab.jatic.net/jatic/devsecops/components/pre-commit@1.1.0
     inputs:
       stage: pre-commit
@@ -579,3 +583,11 @@ include:
       maite_interop_scope: "provider"
       full_execution_on_commit: true
       allow_failure: true
+
+secret_detection:
+  stage: dr-compliance
+  needs: []
+
+gemnasium-python-dependency_scanning:
+  stage: dr-compliance
+  needs: []
