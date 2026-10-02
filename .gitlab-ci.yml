@@ -566,6 +566,23 @@ create-gitlab-release:
     - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: never
 
+# DSOR-5-H-1: export SBOM as a CI artifact.
+# Generated from uv.lock: the program example's export reads GitLab's
+# dependency list, which dr-compliance's syft scan never populates.
+export-merged-sbom:
+  extends: [.uv-setup]
+  image: python:3.10
+  stage: .post
+  script:
+    - uv export --format cyclonedx1.5 --preview-features sbom-export --frozen --all-extras --no-dev -o "gl-sbom-merged-$CI_PIPELINE_ID.cdx.json" > /dev/null
+    # Fail on an empty SBOM.
+    - python -c "import json,glob,sys; sys.exit(not json.load(open(glob.glob('gl-sbom-merged-*.cdx.json')[0]))['components'])"
+  artifacts:
+    paths:
+      - "gl-sbom-merged-*.cdx.json"
+    reports:
+      cyclonedx: "gl-sbom-merged-*.cdx.json"
+
 
 # SECURITY STAGES
 include:
