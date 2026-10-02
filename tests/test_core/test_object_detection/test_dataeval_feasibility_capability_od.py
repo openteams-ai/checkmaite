@@ -194,6 +194,7 @@ class TestDataevalFeasibilityCapability:
         report = output.collect_md_report(threshold=0.5)
         assert_inline_markdown_report(report, capability_id=output.capability_id)
 
+    @pytest.mark.optional
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables(self, test_dataset, test_config):
         capability = DataevalFeasibility()

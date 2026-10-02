@@ -72,6 +72,7 @@ def test_maite_evaluation_rejects_malformed_per_class_metric(
         MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables_ic(test_run_ic):
     assert test_run_ic.collect_report_consumables(threshold=0.5)  # smoke test

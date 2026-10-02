@@ -216,7 +216,7 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - uv sync --locked --extra onnx
+    - uv sync --locked --extra onnx --extra reporting
     - *install_checkmaite_plugins
     # SIGABRT a hung pytest (mid-test or at exit) so PYTHONFAULTHANDLER dumps every thread's stack.
     - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov-report term-missing $PYTEST_OPTS
@@ -230,6 +230,16 @@ test:
         path: coverage_report.xml
     paths:
       - artifacts/*
+
+# TR-2-H-3: optional-feature tests must pass (skip cleanly) with no extras or plugins installed.
+optional-tests-no-extras:
+  extends: [.shared-setup, .uv-setup]
+  image: python:3.11
+  stage: test
+  needs: []
+  script:
+    - uv sync --locked
+    - uv run --no-sync pytest tests -m optional -rs
 
 # build fresh conda-lock file, create env from it, and activate it.
 # .python-matrix sets the image to python:$VERSION, but .conda-setup overrides

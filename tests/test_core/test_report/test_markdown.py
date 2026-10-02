@@ -1042,8 +1042,10 @@ def test_create_markdown_output_no_display_returns_none(tmp_path: Path, monkeypa
     assert (out_dir / "images" / "img.png").exists()
 
 
+@pytest.mark.optional
 def test_create_pdf_output_writes_pdf(tmp_path: Path, monkeypatch):
     """Smoke test: render a markdown report (with table + image) to a PDF file."""
+    pytest.importorskip("markdown")
     pytest.importorskip("xhtml2pdf")
     pypdf = pytest.importorskip("pypdf")
     from PIL import Image

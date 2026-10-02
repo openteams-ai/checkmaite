@@ -30,6 +30,7 @@ def test_run_and_collect(fake_od_dataset_default):
 
 
 @ignore_degenerate_data_warnings
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_reports(fake_od_dataset_default):
     capability = DataevalCleaning()

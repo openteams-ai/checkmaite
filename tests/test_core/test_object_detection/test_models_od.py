@@ -88,6 +88,7 @@ def test_visdrone_wrapper_returns_one_detection_target_per_input(fake_model_loca
     assert len(outputs[1].boxes) == 0
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_od_model_converts_jatic_outputs_to_detection_targets():
     """Check conversion from the deterministic JATIC_ONNX fixture to DetectionTarget.
@@ -111,6 +112,7 @@ def test_onnx_od_model_converts_jatic_outputs_to_detection_targets():
     np.testing.assert_allclose(prediction.scores, np.array([0.9, 0.7]))
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_od_load_models_dispatch():
     """Check that object-detection ``load_models`` dispatches to the ONNX wrapper.

@@ -134,6 +134,7 @@ def _write_onnx_metadata(path: Path, *, io_interface: str, batch_size: int, outp
     )
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_ic_model_returns_jatic_scores(tmp_path: Path):
     model_path = tmp_path / "ic.onnx"
@@ -153,6 +154,7 @@ def test_onnx_ic_model_returns_jatic_scores(tmp_path: Path):
     assert np.array_equal(np.asarray(predictions[1]), expected_scores[1])
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_ic_load_models_dispatch(tmp_path: Path):
     model_path = tmp_path / "ic.onnx"
@@ -178,6 +180,7 @@ def test_onnx_ic_load_models_dispatch(tmp_path: Path):
     assert isinstance(loaded["onnx_model"], OnnxICModel)
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_ic_model_requires_index2label(tmp_path: Path):
     model_path = tmp_path / "ic.onnx"

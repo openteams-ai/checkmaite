@@ -127,6 +127,7 @@ def test_collect_md_report_ic(test_run_ic):
     assert_inline_markdown_report(report, capability_id=test_run_ic.capability_id)
 
 
+@pytest.mark.optional
 @pytest.mark.skip(reason="gradient report generation is not implemented")
 def test_collect_report_consumables_ic(test_run_ic):
     with pytest.warns(DeprecationWarning):

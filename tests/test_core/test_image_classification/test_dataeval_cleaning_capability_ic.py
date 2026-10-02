@@ -26,6 +26,7 @@ def test_run_and_collect(fake_ic_dataset_default):
     assert output.model_dump()  # smoke test
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 @ignore_degenerate_data_warnings
 def test_collect_reports(fake_ic_dataset_default):

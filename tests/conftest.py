@@ -71,6 +71,16 @@ def tmp_cache_path(tmp_path):
         yield p
 
 
+# TR-4-H-3/H-4: every test is `required` unless explicitly marked `optional`.
+@pytest.hookimpl(tryfirst=True)  # run before -m deselection
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if item.get_closest_marker("optional") is None:
+            item.add_marker(pytest.mark.required)
+        elif item.get_closest_marker("required") is not None:
+            raise pytest.UsageError(f"{item.nodeid} is marked both required and optional")
+
+
 #############################
 # Object Detection Fakes #
 #############################

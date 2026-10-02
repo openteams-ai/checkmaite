@@ -31,6 +31,7 @@ def test_run_and_collect(run_dataeval_feasibility_ic):
     assert ber_lower <= ber
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables(run_dataeval_feasibility_ic):
     with pytest.warns(DeprecationWarning):

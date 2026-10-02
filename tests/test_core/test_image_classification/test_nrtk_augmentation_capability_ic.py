@@ -41,6 +41,7 @@ def test_run(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_defa
     return outputs
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_run_and_collect_consumables(test_run):
     assert test_run.collect_report_consumables(threshold=0.5)  # smoke test

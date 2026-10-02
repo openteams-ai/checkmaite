@@ -281,6 +281,8 @@ markers = [
     "unsupported",
     "heart",
     "ray: tests that require a live Ray runtime",
+    "required: tests a required feature (applied automatically in tests/conftest.py)",
+    "optional: tests a feature behind an optional dependency",
 ]
 filterwarnings = [
     # For full details on warnings suppression, see:

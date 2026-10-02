@@ -104,6 +104,7 @@ def test_run_mc_rise(small_ic_dataset, fixed_ic_model, mc_rise_config) -> Any:
     return outputs
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_run_and_collect_consumables_rise(test_run_rise, small_ic_dataset):
     output = test_run_rise.collect_report_consumables(threshold=0.5)
@@ -116,6 +117,7 @@ def test_run_and_collect_md_rise(test_run_rise):
     assert_inline_markdown_report(report, capability_id=test_run_rise.capability_id)
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_run_and_collect_consumables_mc_rise(test_run_mc_rise, small_ic_dataset):
     output = test_run_mc_rise.collect_report_consumables(threshold=0.5)

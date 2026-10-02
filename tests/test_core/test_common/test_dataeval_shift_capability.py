@@ -70,6 +70,7 @@ def test_collect_md_report(fake_od_dataset_default, test_config):
     assert_inline_markdown_report(report, capability_id=run.capability_id)
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables(test_run):
     with pytest.warns(DeprecationWarning):
@@ -88,6 +89,7 @@ def test_run_drift(dummy_shift_capability, fake_od_dataset_default, test_config)
     assert outputs.model_dump()  # smoke-test for Pydantic model
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_drift(fake_od_dataset_default, dummy_shift_capability, test_config):
     capability = dummy_shift_capability()
@@ -116,6 +118,7 @@ def test_run_ood(dummy_shift_capability, fake_od_dataset_default, test_config):
     assert outputs.model_dump()  # smoke-test for Pydantic model
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_ood(fake_od_dataset_default, dummy_shift_capability, test_config):
     dataset_2 = copy.deepcopy(fake_od_dataset_default)

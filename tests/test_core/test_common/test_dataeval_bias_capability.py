@@ -159,6 +159,7 @@ def test_bias_output(fake_ic_dataset_cifar10_metadata):
     assert output.outputs.coverage.total == 20
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables_ic(test_run_ic):
     with pytest.warns(DeprecationWarning):
@@ -180,6 +181,7 @@ class TestOdDataevalBiasCapability:
         report = test_run_od.collect_md_report(threshold=0.5)
         assert_inline_markdown_report(report, capability_id=test_run_od.capability_id)
 
+    @pytest.mark.optional
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     def test_collect_report_consumables_od(self, test_run_od):
         with pytest.warns(DeprecationWarning):

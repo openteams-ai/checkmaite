@@ -40,6 +40,7 @@ def test_run_and_collect(fake_od_model_default, fake_od_dataset_default, test_co
     return run_result
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_run_and_collect_consumables(fake_od_model_default, fake_od_dataset_default, test_config):
     capability = XaitkExplainable()

@@ -29,6 +29,7 @@ def fake_image() -> str:
 class TestCommonBiasUtilityFunctions:
     """Test private helper functions used by Bias"""
 
+    @pytest.mark.optional
     @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
     @pytest.mark.parametrize("with_table", [True, False])
     def test_create_section_by_item_slide(self, with_table: bool, fake_image):

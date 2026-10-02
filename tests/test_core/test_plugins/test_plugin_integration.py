@@ -143,6 +143,7 @@ except ImportError:
     _has_plugins = False
 
 
+@pytest.mark.optional
 @pytest.mark.skipif(not _has_plugins, reason="checkmaite-plugins not installed")
 class TestRealPlugins:
     """Tests that verify the real checkmaite-plugins package injects symbols into checkmaite."""
