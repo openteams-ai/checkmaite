@@ -49,7 +49,7 @@ On macOS, `brew install libomp` is required (`dataeval` loads LightGBM, which ne
 
 To learn how to get started using `CheckMAITE`, please visit our [quick start guide](https://openteams-ai.github.io/checkmaite/get-started/index.html).
 
-There are also [How-to Guides](https://openteams-ai.github.io/checkmaite/development/index.html) & [Tutorials](https://openteams-ai.github.io/checkmaite/tool-usage/index.html) that will help get new users up to speed on the available functionality.
+There are also [How-to Guides](https://openteams-ai.github.io/checkmaite/how-to/index.html) & [Tutorials](https://openteams-ai.github.io/checkmaite/tool-usage/index.html) that will help get new users up to speed on the available functionality.
 
 ## Contributing
 

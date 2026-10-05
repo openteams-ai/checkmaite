@@ -132,3 +132,9 @@ If an accelerator is requested but the installed ONNX Runtime package does not e
 ## ONNX model checking
 
 The wrappers load models through ONNX Runtime by default. To also run `onnx.checker.check_model` during wrapper initialization, pass `validate_onnx=True`. This extra check parses the model before ONNX Runtime loads it, so it is opt-in to avoid double-loading large ONNX files.
+
+## Related tutorials
+
+- [Object Detection Workflow via API](../get-started/checkmaite_api_od.ipynb): the model wrappers these settings apply to, used end to end.
+
+See also the how-to [Wrap an ONNX object detection model](../tool-usage/onnx_object_detection_wrapper.ipynb).

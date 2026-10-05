@@ -2,7 +2,7 @@
 
 `CheckMAITE` workflows are executed through a Python __API__ for programmatic access via Python object interfaces.
 
-Click on the respective pages below to get started.
+Install CheckMAITE, then work through one of the end-to-end tutorials.
 
 <div class="grid cards" markdown >
 
@@ -14,21 +14,13 @@ Click on the respective pages below to get started.
 * :material-connection:{ .lg .middle } [__Object Detection Workflow via API__ :octicons-arrow-right-24:](checkmaite_api_od.ipynb)
 
     ---
-    API access for Object Detection workflows.
+    Your first tutorial: run every capability on an object detection model and dataset.
 
 * :material-connection:{ .lg .middle } [__Image Classification Workflow via API__ :octicons-arrow-right-24:](checkmaite_api_ic.ipynb)
 
     ---
-    API access for Image Classification workflows.
-
-* :material-connection:{ .lg .middle } [__Remote Inference with Ray Serve__ :octicons-arrow-right-24:](checkmaite_ray_serve.ipynb)
-
-    ---
-    API access for workflows that involve remote inference using Ray Serve.
-
-* :material-database-search:{ .lg .middle } [__Saving & Querying Results__ :octicons-arrow-right-24:](saving_querying_results.md)
-
-    ---
-    Persist capability results to the analytics store and query them via SQL across runs, datasets, and capabilities.
+    The same end-to-end tutorial for image classification.
 
 </div>
+
+Next, see the [tutorials](../tool-usage/index.md) for each JATIC tool, the [how-to guides](../how-to/index.md) for specific tasks, and the [glossary](../reference/glossary.md) for key terms.

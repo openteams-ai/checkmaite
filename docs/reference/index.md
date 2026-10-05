@@ -2,6 +2,18 @@
 
 <div class="grid cards" markdown>
 
+-  [__Glossary__ :octicons-arrow-right-24:](glossary.md)
+
+    Key terms used across the CheckMAITE documentation.
+
+-  [__Job backend configuration__ :octicons-arrow-right-24:](../development/job_submission/configure_job_backend.md)
+
+    The `configure_job_backend(...)` API: execution target, worker environment, storage, and shared job identity.
+
+-  [__ONNX model wrappers__ :octicons-arrow-right-24:](../development/onnx_model_wrappers.md)
+
+    Extras, execution providers, and the input and output the ONNX wrappers expect.
+
 -  [__Personas__ :octicons-arrow-right-24:](personas.md)
 
     User roles and how they interact with CheckMAITE.

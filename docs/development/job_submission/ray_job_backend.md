@@ -546,3 +546,12 @@ rates, a fixed controller-pool design may be better than one detached controller
 actor per job. In that model, a bounded set of actors owns many job refs and the
 registry maps each job to a pool actor. That design reduces actor churn but is
 more complex and has a larger failure domain per pool actor.
+
+## Common problems
+
+- **The notebook crashed before the job ID was saved.** The job keeps running in its detached controller. Reconnect to the same Ray namespace with the same `idempotency_scope` and call `list_jobs()`, as described in [Recover after a notebook failure](#recover-after-a-notebook-failure). ([#735](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/735))
+- **A tutorial's local settings were copied to a shared cluster.** Settings such as `address="local"` and `force_reinit=True` are for a single-user machine. On a shared cluster, connect to the cluster address, keep a stable `idempotency_scope`, and avoid `force_reinit=True` while work is active. ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
+
+## Related tutorials
+
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): submit, wait, and clean up a tracked Ray job end to end.

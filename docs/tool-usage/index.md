@@ -36,10 +36,6 @@ These tutorials follow the [T&E workflow](../reference/personas.md#te-workflow).
 
     The Explainable AI Toolkit for saliency (XAITK - Saliency) is an open source framework for visual saliency algorithm interfaces and implementations.
 
--  [__ONNX object detection wrapper__ :octicons-arrow-right-24:](onnx_object_detection_wrapper.ipynb)
-
-    Load a JATIC_ONNX object detection model and convert its outputs into CheckMAITE detection targets.
-
 </div>
 
 ## Results & analysis
@@ -65,3 +61,19 @@ These tutorials follow the [T&E workflow](../reference/personas.md#te-workflow).
     Run a capability asynchronously with the registry-backed Ray backend for tracked and reattachable jobs.
 
 </div>
+
+## End-to-end workflows
+
+<div class="grid cards" markdown >
+
+-   [__Object Detection Workflow via API__ :octicons-arrow-right-24:](../get-started/checkmaite_api_od.ipynb)
+
+    Run every capability on one object detection model and dataset, then build a single report.
+
+-   [__Image Classification Workflow via API__ :octicons-arrow-right-24:](../get-started/checkmaite_api_ic.ipynb)
+
+    The same end-to-end workflow for image classification.
+
+</div>
+
+For task-focused steps, see the [how-to guides](../how-to/index.md).

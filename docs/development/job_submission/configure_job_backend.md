@@ -178,3 +178,14 @@ an independent registry by selecting another Ray namespace. All clients sharing
 a namespace must use compatible registry settings.
 
 For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and [Ray simple job backend](ray_simple_job_backend.md). For worker image and cluster environment guidance, see [Worker environments](worker_environments.md). For store semantics, provenance, and URI resolution details, see [Distributed analytics store](analytics_store.md).
+
+## Common problems
+
+- **Report images are missing after a job finishes, or later jobs overwrite them.** Images written to a worker's local cache disappear when the worker restarts and aren't visible to the client. Configure `artifact_store` with a durable URI, such as object storage or an absolute path shared by the client and every Ray node. A process-local `memory` store or a relative path is rejected. ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
+
+## Related tutorials
+
+- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb): configures `ray-simple` and submits a capability.
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): configures `ray` against a shared cluster.
+- [Analytics Store](../../tool-usage/analytics_store_tutorial.ipynb): the store that job backends write results to.
+- [Object Detection Workflow via API](../../get-started/checkmaite_api_od.ipynb) and [Image Classification Workflow via API](../../get-started/checkmaite_api_ic.ipynb): the capabilities you would submit.

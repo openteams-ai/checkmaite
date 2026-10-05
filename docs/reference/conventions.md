@@ -89,6 +89,14 @@ In order for users to be able to bring their own datasets to `CheckMAITE`, witho
 * Image Classification
     * [YOLO](https://docs.ultralytics.com/datasets/classify/#dataset-structure-for-yolo-classification-tasks)
 
+!!! warning "YOLO detection labels outside `labels/` load as empty targets"
+
+    If YOLO detection label files aren't in a sibling `labels/` directory and `ann_dir` is omitted, the dataset loads every image with zero detections and no warning. Pass `ann_dir` explicitly for any other layout, and check that `dataset.num_detections` is non-zero before evaluating. ([#708](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/708))
+
+### DataEval dataset determinism
+
+DataEval assumes the dataset returns the same image, boxes, and metadata every time an index is read. A non-deterministic loader, such as a multiprocessing PyTorch DataLoader or random augmentation inside `__getitem__`, breaks that assumption without raising an error, and the results are silently wrong. Use a deterministic dataset for DataEval runs. ([#451](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/451))
+
 ## Metrics
 
 ### Metric conventions

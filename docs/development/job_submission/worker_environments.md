@@ -203,3 +203,11 @@ It does **not**:
 - or guarantee cross-cluster compatibility automatically.
 
 That work belongs in platform tooling, cluster configuration, and release discipline.
+
+## Common problems
+
+- **Model weight downloads fail with `CERTIFICATE_VERIFY_FAILED` on a cluster behind a TLS-inspecting proxy.** The proxy re-signs traffic with an organization CA that the default `certifi` bundle doesn't trust. Mount the organization CA bundle into the Ray head and worker pods and point `SSL_CERT_FILE` (and `REQUESTS_CA_BUNDLE`) at it. The pinned `httpx` (0.28 or later) honors `SSL_CERT_FILE`. ([#711](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/711))
+
+## Related tutorials
+
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): runs capabilities on the workers these environments describe.

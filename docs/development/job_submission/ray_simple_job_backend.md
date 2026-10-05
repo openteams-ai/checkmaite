@@ -220,3 +220,7 @@ the task.
 `RaySimpleJobBackend` shares the process Ray runtime: `shutdown(wait=True)` waits
 for known jobs and calls `ray.shutdown()`, while `shutdown(wait=False)` returns
 without shutting Ray down.
+
+## Related tutorials
+
+- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb): set up, submit, wait, query, and shut down with `ray-simple`.

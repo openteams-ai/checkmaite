@@ -10,29 +10,13 @@ The job-submission subsystem addresses both problems:
 - it gives users a **non-blocking job handle**,
 - it lets the same API target **local or distributed job-submission backends**.
 
-## What to read next
+## How it works
 
 <div class="grid cards" markdown>
 
 - [__Protocol and lifecycle__ :octicons-arrow-right-24:](protocol.md)
 
   The shared job handle contract, lifecycle states, reference-first results, and error semantics.
-
-- [__Job backend configuration (`configure_job_backend`)__ :octicons-arrow-right-24:](configure_job_backend.md)
-
-  What backend-level settings must be configured before submission, including execution target, worker environment, storage, and shared job identity.
-
-- [__Ray job backend__ :octicons-arrow-right-24:](ray_job_backend.md)
-
-  The default registry/controller-backed Ray job backend for reattachable jobs.
-
-- [__Ray simple job backend__ :octicons-arrow-right-24:](ray_simple_job_backend.md)
-
-  The direct process-local Ray task-based job backend for simple single-driver workflows.
-
-- [__Worker environments__ :octicons-arrow-right-24:](worker_environments.md)
-
-  Guidance for platform teams on container images, Ray worker setup, and `runtime_env` overlays.
 
 - [__Kubernetes and KubeRay__ :octicons-arrow-right-24:](kubernetes.md)
 
@@ -43,3 +27,5 @@ The job-submission subsystem addresses both problems:
   Why durable result writes are more subtle in distributed execution and what job submission expects from the configured store.
 
 </div>
+
+For backend settings, see [Job backend configuration](configure_job_backend.md). For how each backend runs jobs and how workers are set up, see [Ray job backend](ray_job_backend.md), [Ray simple job backend](ray_simple_job_backend.md), and [Worker environments](worker_environments.md). To submit a job step by step, follow the [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb) and [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb) tutorials.

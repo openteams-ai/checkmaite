@@ -11,9 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - System requirements reference page covering recommended hardware, supported architectures, and internet access for the Python library (#781).
 - Documented critical limitations and prerequisites in the README and docs home page (#773). Conventions now list VisDrone detection and describe object-detection boxes as `float32` `xyxy`.
 - Added the CDAO funding acknowledgment to the README and docs home page (#774).
+- Glossary of key CheckMAITE, MAITE, and JATIC tool terms under Reference (#772).
+- Step-by-step how-to for saving capability runs to the analytics store and querying them (#772).
 
 ### Changed
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
+- Reorganized the docs nav into Get started, Tutorials, How-to guides, Explanations, and Reference, without moving any pages, and cross-linked every tutorial with its related how-to guides (#772, #778).
+- How-to guides, tutorials, and the dataset conventions now cite reported user problems and their fixes or limitations: TLS-proxy weight downloads, notebook-crash job recovery, durable report artifacts, YOLO labels outside `labels/`, non-deterministic DataEval loaders, and multivariate NRTK runs (#779).
 - Framed each tutorial by persona and T&E workflow stage, and added the staged workflow to the Personas reference (#776).
 
 ## [0.4.0] - 2026-09-24
