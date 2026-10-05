@@ -1,0 +1,11 @@
+# DR-3.3-H-3: published markdown (docs/ and README.md) is linted with
+# markdownlint-cli2. Only MkDocs-syntax rule exclusions / parameter changes
+# are allowed here; fix everything else in the docs.
+config:
+  default: true
+  MD007:
+    indent: 4  # MkDocs/Python-Markdown nested-list indent
+  MD033:
+    allowed_elements: [div, br]  # md_in_html grid cards; <br> in mermaid labels
+ignores:
+  - docs/reference/examples/**  # excluded from the site via mkdocs exclude_docs

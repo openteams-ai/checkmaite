@@ -2,8 +2,12 @@
 
 ## Supported environment
 
-- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested. The conda lock is Linux x86_64 only.
-- **Python:** 3.10, 3.11, and 3.12 with `uv` or pip (`requires-python = ">=3.10, <3.13"`). conda supports 3.10 and 3.11 only (`python = ">=3.10,<3.12"`). `checkmaite-plugins` is `<3.12` on both paths.
+- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not
+  CI-tested. The conda lock is Linux x86_64 only.
+- **Python:** 3.10, 3.11, and 3.12 with `uv` or pip
+  (`requires-python = ">=3.10, <3.13"`).
+  conda supports 3.10 and 3.11 only (`python = ">=3.10,<3.12"`).
+  `checkmaite-plugins` is `<3.12` on both paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
 - **Hardware, architectures, and internet access:** see [System requirements](../reference/system_requirements.md).
 - **Container:** CheckMAITE is also available as a batch container for Linux
@@ -19,7 +23,8 @@ Ensure you have the right permissions, and clone the project repository:
 git clone https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite.git
 ```
 
-On macOS, install OpenMP before creating the environment (`dataeval` → LightGBM needs `libomp.dylib`):
+On macOS, install OpenMP before creating the environment (`dataeval` → LightGBM
+needs `libomp.dylib`):
 
 ```bash
 brew install libomp
@@ -31,7 +36,9 @@ Both uv and conda are supported; uv is recommended.
 
 ### Option 1: uv environment
 
-To set up a uv environment, [install `uv`](https://docs.astral.sh/uv/getting-started/installation/), and build the environment with:
+To set up a uv environment, [install
+`uv`](https://docs.astral.sh/uv/getting-started/installation/), and build the
+environment with:
 
 ```bash
 uv sync
@@ -44,9 +51,12 @@ uv sync --extra reporting  # PDF report export (markdown + xhtml2pdf)
 uv sync --extra cloud      # cloud storage dependencies (aws+gcs+azure)
 ```
 
-JATIC tools which are not under active development are distributed through the separate `checkmaite-plugins` package.
-Use these tools with caution because they may contain bugs or may be incompatible with the environment in the future.
-`checkmaite-plugins` supports Python `<3.12` and is installed directly from GitLab instead of through a
+JATIC tools which are not under active development are distributed through the
+separate `checkmaite-plugins` package.
+Use these tools with caution because they may contain bugs or may be
+incompatible with the environment in the future.
+`checkmaite-plugins` supports Python `<3.12` and is installed directly from
+GitLab instead of through a
 `checkmaite` extra so that the PyPI package metadata remains valid.
 
 ```bash
@@ -62,7 +72,9 @@ pip install -e "/path/to/checkmaite-plugins[unsupported]"
 
 ### Option 2: conda environment
 
-To set up a conda environment, [install `conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) on your machine and build the environment with:
+To set up a conda environment, [install
+`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+on your machine and build the environment with:
 
 ```bash
 # create env with conda-lock installed

@@ -66,7 +66,8 @@ input/
 
 [`docker/example-run.yaml`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/blob/main/docker/example-run.yaml)
 shows an object-detection evaluation using CheckMAITE's COCO dataset loader, ONNX
-model, and metric classes. Save a copy as `run.yaml` in the input directory. Its field-level contract is the versioned
+model, and metric classes. Save a copy as `run.yaml` in the input directory. Its
+field-level contract is the versioned
 [run-plan JSON Schema](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/blob/main/docker/runtime/schema/run-plan-v1.schema.json).
 
 Object entries use the import path of a Python class or factory function and its
@@ -90,6 +91,8 @@ object needs another object.
 No environment variables are required. The container accepts these optional
 environment variables:
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Environment variable | Purpose | Default |
 | --- | --- | --- |
 | `CHECKMAITE_CONFIG` | Default for `--config` | `/checkmaite/run.yaml` |
@@ -100,7 +103,11 @@ environment variables:
 | `CHECKMAITE_BATCH_SIZE` | Default for `--batch-size` | Task/capability value |
 | `CHECKMAITE_LOG_LEVEL` | Default for `--log-level` | `INFO` |
 
+<!-- markdownlint-enable MD013 -->
+
 The expected mounts are:
+
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
 
 | Container path | Access | Purpose |
 | --- | --- | --- |
@@ -108,6 +115,8 @@ The expected mounts are:
 | `/output` | Writable | Durable reports, analytics, and result manifests |
 | `/cache` | Writable | Reusable caches and temporary files |
 | `/run/secrets` | Optional, read-only | Secret files consumed by trusted plugins |
+
+<!-- markdownlint-enable MD013 -->
 
 The built-in runtime requires no secrets. A trusted plugin that requires a
 secret must read it from a file mounted under `/run/secrets`. Do not place

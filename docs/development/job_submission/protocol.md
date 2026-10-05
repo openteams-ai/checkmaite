@@ -1,8 +1,10 @@
 # Job protocol and lifecycle
 
-The jobs protocol gives `CheckMAITE` a small, backend-agnostic contract for asynchronous execution.
+The jobs protocol gives `CheckMAITE` a small, backend-agnostic contract for
+asynchronous execution.
 
-Instead of coupling notebooks and higher-level APIs directly to backend-specific primitives, the codebase defines a common shape for:
+Instead of coupling notebooks and higher-level APIs directly to backend-specific
+primitives, the codebase defines a common shape for:
 
 - submission,
 - lifecycle status,
@@ -10,7 +12,9 @@ Instead of coupling notebooks and higher-level APIs directly to backend-specific
 - error mapping,
 - and result payloads.
 
-That contract is implemented today by the available job backends, but it is deliberately phrased as a protocol so other backends can adopt the same semantics later.
+That contract is implemented today by the available job backends, but it is
+deliberately phrased as a protocol so other backends can adopt the same
+semantics later.
 
 ## Why a protocol is useful
 
@@ -18,7 +22,8 @@ A protocol buys us three things.
 
 ### 1. Stable user-facing semantics
 
-Notebook code can work with `Job[CapabilityRunRef]` rather than job-backend-specific objects. That means callers can rely on:
+Notebook code can work with `Job[CapabilityRunRef]` rather than
+job-backend-specific objects. That means callers can rely on:
 
 - `job.status`
 - `job.job_name` for discovery, defaulting to the capability ID
@@ -31,26 +36,32 @@ without knowing how those behaviors are implemented underneath.
 
 ### 2. Thin job backend wrappers
 
-The job backend only needs to map its native state model onto the shared `JobStatus` and exception contracts. The public API remains small enough to implement without building a custom scheduler abstraction.
+The job backend only needs to map its native state model onto the shared
+`JobStatus` and exception contracts. The public API remains small enough to
+implement without building a custom scheduler abstraction.
 
 ### 3. Room for additional job backends later
 
-The current code uses Ray-backed implementations, but the protocol is what makes future implementations plausible:
+The current code uses Ray-backed implementations, but the protocol is what makes
+future implementations plausible:
 
 - a different Ray submission style,
 - a platform-specific scheduler,
 - or a local background executor.
 
-The point is not that those exist today. The point is that the rest of `CheckMAITE` does not need to be rewritten if they appear.
+The point is not that those exist today. The point is that the rest of
+`CheckMAITE` does not need to be rewritten if they appear.
 
 ## Why `result()` is reference-first
 
-In distributed execution, returning the full `CapabilityRunBase` payload by default is expensive and fragile:
+In distributed execution, returning the full `CapabilityRunBase` payload by
+default is expensive and fragile:
 
 - the run object may be large,
 - worker-to-client serialization can be expensive,
 - the data may already be written durably elsewhere,
-- and the client often only needs enough information to inspect status, locate durable results, or render a lightweight summary.
+- and the client often only needs enough information to inspect status, locate
+  durable results, or render a lightweight summary.
 
 So the current contract is intentionally **reference-first**:
 
@@ -65,13 +76,15 @@ In practice, `CapabilityRunRef` contains:
 - `capability_id`
 - `store_uri` (`None` when the run produced no analytics rows)
 - `outputs_uri` (`None` today)
-- `report` (a typed `InlineTextReport` or `ArtifactReport`, or `None` for runs without reporting)
+- `report` (a typed `InlineTextReport` or `ArtifactReport`, or `None` for runs
+  without reporting)
 
 Inline reports carry their media type, filename, and textual content directly
 in job metadata. Their UTF-8 content is limited to 256 KiB; the required
 `artifact_store` externalizes larger inline reports. Publication or verification
 failure fails the job instead of returning a successful result with a missing
-report. Inline content must already be self-contained, using embedded resources such as `data:` URIs or links that
+report. Inline content must already be self-contained, using embedded resources
+such as `data:` URIs or links that
 are independently reachable by report consumers. Large, binary, or multi-file
 reports should use an `ArtifactReport` whose durable URI was created by the
 report producer. The backend does not parse report content, discover files,
@@ -119,7 +132,9 @@ flowchart LR
 - `RUNNING` means capability worker execution has begun.
 - `COMPLETED`, `FAILED`, and `CANCELLED` are terminal states.
 
-The shared `JobStatus` enum is intentionally small. Backends can derive those states however they like, but they should present the same lifecycle semantics to callers.
+The shared `JobStatus` enum is intentionally small. Backends can derive those
+states however they like, but they should present the same lifecycle semantics
+to callers.
 
 ## Errors and waiting
 
@@ -128,7 +143,9 @@ The protocol also standardizes how failures are exposed:
 - `JobTimeoutError` — the caller waited too long
 - `JobCancelledError` — the job was cancelled
 - `JobFailedError` — the remote work failed
-- `BackpressureError` — the backend control plane or configured admission limit rejected work and the caller should retry with backoff
-- `JobSubmissionError` — submission failed before a handle was returned; its `phase`, `job_id`, `error_type`, and `detail` fields identify where and why
+- `BackpressureError` — the backend control plane or configured admission limit
+  rejected work and the caller should retry with backoff
+- `JobSubmissionError` — submission failed before a handle was returned; its
+  `phase`, `job_id`, `error_type`, and `detail` fields identify where and why
 
 This lets notebook code write one error-handling path even if job backends change.

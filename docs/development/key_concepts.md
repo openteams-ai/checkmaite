@@ -1,12 +1,14 @@
 # Key Concepts: Capabilities, Runs, and Caching
 
-This page documents the core abstractions used to define, execute, and cache evaluations: **Capabilities**, **Runs**, and the **caching layer**.
+This page documents the core abstractions used to define, execute, and cache
+evaluations: **Capabilities**, **Runs**, and the **caching layer**.
 
 <!-- Top-level flowchart notes (2026-03-20):
      - Shows run() (public API), not _run() (internal abstract method)
      - Cache check happens inside run() before _run() executes — see capability_core.py:363-386
      - Config and Outputs both flow into the Run Object (they are constructor inputs)
-     - Simplified: does not show the "store in cache after compute" path (covered in caching flowchart below) -->
+     - Simplified: does not show the "store in cache after compute" path
+       (covered in caching flowchart below) -->
 ```mermaid
 graph LR
     subgraph Inputs
@@ -41,7 +43,9 @@ graph LR
 
 ### Capability
 
-A **Capability** represents a specific evaluation task — for example, running model inference and computing metrics on a dataset. It is the top-level abstraction that users interact with.
+A **Capability** represents a specific evaluation task — for example, running
+model inference and computing metrics on a dataset. It is the top-level
+abstraction that users interact with.
 
 A Capability is responsible for:
 
@@ -53,16 +57,26 @@ A Capability is responsible for:
 
 ### Run
 
-A **Run** is an object that stores everything associated with a *specific execution* of a Capability. This includes:
+A **Run** is an object that stores everything associated with a *specific
+execution* of a Capability. This includes:
 
 - The **configuration** for that execution (e.g., model, dataset, metric settings)
 - The **outputs** produced (e.g., predictions, metric results)
-- An optional `collect_md_report()` implementation returning a typed inline or artifact report for those outputs
+- An optional `collect_md_report()` implementation returning a typed inline or
+  artifact report for those outputs
 
-CheckMAITE uses Pydantic to serialize cache entries. It directly supports common objects such as NumPy arrays and Torch tensors by saving their data in separate binary files. If saving fails, CheckMAITE cleans up partial files. Cache links are only followed while loading the cache, so similar-looking user strings remain strings.
+CheckMAITE uses Pydantic to serialize cache entries. It directly supports common
+objects such as NumPy arrays and Torch tensors by saving their data in separate
+binary files. If saving fails, CheckMAITE cleans up partial files. Cache links
+are only followed while loading the cache, so similar-looking user strings
+remain strings.
 
-<!-- Note: The exported name is binary_de_serializer (with underscore), not binary_deserializer. -->
-To cache another type, register a codec with `binary_de_serializer.register(...)`. The codec supplies functions that convert the value to bytes and restore it. Strict mode uses a custom codec only when the codec also identifies which values have a lossless round trip.
+<!-- Note: The exported name is binary_de_serializer (with underscore),
+not binary_deserializer. -->
+To cache another type, register a codec with
+`binary_de_serializer.register(...)`. The codec supplies functions that convert
+the value to bytes and restore it. Strict mode uses a custom codec only when the
+codec also identifies which values have a lossless round trip.
 
 ---
 
@@ -70,15 +84,21 @@ To cache another type, register a codec with `binary_de_serializer.register(...)
 
 Each tool must implement:
 
-1. **`Config`** — A Pydantic model declaring what configuration options the Capability accepts. Can be `pass` if no configuration is needed.
+1. **`Config`** — A Pydantic model declaring what configuration options the
+   Capability accepts. Can be `pass` if no configuration is needed.
 2. **`Outputs`** — A Pydantic model declaring what outputs will be stored and cached.
-3. **`Run`** — Contains the `Config`, the `Outputs`, and the `collect_md_report()` method for report generation.
-4. **Capability class** — aka the "Runner". Implements `_run(...)`, the actual execution logic. Calls internal helpers (e.g., `maite_evaluate`) to produce outputs.
+3. **`Run`** — Contains the `Config`, the `Outputs`, and the
+   `collect_md_report()` method for report generation.
+4. **Capability class** — aka the "Runner". Implements `_run(...)`, the actual
+   execution logic. Calls internal helpers (e.g., `maite_evaluate`) to produce
+   outputs.
 
 <!-- Class diagram notes (2026-03-20):
-     - run_uid is a @cached_property (capability_core.py:140) — shown with () to indicate it's computed
+     - run_uid is a @cached_property (capability_core.py:140) — shown with () to
+       indicate it's computed
      - Config and Outputs arrows point INTO RunBase (they are inputs, not outputs)
-     - collect_md_report() omits the required threshold param for diagram simplicity -->
+     - collect_md_report() omits the required threshold param for diagram
+       simplicity -->
 ```mermaid
 classDiagram
     class CapabilityConfigBase {
@@ -125,12 +145,14 @@ See the **Baseline Evaluation Capability** for the simplest implementation.
 
 ## Caching
 
-The caching layer is designed to avoid redundant computation. There are two levels of caching:
+The caching layer is designed to avoid redundant computation. There are two
+levels of caching:
 
 <!-- Caching flowchart notes (2026-03-20):
      - Capability-level cache: implemented in capability_core.py:363-386
      - Prediction/eval cache: delegated to each capability's _run() implementation
-       via use_prediction_and_evaluation_cache param — not a framework-level mechanism -->
+       via use_prediction_and_evaluation_cache param — not a framework-level
+       mechanism -->
 ```mermaid
 flowchart TD
     A["capability.run(model, dataset, ...)"] --> B{use_cache?}
@@ -156,32 +178,58 @@ flowchart TD
 
 ### 1. Capability-level Cache
 
-When a Capability is executed with `use_cache=True` (the default), it checks whether a Run with the same configuration and inputs has already been completed. If a cache hit is found, the stored Run object is returned immediately — no computation occurs.
-
+When a Capability is executed with `use_cache=True` (the default), it checks
+whether a Run with the same configuration and inputs has already been completed.
+If a cache hit is found, the stored Run object is returned immediately — no
+computation occurs.
 
 ### 2. Prediction/Evaluation Cache
 
-At a lower level, individual `predict` and `evaluate` calls (e.g., calls to `maite.evaluate`) are also cached globally. If two different Capabilities within the same pipeline call `evaluate` with the same model, dataset, and metric configuration, the second call will reuse the result from the first.
+At a lower level, individual `predict` and `evaluate` calls (e.g., calls to
+`maite.evaluate`) are also cached globally. If two different Capabilities within
+the same pipeline call `evaluate` with the same model, dataset, and metric
+configuration, the second call will reuse the result from the first.
 
-This cache is controlled by the same `use_cache` flag. When `use_cache=False`, both the capability-level and prediction/evaluation-level caches are bypassed.
+This cache is controlled by the same `use_cache` flag. When `use_cache=False`,
+both the capability-level and prediction/evaluation-level caches are bypassed.
 
-> **Note:** It is not currently possible to disable the prediction/evaluation cache independently of the capability cache. Both are toggled together via `use_cache`.
+> **Note:** It is not currently possible to disable the prediction/evaluation
+> cache independently of the capability cache. Both are toggled together via
+> `use_cache`.
 
 ### MAITE Execution and Ownership Semantics
 
-CheckMAITE treats `maite.tasks.evaluate()` as the fundamental task. `cached_tasks.predict()` is the convenience form of `evaluate(metric=None, return_preds=True)`. On a cold evaluation, MAITE applies augmentation, calls the model, updates the metric, and optionally retains each batch for return—all in one pass.
+CheckMAITE treats `maite.tasks.evaluate()` as the fundamental task.
+`cached_tasks.predict()` is the convenience form of
+`evaluate(metric=None, return_preds=True)`. On a cold evaluation, MAITE applies
+augmentation, calls the model, updates the metric, and optionally retains each
+batch for return—all in one pass.
 
-MAITE passes the same batch objects between these steps; it does not make defensive copies. CheckMAITE follows that ownership model and assumes:
+MAITE passes the same batch objects between these steps; it does not make
+defensive copies. CheckMAITE follows that ownership model and assumes:
 
-- model and augmentation adapters return stable outputs that remain valid after later batches are processed;
-- `metric.update(predictions, targets, metadata)` treats all three arguments as read-only; and
-- callers do not depend on Python alias identity or mutate returned values expecting the cache to change.
+- model and augmentation adapters return stable outputs that remain valid after
+  later batches are processed;
+- `metric.update(predictions, targets, metadata)` treats all three arguments as
+  read-only; and
+- callers do not depend on Python alias identity or mutate returned values
+  expecting the cache to change.
 
-CheckMAITE validates batch alignment, but it does not snapshot arrays or tensors before metric updates. A metric that mutates a prediction can therefore also alter the value returned to the caller or published to the prediction cache. A model that repeatedly returns and overwrites the same mutable output buffer can similarly make earlier batches appear to contain the final batch. Such adapters and metrics are outside the supported contract and should copy internally when they need mutable working storage.
+CheckMAITE validates batch alignment, but it does not snapshot arrays or tensors
+before metric updates. A metric that mutates a prediction can therefore also
+alter the value returned to the caller or published to the prediction cache. A
+model that repeatedly returns and overwrites the same mutable output buffer can
+similarly make earlier batches appear to contain the final batch. Such adapters
+and metrics are outside the supported contract and should copy internally when
+they need mutable working storage.
 
 #### Multi-Metric Evaluation
 
-Image-classification and object-detection `MaiteEvaluation` capabilities accept one or more metrics. CheckMAITE presents the collection to MAITE as one internal fanout metric, so augmentation and model inference happen once per batch even when `use_cache=False`. Member metrics receive the same prediction, target, and metadata objects in canonical metric-ID order.
+Image-classification and object-detection `MaiteEvaluation` capabilities accept
+one or more metrics. CheckMAITE presents the collection to MAITE as one internal
+fanout metric, so augmentation and model inference happen once per batch even
+when `use_cache=False`. Member metrics receive the same prediction, target, and
+metadata objects in canonical metric-ID order.
 
 ```python
 run = MaiteEvaluation().run(
@@ -196,28 +244,56 @@ print(accuracy_result.result)
 print(accuracy_result.overall_metric_value)
 ```
 
-Metric metadata IDs must be non-empty and unique. CheckMAITE sorts metrics by ID before evaluation, run identity generation, reports, and analytics, so reversing caller order does not create a different run. Any member failure immediately aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying the member and lifecycle stage. Partial capability runs are not returned.
+Metric metadata IDs must be non-empty and unique. CheckMAITE sorts metrics by ID
+before evaluation, run identity generation, reports, and analytics, so reversing
+caller order does not create a different run. Any member failure immediately
+aborts the complete evaluation with a `MaiteEvaluationMetricError` identifying
+the member and lifecycle stage. Partial capability runs are not returned.
 
 #### Retained Data and Memory
 
-`return_preds=True` asks MAITE to retain raw prediction batches in memory; CheckMAITE returns them after any configured CPU postprocessing. Even when the caller sets `return_preds=False`, CheckMAITE may request predictions internally on a cold call when it needs to publish the prediction cache or perform deferred CPU postprocessing. The flag controls the public return value, not an unconditional peak-memory guarantee.
+`return_preds=True` asks MAITE to retain raw prediction batches in memory;
+CheckMAITE returns them after any configured CPU postprocessing. Even when the
+caller sets `return_preds=False`, CheckMAITE may request predictions internally
+on a cold call when it needs to publish the prediction cache or perform deferred
+CPU postprocessing. The flag controls the public return value, not an
+unconditional peak-memory guarantee.
 
-Ordinary MOT calls cache predictions, targets, and metadata, including `track_ids`, but store empty input batches instead of decoded video. `return_augmented_data=True` is intended primarily for debugging and inspecting the exact data sent to the model. It returns complete post-augmentation input, target, and metadata batches. CheckMAITE always runs that request fresh and publishes nothing to the prediction or evaluation caches.
+Ordinary MOT calls cache predictions, targets, and metadata, including
+`track_ids`, but store empty input batches instead of decoded video.
+`return_augmented_data=True` is intended primarily for debugging and inspecting
+the exact data sent to the model. It returns complete post-augmentation input,
+target, and metadata batches. CheckMAITE always runs that request fresh and
+publishes nothing to the prediction or evaluation caches.
 
-For a full-data MOT request, CheckMAITE wraps the supplied augmentation and materializes one-shot video streams after augmentation but before the model runs. A non-`Sequence` stream is therefore passed to the model and returned to the caller as a list of frames rather than as its original wrapper type. This preserves an inspectable realization after inference but can require substantial memory. Prefer the default `False` for normal evaluations, especially with large videos.
+For a full-data MOT request, CheckMAITE wraps the supplied augmentation and
+materializes one-shot video streams after augmentation but before the model
+runs. A non-`Sequence` stream is therefore passed to the model and returned to
+the caller as a list of frames rather than as its original wrapper type. This
+preserves an inspectable realization after inference but can require substantial
+memory. Prefer the default `False` for normal evaluations, especially with large
+videos.
 
 #### Stochastic Inference
 
-A cache key is a claim that the identified model, dataset, augmentation, batching, and postprocessing define reusable behavior. Runtime RNG state is not inspected or hashed. For stochastic models or augmentations, a cache hit reuses the first published realization rather than drawing another sample.
+A cache key is a claim that the identified model, dataset, augmentation,
+batching, and postprocessing define reusable behavior. Runtime RNG state is not
+inspected or hashed. For stochastic models or augmentations, a cache hit reuses
+the first published realization rather than drawing another sample.
 
-Use `use_cache=False` whenever each call must produce a fresh draw. For reproducible stochastic evaluation, control the RNG and include the seed and all sampling settings in the relevant model or augmentation metadata ID. Changing a seed without changing that identity can produce an incorrect cache hit; changing an ID does not itself seed the implementation.
+Use `use_cache=False` whenever each call must produce a fresh draw. For
+reproducible stochastic evaluation, control the RNG and include the seed and all
+sampling settings in the relevant model or augmentation metadata ID. Changing a
+seed without changing that identity can produce an incorrect cache hit; changing
+an ID does not itself seed the implementation.
 
 ```python
 from checkmaite import cached_tasks
 
 # Reuse one identified, reproducible realization.
 results, predictions, _ = cached_tasks.evaluate(
-    model=seeded_model,  # metadata["id"] includes checkpoint, seed, and sampling settings
+    # metadata["id"] includes checkpoint, seed, and sampling settings
+    model=seeded_model,
     metric=metric,
     dataset=dataset,
     return_preds=True,
@@ -239,23 +315,36 @@ results, predictions, _ = cached_tasks.evaluate(
 ### Cache Key Generation
 
 <!-- Updated 2026-03-20: Original only listed model_id, dataset_id, metric_id.
-     Added capability_id and config per compute_uid() in capability_core.py:130-136. -->
+     Added capability_id and config per compute_uid() in
+     capability_core.py:130-136. -->
 Cache hits are determined by a SHA-256 hash of:
+
 - `capability_id`
 - `config` (the full configuration object)
 - `dataset_id` (for each dataset)
 - `model_id` (for each model)
 - `metric_id` (for each metric)
 
-Changing the config or using a different capability will produce a different cache key, even with the same datasets and models. **The IDs are user-supplied metadata fields and must be unique.** The cache does not perform content-based hashing (e.g., checksumming image files) for performance reasons. It is the responsibility of the caller to ensure that IDs accurately reflect the data being passed in.
+Changing the config or using a different capability will produce a different
+cache key, even with the same datasets and models. **The IDs are user-supplied
+metadata fields and must be unique.** The cache does not perform content-based
+hashing (e.g., checksumming image files) for performance reasons. It is the
+responsibility of the caller to ensure that IDs accurately reflect the data
+being passed in.
 
-> ⚠️ **Important:** If you run the same model or dataset under the same ID but with different underlying content, you will get incorrect cache hits. When using this library programmatically (e.g., from a notebook), ensure IDs are managed carefully. In a production environment with a model registry or dataset warehouse, these IDs should be derived automatically from versioned artifacts.
+> ⚠️ **Important:** If you run the same model or dataset under the same ID but
+> with different underlying content, you will get incorrect cache hits. When
+> using this library programmatically (e.g., from a notebook), ensure IDs are
+> managed carefully. In a production environment with a model registry or
+> dataset warehouse, these IDs should be derived automatically from versioned
+> artifacts.
 
 ---
 
 ### Configuring the Cache
 
-The cache behavior is controlled by the `use_cache` parameter on the Capability's `run` method:
+The cache behavior is controlled by the `use_cache` parameter on the
+Capability's `run` method:
 
 ```python
 # Use cache (default) — will return cached result if available
@@ -269,8 +358,13 @@ capability.run(model=my_model, dataset=my_dataset, use_cache=False)
 
 CheckMAITE provides two serialization options for task artifacts:
 
-- **Flexible (potentially lossy)** accepts more Python values. Pydantic or a registered codec may change the representation. For example, a tuple may return as a list or a dataclass as a mapping. Use this when those changes do not affect the evaluation.
-- **Strict (lossless)** accepts only values with an explicitly supported round trip. Unsupported artifacts are returned to the caller but are not saved to the cache, so cache limitations do not fail completed computation.
+- **Flexible (potentially lossy)** accepts more Python values. Pydantic or a
+  registered codec may change the representation. For example, a tuple may
+  return as a list or a dataclass as a mapping. Use this when those changes do
+  not affect the evaluation.
+- **Strict (lossless)** accepts only values with an explicitly supported round
+  trip. Unsupported artifacts are returned to the caller but are not saved to
+  the cache, so cache limitations do not fail completed computation.
 
 Cached-task APIs select the option with `strict_cache_serialization`:
 
@@ -298,56 +392,91 @@ results, predictions, _ = cached_tasks.evaluate(
 )
 ```
 
-Strict mode supports a conservative tree of exact lists, string-keyed dictionaries, finite scalar values, and explicitly admitted binary codecs. NumPy values require safe dtypes and exact scalar-class round trips. Torch values require exact CPU strided tensors without gradients. Other codecs must explicitly opt into strict admission.
+Strict mode supports a conservative tree of exact lists, string-keyed
+dictionaries, finite scalar values, and explicitly admitted binary codecs. NumPy
+values require safe dtypes and exact scalar-class round trips. Torch values
+require exact CPU strided tensors without gradients. Other codecs must
+explicitly opt into strict admission.
 
-MOT target objects are not currently admitted by strict serialization. A strict MOT call still completes, but CheckMAITE warns and skips prediction artifact publication. Use the default flexible option when MOT predictions, targets, and metadata need to be cached.
+MOT target objects are not currently admitted by strict serialization. A strict
+MOT call still completes, but CheckMAITE warns and skips prediction artifact
+publication. Use the default flexible option when MOT predictions, targets, and
+metadata need to be cached.
 
-Here, *lossless* means preserving the admitted scientific value and supported type. It does not cover NumPy or Torch storage topology, array writability, or arbitrary tensor attributes. Use `use_cache=False` when unsupported state is part of the computation.
+Here, *lossless* means preserving the admitted scientific value and supported
+type. It does not cover NumPy or Torch storage topology, array writability, or
+arbitrary tensor attributes. Use `use_cache=False` when unsupported state is
+part of the computation.
 
-Flexible serialization is the default for CheckMAITE's built-in capabilities and capability-level caches. The strict option applies to cached-task orchestration.
+Flexible serialization is the default for CheckMAITE's built-in capabilities and
+capability-level caches. The strict option applies to cached-task orchestration.
 
 ---
 
 ## Input Flexibility (Type Coercion)
 
-CheckMAITE accepts flexible input types at its public API boundary and normalizes them internally. For example, an image can be passed as:
+CheckMAITE accepts flexible input types at its public API boundary and
+normalizes them internally. For example, an image can be passed as:
 
 - A file path (`str` or `Path`)
 - Raw bytes
 - A `BufferedIOBase` object
 - A PIL `Image` object
 
-Internally, all images are normalized to PIL `Image` objects before any processing occurs. This coercion is handled automatically via Pydantic validators and follows [Postel's Law](https://en.wikipedia.org/wiki/Robustness_principle): *be flexible in what you accept, strict in what you emit*.
+Internally, all images are normalized to PIL `Image` objects before any
+processing occurs. This coercion is handled automatically via Pydantic
+validators and follows [Postel's
+Law](https://en.wikipedia.org/wiki/Robustness_principle): *be flexible in what
+you accept, strict in what you emit*.
 
 For tabular inputs, core capabilities accept pandas DataFrames at the API boundary.
 PySpark-dependent paths live in the optional `checkmaite-plugins` package.
 
-This means internal code never needs to check input types — it can always assume inputs are in the canonical internal format.
+This means internal code never needs to check input types — it can always assume
+inputs are in the canonical internal format.
 
 ---
 
 ## Reporting and Visualization
 
-A Run can implement `collect_md_report()` to return a typed `InlineTextReport` or `ArtifactReport`. The base implementation continues to raise `NotImplementedError` for backward compatibility. Inline reports include a media type, filename, and self-contained textual `content`; embedded resources should use forms such as `data:` URIs rather than local file paths. Job-result metadata accepts up to 256 KiB inline and can externalize a larger report through its configured artifact store. Artifact reports include a media type, filename, and producer-owned durable `uri` for large, binary, or multi-file reports. Report models are exported from `checkmaite.core.report`.
+A Run can implement `collect_md_report()` to return a typed `InlineTextReport`
+or `ArtifactReport`. The base implementation continues to raise
+`NotImplementedError` for backward compatibility. Inline reports include a media
+type, filename, and self-contained textual `content`; embedded resources should
+use forms such as `data:` URIs rather than local file paths. Job-result metadata
+accepts up to 256 KiB inline and can externalize a larger report through its
+configured artifact store. Artifact reports include a media type, filename, and
+producer-owned durable `uri` for large, binary, or multi-file reports. Report
+models are exported from `checkmaite.core.report`.
 
 Report generation is handled by utilities located in the `report/` submodule:
 
-- **Gradient-based reports** (legacy, optional dependency) — generates visual outputs using the Gradient library. Will emit a deprecation warning if used.
-- **Markdown reports** — generates a structured `.md` file summarizing outputs. This is the recommended approach going forward.
-- **PDF reports** — converts an inline Markdown report's `content` into a PDF via `create_pdf_output()`. Requires the optional `reporting` extra (`pip install ".[reporting]"`).
+- **Gradient-based reports** (legacy, optional dependency) — generates visual
+  outputs using the Gradient library. Will emit a deprecation warning if used.
+- **Markdown reports** — generates a structured `.md` file summarizing outputs.
+  This is the recommended approach going forward.
+- **PDF reports** — converts an inline Markdown report's `content` into a PDF
+  via `create_pdf_output()`. Requires the optional `reporting` extra
+  (`pip install ".[reporting]"`).
 
-These are available as separate functions, so end users can choose the format appropriate to their context.
+These are available as separate functions, so end users can choose the format
+appropriate to their context.
 
 ---
 
 ## Analytics Store
 
-The analytics store provides persistent, queryable storage for capability results. While the **Run Cache** stores full Python objects for reuse, the **Analytics Store** distills results into flat scalar records that can be queried with SQL.
+The analytics store provides persistent, queryable storage for capability
+results. While the **Run Cache** stores full Python objects for reuse, the
+**Analytics Store** distills results into flat scalar records that can be
+queried with SQL.
 
-Each capability can opt in by defining a `Record` class (inheriting from `BaseRecord`) and implementing an `extract()` method on its `Run` class.
+Each capability can opt in by defining a `Record` class (inheriting from
+`BaseRecord`) and implementing an `extract()` method on its `Run` class.
 
 <!-- Analytics store diagram: shows all capabilities with extract() support.
-     Using <br> instead of \n for mermaid line breaks (cross-renderer compatibility) -->
+     Using <br> instead of \n for mermaid line breaks (cross-renderer
+     compatibility) -->
 ```mermaid
 flowchart LR
     subgraph "Capability Runs"
@@ -394,9 +523,12 @@ flowchart LR
 
 Records follow these rules:
 
-- **Scalar fields only** — `str`, `int`, `float`, `bool`, `bytes`, `datetime`, or `Optional` variants. No lists, dicts, or nested models.
-- **One table per capability** — each `Record` subclass declares a `table_name` (e.g., `"dataeval_cleaning"`).
-- **Cross-capability JOINs** — single-dataset capabilities include a `dataset_id` field, enabling queries like:
+- **Scalar fields only** — `str`, `int`, `float`, `bool`, `bytes`, `datetime`,
+  or `Optional` variants. No lists, dicts, or nested models.
+- **One table per capability** — each `Record` subclass declares a `table_name`
+  (e.g., `"dataeval_cleaning"`).
+- **Cross-capability JOINs** — single-dataset capabilities include a
+  `dataset_id` field, enabling queries like:
 
     ```sql
     SELECT c.exact_duplicate_ratio, f.ber_upper, m.output_value
@@ -406,14 +538,22 @@ Records follow these rules:
     WHERE m.output_key = 'accuracy'
     ```
 
-    Multi-dataset capabilities (e.g., shift) use descriptive ID fields (`reference_dataset_id`, `evaluation_dataset_id`) and can JOIN on either side.
+    Multi-dataset capabilities (e.g., shift) use descriptive ID fields
+    (`reference_dataset_id`, `evaluation_dataset_id`) and can JOIN on either
+    side.
 
 - **Idempotent writes** — records are deduplicated by `run_uid` across write calls.
 - **Append-only** — run results are historical facts; no updates or deletes.
-- **`created_at`** — auto-populated timestamp on every record; no need to add your own.
+- **`created_at`** — auto-populated timestamp on every record; no need to add
+  your own.
 
-To add analytics store support to a new capability, define a `BaseRecord` subclass and implement `extract()` on your `Run` class. See the [reference notebook](analytics_store_guide.ipynb) for detailed implementation guidance.
+To add analytics store support to a new capability, define a `BaseRecord`
+subclass and implement `extract()` on your `Run` class. See the [reference
+notebook](analytics_store_guide.ipynb) for detailed implementation guidance.
 
-For a complete list of available tables and their fields, see the [Record Schema Reference](analytics_store_guide.ipynb) (Part 5).
+For a complete list of available tables and their fields, see the [Record Schema
+Reference](analytics_store_guide.ipynb) (Part 5).
 
-For hands-on usage examples (creating a store, writing runs, querying via SQL), see the [Analytics Store Tutorial](../tool-usage/analytics_store_tutorial.ipynb).
+For hands-on usage examples (creating a store, writing runs, querying via SQL),
+see the [Analytics Store
+Tutorial](../tool-usage/analytics_store_tutorial.ipynb).

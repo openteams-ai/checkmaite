@@ -318,6 +318,28 @@ pages-branch:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
 
+# DR-3.3-H-3: lint published markdown. Runs here rather than via the
+# pre-commit component, which ignores hook failures (`|| true`).
+markdownlint:
+  extends: [.shared-setup]
+  image: node:22-slim
+  stage: docs
+  needs: []
+  script:
+    - npx --yes markdownlint-cli2@0.23.3 "docs/**/*.md" "README.md"  # keep in sync with .pre-commit-config.yaml
+
+# DR-3.3-H-4: dead internal/external links in published markdown.
+# Ignored in .markdown-link-check.json: gitlab.jatic.net (pages need a login) and
+# www.ai.mil (403s every non-browser client). cdao.pages.jatic.net 403s
+# non-browser User-Agents, so it gets a browser UA header instead.
+markdown-link-check:
+  extends: [.shared-setup]
+  image: node:22-slim
+  stage: docs
+  needs: []
+  script:
+    - npx --yes markdown-link-check@3.15.0 --quiet --config .markdown-link-check.json $(find docs README.md -name '*.md' -not -path 'docs/reference/examples/*')
+
 # deploy production docs on merge with main
 pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   extends: [.shared-setup, .uv-setup]
@@ -612,6 +634,12 @@ include:
       maite_interop_scope: "provider"
       full_execution_on_commit: true
       allow_failure: true
+
+# markdownlint is enforced by the `markdownlint` job; skipping it here avoids a
+# nodeenv Node download in a job that ignores hook failures anyway.
+pre-commit🪝:
+  variables:
+    SKIP: markdownlint-cli2
 
 secret_detection:
   stage: dr-compliance

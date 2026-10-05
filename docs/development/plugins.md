@@ -1,12 +1,20 @@
 # Plugin System
 
-CheckMAITE uses a plugin architecture to support capabilities with heavy or optional dependencies. Plugins are discovered automatically at runtime via Python's [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) mechanism — any installed package that registers under the correct group is picked up without changes to the core repository.
+CheckMAITE uses a plugin architecture to support capabilities with heavy or
+optional dependencies. Plugins are discovered automatically at runtime via
+Python's [entry
+point](https://packaging.python.org/en/latest/specifications/entry-points/)
+mechanism — any installed package that registers under the correct group is
+picked up without changes to the core repository.
 
 ## How It Works
 
-When `checkmaite.core.object_detection` or `checkmaite.core.image_classification` is imported, the module calls `inject_plugin_exports()` which:
+When `checkmaite.core.object_detection` or
+`checkmaite.core.image_classification` is imported, the module calls
+`inject_plugin_exports()` which:
 
-1. Scans **all installed packages** for entry points registered under the group (e.g., `checkmaite.plugins.object_detection`)
+1. Scans **all installed packages** for entry points registered under the group
+   (e.g., `checkmaite.plugins.object_detection`)
 2. Calls each entry point function, which returns a dict of capability classes
 3. Merges those classes into the module namespace and `__all__`
 4. Records the outcome in a registry for diagnostics
@@ -24,7 +32,14 @@ flowchart LR
 
 ## Plugin Discovery Architecture
 
-The loader scans all installed packages — it does not hardcode any specific plugin. This means single-plugin repos, mono-repos, and any combination work automatically. We currently maintain a mono-repo with currently unsupported plugins, [`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins). However, let's say you would like to add your own plugins — one as a single-plugin repo called "debiaser" and one as a mono-repo of plugins called "acme". Here is an example of how those would work together:
+The loader scans all installed packages — it does not hardcode any specific
+plugin. This means single-plugin repos, mono-repos, and any combination work
+automatically. We currently maintain a mono-repo with currently unsupported
+plugins,
+[`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins).
+However, let's say you would like to add your own plugins — one as a
+single-plugin repo called "debiaser" and one as a mono-repo of plugins called
+"acme". Here is an example of how those would work together:
 
 ```mermaid
 flowchart TB
@@ -87,13 +102,17 @@ flowchart TD
 
 ## The Official Plugin Package
 
-The [`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins) repository is a mono-repo containing capabilities that depend on packages not available on Python 3.12+ or that require Java/private dependencies:
+The
+[`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins)
+repository is a mono-repo containing capabilities that depend on packages not
+available on Python 3.12+ or that require Java/private dependencies:
 
 - **HeartAdversarial** (object detection) — adversarial robustness via HEART library
 - **ReallabelLabelling** (object detection) — labelling via RealLabel + PySpark
 - **Survivor** (object detection + image classification) — survivability analysis
 
-Install the plugin package directly from GitLab. It supports Python `<3.12` and is intentionally kept out of
+Install the plugin package directly from GitLab. It supports Python `<3.12` and
+is intentionally kept out of
 `checkmaite` package metadata so that PyPI accepts CheckMAITE releases:
 
 ```bash
@@ -105,11 +124,12 @@ uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/j
 A plugin is any Python package that:
 
 1. Declares entry points under `checkmaite.plugins.object_detection` and/or `checkmaite.plugins.image_classification`
-2. Provides a callable that returns a `Mapping[str, Any]` of capability class names to classes
+2. Provides a callable that returns a `Mapping[str, Any]` of capability class
+   names to classes
 
 ### Minimal Example: Single-Capability Plugin
 
-```
+```text
 checkmaite-plugin-debiaser/
     pyproject.toml
     src/
@@ -131,7 +151,8 @@ dependencies = ["checkmaite>=0.2.0"]
 debiaser = "checkmaite_plugin_debiaser:ic_exports"
 ```
 
-The entry point name (`debiaser`) is an identifier — it can be anything. The value points to a callable using `module:function` syntax.
+The entry point name (`debiaser`) is an identifier — it can be anything. The
+value points to a callable using `module:function` syntax.
 
 **src/checkmaite_plugin_debiaser/\_\_init\_\_.py:**
 
@@ -155,9 +176,11 @@ def ic_exports() -> Mapping[str, Any]:
     }
 ```
 
-**capability.py** would contain your `Capability` subclass following the standard CheckMAITE [capability pattern](key_concepts.md).
+**capability.py** would contain your `Capability` subclass following the
+standard CheckMAITE [capability pattern](key_concepts.md).
 
-Once installed (`pip install checkmaite-plugin-debiaser`), the capability is automatically available:
+Once installed (`pip install checkmaite-plugin-debiaser`), the capability is
+automatically available:
 
 ```python
 import checkmaite.core.image_classification as ic
@@ -166,7 +189,9 @@ ic.Debiaser  # available without any changes to CheckMAITE
 
 ### Mono-Repo Plugin (Multiple Capabilities)
 
-A single package can register multiple capabilities. See [`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins) for the reference implementation.
+A single package can register multiple capabilities. See
+[`checkmaite-plugins`](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins)
+for the reference implementation.
 
 ```mermaid
 flowchart LR
@@ -190,7 +215,8 @@ flowchart LR
     R -.-> E3
 ```
 
-The key difference is the entry point function returns multiple classes, and wraps each import in try/except for graceful degradation:
+The key difference is the entry point function returns multiple classes, and
+wraps each import in try/except for graceful degradation:
 
 ```python
 def object_detection_exports() -> Mapping[str, Any]:
@@ -217,8 +243,10 @@ def object_detection_exports() -> Mapping[str, Any]:
 
 ### Entry Point Contract
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Requirement | Detail |
-|---|---|
+| --- | --- |
 | Group name | `checkmaite.plugins.object_detection` or `checkmaite.plugins.image_classification` |
 | Entry point value | A callable (function) taking no arguments |
 | Return type | `Mapping[str, Any]` — keys are symbol names, values are **classes** (not instances) |
@@ -226,9 +254,12 @@ def object_detection_exports() -> Mapping[str, Any]:
 | Error handling | Wrap imports in `try/except ImportError` for optional deps |
 | Core dependency | `checkmaite >= 0.2.0` must be a dependency of your plugin |
 
+<!-- markdownlint-enable MD013 -->
+
 ### API Version Compatibility
 
-CheckMAITE uses semver for plugin API versioning. The current API version is available as:
+CheckMAITE uses semver for plugin API versioning. The current API version is
+available as:
 
 ```python
 from checkmaite.core._plugins import PLUGIN_API_VERSION
@@ -238,14 +269,19 @@ from checkmaite.core._plugins import PLUGIN_API_VERSION
 
 - Plugins **must** include `"__plugin_api_version__"` in their exports mapping
 - The **major version** must match CheckMAITE's `PLUGIN_API_VERSION`
-- Minor and patch differences are allowed (a `1.0.0` plugin works with a `1.2.0` core)
+- Minor and patch differences are allowed (a `1.0.0` plugin works with a `1.2.0`
+  core)
 - If the major version does not match, the plugin is rejected and will not load
 
 **When does the major version bump?**
 
-Only when the Capability/Config/Outputs contract changes in a breaking way (e.g., `_run()` signature changes, required base class methods added or removed). This is expected to be rare.
+Only when the Capability/Config/Outputs contract changes in a breaking way
+(e.g., `_run()` signature changes, required base class methods added or
+removed). This is expected to be rare.
 
-**Best practice:** Import `PLUGIN_API_VERSION` from CheckMAITE rather than hardcoding a string. This way your plugin always declares the version it was built against:
+**Best practice:** Import `PLUGIN_API_VERSION` from CheckMAITE rather than
+hardcoding a string. This way your plugin always declares the version it was
+built against:
 
 ```python
 from checkmaite.core._plugins import PLUGIN_API_VERSION
@@ -256,7 +292,8 @@ def my_exports() -> Mapping[str, Any]:
 
 ## Multiple Plugins Coexisting
 
-Any number of plugin packages can be installed simultaneously. The loader discovers and merges all of them:
+Any number of plugin packages can be installed simultaneously. The loader
+discovers and merges all of them:
 
 ```mermaid
 flowchart LR
@@ -281,9 +318,11 @@ flowchart LR
     C --> OD5
 ```
 
-All symbols appear in `checkmaite.core.object_detection` or `checkmaite.core.image_classification` as if they were built-in.
+All symbols appear in `checkmaite.core.object_detection` or
+`checkmaite.core.image_classification` as if they were built-in.
 
-If two plugins export the same symbol name, the last one loaded wins and a warning is logged.
+If two plugins export the same symbol name, the last one loaded wins and a
+warning is logged.
 
 ## Diagnostics
 
@@ -309,7 +348,7 @@ ic_plugins = list_loaded_plugins(group="checkmaite.plugins.image_classification"
 Each `PluginRecord` contains:
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `group` | `str` | Entry point group name |
 | `entry_point_name` | `str` | Name from pyproject.toml |
 | `package_name` | `str \| None` | Installed package name |

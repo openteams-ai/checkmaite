@@ -1,20 +1,26 @@
 # Ray worker environments
 
-This page is aimed primarily at the **platform team** operating Ray clusters for `CheckMAITE` job submission.
+This page is aimed primarily at the **platform team** operating Ray clusters for
+`CheckMAITE` job submission.
 
 The short version is:
 
 - `CheckMAITE` does **not** build worker environments for you,
 - the platform owns the worker image and cluster spec,
-- and the job backend can only supply a Ray `runtime_env` overlay at connection time.
+- and the job backend can only supply a Ray `runtime_env` overlay at connection
+  time.
 
-Both `"ray"` and `"ray-simple"` use Ray workers and the same `runtime_env` mechanics. The default `"ray"` job backend also runs registry/controller actors, while `"ray-simple"` submits direct Ray tasks from one driver.
+Both `"ray"` and `"ray-simple"` use Ray workers and the same `runtime_env`
+mechanics. The default `"ray"` job backend also runs registry/controller actors,
+while `"ray-simple"` submits direct Ray tasks from one driver.
 
 ## Two practical modes
 
 ### Local development mode
 
-For local development, Ray workers run from the developer's current Python environment. Use `"ray"` when you want registry-backed reattach behavior, or `"ray-simple"` when a process-local direct Ray task-based job backend is enough.
+For local development, Ray workers run from the developer's current Python
+environment. Use `"ray"` when you want registry-backed reattach behavior, or
+`"ray-simple"` when a process-local direct Ray task-based job backend is enough.
 
 ```python
 from pathlib import Path
@@ -50,7 +56,8 @@ The current code is best thought of as a **platform image + Ray overlay** model.
 
 ### Base image responsibilities
 
-The base image should provide everything needed for workers to import and execute capability code reliably.
+The base image should provide everything needed for workers to import and
+execute capability code reliably.
 
 A practical layering strategy is:
 
@@ -60,7 +67,8 @@ A practical layering strategy is:
 4. pinned `checkmaite` version and its heavy dependencies,
 5. storage and platform integration libraries.
 
-That keeps the worker startup path predictable and avoids reinstalling the expensive parts of the environment on every task.
+That keeps the worker startup path predictable and avoids reinstalling the
+expensive parts of the environment on every task.
 
 ### Ray `runtime_env` responsibilities
 
@@ -108,7 +116,8 @@ Those concerns are separate on purpose:
 
 - `runtime_env` controls how Ray workers are prepared,
 - `analytics_store` tells workers where structured run data should be written,
-- the required `artifact_store` tells workers where oversized inline reports should be externalized.
+- the required `artifact_store` tells workers where oversized inline reports
+  should be externalized.
 
 Report producers must still make inline content self-contained and must publish
 any producer-owned `ArtifactReport` before returning its URI. The backend does
@@ -136,7 +145,9 @@ For a production cluster, make sure workers can:
    - CPU and GPU resources must be visible to Ray,
    - and the cluster should be sized for the expected capability mix.
 
-The default `"ray"` job backend also needs the worker image to import the registry/controller code. The `"ray-simple"` job backend only needs the worker task code and submitted capability dependencies.
+The default `"ray"` job backend also needs the worker image to import the
+registry/controller code. The `"ray-simple"` job backend only needs the worker
+task code and submitted capability dependencies.
 
 ## Example: object-store result storage
 
@@ -185,11 +196,15 @@ Put large and slow-moving dependencies in the image:
 
 ### Use `runtime_env` for deltas, not full environments
 
-Ray can install packages via `runtime_env["pip"]`, but using that for entire heavyweight environments increases cold-start time and operational variability.
+Ray can install packages via `runtime_env["pip"]`, but using that for entire
+heavyweight environments increases cold-start time and operational variability.
 
 ### Pin versions across client and worker
 
-The client serializes capability objects and expects workers to import compatible code. Loose versioning can create subtle failures. Treat the worker image, the client environment, and any `runtime_env` overlay as one versioned deployment unit.
+The client serializes capability objects and expects workers to import
+compatible code. Loose versioning can create subtle failures. Treat the worker
+image, the client environment, and any `runtime_env` overlay as one versioned
+deployment unit.
 
 ## Current limitations
 
@@ -206,8 +221,15 @@ That work belongs in platform tooling, cluster configuration, and release discip
 
 ## Common problems
 
-- **Model weight downloads fail with `CERTIFICATE_VERIFY_FAILED` on a cluster behind a TLS-inspecting proxy.** The proxy re-signs traffic with an organization CA that the default `certifi` bundle doesn't trust. Mount the organization CA bundle into the Ray head and worker pods and point `SSL_CERT_FILE` (and `REQUESTS_CA_BUNDLE`) at it. The pinned `httpx` (0.28 or later) honors `SSL_CERT_FILE`. ([#711](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/711))
+- **Model weight downloads fail with `CERTIFICATE_VERIFY_FAILED` on a cluster
+  behind a TLS-inspecting proxy.** The proxy re-signs traffic with an
+  organization CA that the default `certifi` bundle doesn't trust. Mount the
+  organization CA bundle into the Ray head and worker pods and point
+  `SSL_CERT_FILE` (and `REQUESTS_CA_BUNDLE`) at it. The pinned `httpx` (0.28
+  or later) honors `SSL_CERT_FILE`.
+  ([#711](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/711))
 
 ## Related tutorials
 
-- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): runs capabilities on the workers these environments describe.
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb):
+  runs capabilities on the workers these environments describe.

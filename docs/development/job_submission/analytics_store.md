@@ -50,7 +50,8 @@ producers remain responsible for durable URIs for their own binary or multi-file
 products.
 The stores may be colocated, but neither is nested inside or managed by the other.
 
-The job backend forwards the analytics-store configuration to worker tasks. Workers then
+The job backend forwards the analytics-store configuration to worker tasks.
+Workers then
 build their own `AnalyticsStore` instance from the forwarded config rather than
 guessing a local default. The backend also forwards provenance metadata so the
 `runs` table records the job that produced each persisted run.
@@ -87,7 +88,8 @@ The job-submission layer relies on a few store-level properties:
 - workers can construct the store from the forwarded configuration,
 - non-empty completed run data is written durably before a job reports success,
 - repeated writes for the same logical completed run are safe,
-- the worker can return a stable `CapabilityRunRef`, with `store_uri` set when analytics rows exist, and
+- the worker can return a stable `CapabilityRunRef`, with `store_uri` set when
+  analytics rows exist, and
 - the client can later use the same store location to query or read results.
 
 Backend-specific storage mechanics, table layouts, deduplication keys, and

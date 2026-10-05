@@ -1,9 +1,13 @@
 # Job submission and cluster execution
 
-`CheckMAITE` traditionally executes capabilities through `capability.run(...)`, which blocks until the run finishes. For small local workloads that is fine. For long-running evaluations, it creates two problems:
+`CheckMAITE` traditionally executes capabilities through `capability.run(...)`,
+which blocks until the run finishes. For small local workloads that is fine. For
+long-running evaluations, it creates two problems:
 
-1. **Interactivity** — notebook users cannot keep working smoothly while a run is executing.
-2. **Compute scaling** — one local Python process is a poor fit for capabilities that need more CPU/GPU resources or cluster execution.
+1. **Interactivity** — notebook users cannot keep working smoothly while a run
+   is executing.
+2. **Compute scaling** — one local Python process is a poor fit for capabilities
+   that need more CPU/GPU resources or cluster execution.
 
 The job-submission subsystem addresses both problems:
 
@@ -14,18 +18,29 @@ The job-submission subsystem addresses both problems:
 
 <div class="grid cards" markdown>
 
-- [__Protocol and lifecycle__ :octicons-arrow-right-24:](protocol.md)
+- [**Protocol and lifecycle** :octicons-arrow-right-24:](protocol.md)
 
-  The shared job handle contract, lifecycle states, reference-first results, and error semantics.
+  The shared job handle contract, lifecycle states, reference-first results, and
+  error semantics.
 
-- [__Kubernetes and KubeRay__ :octicons-arrow-right-24:](kubernetes.md)
+- [**Kubernetes and KubeRay** :octicons-arrow-right-24:](kubernetes.md)
 
-  Kubernetes-specific guidance for KubeRay placement, detached actors, autoscaling, and durability boundaries.
+  Kubernetes-specific guidance for KubeRay placement, detached actors,
+  autoscaling, and durability boundaries.
 
-- [__Distributed analytics store__ :octicons-arrow-right-24:](analytics_store.md)
+- [**Distributed analytics store** :octicons-arrow-right-24:](analytics_store.md)
 
-  Why durable result writes are more subtle in distributed execution and what job submission expects from the configured store.
+  Why durable result writes are more subtle in distributed execution and what
+  job submission expects from the configured store.
 
 </div>
 
-For backend settings, see [Job backend configuration](configure_job_backend.md). For how each backend runs jobs and how workers are set up, see [Ray job backend](ray_job_backend.md), [Ray simple job backend](ray_simple_job_backend.md), and [Worker environments](worker_environments.md). To submit a job step by step, follow the [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb) and [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb) tutorials.
+For backend settings, see [Job backend configuration](configure_job_backend.md).
+For how each backend runs jobs and how workers are set up, see [Ray job
+backend](ray_job_backend.md), [Ray simple job
+backend](ray_simple_job_backend.md), and [Worker
+environments](worker_environments.md). To submit a job step by step, follow the
+[Ray Simple Job
+Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb)
+and [Ray Job
+Submission](../../tool-usage/ray_job_submission_tutorial.ipynb) tutorials.

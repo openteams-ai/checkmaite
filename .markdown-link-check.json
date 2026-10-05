@@ -1,0 +1,19 @@
+{
+  "ignorePatterns": [
+    { "pattern": "^https://gitlab\\.jatic\\.net/" },
+    { "pattern": "^https://www\\.ai\\.mil/" },
+    { "pattern": "^https://openteams-ai\\.github\\.io/checkmaite/" }
+  ],
+  "httpHeaders": [
+    {
+      "urls": ["https://cdao.pages.jatic.net/"],
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36"
+      }
+    }
+  ],
+  "aliveStatusCodes": [200, 206],
+  "retryOn429": true,
+  "retryCount": 3,
+  "timeout": "20s"
+}

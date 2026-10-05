@@ -1,15 +1,16 @@
 # Pre-commit configuration aligned with the DevSecOps pattern
 # (https://gitlab.jatic.net/jatic/devsecops/example-package/-/blob/main/.pre-commit-config.yaml).
 #
-# Philosophy: pre-commit handles only fast, auto-fixable formatting/linting via
-# ruff. Broader checks live in the DevSecOps compliance components:
-#   - SAST / security  -> dsor-compliance
-#   - pyproject.toml / uv / conda installability -> sr-compliance
+# Hooks: ruff (lint + format), bandit, uv-lock --check, markdownlint-cli2, and
+# project-specific gap-fillers (check-conda-lock, check-linter-ignore) that no
+# DevSecOps component covers. The local hooks are self-contained so they run
+# inside the pre-commit component's minimal python-base-image on system python
+# (no project uv env required).
 #
-# Project-specific gap-fillers (check-conda-lock, check-linter-ignore) remain
-# here because no DevSecOps component covers them. Both are configured to be
-# self-contained so they run inside the pre-commit component's minimal
-# python-base-image on system python (no project uv env required).
+# The CI pre-commit component runs `pre-commit run --all-files || true` and
+# commits+pushes whatever hooks rewrite, so hook failures never fail CI and no
+# hook may use --fix unless its rewrite is safe to push. markdownlint-cli2 is
+# SKIPped there and enforced by the `markdownlint` job in .gitlab-ci.yml.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6  # matches the version of Ruff in the DevSecOps Team's base images
@@ -30,6 +31,11 @@ repos:
     hooks:
     - id: uv-lock
       args: [--check]  # verify uv.lock is up to date without modifying it
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.3  # keep in sync with markdownlint-cli2@ in .gitlab-ci.yml
+    hooks:
+    - id: markdownlint-cli2  # check-only; see header for why there is no --fix
+      files: ^(docs/.*\.md|README\.md)$
   - repo: local
     hooks:
        - id: check-conda-lock

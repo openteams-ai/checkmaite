@@ -15,10 +15,14 @@ YAML language-server support can validate and complete a plan that starts with:
 
 ## Product variants and platforms
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Variant | Build target | Supported platform | Accelerator packages |
 | --- | --- | --- | --- |
 | CPU | `cpu` | Linux AMD64 | CPU-only PyTorch and ONNX Runtime |
 | NVIDIA CUDA | `cuda` | Linux AMD64 | CUDA 13 PyTorch, ONNX Runtime GPU, cuDNN, NCCL, and Triton |
+
+<!-- markdownlint-enable MD013 -->
 
 The CUDA container requires a compatible NVIDIA GPU, host driver, NVIDIA
 Container Toolkit, and a runtime that exposes the device. Installing or running
@@ -89,6 +93,8 @@ checkmaite-container run [--config PLAN] [--output DIR] [--cache DIR]
                          [--batch-size N] [--log-level LEVEL]
 ```
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--config PLAN` | `CHECKMAITE_CONFIG`, then `/checkmaite/run.yaml` | Version 1 YAML run plan |
@@ -101,6 +107,8 @@ checkmaite-container run [--config PLAN] [--output DIR] [--cache DIR]
 | `--log-level LEVEL` | `CHECKMAITE_LOG_LEVEL`, then `INFO` | `DEBUG`, `INFO`, `WARNING` (or `WARN`), `ERROR`, or `CRITICAL` |
 | `--version` | - | Print the CheckMAITE version and exit |
 | `--help`, `-h` | - | Print the operational interface and exit |
+
+<!-- markdownlint-enable MD013 -->
 
 Every option is optional. An option beginning with `-` is treated as an option
 to the default `run` command. For example, passing only `--threads 2` runs the
@@ -149,12 +157,16 @@ supports that field.
 
 ## Directories and secrets
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Default path | Access | Purpose |
 | --- | --- | --- |
 | `/checkmaite` | Read-only | Run plan, datasets, models, and trusted plugin files |
 | `/output` | Writable | Result summary, task runs, reports, and analytics |
 | `/cache` | Writable | CheckMAITE caches, library caches, and temporary files |
 | `/run/secrets` | Read-only | Secret files, only for plugins that need them |
+
+<!-- markdownlint-enable MD013 -->
 
 The built-in runtime requires no secrets. A trusted plugin that needs a
 password, token, key, or certificate must read it from a file in the directory
@@ -178,6 +190,8 @@ fields are rejected, and `version` must be `1`.
 
 ### Top-level fields
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Field | Type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `version` | integer | Yes | - | Must be `1` |
@@ -187,12 +201,18 @@ fields are rejected, and `version` must be `1`.
 | `metrics` | mapping of names to object specifications | No | `{}` | Metric objects |
 | `tasks` | list of [tasks](#tasks) | Yes | - | At least one capability invocation |
 
+<!-- markdownlint-enable MD013 -->
+
 ### Resources
+
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
 
 | Field | Type | Default | Behavior |
 | --- | --- | --- | --- |
 | `threads` | `auto` or positive integer | `auto` | `auto` uses every CPU allowed by CPU affinity and cgroup quota; an integer is capped at that count |
 | `device` | `auto`, `cpu`, `cuda`, or `cuda:N` | `auto` | `auto` selects `cuda:0` when CUDA is visible, otherwise `cpu` |
+
+<!-- markdownlint-enable MD013 -->
 
 `cuda` means `cuda:0`. Requesting a CUDA device that is not visible fails the
 run with exit status `2`. At most one device is used for the whole run.
@@ -213,10 +233,14 @@ name:
   args: {}
 ```
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Field | Type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `class` | non-empty string | Yes | - | Import path or [plugin reference](#plugins) for a trusted class or factory function |
 | `args` | mapping | No | `{}` | Keyword constructor arguments |
+
+<!-- markdownlint-enable MD013 -->
 
 An argument that is itself an object uses `_class` instead of `class`, so that
 ordinary arguments can contain a `class` key:
@@ -249,6 +273,8 @@ ONNX model class.
 
 ### Tasks
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Field | Type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string | Yes | - | Unique output name of letters, digits, `_`, `.`, and `-`, starting with a letter or digit |
@@ -260,6 +286,8 @@ ONNX model class.
 | `config` | mapping | No | `{}` | Capability-specific run configuration |
 | `use_cache` | boolean | No | `true` | Reuse cached predictions and evaluations from earlier runs |
 | `report_threshold` | number | No | `0.5` | Threshold passed to Markdown report generation |
+
+<!-- markdownlint-enable MD013 -->
 
 Every name a task references must exist in the corresponding top-level mapping.
 The capability decides which object kinds, and how many of each, a task
@@ -319,16 +347,21 @@ files at the end of a successful run. Analytics files from earlier runs in the
 same output directory are not removed. A capability that has no Markdown report
 still writes `run.json`.
 
+<!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->
+
 | Exit status | Meaning |
 | --- | --- |
 | `0` | Every task succeeded |
 | `1` | A constructor or task failed while running, including on bad input data, or the host could not be inspected |
 | `2` | The plan, arguments, imports, or configuration are invalid |
 
+<!-- markdownlint-enable MD013 -->
+
 Constructor arguments are checked against the constructor's signature before it
 is called, so an unknown or missing argument exits `2`. Every task's capability,
 config, object names, and number of datasets, models, and metrics are checked
-before any object is built or any task runs, so those errors also exit `2`. Logs go to standard
+before any object is built or any task runs, so those errors also exit `2`. Logs
+go to standard
 error and include a timestamp, severity, logger name, and message.
 
 ## Hardware, storage, and network

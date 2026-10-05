@@ -2,20 +2,26 @@
 
 This page documents the `configure_job_backend(...)` contract used by job submission.
 
-`configure_job_backend(...)` selects the active job backend and captures the deployment-specific settings that cannot be inferred from an individual `submit_capability(...)` call.
+`configure_job_backend(...)` selects the active job backend and captures the
+deployment-specific settings that cannot be inferred from an individual
+`submit_capability(...)` call.
 
 ## Why backend configuration is required
 
-Synchronous `capability.run(...)` executes in the caller's Python process. That process already knows its local filesystem, cache, credentials, installed packages, and result storage location.
+Synchronous `capability.run(...)` executes in the caller's Python process. That
+process already knows its local filesystem, cache, credentials, installed
+packages, and result storage location.
 
 Job submission separates those concerns:
 
 - the **client** submits work and later observes job state,
 - the **job backend** decides where and how that work runs,
-- **workers** execute capability code in a potentially different process, node, container, or cluster,
+- **workers** execute capability code in a potentially different process, node,
+  container, or cluster,
 - and durable outputs must be written somewhere both workers and clients can access.
 
-So the backend needs explicit configuration for the execution environment and coordination boundary. Depending on the backend, that includes:
+So the backend needs explicit configuration for the execution environment and
+coordination boundary. Depending on the backend, that includes:
 
 - which backend implementation to use (`"ray"`, `"ray-simple"`, or future backends),
 - where to connect for execution (`address` for Ray clusters),
@@ -24,11 +30,15 @@ So the backend needs explicit configuration for the execution environment and co
 - where workers should independently externalize oversized inline reports (`artifact_store`),
 - that job-submission workers run with capability-local caching disabled
   (`use_cache=False`) because worker-local caches are ephemeral and not shared,
-- which clients should share job identity, dedupe, and reattach behavior (`idempotency_scope` for the registry-backed Ray backend),
+- which clients should share job identity, dedupe, and reattach behavior
+  (`idempotency_scope` for the registry-backed Ray backend),
 - which native Ray namespace owns the shared backend state
   (`registry_namespace`; each namespace has one fixed internal registry actor),
-- actor pending-call limits (`registry_max_pending_calls`, `controller_max_pending_calls`) for handles returned when this client creates an actor; Ray cannot apply them to reattached handles,
-- and operational settings such as timeouts, retention, cleanup, and actor resource placement.
+- actor pending-call limits (`registry_max_pending_calls`,
+  `controller_max_pending_calls`) for handles returned when this client creates
+  an actor; Ray cannot apply them to reattached handles,
+- and operational settings such as timeouts, retention, cleanup, and actor
+  resource placement.
 
 Provenance fields such as `user_id`, `workspace_id`, `environment`, `executor`,
 `cluster_id`, and `request_id` are not backend settings. Set them with
@@ -36,7 +46,8 @@ Provenance fields such as `user_id`, `workspace_id`, `environment`, `executor`,
 as `job_id`, backend name, and submission/completion times when they write run
 history.
 
-The goal is to make the backend's execution, coordination, storage, and operational assumptions explicit before jobs are submitted.
+The goal is to make the backend's execution, coordination, storage, and
+operational assumptions explicit before jobs are submitted.
 
 ## API shape
 
@@ -65,7 +76,9 @@ configure_job_backend(
 )
 ```
 
-The first positional argument selects the job backend. All other keyword arguments are backend-specific configuration forwarded to that backend's constructor.
+The first positional argument selects the job backend. All other keyword
+arguments are backend-specific configuration forwarded to that backend's
+constructor.
 
 `analytics_store` and `artifact_store` are deliberately separate. The former
 stores structured, queryable records; the latter stores opaque report files.
@@ -83,7 +96,8 @@ Remote stores require their corresponding `s3fs`, `gcsfs`,
 or `adlfs` implementation. Put credentials, including Azure SAS tokens, in
 `storage_options`; URI query credentials are rejected so they cannot become part
 of an artifact path or returned report URI. The job backend
-uses it only to externalize an `InlineTextReport` that exceeds the 256 KiB metadata limit.
+uses it only to externalize an `InlineTextReport` that exceeds the 256 KiB
+metadata limit.
 Report producers must return self-contained inline content: embedded resources
 should use forms such as `data:` URIs, and any external links must already be
 reachable by report consumers. An `ArtifactReport` must likewise contain a URI
@@ -91,7 +105,8 @@ to an artifact that the producer has already placed in durable storage. Ray
 workers do not inspect Markdown, copy referenced files, or rewrite report links.
 If the configured store cannot publish and verify an oversized report, the job
 fails rather than recording
-successful completion with a missing report. Never return worker-local paths, relative file references, or `file://` URIs from
+successful completion with a missing report. Never return worker-local paths,
+relative file references, or `file://` URIs from
 a capability intended for distributed execution.
 
 Ray job backend choices:
@@ -177,15 +192,31 @@ boundary. CheckMAITE's registry actor name is fixed and internal; users select
 an independent registry by selecting another Ray namespace. All clients sharing
 a namespace must use compatible registry settings.
 
-For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and [Ray simple job backend](ray_simple_job_backend.md). For worker image and cluster environment guidance, see [Worker environments](worker_environments.md). For store semantics, provenance, and URI resolution details, see [Distributed analytics store](analytics_store.md).
+For detailed Ray runtime behavior, see [Ray job backend](ray_job_backend.md) and
+[Ray simple job backend](ray_simple_job_backend.md). For worker image and
+cluster environment guidance, see [Worker environments](worker_environments.md).
+For store semantics, provenance, and URI resolution details, see [Distributed
+analytics store](analytics_store.md).
 
 ## Common problems
 
-- **Report images are missing after a job finishes, or later jobs overwrite them.** Images written to a worker's local cache disappear when the worker restarts and aren't visible to the client. Configure `artifact_store` with a durable URI, such as object storage or an absolute path shared by the client and every Ray node. A process-local `memory` store or a relative path is rejected. ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
+- **Report images are missing after a job finishes, or later jobs overwrite
+  them.** Images written to a worker's local cache disappear when the worker
+  restarts and aren't visible to the client. Configure `artifact_store` with a
+  durable URI, such as object storage or an absolute path shared by the client
+  and every Ray node. A process-local `memory` store or a relative path is
+  rejected.
+  ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
 
 ## Related tutorials
 
-- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb): configures `ray-simple` and submits a capability.
-- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): configures `ray` against a shared cluster.
-- [Analytics Store](../../tool-usage/analytics_store_tutorial.ipynb): the store that job backends write results to.
-- [Object Detection Workflow via API](../../get-started/checkmaite_api_od.ipynb) and [Image Classification Workflow via API](../../get-started/checkmaite_api_ic.ipynb): the capabilities you would submit.
+- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb):
+  configures `ray-simple` and submits a capability.
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb):
+  configures `ray` against a shared cluster.
+- [Analytics Store](../../tool-usage/analytics_store_tutorial.ipynb): the store
+  that job backends write results to.
+- [Object Detection Workflow via API](../../get-started/checkmaite_api_od.ipynb)
+  and [Image Classification Workflow via
+  API](../../get-started/checkmaite_api_ic.ipynb): the capabilities you would
+  submit.

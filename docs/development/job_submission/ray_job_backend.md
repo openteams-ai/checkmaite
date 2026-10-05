@@ -1,22 +1,28 @@
 # Ray job backend (`kind="ray"`)
 
-The default Ray job backend uses **Ray Core** with a detached registry actor and detached per-job controller actors.
+The default Ray job backend uses **Ray Core** with a detached registry actor and
+detached per-job controller actors.
 
-This page explains why Ray is a good fit, how the default `"ray"` job backend maps onto Ray's execution model, and how to use it from `CheckMAITE`. For the direct process-local Ray task-based job backend, see [Ray simple job backend](ray_simple_job_backend.md).
+This page explains why Ray is a good fit, how the default `"ray"` job backend
+maps onto Ray's execution model, and how to use it from `CheckMAITE`. For the
+direct process-local Ray task-based job backend, see [Ray simple job
+backend](ray_simple_job_backend.md).
 
 ## Why Ray
 
 Ray is a distributed Python runtime designed for:
 
 - task-parallel execution,
-- actor-based stateful services, where an actor is a named Python object that keeps state across remote method calls,
+- actor-based stateful services, where an actor is a named Python object that
+  keeps state across remote method calls,
 - and dynamic CPU/GPU scheduling.
 
 That lines up well with `CheckMAITE`'s needs:
 
 - notebook users want to submit work without blocking,
 - capabilities may need CPUs or GPUs,
-- development should work locally while the same API scales to larger infrastructure when available.
+- development should work locally while the same API scales to larger
+  infrastructure when available.
 
 ## Ray's execution model in one paragraph
 
@@ -29,7 +35,10 @@ At the Ray Core level, distributed computation is built from a few primitives:
 - `ray.wait(...)` checks whether it is ready,
 - and `ray.cancel(...)` requests cancellation.
 
-The current `CheckMAITE` job backend uses one **detached per-job controller actor** plus one **Ray task** per submitted capability run. The controller actor owns the live `ObjectRef`, while the public `RayJob` handle reads shared lifecycle metadata from the registry.
+The current `CheckMAITE` job backend uses one **detached per-job controller
+actor** plus one **Ray task** per submitted capability run. The controller actor
+owns the live `ObjectRef`, while the public `RayJob` handle reads shared
+lifecycle metadata from the registry.
 
 ## End-to-end flow
 
@@ -69,10 +78,21 @@ sequenceDiagram
 
 The registry/controller split is the key design shown in the flow:
 
-1. The **registry actor** is the shared directory for job metadata. `register_or_get(...)` either reserves a new job ID or returns an existing record for the same scoped run key. Later `get_job(...)` and `list_jobs(...)` calls read from this registry, so clients do not need the original submitting process to still be alive.
-2. The **controller actor** is the per-job owner of live execution. After the registry accepts a new reservation, the backend creates or finds the named detached controller and records `SCHEDULING` while Ray places the worker. The worker's startup handshake records `RUNNING` only after execution begins.
-3. The **controller owns the Ray task `ObjectRef`**, not the notebook/client. It watches the task complete, handles cancellation requests, and writes terminal status plus the serialized `CapabilityRunRef` back to the registry.
-4. The public `RayJob` handle is therefore a lightweight client-side view over shared registry state and, while the controller is retained, controller reconciliation/cancellation methods.
+1. The **registry actor** is the shared directory for job metadata.
+   `register_or_get(...)` either reserves a new job ID or returns an existing
+   record for the same scoped run key. Later `get_job(...)` and `list_jobs(...)`
+   calls read from this registry, so clients do not need the original submitting
+   process to still be alive.
+2. The **controller actor** is the per-job owner of live execution. After the
+   registry accepts a new reservation, the backend creates or finds the named
+   detached controller and records `SCHEDULING` while Ray places the worker. The
+   worker's startup handshake records `RUNNING` only after execution begins.
+3. The **controller owns the Ray task `ObjectRef`**, not the notebook/client. It
+   watches the task complete, handles cancellation requests, and writes terminal
+   status plus the serialized `CapabilityRunRef` back to the registry.
+4. The public `RayJob` handle is therefore a lightweight client-side view over
+   shared registry state and, while the controller is retained, controller
+   reconciliation/cancellation methods.
 
 ## Public usage
 
@@ -105,7 +125,8 @@ Important:
   is rejected because Ray workers are ephemeral and do not share a local cache,
 - the scope should be a stable workspace, project, or experiment identifier,
 - analytics-store configuration is separate from Ray connection/runtime settings,
-- it is forwarded to worker tasks so they know where structured results should be written,
+- it is forwarded to worker tasks so they know where structured results should
+  be written,
 - `artifact_store=...` is independently required and must point to supported
   object storage or an absolute local path mounted identically for the client,
   every worker, and report consumers,
@@ -412,7 +433,8 @@ concurrency; CheckMAITE does not add a separate client-side queue.
 
 Dedupe policy in the current implementation:
 
-- `SUBMITTING`, `SCHEDULING`, `RUNNING`, and `COMPLETED` records keep the dedupe key, so a
+- `SUBMITTING`, `SCHEDULING`, `RUNNING`, and `COMPLETED` records keep the dedupe
+  key, so a
   duplicate submit in the same scope returns the existing job.
 - `FAILED` and `CANCELLED` records release the dedupe key, so a later submit of
   the same logical work can create a fresh job.
@@ -435,7 +457,6 @@ registry commit with bounded backoff, and clients can also commit that terminal
 state on the next observe/reconcile path. While a live controller still has
 uncommitted terminal state, its heartbeat keeps the registry lease fresh so the
 job is not swept as stale.
-
 
 ## Assumptions
 
@@ -467,7 +488,8 @@ unavailable or fails, publication fails without deleting the existing key. Suppo
 remote implementations are S3, GCS, and Azure through `s3fs`, `gcsfs`, and `adlfs`.
 The configured `artifact_store.uri` must be a concrete directory or object-store
 prefix, not a wildcard or glob. Publication uses a temporary key before the
-final key becomes visible, so retries cannot truncate an existing artifact. A publication or verification
+final key becomes visible, so retries cannot truncate an existing artifact. A
+publication or verification
 failure fails the job, allowing the logical run to be submitted again after the
 storage problem is corrected. Optional `artifact_store.storage_options` are
 forwarded to the selected supported filesystem implementation.
@@ -549,9 +571,18 @@ more complex and has a larger failure domain per pool actor.
 
 ## Common problems
 
-- **The notebook crashed before the job ID was saved.** The job keeps running in its detached controller. Reconnect to the same Ray namespace with the same `idempotency_scope` and call `list_jobs()`, as described in [Recover after a notebook failure](#recover-after-a-notebook-failure). ([#735](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/735))
-- **A tutorial's local settings were copied to a shared cluster.** Settings such as `address="local"` and `force_reinit=True` are for a single-user machine. On a shared cluster, connect to the cluster address, keep a stable `idempotency_scope`, and avoid `force_reinit=True` while work is active. ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
+- **The notebook crashed before the job ID was saved.** The job keeps running
+  in its detached controller. Reconnect to the same Ray namespace with the
+  same `idempotency_scope` and call `list_jobs()`, as described in [Recover
+  after a notebook failure](#recover-after-a-notebook-failure).
+  ([#735](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/735))
+- **A tutorial's local settings were copied to a shared cluster.** Settings
+  such as `address="local"` and `force_reinit=True` are for a single-user
+  machine. On a shared cluster, connect to the cluster address, keep a stable
+  `idempotency_scope`, and avoid `force_reinit=True` while work is active.
+  ([#737](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/737))
 
 ## Related tutorials
 
-- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb): submit, wait, and clean up a tracked Ray job end to end.
+- [Ray Job Submission](../../tool-usage/ray_job_submission_tutorial.ipynb):
+  submit, wait, and clean up a tracked Ray job end to end.

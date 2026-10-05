@@ -223,4 +223,5 @@ without shutting Ray down.
 
 ## Related tutorials
 
-- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb): set up, submit, wait, query, and shut down with `ray-simple`.
+- [Ray Simple Job Submission](../../tool-usage/ray_simple_job_submission_tutorial.ipynb):
+  set up, submit, wait, query, and shut down with `ray-simple`.
