@@ -56,6 +56,7 @@ nav:  # navigation links on sidebar
   - Reference:
     - reference/index.md
     - Batch container: reference/container.md
+    - System requirements: reference/system_requirements.md
     - Conventions: reference/conventions.md
     - Personas: reference/personas.md
     - Workflows: reference/workflows.md

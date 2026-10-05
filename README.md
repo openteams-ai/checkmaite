@@ -16,7 +16,7 @@ To learn more please visit our [published documentation](https://openteams-ai.gi
 - **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested.
 - **Python:** 3.10, 3.11, and 3.12 with `uv` or pip. conda supports 3.10 and 3.11 only. `checkmaite-plugins` is `<3.12` on both paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
-- **Hardware:** any machine that can install those Python versions.
+- **Hardware, architectures, and internet access:** see [System requirements](https://openteams-ai.github.io/checkmaite/reference/system_requirements.html).
 - **Container:** a batch container is built from the repository `Dockerfile` for Linux AMD64, with `cpu` and NVIDIA `cuda` targets. See [Run CheckMAITE in a container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
 
 ## Installation

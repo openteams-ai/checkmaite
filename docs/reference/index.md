@@ -18,4 +18,8 @@
 
     Command line, environment variables, and run-plan format for batch runs.
 
+-  [__System requirements__ :octicons-arrow-right-24:](system_requirements.md)
+
+    Hardware, supported architectures, and internet access for the Python library.
+
 </div>

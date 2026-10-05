@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- System requirements reference page covering recommended hardware, supported architectures, and internet access for the Python library (#781).
+
 ### Changed
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
 - Framed each tutorial by persona and T&E workflow stage, and added the staged workflow to the Personas reference (#776).
