@@ -12,6 +12,7 @@ mode=$3
 artifact_directory="artifacts/container/${variant}"
 raw_report="${artifact_directory}/vulnerability-report.json"
 trivy_template=${CHECKMAITE_TRIVY_TEMPLATE:-/usr/local/share/trivy/gitlab.tpl}
+exceptions_file=${CHECKMAITE_DSOR3_EXCEPTIONS:-docker/ci/dsor3-exceptions.trivyignore.yaml}
 
 case "${mode}" in
     enforce) exit_code=1 ;;
@@ -53,9 +54,15 @@ trivy convert "${raw_report}" \
     --output "${artifact_directory}/vulnerability-attestation.json"
 
 # DSOR-3-H-2 permits no Medium, High, or Critical findings. Unfixed findings
-# are included; releases require a formal exception rather than a local ignore.
+# are included. The only findings excluded are those with an approved, unexpired
+# program exception recorded in the exceptions file, and only from this gate.
+if [ "${mode}" = "enforce" ] && grep -Eq '^[[:space:]]*statement:.*PENDING' "${exceptions_file}"; then
+    echo "${exceptions_file} has exceptions without an approved DSOR-3 exception ID" >&2
+    exit 1
+fi
 trivy convert "${raw_report}" \
     --format table \
     --severity MEDIUM,HIGH,CRITICAL \
+    --ignorefile "${exceptions_file}" \
     --exit-code "${exit_code}" \
     --output /dev/null

@@ -412,6 +412,53 @@ network dependency. On Kubernetes, set `runAsNonRoot: true`, `runAsUser: 10001`,
 `/output` and `/cache` writable, mount inputs and secrets read-only, and apply a
 default-deny NetworkPolicy with narrow egress exceptions when required.
 
+## Publication and verification
+
+Release pipelines build and exercise the supported product platforms with
+Docker 25 or later, retain unfiltered SPDX SBOM and vulnerability reports, and
+block publication on every Medium, High, or Critical finding. Unfixed findings
+are included; publication requires remediation or a formal program exception.
+Exceptions are recorded in `docker/ci/dsor3-exceptions.trivyignore.yaml`, each
+with its approved exception ID and an expiry date, and apply only to the
+release gate. The release scan refuses to run while any entry is still marked
+`PENDING`. Because releases rebuild from the tag, commit exceptions before
+creating it.
+
+Before enabling releases, configure the program Harbor project to make Semantic
+Version tags immutable, approve the digest-pinned Docker Official Ubuntu,
+NVIDIA, and Astral base-container sources (or record the required CS-1-S-2
+exception), and provide the Harbor credentials and AWS KMS key to protected CI
+jobs.
+
+A release is started from the default branch with `RELEASE_TAG` set to an
+existing unprefixed final Semantic Version Git tag, such as `1.2.3`; pre-release
+suffixes are rejected. The tag's commit must be on `main`. The release job checks
+out that commit and runs the tag's own Dockerfile, `docker/ci/` scripts, and
+exception file, not the copies on `main`. A tag is therefore publishable only if
+it already contains `docker/ci/`; tags created before container publishing was
+added cannot be published. A fix to the release tooling requires a new version
+tag. Set
+`CONTAINER_RELEASE_DRY_RUN=true` for the required first staging exercise; CI
+then pushes, signs, attests, verifies, and cleans up without creating a Semantic
+Version tag. Publication creates these write-once references:
+
+```text
+harbor.jatic.net/openteams/checkmaite/cpu:VERSION
+harbor.jatic.net/openteams/checkmaite/cuda:VERSION
+```
+
+Both references are Linux AMD64 images. CI refuses to overwrite an existing
+version tag. Each image digest is signed with Cosign through the program AWS KMS
+key, and its SPDX SBOM and Trivy vulnerability report are attached as signed
+attestations. CI uses an explicit Cosign configuration with no public
+transparency-log or timestamp service.
+
+The signature and attestations are verified before the write-once Semantic
+Version tag is applied as the final publication action. Before the first
+release, exercise the complete flow against a non-release Harbor staging tag
+with the protected KMS key. Deployments should pin the reported image digest
+rather than relying on a mutable convenience tag.
+
 ## Licences
 
 CheckMAITE and the container runtime are licensed under Apache-2.0. Each

@@ -67,7 +67,7 @@ Review and update these locations:
 - Docker, Docker-in-Docker, and BuildKit image digests in
   `.gitlab/container.gitlab-ci.yml`.
 - The Dockerfile frontend digest on the first line of `Dockerfile`.
-- Syft, Trivy, and the Trivy GitLab template versions and SHA-256
+- Syft, Trivy, Cosign, and the Trivy GitLab template versions and SHA-256
   checksums in `docker/ci/install_security_tools.sh`.
 - The digest-pinned uv container in `Dockerfile`.
 
@@ -109,5 +109,7 @@ Confirm that:
 - The retained vulnerability JSON is unfiltered and the Medium, High, and
   Critical gate passes or has a formal program exception.
 
+Finally, run the protected publication flow with
+`CONTAINER_RELEASE_DRY_RUN=true` before using a Semantic Version release tag.
 Physical CUDA execution and performance validation still require a supported
 NVIDIA host.

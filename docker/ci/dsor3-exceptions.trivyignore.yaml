@@ -1,0 +1,32 @@
+# DSOR-3 exceptions for the release vulnerability gate (scan_container.sh).
+#
+# Release scans fail on any Medium, High, or Critical finding. An entry here
+# removes one finding from that gate only; the retained JSON, GitLab, and Cosign
+# vulnerability reports stay unfiltered. Releases rebuild from the release tag,
+# so an exception must be committed before the tag is created.
+#
+# Every entry needs an approved program exception ID in `statement` and an
+# `expired_at` date; expired entries no longer suppress the finding. The release
+# scan refuses to run while any statement still contains PENDING.
+#
+# Unfixed Ubuntu 24.04 findings (no fixed package at UBUNTU_SNAPSHOT
+# 20261002T000000Z), present in both the CPU and CUDA images.
+vulnerabilities:
+  - id: CVE-2025-66382
+    statement: "PENDING DSOR-3 exception: libexpat1, no Ubuntu fix"
+    expired_at: 2027-01-05
+  - id: CVE-2026-18374
+    statement: "PENDING DSOR-3 exception: libc6/libc-bin, no Ubuntu fix"
+    expired_at: 2027-01-05
+  - id: CVE-2026-85091
+    statement: "PENDING DSOR-3 exception: zlib1g, no Ubuntu fix"
+    expired_at: 2027-01-05
+  - id: CVE-2026-86145
+    statement: "PENDING DSOR-3 exception: libpcre2-8-0, no Ubuntu fix"
+    expired_at: 2027-01-05
+  - id: CVE-2026-89092
+    statement: "PENDING DSOR-3 exception: libc6/libc-bin, no Ubuntu fix"
+    expired_at: 2027-01-05
+  - id: CVE-2026-89161
+    statement: "PENDING DSOR-3 exception: libpcre2-8-0, no Ubuntu fix"
+    expired_at: 2027-01-05

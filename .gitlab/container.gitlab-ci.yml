@@ -1,6 +1,7 @@
 ################################################################################
 # Product containers: build and exercise supported platforms on relevant MRs and
-# every main pipeline. Nothing is pushed to a registry.
+# every main pipeline. Release jobs rebuild an existing SemVer Git tag, enforce
+# DSOR-3, publish write-once Harbor tags, and sign each published image.
 ################################################################################
 
 .container-build:
@@ -15,6 +16,10 @@
   needs: []
   timeout: 45m
   variables:
+    HARBOR_URL: "harbor.jatic.net"
+    HARBOR_PROJECT: "openteams"
+    HARBOR_REPO: "checkmaite"
+    CONTAINER_RELEASE: "false"
     TARGET_PLATFORM: "linux/amd64"
     BUILDKIT_IMAGE: "moby/buildkit:v0.29.0@sha256:0039c1d47e8748b5afea56f4e85f14febaf34452bd99d9552d2daa82262b5cc5"
   before_script:
@@ -24,13 +29,32 @@
       server_major=${server_version%%.*}
       test "${server_major}" -ge 25
       docker buildx version
+    - |
+      if [ "${CONTAINER_RELEASE}" = "true" ]; then
+        if [ -z "${OPENTEAMS_HARBOR_USERNAME:-}" ] || [ -z "${OPENTEAMS_HARBOR_TOKEN:-}" ]; then
+          echo "Harbor release credentials are not configured" >&2
+          exit 1
+        fi
+        printf '%s' "${OPENTEAMS_HARBOR_TOKEN}" \
+          | docker login "${HARBOR_URL}" \
+              --username "${OPENTEAMS_HARBOR_USERNAME}" --password-stdin
+      fi
   script:
     - |
-      # The "g" keeps the local version alphanumeric; an all-digit SHA with a
-      # leading zero would otherwise be normalized under PEP 440.
-      build_version="0.0.0+ci.g${CI_COMMIT_SHORT_SHA}"
-      build_revision=${CI_COMMIT_SHA}
-      export build_revision build_version
+      if [ "${CONTAINER_RELEASE}" = "true" ]; then
+        . docker/ci/release.sh
+        checkout_release_tag "${RELEASE_TAG}"
+        build_version=${RELEASE_TAG}
+        build_revision=${release_tag_commit}
+        scan_mode=enforce
+      else
+        # The "g" keeps the local version alphanumeric; an all-digit SHA with a
+        # leading zero would otherwise be normalized under PEP 440.
+        build_version="0.0.0+ci.g${CI_COMMIT_SHORT_SHA}"
+        build_revision=${CI_COMMIT_SHA}
+        scan_mode=report
+      fi
+      export build_revision build_version scan_mode
     - docker buildx create --use --name "checkmaite-${CI_JOB_ID}" --driver-opt "image=${BUILDKIT_IMAGE}"
     - |
       image="checkmaite-batch:${ARTIFACT_VARIANT}-ci-${CI_COMMIT_SHORT_SHA}"
@@ -53,8 +77,24 @@
       )
     - CONTAINER_TEST_PLATFORM="${TARGET_PLATFORM}" sh docker/ci/verify_container.sh "${image}" "${VARIANT}"
     - sh docker/ci/check_container_size.sh "${image}" "${ARTIFACT_VARIANT}"
-    - sh docker/ci/install_security_tools.sh
-    - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" report
+    - |
+      if [ "${CONTAINER_RELEASE}" = "true" ]; then
+        sh docker/ci/install_security_tools.sh --with-cosign
+      else
+        sh docker/ci/install_security_tools.sh
+      fi
+    - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" "${scan_mode}"
+    - |
+      if [ "${CONTAINER_RELEASE}" = "true" ]; then
+        sh docker/ci/publish_container.sh \
+          "${image}" "${PUBLISH_VARIANT}" "${ARTIFACT_VARIANT}" \
+          "${RELEASE_TAG}" "${PUBLISH_MODE}"
+      fi
+  after_script:
+    - |
+      if [ "${CONTAINER_RELEASE}" = "true" ]; then
+        docker logout "${HARBOR_URL}" || true
+      fi
   artifacts:
     when: always
     paths:
@@ -66,6 +106,8 @@ container-cpu-amd64:
   variables:
     VARIANT: "cpu"
     ARTIFACT_VARIANT: "cpu-amd64"
+    PUBLISH_VARIANT: "cpu"
+    PUBLISH_MODE: "release"
   artifacts:
     when: always
     paths: [artifacts/container/cpu-amd64/]
@@ -82,6 +124,8 @@ container-cuda-amd64:
   variables:
     VARIANT: "cuda"
     ARTIFACT_VARIANT: "cuda"
+    PUBLISH_VARIANT: "cuda"
+    PUBLISH_MODE: "release"
   artifacts:
     when: always
     paths: [artifacts/container/cuda/]
@@ -92,3 +136,55 @@ container-cuda-amd64:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [Dockerfile, .dockerignore, .gitlab-ci.yml, .gitlab/container.gitlab-ci.yml, docker/**/*, pyproject.toml, uv.lock, src/**/*]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG == ""'
+
+.publish-container:
+  extends: .container-build
+  stage: publish
+  interruptible: false
+  resource_group: checkmaite-container-release
+  variables:
+    CONTAINER_RELEASE: "true"
+    GIT_DEPTH: "0"
+    AWS_REGION: "us-gov-east-1"
+  environment:
+    name: container-production
+    url: "https://harbor.jatic.net/"
+  artifacts:
+    when: always
+    paths: [artifacts/container/]
+    expire_in: never
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG != ""'
+      when: manual
+      allow_failure: false
+    - when: never
+
+publish-container-cpu-amd64:
+  extends: .publish-container
+  variables:
+    VARIANT: "cpu"
+    ARTIFACT_VARIANT: "cpu-amd64"
+    PUBLISH_VARIANT: "cpu"
+    PUBLISH_MODE: "release"
+    CONTAINER_RELEASE: "true"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cpu-amd64/]
+    reports:
+      container_scanning: artifacts/container/cpu-amd64/gl-container-scanning-report.json
+    expire_in: never
+
+publish-container-cuda-amd64:
+  extends: .publish-container
+  variables:
+    VARIANT: "cuda"
+    ARTIFACT_VARIANT: "cuda"
+    PUBLISH_VARIANT: "cuda"
+    PUBLISH_MODE: "release"
+    CONTAINER_RELEASE: "true"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cuda/]
+    reports:
+      container_scanning: artifacts/container/cuda/gl-container-scanning-report.json
+    expire_in: never

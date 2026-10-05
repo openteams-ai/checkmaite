@@ -8,6 +8,8 @@ TRIVY_VERSION=0.74.0
 TRIVY_ARCHIVE="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
 TRIVY_SHA256=2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
 TRIVY_TEMPLATE_SHA256=6921a9ba0ac4f5ed0c8f4bb6a0c23465b907e76dd5f7c7920f70fa3446523a63
+COSIGN_VERSION=3.1.3
+COSIGN_SHA256=4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
 TOOLS_DIR=${TOOLS_DIR:-/usr/local/bin}
 TRIVY_SHARE_DIR=${TRIVY_SHARE_DIR:-/usr/local/share/trivy}
 mkdir -p "${TOOLS_DIR}" "${TRIVY_SHARE_DIR}"
@@ -36,6 +38,16 @@ curl --fail --location --silent --show-error \
     --output "${TRIVY_SHARE_DIR}/gitlab.tpl"
 template_digest=$(sha256sum "${TRIVY_SHARE_DIR}/gitlab.tpl" | awk '{print $1}')
 test "${template_digest}" = "${TRIVY_TEMPLATE_SHA256}"
+
+if [ "${1:-}" = "--with-cosign" ]; then
+    curl --fail --location --silent --show-error \
+        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" \
+        --output "${TOOLS_DIR}/cosign"
+    cosign_digest=$(sha256sum "${TOOLS_DIR}/cosign" | awk '{print $1}')
+    test "${cosign_digest}" = "${COSIGN_SHA256}"
+    chmod 0755 "${TOOLS_DIR}/cosign"
+    "${TOOLS_DIR}/cosign" version
+fi
 
 "${TOOLS_DIR}/syft" version
 "${TOOLS_DIR}/trivy" version
