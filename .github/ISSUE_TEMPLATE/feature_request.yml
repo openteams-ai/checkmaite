@@ -1,0 +1,51 @@
+name: Feature request
+description: Request a new CheckMAITE feature or an upgrade to a JATIC tool implementation.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        There are two types of feature requests:
+
+        1. Features which enhance only a specific use case or require primarily niche familiarity of a JATIC component are ***led by the appropriate JATIC team*** (i.e. the requestor's team). The CheckMAITE team will provide feedback and guidance to the requestor's team in the development of these features.
+        2. Features determined to be generally applicable to CheckMAITE are prioritized for development ***led by the CheckMAITE team itself***. Other JATIC teams may volunteer to support or even lead these efforts.
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Explain in detail the nature of the feature being requested, and which of the two types above it is. Include the test stage if applicable (e.g., object detection, image classification).
+    validations:
+      required: true
+  - type: checkboxes
+    id: kind
+    attributes:
+      label: Request type
+      options:
+        - label: Upgrade to a JATIC tool implementation
+        - label: New CheckMAITE feature request
+  - type: textarea
+    id: requestor
+    attributes:
+      label: Requestor Information
+      description: Note who is requesting this and whether or not CheckMAITE team support is required.
+      value: |
+        - Requesting team:
+        - Contact:
+  - type: checkboxes
+    id: submission
+    attributes:
+      label: Submission
+      options:
+        - label: Requesting team will submit this feature
+        - label: Requesting team will _not_ submit this feature
+        - label: CheckMAITE team meeting requested
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and dependencies
+      description: What things may block this issue from completion, and which applications or teams are affected?
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources or other relevant info
+      description: Link other articles, issues, pull requests, or code that might be helpful.

@@ -53,7 +53,20 @@ There are also [How-to Guides](https://openteams-ai.github.io/checkmaite/how-to/
 
 ## Contributing
 
-The `CheckMAITE` team welcomes contributions of all forms - questions, documentation, and code contributions. Please visit our [contribution guide](https://openteams-ai.github.io/checkmaite/development/contributing.html).
+The `CheckMAITE` team welcomes contributions of all forms - questions, documentation, and code contributions. Our contribution strategy is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Reporting bugs and requesting features
+
+Report bugs and request features as issues, using the bug report or feature request template:
+
+- **JATIC users:** the [GitLab issue board](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues) ([bug report](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues/new?issuable_template=bug-report), [feature request](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues/new?issuable_template=feature-request)).
+- **Everyone else:** the [GitHub issue tracker](https://github.com/openteams-ai/checkmaite/issues) ([bug report](https://github.com/openteams-ai/checkmaite/issues/new?template=bug_report.yml), [feature request](https://github.com/openteams-ai/checkmaite/issues/new?template=feature_request.yml)).
+
+[CONTRIBUTING.md](CONTRIBUTING.md) describes what to include and how issues are managed.
+
+## Security
+
+Report security vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). Do not open an ordinary issue.
 
 ## Authors and acknowledgment
 

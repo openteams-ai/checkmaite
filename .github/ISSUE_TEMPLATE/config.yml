@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/openteams-ai/checkmaite/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue. See SECURITY.md.
+  - name: JATIC users - JATIC GitLab issue board
+    url: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/issues
+    about: If you have a JATIC GitLab account, you can report bugs and request features there instead.

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the CDAO funding acknowledgment to the README and docs home page (#774).
 - Glossary of key CheckMAITE, MAITE, and JATIC tool terms under Reference (#772).
 - Step-by-step how-to for saving capability runs to the analytics store and querying them (#772).
+- `CONTRIBUTING.md`, `SECURITY.md`, a GitLab bug report issue template, and GitHub issue forms for bug reports and feature requests, documenting how to report bugs, request features, and report vulnerabilities, and how issues are managed (#769).
 
 ### Changed
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
