@@ -19,6 +19,25 @@ To learn more please visit our [published documentation](https://openteams-ai.gi
 - **Hardware, architectures, and internet access:** see [System requirements](https://openteams-ai.github.io/checkmaite/reference/system_requirements.html).
 - **Container:** a batch container is built from the repository `Dockerfile` for Linux AMD64, with `cpu` and NVIDIA `cuda` targets. See [Run CheckMAITE in a container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
 
+## Limitations and prerequisites
+
+<!-- --8<-- [start:limitations] -->
+
+CheckMAITE evaluates models and datasets you supply.
+
+- Built-in loaders cover COCO, YOLO, and VisDrone object detection, and YOLO image classification.
+- Models and datasets expose an `index2label` map as `dict[int, str]`. Default torchvision weights build it from the weights. Custom torchvision weights and ONNX models need an `index2label` in their JSON config (default key `index2label`, override with `index2label_key`), given as a list or a dict; both are normalized to `dict[int, str]`. `num_classes` defaults to `len(index2label)`. For object detection, set it when the model head has a different class count (e.g. a background slot). For classification it must equal `len(index2label)`.
+- Where a model's and a dataset's `index2label` overlap, a shared index must name the same class and a shared class name must use the same index. CheckMAITE does not validate this; mismatches produce silently wrong per-class results.
+- ONNX models need the `onnx` (or `onnx-cuda`) extra. ONNX wrappers accept only `uint8` images or finite float images in `[0, 1]` (cast to `float32`); other integer dtypes raise `TypeError`. Non-finite or out-of-`[0, 1]` float images raise `ValueError`.
+- Object-detection boxes are `float32` `xyxy` arrays of shape `(N, 4)`. See [Conventions][limitations-conventions].
+- There is no web UI; configure and run capabilities through the Python API. PDF export needs the `reporting` extra.
+- CPU is the supported baseline. Machine, OS, and Python bounds are in the [supported environment][limitations-supported-environment].
+
+<!-- --8<-- [end:limitations] -->
+
+[limitations-conventions]: https://openteams-ai.github.io/checkmaite/reference/conventions.html
+[limitations-supported-environment]: #supported-environment
+
 ## Installation
 
 For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html).
@@ -39,3 +58,15 @@ The `CheckMAITE` team welcomes contributions of all forms - questions, documenta
 ## Authors and acknowledgment
 
 This project was created for [CDAO JATIC](https://cdao.pages.jatic.net/public/) and is maintained by OpenTeams with collaborative community support. 
+
+### CDAO Funding Acknowledgment
+
+<!-- --8<-- [start:acknowledgment] -->
+
+This material is based upon work supported by the Chief Digital and Artificial
+Intelligence Office under Contract No. W519TC-25-9-2041. The views and
+conclusions contained herein are those of the author(s) and should not be
+interpreted as necessarily representing the official policies or endorsements,
+either expressed or implied, of the U.S. Government.
+
+<!-- --8<-- [end:acknowledgment] -->

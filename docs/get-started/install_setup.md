@@ -2,7 +2,7 @@
 
 ## Supported environment
 
-- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested.
+- **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not CI-tested. The conda lock is Linux x86_64 only.
 - **Python:** 3.10, 3.11, and 3.12 with `uv` or pip (`requires-python = ">=3.10, <3.13"`). conda supports 3.10 and 3.11 only (`python = ">=3.10,<3.12"`). `checkmaite-plugins` is `<3.12` on both paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
 - **Hardware, architectures, and internet access:** see [System requirements](../reference/system_requirements.md).
@@ -27,7 +27,7 @@ brew install libomp
 
 ## Create environment and install the package
 
-The supported install path is `uv`. We also provide a conda-based alternative.
+Both uv and conda are supported; uv is recommended.
 
 ### Option 1: uv environment
 

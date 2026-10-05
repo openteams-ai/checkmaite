@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - System requirements reference page covering recommended hardware, supported architectures, and internet access for the Python library (#781).
+- Documented critical limitations and prerequisites in the README and docs home page (#773). Conventions now list VisDrone detection and describe object-detection boxes as `float32` `xyxy`.
+- Added the CDAO funding acknowledgment to the README and docs home page (#774).
 
 ### Changed
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.

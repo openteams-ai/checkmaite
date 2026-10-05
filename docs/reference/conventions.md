@@ -48,7 +48,7 @@ In order for users to be able to bring their own models to `CheckMAITE`, without
 
 - Dataset classes and wrappers created within `CheckMAITE` (and any datasets used within CheckMAITE) will have the mapping from id to classes accessible under the attribute `index2label`, and will return a `dict[int, str]`. Because `index2label` is not an attribute of the protocols for datasets, using it in a test stage or elsewhere will trigger a failure of the type checker, so use `# pyright: ignore[reportTypedDictNotRequiredAccess]` on those lines that depend on the `index2label` attribute.
 
-- Object detection bounding boxes will be defined as `ArrayLikes` of integers in the `xyxy` format (the top-left and bottom-right corners of the bounding box).
+- Object detection bounding boxes will be defined as `(N, 4)` `float32` arrays in the `xyxy` format (the top-left and bottom-right corners of the bounding box).
 
 - Labels will be defined as `ArrayLikes` of integers, whose values map to the keys in `index2label`.
 
@@ -85,6 +85,7 @@ In order for users to be able to bring their own datasets to `CheckMAITE`, witho
 * Object detection
     * [COCO](https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/md-coco-overview.html)
     * [YOLO](https://docs.ultralytics.com/datasets/detect/)
+    * [VisDrone](https://github.com/VisDrone/VisDrone-Dataset)
 * Image Classification
     * [YOLO](https://docs.ultralytics.com/datasets/classify/#dataset-structure-for-yolo-classification-tasks)
 

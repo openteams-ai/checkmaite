@@ -4,6 +4,13 @@ CheckMAITE is a Python API which makes testing and evaluation of models and data
 
 It was built as an integration point for all [CDAO JATIC](https://cdao.pages.jatic.net/public/) tools and has since expanded focus. Our goal is to make T&E easier for analysts!
 
+## Limitations and prerequisites
+
+--8<-- "README.md:limitations"
+
+[limitations-conventions]: reference/conventions.md
+[limitations-supported-environment]: get-started/install_setup.md#supported-environment
+
 ## Who is CheckMAITE for?
 
 * **No prior knowledge of specific JATIC tools** - Our users may or may not be familiar with the individual [JATIC products](https://cdao.pages.jatic.net/public/products/). They are familiar with their datasets and models and simply want to perform testing without needing to learn a new tool (or suite of tools).
@@ -23,3 +30,7 @@ The Joint AI Test Infrastructure Capability (JATIC) program develops software pr
     Develop software to accelerate and enable AI model test and evaluation for testers across the Department of Defense (DoD) enterprise, including DoD programs, research laboratories, industry partners, and academia in order to provide insight on the performance, effectiveness, robustness, and safety of the DoD's AI-enabled systems.
 
 Learn more in the [CDAO JATIC program documentation](https://cdao.pages.jatic.net/public/).
+
+### CDAO Funding Acknowledgment
+
+--8<-- "README.md:acknowledgment"
