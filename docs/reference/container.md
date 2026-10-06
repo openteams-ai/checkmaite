@@ -361,8 +361,9 @@ Constructor arguments are checked against the constructor's signature before it
 is called, so an unknown or missing argument exits `2`. Every task's capability,
 config, object names, and number of datasets, models, and metrics are checked
 before any object is built or any task runs, so those errors also exit `2`. Logs
-go to standard
-error and include a timestamp, severity, logger name, and message.
+go to standard error and include a timestamp, severity, logger name, and
+message. Python warnings are logged as `WARNING` records from the `py.warnings`
+logger.
 
 ## Hardware, storage, and network
 

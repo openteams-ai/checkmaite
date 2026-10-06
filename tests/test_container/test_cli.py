@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +96,31 @@ def test_main_exports_secrets_directory_while_running(
 
     assert cli.main(["run", "--cache", str(tmp_path / "cache"), "--secrets", str(secrets)]) == 0
     assert seen == [str(secrets)]
+
+
+def test_main_logs_python_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def warning_run_plan(*args: object, **kwargs: object) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("always")
+            warnings.warn("library warning", UserWarning, stacklevel=1)
+
+    monkeypatch.setattr("checkmaite_container._runner.run_plan", warning_run_plan)
+    # Earlier main() calls leave logging believing capture is already enabled
+    # after pytest restored warnings.showwarning, so reset it first.
+    logging.captureWarnings(False)
+
+    try:
+        assert cli.main(["run", "--cache", str(tmp_path / "cache")]) == 0
+    finally:
+        logging.captureWarnings(False)
+
+    record = next(record for record in caplog.records if record.name == "py.warnings")
+    assert record.levelno == logging.WARNING
+    assert "UserWarning: library warning" in record.getMessage()
 
 
 def test_environment_defaults_and_cli_precedence() -> None:

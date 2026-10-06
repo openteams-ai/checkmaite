@@ -204,6 +204,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=_LOG_LEVELS[args.log_level],
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    # Route Python warnings through logging so they carry a timestamp and level.
+    logging.captureWarnings(True)
 
     managed_names = [*_cache_environment(args.cache), "CHECKMAITE_SECRETS_DIR"]
     previous_environment = {name: os.environ.get(name) for name in managed_names}
