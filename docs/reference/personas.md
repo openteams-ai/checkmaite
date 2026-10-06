@@ -100,10 +100,12 @@ Tutorials: [Cleaning](../tool-usage/dataeval_linting_tutorial.ipynb), [Bias](../
 
 **Led by:** Data Scientist
 
-Measure how each candidate model holds up under realistic perturbations and
-inspect what drives its predictions, so
-the team can choose which model to fine-tune.
-Tutorials: [NRTK](../tool-usage/nrtk_tutorial.ipynb), [XAITK](../tool-usage/xaitk_tutorial.ipynb).
+Measure each candidate model's baseline performance, how it holds up under
+realistic perturbations, and what drives its predictions, so the team can choose
+which model to fine-tune.
+Tutorials: [MAITE Evaluation](../tool-usage/maite_evaluation_tutorial.ipynb),
+[NRTK](../tool-usage/nrtk_tutorial.ipynb),
+[XAITK](../tool-usage/xaitk_tutorial.ipynb).
 
 ### 4. Record and compare results
 

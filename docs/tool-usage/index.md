@@ -33,6 +33,11 @@ Each one names its persona and the workflow stage it covers.
 
 <div class="grid cards" markdown >
 
+- [__MAITE Evaluation__ :octicons-arrow-right-24:](maite_evaluation_tutorial.ipynb)
+
+    The MAITE evaluation tool measures a model's baseline performance on a
+    dataset with one or more metrics, overall and per class.
+
 - [__NRTK__ :octicons-arrow-right-24:](nrtk_tutorial.ipynb)
 
     The Natural Robustness Toolkit (NRTK) is an open source toolkit for

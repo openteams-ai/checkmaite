@@ -44,6 +44,7 @@ nav:  # navigation links on sidebar
       - Dataeval - Linting: tool-usage/dataeval_linting_tutorial.ipynb
       - Dataeval - Shift: tool-usage/dataeval_shift_tutorial.ipynb
     - Model evaluation:
+      - MAITE Evaluation: tool-usage/maite_evaluation_tutorial.ipynb
       - NRTK: tool-usage/nrtk_tutorial.ipynb
       - XAITK: tool-usage/xaitk_tutorial.ipynb
     - Results & analysis:
