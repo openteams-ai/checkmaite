@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the CDAO funding acknowledgment to the README and docs home page (#774).
 - Glossary of key CheckMAITE, MAITE, and JATIC tool terms under Reference (#772).
 - Step-by-step how-to for saving capability runs to the analytics store and querying them (#772).
+- Concept explanations for saliency and distribution shift (drift and out-of-distribution detection) under Explanations, aligned with the xaitk-saliency and DataEval explanations (#780).
 - `CONTRIBUTING.md`, `SECURITY.md`, a GitLab bug report issue template, and GitHub issue forms for bug reports and feature requests, documenting how to report bugs, request features, and report vulnerabilities, and how issues are managed (#769).
 - A MAITE Evaluation tutorial covering baseline model evaluation with several metrics, per-class results, and object-detection postprocessing (#777).
 

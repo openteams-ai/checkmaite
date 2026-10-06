@@ -1,10 +1,21 @@
 # Explanations
 
-Background on how CheckMAITE works and why it is built that way. These pages
-don't walk through a task; for that, see the
-[tutorials](../tool-usage/index.md) and [how-to guides](../how-to/index.md).
+Background on the T&E concepts CheckMAITE measures, and on how CheckMAITE works
+and why it is built that way. These pages don't walk through a task; for that,
+see the [tutorials](../tool-usage/index.md) and
+[how-to guides](../how-to/index.md).
 
 <div class="grid cards" markdown>
+
+- [__Saliency and explainability__ :octicons-arrow-right-24:](saliency.md)
+
+    What saliency maps show, white-box versus black-box explanation, and how
+    RISE and D-RISE work.
+
+- [__Distribution shift: drift and OOD detection__ :octicons-arrow-right-24:](distribution_shift.md)
+
+    How operational data departs from training data, and how drift and
+    out-of-distribution detection find it.
 
 - [__Key concepts: capabilities, runs, and caches__ :octicons-arrow-right-24:](../development/key_concepts.md)
 

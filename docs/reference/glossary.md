@@ -71,7 +71,8 @@ page that covers it in depth.
   such as duplicates and statistical outliers. See the [Dataeval linting
   tutorial](../tool-usage/dataeval_linting_tutorial.ipynb).
 - **Shift**: Statistical differences between operational data and training
-  data. See the [Dataeval shift
+  data, found by drift and out-of-distribution detection. See [Distribution
+  shift](../explanations/distribution_shift.md) and the [Dataeval shift
   tutorial](../tool-usage/dataeval_shift_tutorial.ipynb).
 - **NRTK (Natural Robustness Toolkit)**: Generates operationally realistic
   image perturbations to measure how model performance degrades. See the
@@ -83,7 +84,10 @@ page that covers it in depth.
   more parameters (theta keys) across a range. See the [NRTK
   tutorial](../tool-usage/nrtk_tutorial.ipynb).
 - **XAITK (Explainable AI Toolkit)**: Generates visual saliency maps that
-  show which image regions drive a model's prediction. See the [XAITK
+  show which image regions drive a model's prediction. See [Saliency and
+  explainability](../explanations/saliency.md) and the [XAITK
   tutorial](../tool-usage/xaitk_tutorial.ipynb).
-- **Saliency map**: A per-pixel importance map for one prediction. See the
-  [XAITK tutorial](../tool-usage/xaitk_tutorial.ipynb).
+- **Saliency map**: A visual representation that highlights the input regions
+  most relevant to one model prediction. See [Saliency and
+  explainability](../explanations/saliency.md) and the [XAITK
+  tutorial](../tool-usage/xaitk_tutorial.ipynb).

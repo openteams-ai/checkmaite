@@ -59,6 +59,8 @@ nav:  # navigation links on sidebar
     - Wrap an ONNX object detection model: tool-usage/onnx_object_detection_wrapper.ipynb
   - Explanations:
     - explanations/index.md
+    - Saliency and explainability: explanations/saliency.md
+    - "Distribution shift: drift and OOD detection": explanations/distribution_shift.md
     - "Key concepts: capabilities, runs, and caches": development/key_concepts.md
     - Job submission overview: development/job_submission/index.md
     - Job protocol and lifecycle: development/job_submission/protocol.md
