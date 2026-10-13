@@ -56,17 +56,18 @@ stages:
 - git config --global --add safe.directory "$CI_PROJECT_DIR"
 
 .install_checkmaite_plugins: &install_checkmaite_plugins |
-  if [ "${VERSION:-}" = "3.12" ]; then
-    echo "Skipping checkmaite-plugins install on Python 3.12; checkmaite-plugins supports Python <3.12."
-  else
-    # The plugins install is unlocked. Keep numpy at the uv.lock version, and
-    # cap pyarrow (not in uv.lock): pyarrow>=26 requires numpy>=2 at import
-    # time without declaring it, while uv.lock keeps numpy 1.x on Python <3.13.
-    plugins_constraints="$(mktemp)"
-    uv pip freeze --exclude-editable | grep '^numpy==' > "$plugins_constraints"
-    echo "pyarrow<26" >> "$plugins_constraints"
-    uv pip install --constraint "$plugins_constraints" "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
-  fi
+  case "${VERSION:-}" in
+    3.12|3.13) echo "Skipping checkmaite-plugins install on Python $VERSION; checkmaite-plugins supports Python <3.12." ;;
+    *)
+      # The plugins install is unlocked. Keep numpy at the uv.lock version, and
+      # cap pyarrow (not in uv.lock): pyarrow>=26 requires numpy>=2 at import
+      # time without declaring it, while uv.lock keeps numpy 1.x on Python <3.13.
+      plugins_constraints="$(mktemp)"
+      uv pip freeze --exclude-editable | grep '^numpy==' > "$plugins_constraints"
+      echo "pyarrow<26" >> "$plugins_constraints"
+      uv pip install --constraint "$plugins_constraints" "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
+      ;;
+  esac
 
 # Diagnostic logging for investigating CI SIGKILL / OOM issues.
 # Controlled by CI_DIAGNOSTICS variable (default: true).
@@ -119,7 +120,7 @@ stages:
 .python-matrix:
   parallel:
     matrix:
-      - VERSION: ["3.10", "3.11", "3.12"]
+      - VERSION: ["3.10", "3.11", "3.12", "3.13"]
   image: python:$VERSION
 
 .shared-setup:
@@ -189,10 +190,17 @@ stages:
     - *git_config
     # Regenerate conda-lock.yml from pyproject.toml so dynamic-conda-test
     # exercises a freshly resolved lockfile (catches upstream dep drift).
+    # Narrow the conda python pin to this leg's version first: conda-lock solves
+    # from pyproject.toml, not the active env, so an unpinned solve would replace
+    # python=$VERSION with whatever version the solver picks.
+    - grep -q '^python = ' pyproject.toml
+    - sed -i "s/^python = \"[^\"]*\"/python = \"${VERSION}.*\"/" pyproject.toml
     - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras -p linux-64 --lockfile conda-lock.yml
     - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
+    # Fail the leg if the env is not on the matrix's Python version.
+    - python -c "import sys; v = '%d.%d' % sys.version_info[:2]; assert v == '$VERSION', f'expected Python $VERSION, got {v}'"
 
 .uv-setup:
   # GitLab cache intentionally disabled — see !541 for benchmark rationale.
@@ -258,6 +266,11 @@ dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
   needs: []
+  # No 3.10 leg: conda-forge ray-core >=2.53 has no py310 builds, so conda
+  # cannot solve ray-core >=2.55 on 3.10. uv/pip still cover 3.10.
+  parallel:
+    matrix:
+      - VERSION: ["3.11", "3.12", "3.13"]
   script:
     - pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing --cov-report xml:coverage_report.xml
 

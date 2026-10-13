@@ -21,15 +21,16 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, <3.14"
 dynamic = ["version"]
 dependencies = [
     "dataeval==1.0.6",
     "dataeval-plots==0.0.6",           # we specify the pypi source in conda-lock as dataeval_plots won't be on conda-forge
     "datamaite==0.5.0",                # dataset loading backend (#717); od/ic extras omitted: they pull opencv-python-headless, which conflicts with conda's opencv during conda-lock installs — checkmaite's own opencv dep already covers pixel decode
     "maite>=0.9.4,<0.10",              # necessary lower pin: ships maite.protocols.multiobject_tracking (#723); range avoids lockstep with checkmaite-plugins
-    "modelmaite==0.1.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
+    "modelmaite==0.2.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
     "nrtk[pybsm]==1.0.4",
     "xaitk-jatic==0.8.1",
     # external deps
@@ -66,7 +67,7 @@ platforms = ['linux-64']
 
 [tool.conda-lock.dependencies]
 # conda only dependencies (usually system dependencies)
-python = ">=3.10,<3.12"                            # required by SDP
+python = ">=3.11,<3.14"                            # no 3.10: conda-forge ray-core >=2.53 has no py310 builds; CI narrows it per matrix leg
 cudatoolkit = "*"                                  # necessary to suppress conda-lock warning
 timm = ">=1.0.7"
 libgl = "*"

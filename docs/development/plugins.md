@@ -144,7 +144,7 @@ checkmaite-plugin-debiaser/
 [project]
 name = "checkmaite-plugin-debiaser"
 version = "0.1.0"
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, <3.14"
 dependencies = ["checkmaite>=0.2.0"]
 
 [project.entry-points."checkmaite.plugins.image_classification"]
