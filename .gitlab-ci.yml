@@ -59,7 +59,13 @@ stages:
   if [ "${VERSION:-}" = "3.12" ]; then
     echo "Skipping checkmaite-plugins install on Python 3.12; checkmaite-plugins supports Python <3.12."
   else
-    uv pip install "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
+    # The plugins install is unlocked. Keep numpy at the uv.lock version, and
+    # cap pyarrow (not in uv.lock): pyarrow>=26 requires numpy>=2 at import
+    # time without declaring it, while uv.lock keeps numpy 1.x on Python <3.13.
+    plugins_constraints="$(mktemp)"
+    uv pip freeze --exclude-editable | grep '^numpy==' > "$plugins_constraints"
+    echo "pyarrow<26" >> "$plugins_constraints"
+    uv pip install --constraint "$plugins_constraints" "$CHECKMAITE_PLUGINS_INSTALL_SPEC"
   fi
 
 # Diagnostic logging for investigating CI SIGKILL / OOM issues.
