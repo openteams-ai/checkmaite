@@ -55,6 +55,7 @@ nav:  # navigation links on sidebar
   - How-to guides:
     - how-to/index.md
     - Save & query results: get-started/saving_querying_results.md
+    - Load a video dataset: how-to/load_video_datasets.md
     - Run remote inference with Ray Serve: get-started/checkmaite_ray_serve.ipynb
     - Wrap an ONNX object detection model: tool-usage/onnx_object_detection_wrapper.ipynb
   - Explanations:

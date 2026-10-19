@@ -13,6 +13,16 @@ CheckMAITE? Start with the [tutorials](../tool-usage/index.md).
 
 </div>
 
+## Datasets
+
+<div class="grid cards" markdown>
+
+- [__Load a video dataset__ :octicons-arrow-right-24:](load_video_datasets.md)
+
+    Load a folder of MP4 videos through DataMAITE and run a model over it.
+
+</div>
+
 ## Models and inference
 
 <div class="grid cards" markdown>

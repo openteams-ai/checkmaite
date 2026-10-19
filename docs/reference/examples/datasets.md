@@ -39,7 +39,7 @@ The returned image and target fields are NumPy arrays, which satisfy MAITE's
 `ArrayLike` contract. Torch-specific models should convert their input batch at
 the model boundary rather than requiring every dataset to store Torch tensors.
 
-datamaite 0.5.0 provides MAITE fieldwise access
+datamaite 0.6.0 provides MAITE fieldwise access
 (`get_input`/`get_target`/`get_metadata`), full COCO `images[]` fields and
 per-box VisDrone truncation/occlusion values in datum metadata, native YOLO
 `split`/`yaml_file`/`ann_dir` loader options, recursive image discovery below
@@ -74,7 +74,7 @@ a remote dataset root. Remote URIs are passed through untouched, and a configure
 `UPath` (for example one carrying credentials) is passed through as an object so
 its filesystem options are kept.
 
-One combination isn't supported yet: datamaite 0.5.0 can't relate a local YOLO
+One combination isn't supported yet: datamaite 0.6.0 can't relate a local YOLO
 `ann_dir` to a remote dataset root, so that combination raises `ValueError`
 instead of loading images with no labels. A local COCO `ann_file` under a remote
 root works.

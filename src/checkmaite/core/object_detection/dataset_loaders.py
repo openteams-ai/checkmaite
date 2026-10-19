@@ -116,13 +116,13 @@ def load_yolo_detection_dataset(
     # a configured path object is passed through so its own options survive.
     yaml_root = str(yaml_path.parent) if isinstance(yaml_dataset, str) else yaml_path.parent
     if ann_dir is not None and is_remote(yaml_root) and not is_remote(ann_dir):
-        # datamaite 0.5.0 records each label file relative to the dataset root and
+        # datamaite 0.6.0 records each label file relative to the dataset root and
         # cannot relate a local label path to a remote root. Refuse up front
         # rather than fail mid-load (or, before the file:// anchoring, silently
         # load every image with no labels).
         raise ValueError(
             f"A local ann_dir ({ann_dir}) under a remote YOLO root ({yaml_path}) is not supported by "
-            "datamaite 0.5.0. Upload the labels next to the images, or point ann_dir at the same "
+            "datamaite 0.6.0. Upload the labels next to the images, or point ann_dir at the same "
             "remote store."
         )
     with collect_source_warnings() as source_warnings:

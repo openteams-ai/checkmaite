@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A MAITE Evaluation tutorial covering baseline model evaluation with several metrics, per-class results, and object-detection postprocessing (#777).
 - Documented how to override an ONNX model's input height, width, and batch size from the container run plan (IR-3.1-S-4), with a container test and commented example in `docker/example-run.yaml`.
 - Python 3.13 support, with 3.13 added to the CI test matrix (#802). uv and pip support 3.10–3.13; conda supports 3.11–3.13, and the committed conda lock now resolves Python 3.13. The conda CI legs lock each matrix version and fail if the env is on a different one.
+- MP4 video datasets load on a default install: flat folders of H.264 and MPEG-2 `.mp4` videos load through DataMAITE as MAITE MOT datasets that `cached_tasks.predict` accepts, with a how-to (IR-3.3-S-1) (#794).
 
 ### Changed
+- Bumped `datamaite` from 0.5.0 to 0.6.0 and now install it with its `fmv`, `od` and `ic` extras; `fmv` adds PyAV. conda installs DataMAITE from conda-forge instead of PyPI, with PyAV listed separately because conda packages have no extras (#794).
 - The README and docs home page no longer say there is no web UI: they name the separate CheckMAITE web application (`checkmaite-frontend`) and the batch container alongside the Python API.
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
 - Reorganized the docs nav into Get started, Tutorials, How-to guides, Explanations, and Reference, without moving any pages, and cross-linked every tutorial with its related how-to guides (#772, #778).

@@ -47,7 +47,7 @@ __all__ = [
 # datamaite's loaders all log through this logger tree.
 _DATAMAITE_LOGGER = "datamaite"
 
-# Warnings that report lost source data, matched against datamaite 0.5.0's
+# Warnings that report lost source data, matched against datamaite 0.6.0's
 # message text. Most row rejections start with "Skipping" (VisDrone's orphan
 # annotation trails it instead); whole-file and batch losses use "Dropping",
 # "Could not read", or "Could not list"; and two paths keep the record but

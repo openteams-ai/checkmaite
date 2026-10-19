@@ -2,7 +2,7 @@
 
 These use fsspec's in-memory filesystem: they exercise the same code path any
 cloud backend takes (``s3://``, ``gs://``, ``az://``) without credentials or a
-network. Remote roots are handled entirely inside datamaite 0.5.0's
+network. Remote roots are handled entirely inside datamaite 0.6.0's
 storage-agnostic I/O; checkmaite's job is to not get in the way — not to
 convert a URL through ``Path``, and not to drop the fsspec options a dataset
 was opened with when it stamps the checkmaite-facing ``dataset_id``.
@@ -295,11 +295,11 @@ class TestLocalOverridesUnderRemoteRoots:
             _assert_decodes(dataset)
 
     def test_yolo_local_ann_dir_is_refused_rather_than_silently_unlabelled(self, memory_fs) -> None:
-        # datamaite 0.5.0 cannot relate a local label path to a remote root.
+        # datamaite 0.6.0 cannot relate a local label path to a remote root.
         _upload_tree(memory_fs, TEST_DATA_DIR / "yolo_dataset", f"{BUCKET}/yolo")
         memory_fs.rm(f"{BUCKET}/yolo/labels", recursive=True)
 
-        with pytest.raises(ValueError, match="local ann_dir .* not supported by datamaite 0.5.0"):
+        with pytest.raises(ValueError, match="local ann_dir .* not supported by datamaite 0.6.0"):
             load_yolo_detection_dataset(
                 f"{BUCKET}/yolo/dataset.yaml", ann_dir=str(TEST_DATA_DIR / "yolo_dataset" / "labels")
             )
