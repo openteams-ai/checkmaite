@@ -19,6 +19,10 @@ models:
     args:
       weights_path: models/candidate/model.onnx
       config_path: models/candidate/config.json
+      # Optional: override the metadata's input size and batch size (IR-3.1-S-4).
+      # image_height: 640
+      # image_width: 640
+      # batch_size: 8
 
 metrics:
   map50:

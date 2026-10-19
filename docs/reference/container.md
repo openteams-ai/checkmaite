@@ -271,6 +271,30 @@ by the selected CheckMAITE class or plugin. For example, the sample plan reads
 COCO data and an ONNX model because it selects the COCO dataset loader and the
 ONNX model class.
 
+### Model input size and batch size
+
+ONNX models read their input height, width, and batch size from their metadata
+file. To override them, set `image_height`, `image_width`, and `batch_size` in
+the model's `args` (JATIC standard IR-3.1-S-4). The plan's values take
+precedence over the metadata, and images are resized to the configured height
+and width:
+
+```yaml
+models:
+  candidate:
+    class: checkmaite.core.object_detection.models.OnnxODModel
+    args:
+      weights_path: models/candidate/model.onnx
+      config_path: models/candidate/config.json
+      image_height: 640
+      image_width: 640
+      batch_size: 8
+```
+
+The image classification model, `OnnxICModel`, takes the same arguments.
+`--batch-size` and `CHECKMAITE_BATCH_SIZE` set the batch size of a task, not
+the model's input batch size.
+
 ### Tasks
 
 <!-- markdownlint-disable MD013 -- table rows cannot be wrapped -->

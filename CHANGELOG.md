@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concept explanations for saliency and distribution shift (drift and out-of-distribution detection) under Explanations, aligned with the xaitk-saliency and DataEval explanations (#780).
 - `CONTRIBUTING.md`, `SECURITY.md`, a GitLab bug report issue template, and GitHub issue forms for bug reports and feature requests, documenting how to report bugs, request features, and report vulnerabilities, and how issues are managed (#769).
 - A MAITE Evaluation tutorial covering baseline model evaluation with several metrics, per-class results, and object-detection postprocessing (#777).
+- Documented how to override an ONNX model's input height, width, and batch size from the container run plan (IR-3.1-S-4), with a container test and commented example in `docker/example-run.yaml`.
 - Python 3.13 support, with 3.13 added to the CI test matrix (#802). uv and pip support 3.10–3.13; conda supports 3.11–3.13, and the committed conda lock now resolves Python 3.13. The conda CI legs lock each matrix version and fail if the env is on a different one.
 
 ### Changed
