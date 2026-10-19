@@ -216,6 +216,8 @@ class DataevalSufficiencyRun(CapabilityRunBase[DataevalSufficiencyConfig, Dataev
 
         report_sufficiency_md(md, self.config.target_metric_value, outputs)
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

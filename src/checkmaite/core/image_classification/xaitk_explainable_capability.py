@@ -290,6 +290,8 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     md.add_text(f"**Prediction**: {index2label[sal_idx]}")
                     md.add_embedded_image(img_path, alt_text=f"Saliency Map {sal_idx}", remove_source=True)
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

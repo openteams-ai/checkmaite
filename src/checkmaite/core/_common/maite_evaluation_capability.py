@@ -303,6 +303,8 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
                     save_figure_to_tempfile(figure), alt_text=f"Overall Metrics: {metric_id}", remove_source=True
                 )
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

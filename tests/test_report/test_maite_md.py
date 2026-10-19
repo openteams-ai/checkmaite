@@ -64,3 +64,28 @@ def test_maite_collect_md_report_with_class_metrics():
     assert report.media_type == "text/markdown"
     assert report.filename == "test.maite2.md"
     assert "Model Evaluation Summary" in report.content
+
+
+def test_report_records_its_provenance():
+    """IR-3-S-3: a rendered report identifies the run that produced it, so it needs no metadata sidecar."""
+    import checkmaite
+
+    run = MaiteEvaluationRun(
+        capability_id="test.maite",
+        config=MaiteEvaluationConfig(batch_size=4),
+        dataset_metadata=[{"id": "ds-a"}, {"id": "ds-b"}],
+        model_metadata=[{"id": "model-1"}],
+        metric_metadata=[{"id": "acc"}],
+        outputs=MaiteEvaluationOutputs(metrics={}),
+    )
+
+    content = run.collect_md_report(threshold=0.5).content
+    provenance = content[content.index("## Provenance") :]
+
+    assert f"`{run.run_uid}`" in provenance
+    assert "`test.maite`" in provenance
+    assert f"`{checkmaite.__version__}`" in provenance
+    assert "`ds-a`, `ds-b`" in provenance
+    assert "`model-1`" in provenance
+    assert "`acc`" in provenance
+    assert '"batch_size": 4' in provenance

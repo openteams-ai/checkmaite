@@ -231,6 +231,8 @@ class DataevalShiftRun(CapabilityRunBase[DataevalShiftConfig, DataevalShiftOutpu
 
         collect_ood_md(md, outputs.ood, dataset_ids=dataset_ids)
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

@@ -289,6 +289,8 @@ class XaitkExplainableRun(CapabilityRunBase[XaitkExplainableConfig, XaitkExplain
                     img_path, alt_text=f"Saliency Map for Detection {sal_idx + 1}", remove_source=True
                 )
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

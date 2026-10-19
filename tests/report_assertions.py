@@ -11,4 +11,5 @@ def assert_inline_markdown_report(report: object, *, capability_id: str) -> Inli
     assert report.content.strip()
     assert "](/tmp/" not in report.content
     assert "](file://" not in report.content
+    assert "## Provenance" in report.content
     return report

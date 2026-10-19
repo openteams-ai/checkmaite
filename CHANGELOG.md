@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Every built-in capability's Markdown report ends with a Provenance section: run ID, capability ID, CheckMAITE version, the dataset, model and metric IDs, and the run configuration. A saved or shared report now identifies exactly what produced it without a separate metadata file (IR-3-S-3, #758).
 - System requirements reference page covering recommended hardware, supported architectures, and internet access for the Python library (#781).
 - Documented critical limitations and prerequisites in the README and docs home page (#773). Conventions now list VisDrone detection and describe object-detection boxes as `float32` `xyxy`.
 - Added the CDAO funding acknowledgment to the README and docs home page (#774).

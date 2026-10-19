@@ -6,19 +6,23 @@ in a consistent and maintainable way. Used within the collect_md_report methods.
 """
 
 import base64
+import json
 import mimetypes
 import os
 import re
 from collections.abc import Iterable
 from pathlib import Path
 from shutil import copy2
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 import pandas as pd
 import polars as pl
 from IPython.display import Markdown
 from IPython.display import display as _ipy_display
+
+if TYPE_CHECKING:
+    from checkmaite.core.capability_core import CapabilityRunBase
 
 
 # Markdown image syntax: ![alt](path "optional title")
@@ -554,6 +558,47 @@ class MarkdownOutput:
     def add_raw(self, content: str) -> "MarkdownOutput":
         """Add raw markdown content directly."""
         self._append(content)
+        return self
+
+    def add_provenance(self, run: "CapabilityRunBase[Any, Any]") -> "MarkdownOutput":
+        """Add a Provenance section recording exactly what produced the report.
+
+        The section carries the run ID, capability ID, CheckMAITE version, the IDs of the datasets, models and
+        metrics the run used, and the run's configuration, so a saved or shared report identifies its own source
+        without a separate metadata file (IR-3-S-3).
+
+        Parameters
+        ----------
+        run : CapabilityRunBase
+            The capability run the report describes.
+
+        Returns
+        -------
+        MarkdownOutput
+            The builder instance for method chaining.
+        """
+        from checkmaite import __version__  # deferred: checkmaite imports this module during package init
+
+        def ids(metadata: list[Any]) -> str:
+            return ", ".join(f"`{item['id']}`" for item in metadata) or "none"
+
+        self.add_section("Provenance")
+        self.add_table(
+            headers=["Field", "Value"],
+            rows=[
+                ["Run ID", f"`{run.run_uid}`"],
+                ["Capability", f"`{run.capability_id}`"],
+                ["CheckMAITE version", f"`{__version__}`"],
+                ["Datasets", ids(run.dataset_metadata)],
+                ["Models", ids(run.model_metadata)],
+                ["Metrics", ids(run.metric_metadata)],
+            ],
+        )
+        self.add_text("Configuration:", bold=True)
+        # The whole config is published in every report, so capability configs must not hold secrets or local paths.
+        config = json.dumps(run.config.model_dump(mode="json"), indent=2, sort_keys=True, default=str)
+        self.add_raw(f"```json\n{config}\n```")
+        self._append_blank()
         return self
 
     def clear(self) -> "MarkdownOutput":

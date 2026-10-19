@@ -376,6 +376,8 @@ class NrtkRobustnessRun(CapabilityRunBase[NrtkRobustnessConfig, NrtkRobustnessOu
 
         md.add_table(headers=[theta_label, metric_label], rows=rows)
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

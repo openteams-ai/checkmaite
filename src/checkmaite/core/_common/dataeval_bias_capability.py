@@ -289,6 +289,8 @@ class DataevalBiasRun(CapabilityRunBase[DataevalBiasConfig, DataevalBiasOutputs]
             md.add_section_divider()
             report_diversity_md(md, outputs.diversity)
 
+        md.add_provenance(self)
+
         return InlineTextReport(
             media_type="text/markdown",
             content=md.render(),

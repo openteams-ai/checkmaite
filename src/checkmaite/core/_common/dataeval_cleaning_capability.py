@@ -368,6 +368,7 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
 
             md.add_section_divider()
             generate_next_steps_report_md(md, dataset_id)
+            md.add_provenance(self)
             content = md.render()
         finally:
             shutil.rmtree(artifact_dir, ignore_errors=True)
