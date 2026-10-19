@@ -107,7 +107,8 @@ Confirm that:
   carry findings with no available upgrade. Recheck this after every Ray
   upgrade.
 - The retained vulnerability JSON is unfiltered and the Medium, High, and
-  Critical gate passes or has a formal program exception.
+  Critical gate passes, with any accepted findings listed in
+  `docker/ci/dsor3-exceptions.trivyignore.yaml`.
 
 Finally, run the protected publication flow with
 `CONTAINER_RELEASE_DRY_RUN=true` before using a Semantic Version release tag.

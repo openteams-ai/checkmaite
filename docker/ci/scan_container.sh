@@ -54,15 +54,27 @@ trivy convert "${raw_report}" \
     --output "${artifact_directory}/vulnerability-attestation.json"
 
 # DSOR-3-H-2 permits no Medium, High, or Critical findings. Unfixed findings
-# are included. The only findings excluded are those with an approved, unexpired
-# program exception recorded in the exceptions file, and only from this gate.
-if [ "${mode}" = "enforce" ] && grep -Eq '^[[:space:]]*statement:.*PENDING' "${exceptions_file}"; then
-    echo "${exceptions_file} has exceptions without an approved DSOR-3 exception ID" >&2
+# are included. The only findings excluded are unexpired entries in the
+# exceptions file (an approved program exception, or a finding accepted while
+# DSOR-3 is not required at checkmaite's maturity level), and only from this gate.
+# At Maturity I, remove "Accepted at Maturity S" so those entries fail again.
+allowed_statements='Approved exception jatic/internal-docs#[0-9]+|Accepted at Maturity S'
+if [ "${mode}" = "enforce" ] && grep -E '^[[:space:]]*statement:' "${exceptions_file}" \
+    | grep -Evq "^[[:space:]]*statement:[[:space:]]*\"?(${allowed_statements})"; then
+    echo "${exceptions_file}: every statement must start with an approved exception ID or 'Accepted at Maturity S'" >&2
     exit 1
 fi
+
+# The gate table lists the findings it accepted as well as any that fail it, in
+# the job log and as an artifact.
+gate_report="${artifact_directory}/release-gate.txt"
+gate_status=0
 trivy convert "${raw_report}" \
     --format table \
     --severity MEDIUM,HIGH,CRITICAL \
     --ignorefile "${exceptions_file}" \
+    --show-suppressed \
     --exit-code "${exit_code}" \
-    --output /dev/null
+    --output "${gate_report}" || gate_status=$?
+cat "${gate_report}"
+exit "${gate_status}"

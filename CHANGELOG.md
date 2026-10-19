@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `modelmaite` from 0.1.0 to 0.2.0, the first release that supports Python 3.13 and numpy 2; 0.1.0 requires Python `<3.13` and numpy `<2` (#802).
 - Python 3.13 installs numpy 2.x (with numba 0.68 and llvmlite 0.50), while 3.10–3.12 stay on numpy 1.26. `pybsm` (via `nrtk[pybsm]`), `smqtk-classifier`, and `xaitk-jatic` still cap numpy below 2 on Python <3.13 (#802).
 
+### Security
+- Release container scans accept twenty Medium findings (nineteen unfixed Ubuntu 24.04 CVEs, CVE-2026-59890 in setuptools) without a program exception while CheckMAITE targets Maturity S; entries expire 2027-01-05.
+- Upgraded `aiohttp` to 3.14.5 and `multidict` to 6.9.1 (with `yarl` 1.25.1), fixing CVE-2026-111064, GHSA-2g87-pp6c-29x5 and CVE-2026-104874 in the container images.
+
 ## [0.4.0] - 2026-09-24
 
 ### Added

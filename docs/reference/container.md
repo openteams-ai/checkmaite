@@ -442,18 +442,20 @@ default-deny NetworkPolicy with narrow egress exceptions when required.
 Release pipelines build and exercise the supported product platforms with
 Docker 25 or later, retain unfiltered SPDX SBOM and vulnerability reports, and
 block publication on every Medium, High, or Critical finding. Unfixed findings
-are included; publication requires remediation or a formal program exception.
-Exceptions are recorded in `docker/ci/dsor3-exceptions.trivyignore.yaml`, each
-with its approved exception ID and an expiry date, and apply only to the
-release gate. The release scan refuses to run while any entry is still marked
-`PENDING`. Because releases rebuild from the tag, commit exceptions before
-creating it.
+are included; publication requires remediation or an entry in
+`docker/ci/dsor3-exceptions.trivyignore.yaml`. Each entry names the CVE and the
+affected package, has an expiry date, and has a statement starting with either
+its approved program exception ID or, while CheckMAITE targets JATIC Maturity S
+(where DSOR-3 is not required), `Accepted at Maturity S`. The release scan
+rejects any other statement. Entries apply only to the release gate, which
+lists the findings it accepted in the job log and in `release-gate.txt`.
+Because releases rebuild from the tag, commit entries before creating it.
 
 Before enabling releases, configure the program Harbor project to make Semantic
 Version tags immutable, approve the digest-pinned Docker Official Ubuntu,
-NVIDIA, and Astral base-container sources (or record the required CS-1-S-2
-exception), and provide the Harbor credentials and AWS KMS key to protected CI
-jobs.
+NVIDIA, and Astral base-container sources (the NVIDIA CUDA base is not from
+a CS-1-S-2 approved registry; CS-1 is not required at Maturity S), and provide
+the Harbor credentials and AWS KMS key to protected CI jobs.
 
 A release is started from the default branch with `RELEASE_TAG` set to an
 existing unprefixed final Semantic Version Git tag, such as `1.2.3`; pre-release
