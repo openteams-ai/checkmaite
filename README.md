@@ -58,8 +58,9 @@ CheckMAITE evaluates models and datasets you supply.
   raise `ValueError`.
 - Object-detection boxes are `float32` `xyxy` arrays of shape `(N, 4)`. See
   [Conventions][limitations-conventions].
-- There is no web UI; configure and run capabilities through the Python API. PDF
-  export needs the `reporting` extra.
+- This package provides the Python API and the batch container. The web UI is the
+  separate CheckMAITE application (`checkmaite-frontend`). PDF export needs the
+  `reporting` extra.
 - CPU is the supported baseline. Machine, OS, and Python bounds are in the
   [supported environment][limitations-supported-environment].
 

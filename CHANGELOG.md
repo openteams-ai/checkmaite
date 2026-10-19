@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python 3.13 support, with 3.13 added to the CI test matrix (#802). uv and pip support 3.10–3.13; conda supports 3.11–3.13, and the committed conda lock now resolves Python 3.13. The conda CI legs lock each matrix version and fail if the env is on a different one.
 
 ### Changed
+- The README and docs home page no longer say there is no web UI: they name the separate CheckMAITE web application (`checkmaite-frontend`) and the batch container alongside the Python API.
 - The manual release pipeline now creates the GitLab Release, with notes from `CHANGELOG.md` and links to the PyPI package, after `publish-pypi` succeeds.
 - Reorganized the docs nav into Get started, Tutorials, How-to guides, Explanations, and Reference, without moving any pages, and cross-linked every tutorial with its related how-to guides (#772, #778).
 - How-to guides, tutorials, and the dataset conventions now cite reported user problems and their fixes or limitations: TLS-proxy weight downloads, notebook-crash job recovery, durable report artifacts, YOLO labels outside `labels/`, non-deterministic DataEval loaders, and multivariate NRTK runs (#779).
