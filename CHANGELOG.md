@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-20
+
 ### Added
+- A batch container that runs one YAML run plan with the `checkmaite-container` command, writes durable results and exits, with a JSON Schema for the run plan. CPU and NVIDIA CUDA variants for Linux AMD64, built on digest-pinned Ubuntu 24.04 bases with operating-system packages fixed to one archive snapshot, running as a non-root user. Python warnings are logged with the run.
+- Release pipelines publish the CPU and CUDA containers to Harbor (`openteams/checkmaite/{cpu,cuda}`), signed with Cosign through the program AWS KMS key, with SPDX SBOM and Trivy vulnerability attestations. Publication is blocked on any Medium, High or Critical finding not listed in `docker/ci/dsor3-exceptions.trivyignore.yaml`.
+- The docs home page maps T&E tasks to the CheckMAITE features that support them (#803).
+- CI runs GitLab secret detection, exports a CycloneDX SBOM artifact and checks Markdown with markdownlint; every test is marked `required` or `optional` (#767, #770, #782, #764).
 - Every built-in capability's Markdown report ends with a Provenance section: run ID, capability ID, CheckMAITE version, the dataset, model and metric IDs, and the run configuration. A saved or shared report now identifies exactly what produced it without a separate metadata file (IR-3-S-3, #758).
 - CI runs the DevSecOps `validate-pipeline` and `pipeline-report` components, producing the program's automated standards report (pipeline summary, program standards compliance and Grype scan reports) as a pipeline artifact and GitLab Pages report for product reviews (DR-1.3).
 - System requirements reference page covering recommended hardware, supported architectures, and internet access for the Python library (#781).
@@ -304,7 +310,8 @@ Initial public release of CheckMAITE.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.5.0...HEAD
+[0.5.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...0.4.0
 [0.3.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.2...0.3.0
 [0.2.2]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.1...0.2.2
