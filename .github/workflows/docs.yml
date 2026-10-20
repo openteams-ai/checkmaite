@@ -41,7 +41,7 @@ jobs:
           python -m pip install uv==0.9.24
 
       - name: Install documentation dependencies
-        run: uv sync --locked --group docs --extra reporting
+        run: uv sync --locked --group docs --extra onnx --extra reporting
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
