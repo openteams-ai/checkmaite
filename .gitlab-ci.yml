@@ -46,6 +46,8 @@ stages:
   - docs
   - dr-compliance
   - ir-compliance
+  - validate
+  - summary
   - publish-test
   - publish
 
@@ -657,11 +659,29 @@ include:
       full_execution_on_commit: true
       allow_failure: true
 
+  # The program's automated standards report for product reviews (DR-1.3): pipeline-report summarizes every job
+  # and scan in the pipeline and maps them to the program standards; it needs validate-pipeline's jobs.
+  - component: gitlab.jatic.net/jatic/devsecops/components/validate-pipeline@1.2.0
+    inputs:
+      stage: validate
+      full_execution_on_commit: true
+
+  - component: gitlab.jatic.net/jatic/devsecops/components/pipeline-report@1.2.0
+    inputs:
+      stage: summary
+      components_branch: "1.2.0"
+      full_execution_on_commit: true
+
 # markdownlint is enforced by the `markdownlint` job; skipping it here avoids a
 # nodeenv Node download in a job that ignores hook failures anyway.
 pre-commit🪝:
   variables:
     SKIP: markdownlint-cli2
+
+# The report clones the components repo and calls the GitLab API; a hiccup in
+# either shouldn't block an MR. Main and release runs still produce the report.
+create-pipeline⛓️-report🗒:
+  allow_failure: true
 
 secret_detection:
   stage: dr-compliance
