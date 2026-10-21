@@ -31,7 +31,9 @@ Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 SOURCES
 
 export DEBIAN_FRONTEND=noninteractive
-apt_options=(-o APT::Update::Error-Mode=any -o APT::Install-Recommends=false)
+# snapshot.ubuntu.com has outages with 5xx responses; retry each download
+# (apt backs off between attempts) before failing the build.
+apt_options=(-o APT::Update::Error-Mode=any -o APT::Install-Recommends=false -o Acquire::Retries=5)
 
 # The plain Ubuntu image has no CA bundle, and snapshot.ubuntu.com is HTTPS
 # only. Fetch ca-certificates once without TLS peer verification; apt still

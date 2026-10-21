@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Container builds retry failed Ubuntu snapshot downloads (`Acquire::Retries=5`), so a short `snapshot.ubuntu.com` outage no longer fails the build.
+
+### Fixed
+- Locked `polars` 1.44.2 instead of 1.43.0, which was yanked from PyPI.
+
 ## [0.5.0] - 2026-10-20
 
 ### Added
