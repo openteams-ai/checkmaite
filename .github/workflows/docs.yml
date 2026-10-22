@@ -18,6 +18,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Ray >= 2.56 detects drivers launched via `uv run` and tries to propagate
+      # the uv environment to workers, which requires pyproject.toml inside the
+      # runtime_env working_dir (the notebook's directory). Keep workers on the
+      # driver's already-synced environment, as .gitlab-ci.yml's .uv-setup does.
+      RAY_ENABLE_UV_RUN_RUNTIME_ENV: "0"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
