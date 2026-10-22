@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-22
+
 ### Added
 - `checkmaite.core.multiobject_tracking` namespace with a `MaiteEvaluation` capability for MAITE multi-object-tracking (MOT) models and datasets, a `load_mot_dataset` loader for MOTChallenge datasets and flat MP4 folders that emits every frame of every video and gives each dataset a cache id derived from its root, format and options, and the class-agnostic CLEAR-MOT/identity metric approved in !611 (`clear_mot_metrics_factory`: MOTA, MOTP, IDF1, identity switches), computed with `motmetrics`. That work was merged into the #718 feature branch but left out when the branch was rebased onto `main` (#723).
 
@@ -320,7 +322,8 @@ Initial public release of CheckMAITE.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.5.0...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.0...HEAD
+[0.6.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...0.4.0
 [0.3.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.2.2...0.3.0
