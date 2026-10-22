@@ -156,7 +156,10 @@ constraint-dependencies = [
     "urllib3>=2.6.3",
     "cryptography>=46.0.5",
     "nbconvert>=7.17.0",
-    "pillow==12.3.0",
+    # Pillow 13.0.0 fixes Critical/High CVEs in 12.x that fail the container scan,
+    # but requires Python >=3.11, so 3.10 stays on 12.3.0.
+    "pillow==12.3.0; python_version < '3.11'",
+    "pillow>=13.0.0; python_version >= '3.11'",
     "protobuf==6.33.5",
 ]
 

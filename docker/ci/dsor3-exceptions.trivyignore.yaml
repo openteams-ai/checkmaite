@@ -1,6 +1,6 @@
 # DSOR-3 exceptions for the release vulnerability gate (scan_container.sh).
 #
-# Release scans fail on any Medium, High, or Critical finding. An entry here
+# Container scans fail on any High or Critical finding. An entry here
 # removes one finding from that gate only; the retained JSON, GitLab, and Cosign
 # vulnerability reports stay unfiltered. Releases rebuild from the release tag,
 # so an exception must be committed before the tag is created.

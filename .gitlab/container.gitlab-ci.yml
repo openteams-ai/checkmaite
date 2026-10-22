@@ -1,7 +1,9 @@
 ################################################################################
 # Product containers: build and exercise supported platforms on relevant MRs and
-# every main pipeline. Release jobs rebuild an existing SemVer Git tag, enforce
-# DSOR-3, publish write-once Harbor tags, and sign each published image.
+# every main pipeline. Every build enforces DSOR-3, so a newly published finding
+# fails MRs and main before it can block a release. Release jobs rebuild an
+# existing SemVer Git tag, publish write-once Harbor tags, and sign each
+# published image.
 ################################################################################
 
 .container-build:
@@ -46,15 +48,13 @@
         checkout_release_tag "${RELEASE_TAG}"
         build_version=${RELEASE_TAG}
         build_revision=${release_tag_commit}
-        scan_mode=enforce
       else
         # The "g" keeps the local version alphanumeric; an all-digit SHA with a
         # leading zero would otherwise be normalized under PEP 440.
         build_version="0.0.0+ci.g${CI_COMMIT_SHORT_SHA}"
         build_revision=${CI_COMMIT_SHA}
-        scan_mode=report
       fi
-      export build_revision build_version scan_mode
+      export build_revision build_version
     - docker buildx create --use --name "checkmaite-${CI_JOB_ID}" --driver-opt "image=${BUILDKIT_IMAGE}"
     - |
       image="checkmaite-batch:${ARTIFACT_VARIANT}-ci-${CI_COMMIT_SHORT_SHA}"
@@ -83,7 +83,7 @@
       else
         sh docker/ci/install_security_tools.sh
       fi
-    - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" "${scan_mode}"
+    - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" enforce
     - |
       if [ "${CONTAINER_RELEASE}" = "true" ]; then
         sh docker/ci/publish_container.sh \

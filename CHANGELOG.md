@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-22
+
+### Changed
+- Container builds in merge request and `main` pipelines, including the daily scheduled pipeline, now fail on the same scan gate as a release instead of only reporting findings, so a newly published finding is caught before it blocks a release.
+- The container scan gate fails only on High and Critical findings. Medium findings are still reported, but no longer block publication while CheckMAITE targets Maturity S, where DSOR-3 is not required.
+
+### Security
+- Upgraded `pillow` to 13.0.0 on Python 3.11 and later, fixing 28 Medium, High, and Critical CVEs in Pillow 12.3.0 (3 Critical). Pillow 13 requires Python 3.11, so Python 3.10 installs remain on 12.3.0 and are still affected.
+- Upgraded `certifi` to 2026.10.19, removing the emSign root CAs whose intermediate CA keys were compromised (GHSA-6q48-6c7w-9gw2).
+- These findings blocked publishing the 0.6.0 containers to Harbor, so 0.6.1 is the first release with containers since 0.5.0. The 0.6.0 Python package does not pin either package, so new installs of it on Python 3.11 and later already get the fixed versions.
+
 ## [0.6.0] - 2026-10-22
 
 ### Added
@@ -322,7 +333,8 @@ Initial public release of CheckMAITE.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.0...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.1...HEAD
+[0.6.1]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.0...0.6.1
 [0.6.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.3.0...0.4.0

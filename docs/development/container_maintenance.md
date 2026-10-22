@@ -106,8 +106,8 @@ Confirm that:
   them after `uv pip check`, because the batch runtime cannot use them and they
   carry findings with no available upgrade. Recheck this after every Ray
   upgrade.
-- The retained vulnerability JSON is unfiltered and the Medium, High, and
-  Critical gate passes, with any accepted findings listed in
+- The retained vulnerability JSON is unfiltered and the High and Critical
+  gate passes, with any accepted findings listed in
   `docker/ci/dsor3-exceptions.trivyignore.yaml`.
 
 Finally, run the protected publication flow with

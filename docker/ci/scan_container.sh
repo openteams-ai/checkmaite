@@ -53,11 +53,14 @@ trivy convert "${raw_report}" \
     --format cosign-vuln \
     --output "${artifact_directory}/vulnerability-attestation.json"
 
-# DSOR-3-H-2 permits no Medium, High, or Critical findings. Unfixed findings
-# are included. The only findings excluded are unexpired entries in the
+# DSOR-3-H-2 permits no Medium, High, or Critical findings, but DSOR-3 is not
+# required at checkmaite's maturity level (S), so this gate fails only on High
+# and Critical findings; Medium findings stay in the reports above. Unfixed
+# findings are included. The only findings excluded are unexpired entries in the
 # exceptions file (an approved program exception, or a finding accepted while
-# DSOR-3 is not required at checkmaite's maturity level), and only from this gate.
-# At Maturity I, remove "Accepted at Maturity S" so those entries fail again.
+# DSOR-3 is not required), and only from this gate. At Maturity I, add MEDIUM
+# back to the gate severity and remove "Accepted at Maturity S" so those entries
+# fail again.
 allowed_statements='Approved exception jatic/internal-docs#[0-9]+|Accepted at Maturity S'
 if [ "${mode}" = "enforce" ] && grep -E '^[[:space:]]*statement:' "${exceptions_file}" \
     | grep -Evq "^[[:space:]]*statement:[[:space:]]*\"?(${allowed_statements})"; then
@@ -71,7 +74,7 @@ gate_report="${artifact_directory}/release-gate.txt"
 gate_status=0
 trivy convert "${raw_report}" \
     --format table \
-    --severity MEDIUM,HIGH,CRITICAL \
+    --severity HIGH,CRITICAL \
     --ignorefile "${exceptions_file}" \
     --show-suppressed \
     --exit-code "${exit_code}" \

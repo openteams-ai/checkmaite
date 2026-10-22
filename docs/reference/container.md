@@ -441,7 +441,11 @@ default-deny NetworkPolicy with narrow egress exceptions when required.
 
 Release pipelines build and exercise the supported product platforms with
 Docker 25 or later, retain unfiltered SPDX SBOM and vulnerability reports, and
-block publication on every Medium, High, or Critical finding. Unfixed findings
+block publication on every High or Critical finding. Merge request and `main`
+pipelines that build the containers apply the same gate, so a newly published
+finding fails them before it can block a release. Medium findings are reported
+but do not fail the gate while CheckMAITE targets JATIC Maturity S, where DSOR-3
+is not required. Unfixed findings
 are included; publication requires remediation or an entry in
 `docker/ci/dsor3-exceptions.trivyignore.yaml`. Each entry names the CVE and the
 affected package, has an expiry date, and has a statement starting with either
