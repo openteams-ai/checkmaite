@@ -19,7 +19,7 @@ CheckMAITE? Start with the [tutorials](../tool-usage/index.md).
 
 - [__Load a video dataset__ :octicons-arrow-right-24:](load_video_datasets.md)
 
-    Load a folder of MP4 videos through DataMAITE and run a model over it.
+    Load MP4 videos through DataMAITE, then run and evaluate a tracker on them.
 
 </div>
 

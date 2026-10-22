@@ -34,6 +34,7 @@ dependencies = [
     "datamaite[fmv,od,ic]==0.6.0",
     "maite>=0.9.4,<0.10",              # necessary lower pin: ships maite.protocols.multiobject_tracking (#723); range avoids lockstep with checkmaite-plugins
     "modelmaite==0.2.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
+    "motmetrics>=1.4.0,<1.5",          # CLEAR-MOT/identity metrics for multiobject tracking (#723); upper pin: multiobject_tracking/metrics.py copies motmetrics' iou_matrix internals for NumPy 2
     "nrtk[pybsm]==1.0.4",
     "xaitk-jatic==0.8.1",
     # external deps
@@ -82,6 +83,7 @@ dataeval-plots = {source = "pypi"}
 # beyond checkmaite's own opencv dependency.
 av = ">=11"
 modelmaite = {source = "pypi"}                     # not packaged on conda-forge
+motmetrics = {source = "pypi"}                     # conda-forge stalled at 1.2.0; we need >=1.4.0
 # Test tooling for the conda CI jobs. conda-lock cannot read PEP 735
 # [dependency-groups], so the conda-side test dependencies are declared here
 # (conda-only section; not part of the published package metadata).
@@ -171,6 +173,9 @@ checkmaite_TorchODMultiClassMap50 = "checkmaite.core.object_detection.metrics:To
 
 [project.entry-points."maite.protocols.image_classification.Metric"]
 checkmaite_TorchICMulticlassMetric = "checkmaite.core.image_classification.metrics:TorchICMulticlassMetric"
+
+[project.entry-points."maite.protocols.multiobject_tracking.Metric"]
+checkmaite_MotMetricsTrackingMetric = "checkmaite.core.multiobject_tracking.metrics:MotMetricsTrackingMetric"
 
 [project.entry-points."maite.protocols.object_detection.DataLoader"]
 checkmaite_YoloDetectionDataLoader = "checkmaite.core.object_detection.dataset_loaders:YoloDetectionDataLoader"

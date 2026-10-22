@@ -101,7 +101,14 @@ PosixPath('/home/user/.cache/checkmaite')
 PosixPath('/home/user/my-cache')
 """
 
-from checkmaite.core import cached_tasks, capability_core, image_classification, object_detection, report  # noqa: E402
+from checkmaite.core import (  # noqa: E402
+    cached_tasks,
+    capability_core,
+    image_classification,
+    multiobject_tracking,
+    object_detection,
+    report,
+)
 from checkmaite.core._cache import binary_de_serializer  # noqa: E402
 from checkmaite.core.analytics_store._provenance import (  # noqa: E402
     configure_provenance,
@@ -113,6 +120,7 @@ __all__ = [
     "__version__",
     "cache_path",
     "image_classification",
+    "multiobject_tracking",
     "object_detection",
     "cached_tasks",
     "capability_core",

@@ -447,6 +447,7 @@ dependencies = [
     { name = "maite" },
     { name = "matplotlib" },
     { name = "modelmaite" },
+    { name = "motmetrics" },
     { name = "nrtk", extra = ["pybsm"] },
     { name = "numba", version = "0.62.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
     { name = "numba", version = "0.68.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
@@ -503,6 +504,7 @@ requires-dist = [
     { name = "markdown", marker = "extra == 'reporting'", specifier = ">=3.5" },
     { name = "matplotlib", specifier = ">=3.7.1,<3.10.8" },
     { name = "modelmaite", specifier = "==0.2.0" },
+    { name = "motmetrics", specifier = ">=1.4.0,<1.5" },
     { name = "nrtk", extras = ["pybsm"], specifier = "==1.0.4" },
     { name = "numba", specifier = ">=0.60.0" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.14.0" },
@@ -2101,6 +2103,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/8b/7bab4542441a5c048d431343db96e77492c082f3c83242e5bafa40f61357/modelmaite-0.2.0.tar.gz", hash = "sha256:b41db861509e2b93c1b137c4cceb4a5941a136a125d2ed4ea103932c9905ad62", size = 234299, upload-time = "2026-10-07T19:23:39.757Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/f5/7db7a6be17f8e442766ca456717a1b1dd0c321ced6d5b75e08a9f3d5cab6/modelmaite-0.2.0-py3-none-any.whl", hash = "sha256:2e9e4f0df371463f10f9063b91051278fb87e956d5e79b273f8e17bab3175792", size = 30257, upload-time = "2026-10-07T19:23:38.116Z" },
+]
+
+[[package]]
+name = "motmetrics"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-28-checkmaite-container-runtime-cpu' and extra == 'extra-28-checkmaite-container-runtime-cuda')" },
+    { name = "xmltodict" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/d9/7b77e1e2db80b6f8133065ffbccdaa3c911df5f95a7af30829fcaa10a3d7/motmetrics-1.4.0-py3-none-any.whl", hash = "sha256:cd4d691bd787360f1cd0a2127fe8a14d0646fb2912b344a9498719e132b25738", size = 161542, upload-time = "2022-12-26T09:14:59.218Z" },
 ]
 
 [[package]]
@@ -5463,6 +5482,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7a/e9/7a3869d57898df3f6292b7a93ba286892d14abe4aa2011836b20b1695310/xaitk_saliency-0.15.0.tar.gz", hash = "sha256:211bc7ed58fa82cef2066ae24e42dcf24b08298bccef500953155a28ecad12d4", size = 48648, upload-time = "2026-06-19T20:43:13.148Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e7/d9/ec4e85195693153f726c9955bdc01569a81c68e2ff7596f6c893c62a7998/xaitk_saliency-0.15.0-py3-none-any.whl", hash = "sha256:d98eb828daaa0ef85c872f9df9db171e3eccf4d447ff5860ea524542424d858a", size = 77461, upload-time = "2026-06-19T20:43:14.213Z" },
+]
+
+[[package]]
+name = "xmltodict"
+version = "1.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/70/80f3b7c10d2630aa66414bf23d210386700aa390547278c789afa994fd7e/xmltodict-1.0.4.tar.gz", hash = "sha256:6d94c9f834dd9e44514162799d344d815a3a4faec913717a9ecbfa5be1bb8e61", size = 26124, upload-time = "2026-02-22T02:21:22.074Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/34/98a2f52245f4d47be93b580dae5f9861ef58977d73a79eb47c58f1ad1f3a/xmltodict-1.0.4-py3-none-any.whl", hash = "sha256:a4a00d300b0e1c59fc2bfccb53d7b2e88c32f200df138a0dd2229f842497026a", size = 13580, upload-time = "2026-02-22T02:21:21.039Z" },
 ]
 
 [[package]]

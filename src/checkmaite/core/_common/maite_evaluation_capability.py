@@ -1,3 +1,4 @@
+import math
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -111,6 +112,18 @@ def _numeric_scalar(value: Any) -> float | None:
         return None
 
 
+def _undefined_to_none(value: Any) -> Any:
+    """Map a non-finite numeric scalar to ``None``, the marker for an undefined metric value.
+
+    A metric can be undefined for an evaluation, for example a ratio whose
+    denominator is zero. JSON has no NaN or infinity, so the caches and run files
+    would write them as ``null`` and a cached rerun would differ from a fresh run;
+    normalizing them to ``None`` up front keeps both identical.
+    """
+    scalar = _numeric_scalar(value)
+    return None if scalar is not None and not math.isfinite(scalar) else value
+
+
 def _extract_class_metrics(
     result: dict[str, Any],
     return_key: str | None,
@@ -151,13 +164,18 @@ def _normalize_metric_result(
 ) -> MaiteMetricResult:
     metric_id = metric.metadata["id"]
     try:
-        result = dict(raw_result)
+        result = {key: _undefined_to_none(value) for key, value in raw_result.items()}
         return_key = getattr(metric, "return_key", None)
         if return_key is not None and (type(return_key) is not str or not return_key):
             raise TypeError("Metric return_key must be a non-empty string when defined.")
 
         class_metrics = _extract_class_metrics(result, return_key, model_metadata)
         scalar_values = {key: scalar for key, value in result.items() if (scalar := _numeric_scalar(value)) is not None}
+        if return_key is not None and return_key in result and result[return_key] is None:
+            raise ValueError(
+                f"Metric return_key {return_key!r} is undefined for this evaluation (not a finite number), "
+                "for example because a ratio's denominator is zero."
+            )
         if return_key is not None and return_key not in scalar_values:
             raise ValueError(f"Metric return_key {return_key!r} does not identify a numeric top-level result.")
 

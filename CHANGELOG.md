@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `checkmaite.core.multiobject_tracking` namespace with a `MaiteEvaluation` capability for MAITE multi-object-tracking (MOT) models and datasets, a `load_mot_dataset` loader for MOTChallenge datasets and flat MP4 folders that emits every frame of every video and gives each dataset a cache id derived from its root, format and options, and the class-agnostic CLEAR-MOT/identity metric approved in !611 (`clear_mot_metrics_factory`: MOTA, MOTP, IDF1, identity switches), computed with `motmetrics`. That work was merged into the #718 feature branch but left out when the branch was rebased onto `main` (#723).
+
 ### Changed
+- `MaiteEvaluation` treats a metric value that is not a finite number (NaN or infinity) as undefined: it is left out of the scores and shown as `null` in the run, and the evaluation fails with an error if it is the headline value. Previously such values were written to the cache as `null`, so a cached rerun lost them or failed.
 - Container builds retry failed Ubuntu snapshot downloads (`Acquire::Retries=5`), so a short `snapshot.ubuntu.com` outage no longer fails the build.
 
 ### Fixed

@@ -13,6 +13,7 @@ EXPECTED_PROTOCOL_ENTRY_POINTS: dict[str, frozenset[str]] = {
         }
     ),
     "maite.protocols.image_classification.Metric": frozenset({"checkmaite_TorchICMulticlassMetric"}),
+    "maite.protocols.multiobject_tracking.Metric": frozenset({"checkmaite_MotMetricsTrackingMetric"}),
     "maite.protocols.object_detection.DataLoader": frozenset({"checkmaite_YoloDetectionDataLoader"}),
     "maite.protocols.image_classification.DataLoader": frozenset({"checkmaite_YoloClassificationDataLoader"}),
     "maite.protocols.object_detection.Model": frozenset({"checkmaite_RayObjectDetectionClient"}),

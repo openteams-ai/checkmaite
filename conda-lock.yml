@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 0ed8d581c1e0caf087fd0f77f3b340c3d298886c56a8a831baff8497a89c39c5
+    linux-64: a3f3722202115ece1ac4b15d0cdaac134bdbb1b9522d607f8fd063394fa0356a
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -6934,5 +6934,29 @@ package:
   url: https://files.pythonhosted.org/packages/df/f5/7db7a6be17f8e442766ca456717a1b1dd0c321ced6d5b75e08a9f3d5cab6/modelmaite-0.2.0-py3-none-any.whl
   hash:
     sha256: 2e9e4f0df371463f10f9063b91051278fb87e956d5e79b273f8e17bab3175792
+  category: main
+  optional: false
+- name: motmetrics
+  version: 1.4.0
+  manager: pip
+  platform: linux-64
+  dependencies:
+    numpy: '>=1.12.1'
+    pandas: '>=0.23.1'
+    scipy: '>=0.19.0'
+    xmltodict: '>=0.12.0'
+  url: https://files.pythonhosted.org/packages/2f/d9/7b77e1e2db80b6f8133065ffbccdaa3c911df5f95a7af30829fcaa10a3d7/motmetrics-1.4.0-py3-none-any.whl
+  hash:
+    sha256: cd4d691bd787360f1cd0a2127fe8a14d0646fb2912b344a9498719e132b25738
+  category: main
+  optional: false
+- name: xmltodict
+  version: 1.0.4
+  manager: pip
+  platform: linux-64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/38/34/98a2f52245f4d47be93b580dae5f9861ef58977d73a79eb47c58f1ad1f3a/xmltodict-1.0.4-py3-none-any.whl
+  hash:
+    sha256: a4a00d300b0e1c59fc2bfccb53d7b2e88c32f200df138a0dd2229f842497026a
   category: main
   optional: false

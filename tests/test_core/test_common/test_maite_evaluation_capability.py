@@ -72,6 +72,33 @@ def test_maite_evaluation_rejects_malformed_per_class_metric(
         MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
 
 
+def test_maite_evaluation_omits_undefined_secondary_values(
+    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
+) -> None:
+    metric = type(fake_ic_metric_default)(
+        calculated_metrics={"fake_metric": torch.tensor(0.75), "undefined": torch.tensor(float("nan"))},
+        return_key="fake_metric",
+    )
+
+    run = MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
+
+    (metric_result,) = run.outputs.metrics.values()
+    assert metric_result.scalar_values == {"fake_metric": pytest.approx(0.75)}
+    assert metric_result.result["undefined"] is None
+
+
+def test_maite_evaluation_rejects_an_undefined_headline_value(
+    fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
+) -> None:
+    metric = type(fake_ic_metric_default)(
+        calculated_metrics={"fake_metric": torch.tensor(float("inf"))},
+        return_key="fake_metric",
+    )
+
+    with pytest.raises(RuntimeError, match="'fake_metric' is undefined for this evaluation"):
+        MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
+
+
 @pytest.mark.optional
 @pytest.mark.skipif(not HAS_GRADIENT, reason="gradient package is required for this test")
 def test_collect_report_consumables_ic(test_run_ic):
