@@ -24,7 +24,7 @@ find /opt/venv -type f -name 'pip-*.whl' -delete
 # still bundles Jackson 2.18.8). Its vendored aiohttp is a fallback for when no
 # aiohttp is installed; the locked aiohttp is newer. virtualenv is declared by
 # ray[serve] but used only by the virtualenv runtime_env plugin, which needs
-# pip, and this image ships no pip; conda-lock caps it below the fixed 21.x.
+# pip, and this image ships no pip.
 # Local Ray tasks, actors, runtime_env env_vars, and Ray Serve still work.
 rm -rf \
     "${site_packages}/ray/jars" \

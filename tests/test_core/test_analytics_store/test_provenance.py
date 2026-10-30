@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pydantic
 import pytest
@@ -97,7 +97,7 @@ def test_provenance_normalizes_aware_timestamps_to_utc() -> None:
 
     provenance = Provenance(submitted_at=submitted_at)
 
-    assert provenance.submitted_at == datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    assert provenance.submitted_at == datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def test_provenance_fields_are_present_on_run_record() -> None:

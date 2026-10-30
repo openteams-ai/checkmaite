@@ -9,7 +9,7 @@ api adapter: :class:`ModelSpecification`, :func:`load_models`, and the
 """
 
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from modelmaite.image_classification import OnnxICModel, TorchvisionICModel
 from modelmaite.image_classification.models import (
@@ -17,7 +17,6 @@ from modelmaite.image_classification.models import (
     SUPPORTED_TORCHVISION_MODELS,
 )
 from modelmaite.image_classification.models import load_models as modelmaite_load_models
-from typing_extensions import NotRequired
 
 __all__ = [
     "SUPPORTED_MODELS",

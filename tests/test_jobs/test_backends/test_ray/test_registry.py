@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -1048,7 +1048,7 @@ def test_cancel_after_controller_attach_before_start_commits_cancelled(tmp_path:
             registry=registry,
             scope=scope,
             job_id=job_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             control_plane_timeout_s=5.0,
             initial_status=JobStatus.PENDING,
         )
@@ -1230,7 +1230,7 @@ def test_ray_job_commits_controller_terminal_state_before_returning_result(tmp_p
             registry=registry,
             scope=scope,
             job_id=job_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             control_plane_timeout_s=5.0,
             initial_status=JobStatus.RUNNING,
         )
@@ -1291,7 +1291,7 @@ def test_ray_job_status_and_result_use_bounded_controller_reads() -> None:
             registry=registry,
             scope=scope,
             job_id=job_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             control_plane_timeout_s=0.05,
             initial_status=JobStatus.RUNNING,
         )
@@ -1335,7 +1335,7 @@ def test_ray_job_records_cancellation_when_controller_is_missing() -> None:
             registry=registry,
             scope=scope,
             job_id=job_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             control_plane_timeout_s=0.05,
             initial_status=JobStatus.RUNNING,
         )
@@ -1498,7 +1498,7 @@ def test_cancel_records_cancelling_when_ack_times_out() -> None:
             registry=registry,
             scope=scope,
             job_id=job_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             control_plane_timeout_s=0.05,
             initial_status=JobStatus.RUNNING,
         )

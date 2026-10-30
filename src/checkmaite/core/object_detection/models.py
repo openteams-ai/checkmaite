@@ -8,7 +8,7 @@ api adapter: :class:`ModelSpecification`, :func:`load_models`, and the
 ``SUPPORTED_MODELS`` table.
 """
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from modelmaite.object_detection import OnnxODModel, TorchvisionODModel, VisdroneODModel
 from modelmaite.object_detection.models import (
@@ -17,7 +17,6 @@ from modelmaite.object_detection.models import (
     SUPPORTED_VISDRONE_MODELS,
 )
 from modelmaite.object_detection.models import load_models as modelmaite_load_models
-from typing_extensions import NotRequired
 
 __all__ = [
     "SUPPORTED_MODELS",

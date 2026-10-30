@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -172,7 +172,7 @@ def test_get_job_rejects_unknown_job_id() -> None:
 
 def test_list_jobs_limit_status_and_submitted_before_filters() -> None:
     backend = object.__new__(RaySimpleJobBackend)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old = _listed_job("old", now - timedelta(seconds=20), JobStatus.COMPLETED)
     middle = _listed_job("middle", now - timedelta(seconds=10), JobStatus.FAILED)
     new = _listed_job("new", now - timedelta(seconds=1), JobStatus.COMPLETED)

@@ -1,5 +1,5 @@
 import types
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, ClassVar, Union, get_args, get_origin
 
 import pydantic
@@ -98,7 +98,7 @@ class BaseRecord(pydantic.BaseModel):
     table_name: ClassVar[str]
 
     run_uid: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def __init_subclass__(cls, table_name: str = "") -> None:
         if not table_name:
@@ -184,4 +184,4 @@ class RunRecord(BaseRecord, table_name="runs"):
             return None
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("submitted_at and completed_at must be timezone-aware datetimes")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)

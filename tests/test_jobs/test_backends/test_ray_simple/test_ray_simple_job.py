@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import ray
@@ -22,7 +22,7 @@ def _ref(text: str = "ok") -> CapabilityRunRef:
 
 
 def _job(obj_ref) -> RaySimpleJob:
-    return RaySimpleJob("job-1", datetime.now(timezone.utc), obj_ref)
+    return RaySimpleJob("job-1", datetime.now(UTC), obj_ref)
 
 
 def test_ray_simple_job_status_uses_local_polling_heuristic_for_non_ready_ref(monkeypatch) -> None:

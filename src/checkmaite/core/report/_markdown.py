@@ -836,6 +836,7 @@ def create_pdf_output(
     try:
         import markdown as _markdown_lib
         from xhtml2pdf import pisa
+        from xhtml2pdf.context import pisaContext
     except ImportError as e:
         raise ImportError(
             "PDF report rendering requires the 'reporting' extra. Install with:\n"
@@ -860,7 +861,12 @@ def create_pdf_output(
         return str((out_dir / uri).resolve())
 
     with pdf_path.open("wb") as f:
-        pisa_status = pisa.CreatePDF(html, dest=f, link_callback=_resolve_image)
+        # `path` sets the document's directory. Recent xhtml2pdf releases only read local
+        # files under it (the working directory when unset), so without it images
+        # copied into an `out_dir` outside the working directory are dropped.
+        pisa_status = pisa.CreatePDF(html, dest=f, path=str(pdf_path), link_callback=_resolve_image)
+    if not isinstance(pisa_status, pisaContext):
+        raise RuntimeError(f"PDF generation returned an unexpected status: {type(pisa_status).__name__}.")
     if pisa_status.err:
         raise RuntimeError(f"PDF generation failed with {pisa_status.err} error(s).")
     return pdf_path

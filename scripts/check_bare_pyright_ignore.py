@@ -112,7 +112,7 @@ def main() -> None:  # noqa: C901
                                 reason = f"{error_to_report.message} {error_to_report.fix}"
                                 print(f"{filename}:{line_number}: {reason}\n\t{lines[line_number - 1].strip()}")
                                 found_linter_error = True
-        except (  # noqa: PERF203
+        except (
             tokenize.TokenError,
             SyntaxError,
             UnicodeDecodeError,

@@ -8,7 +8,6 @@ are intentionally excluded.
 import logging
 from pathlib import Path
 
-from conda_lock.conda_lock import DEFAULT_MAPPING_URL
 from conda_lock.src_parser import make_lock_spec
 from ruamel.yaml import YAML
 
@@ -19,6 +18,11 @@ PYPROJECT_TOML_PATH = REPO_ROOT / "pyproject.toml"
 # PEP 621 [project.dependencies] plus [tool.conda-lock.dependencies] land in
 # the "main" category. conda-lock cannot read PEP 735 [dependency-groups].
 PYPROJECT_CATEGORIES = {"main"}
+# conda-lock before 4.0.4 defaults to a mapping URL that now returns 404; keep in
+# sync with CONDA_LOCK_MAPPING_URL in .gitlab-ci.yml.
+PYPI_MAPPING_URL = (
+    "https://raw.githubusercontent.com/conda-forge/conda-forge-bot-data/main/mappings/pypi/grayskull_pypi_mapping.json"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +85,7 @@ def main() -> bool:
             src_files=[
                 PYPROJECT_TOML_PATH,
             ],
-            mapping_url=DEFAULT_MAPPING_URL,
+            mapping_url=PYPI_MAPPING_URL,
             filtered_categories=PYPROJECT_CATEGORIES,
         )
     except (FileNotFoundError, OSError) as e:

@@ -6,11 +6,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, NotRequired, TypeVar, cast
 
 import maite.protocols.generic as gen
 from pydantic import BaseModel, ConfigDict, field_serializer
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
 
 from checkmaite import cache_path
 from checkmaite.core._cache import PydanticCache, binary_de_serializer

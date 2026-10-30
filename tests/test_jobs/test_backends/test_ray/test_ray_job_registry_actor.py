@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -52,7 +52,7 @@ def _terminal_job(registry, scope: str, key: str, status: RegistryStatus, *, err
         registry=registry,
         scope=scope,
         job_id=registration["job_id"],
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         control_plane_timeout_s=5.0,
     )
 
@@ -104,7 +104,7 @@ def test_ray_job_missing_registry_record_raises_key_error() -> None:
         registry=registry,
         scope="scope",
         job_id="missing",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         control_plane_timeout_s=5.0,
     )
 

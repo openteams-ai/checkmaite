@@ -1,6 +1,6 @@
 """Shared capability execution for job-backend workers."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from checkmaite.core.analytics_store import Provenance
@@ -37,7 +37,7 @@ def execute_capability_and_build_ref(
     run = capability.run(**prepared_kwargs)
 
     store = build_analytics_store(store_config)
-    provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(timezone.utc)})
+    provenance = Provenance.from_optional(raw_provenance).merge({"completed_at": datetime.now(UTC)})
     store_uri = write_run_and_get_store_uri(store, run, provenance=provenance)
 
     return build_capability_run_ref(

@@ -25,6 +25,10 @@ variables:
   CI_DIAGNOSTICS:
     value: "true"
     description: "Set to true to enable resource diagnostics logging in CI jobs."
+  # conda-lock 3 defaults to a PyPI-to-conda name mapping in
+  # regro/cf-graph-countyfair, which now returns 404. The file moved to
+  # conda-forge/conda-forge-bot-data (conda-lock 4.0.4 uses the new default).
+  CONDA_LOCK_MAPPING_URL: "https://raw.githubusercontent.com/conda-forge/conda-forge-bot-data/main/mappings/pypi/grayskull_pypi_mapping.json"
   RELEASE_TAG:
     value: ""
     description: "Existing SemVer Git tag to publish from a manual release pipeline."
@@ -122,7 +126,7 @@ stages:
 .python-matrix:
   parallel:
     matrix:
-      - VERSION: ["3.10", "3.11", "3.12", "3.13"]
+      - VERSION: ["3.11", "3.12", "3.13"]
   image: python:$VERSION
 
 .shared-setup:
@@ -197,7 +201,7 @@ stages:
     # python=$VERSION with whatever version the solver picks.
     - grep -q '^python = ' pyproject.toml
     - sed -i "s/^python = \"[^\"]*\"/python = \"${VERSION}.*\"/" pyproject.toml
-    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras -p linux-64 --lockfile conda-lock.yml
+    - conda-lock $CONDA_LOCK_ARGS -f pyproject.toml --filter-extras -p linux-64 --lockfile conda-lock.yml --pypi_to_conda_lookup_file "$CONDA_LOCK_MAPPING_URL"
     - conda-lock install -n $CONDA_ENV_NAME $CONDA_LOCK_ARGS conda-lock.yml
     - pip install . --no-deps
     - micromamba list
@@ -268,11 +272,6 @@ dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
   needs: []
-  # No 3.10 leg: conda-forge ray-core >=2.53 has no py310 builds, so conda
-  # cannot solve ray-core >=2.55 on 3.10. uv/pip still cover 3.10.
-  parallel:
-    matrix:
-      - VERSION: ["3.11", "3.12", "3.13"]
   script:
     - pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing --cov-report xml:coverage_report.xml
 
@@ -306,7 +305,7 @@ conda-lock-test:
 
 pyright-internal:
   extends: [.shared-setup, .uv-setup]
-  image: python:3.10
+  image: python:3.11
   stage: pyright
   needs: []
   script:
@@ -319,7 +318,7 @@ pyright-internal:
 # deploy docs for merge requests
 pages-branch:
   extends: [.shared-setup, .uv-setup]
-  image: python:3.10
+  image: python:3.11
   stage: docs
   needs: []
   artifacts:
@@ -367,7 +366,7 @@ markdown-link-check:
 # deploy production docs on merge with main
 pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   extends: [.shared-setup, .uv-setup]
-  image: python:3.10
+  image: python:3.11
   stage: docs
   script:
     - uv sync --locked --group docs --extra onnx --no-cache
@@ -386,7 +385,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
 # as a trusted self-managed GitLab issuer.
 .publish-python-package:
   stage: publish
-  image: python:3.10
+  image: python:3.11
   retry: 0
   interruptible: false
   resource_group: pypi-publish
@@ -618,7 +617,7 @@ create-gitlab-release:
 # dependency list, which dr-compliance's syft scan never populates.
 export-merged-sbom:
   extends: [.uv-setup]
-  image: python:3.10
+  image: python:3.11
   stage: .post
   script:
     - uv export --format cyclonedx1.5 --preview-features sbom-export --frozen --all-extras --no-dev -o "gl-sbom-merged-$CI_PIPELINE_ID.cdx.json" > /dev/null

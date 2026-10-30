@@ -5,7 +5,7 @@ import time
 import uuid
 from collections.abc import Sequence
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ray
@@ -211,7 +211,7 @@ class RaySimpleJobBackend:
         job_name = resolve_job_name(kwargs.pop("job_name", None), capability.id)
         run_kwargs = prepare_job_submission_run_kwargs(kwargs)
         job_id = uuid.uuid4().hex
-        created_at = datetime.now(timezone.utc)
+        created_at = datetime.now(UTC)
 
         resources = self._resolve_resources(capability, run_kwargs)
         run_kwargs.pop("resources", None)

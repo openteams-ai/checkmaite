@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
-import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
-
-# tomllib is in the standard library from Python 3.11 onward. The root lock
-# provides tomli on Python 3.10.
-tomllib = importlib.import_module("tomllib" if sys.version_info >= (3, 11) else "tomli")
 
 _ROOT = Path(__file__).resolve().parents[2]
 # The runtime package is the only package that exists solely for the container.

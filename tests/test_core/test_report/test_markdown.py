@@ -1069,3 +1069,21 @@ def test_create_pdf_output_writes_pdf(tmp_path: Path, monkeypatch):
     reader = pypdf.PdfReader(str(pdf_path))
     xobjects = reader.pages[0]["/Resources"]["/XObject"]
     assert any(xobjects[name]["/Subtype"] == "/Image" for name in xobjects)
+
+
+def test_create_pdf_output_embeds_images_outside_cwd(tmp_path: Path, monkeypatch):
+    """Images copied into an output dir outside the working directory are still embedded."""
+    pytest.importorskip("markdown")
+    pytest.importorskip("xhtml2pdf")
+    pypdf = pytest.importorskip("pypdf")
+    from PIL import Image
+
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(cwd / "img.png")
+
+    pdf_path = create_pdf_output("# Title\n\n![alt](img.png)\n", tmp_path / "elsewhere" / "report")
+
+    xobjects = pypdf.PdfReader(str(pdf_path)).pages[0]["/Resources"]["/XObject"]
+    assert any(xobjects[name]["/Subtype"] == "/Image" for name in xobjects)

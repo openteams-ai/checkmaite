@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import threading
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, TypeAlias
 
 import pydantic
@@ -61,7 +61,7 @@ class Provenance(pydantic.BaseModel):
             return None
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("submitted_at and completed_at must be timezone-aware datetimes")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     @classmethod
     def from_optional(cls, provenance: ProvenanceLike | None) -> Provenance:

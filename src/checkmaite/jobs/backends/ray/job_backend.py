@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, NoReturn, TypeVar, cast
 
 import ray
@@ -165,7 +165,7 @@ class _SubmissionRecord:
 
 
 def _created_at_from_submitted_ts(submitted_at_ts: float) -> datetime:
-    return datetime.fromtimestamp(float(submitted_at_ts), tz=timezone.utc)
+    return datetime.fromtimestamp(float(submitted_at_ts), tz=UTC)
 
 
 def _ray_job_provenance(job_id: str, submitted_at: datetime, workspace_id: str) -> Provenance:
@@ -369,7 +369,7 @@ class RayJob(Job[CapabilityRunRef]):
         """Return the latest bounded worker scheduling metadata."""
         with suppress(Exception):
             self._remember_status(self._fetch_record(timeout_s=self._control_plane_timeout_s))
-        scheduling_end = self._worker_started_at or datetime.now(timezone.utc)
+        scheduling_end = self._worker_started_at or datetime.now(UTC)
         waiting_seconds = (
             None
             if self._scheduling_started_at is None

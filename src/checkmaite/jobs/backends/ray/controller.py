@@ -8,12 +8,11 @@ import time
 from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any, Protocol, SupportsFloat, SupportsIndex, TypedDict, cast
+from typing import Any, NotRequired, Protocol, SupportsFloat, SupportsIndex, TypedDict, cast
 
 import ray
 from ray.actor import ActorHandle
 from ray.exceptions import GetTimeoutError, TaskCancelledError
-from typing_extensions import NotRequired
 
 from checkmaite.jobs.protocol import BackpressureError, CapabilityRunRef, CapabilityRunRefPayload, CapabilityType
 

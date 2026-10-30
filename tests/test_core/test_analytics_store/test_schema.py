@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Union
 
 import pydantic
@@ -217,8 +217,8 @@ def test_run_record_has_flat_provenance_fields() -> None:
         workspace_id="workspace-a",
         job_id="job-1",
         backend="ray",
-        submitted_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
-        completed_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        submitted_at=datetime(2024, 1, 1, tzinfo=UTC),
+        completed_at=datetime(2024, 1, 2, tzinfo=UTC),
         environment="databricks",
         executor="ray",
         cluster_id="cluster-1",
@@ -232,8 +232,8 @@ def test_run_record_has_flat_provenance_fields() -> None:
     assert dumped["workspace_id"] == "workspace-a"
     assert dumped["job_id"] == "job-1"
     assert dumped["backend"] == "ray"
-    assert dumped["submitted_at"] == datetime(2024, 1, 1, tzinfo=timezone.utc)
-    assert dumped["completed_at"] == datetime(2024, 1, 2, tzinfo=timezone.utc)
+    assert dumped["submitted_at"] == datetime(2024, 1, 1, tzinfo=UTC)
+    assert dumped["completed_at"] == datetime(2024, 1, 2, tzinfo=UTC)
     assert dumped["environment"] == "databricks"
     assert dumped["executor"] == "ray"
     assert dumped["cluster_id"] == "cluster-1"

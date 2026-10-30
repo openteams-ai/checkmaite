@@ -18,12 +18,11 @@ keywords = [
 classifiers = [
     "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.11, <3.14"
 dynamic = ["version"]
 dependencies = [
     "dataeval==1.0.6",
@@ -41,16 +40,19 @@ dependencies = [
     "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
     "universal-pathlib>=0.3.8",        # arbitrary, required for cloud storage support
     "httpx>=0.28.1",                   # arbitrary, needed to run visdrone model
-    # IPython 9+ requires Python >=3.11; its package metadata keeps Python 3.10 on a compatible 8.x release.
     "ipython>=8.13",                    # necessary, rendering Markdown reports
     # required for plotting. Lower bound is the program standards floor. It predates
     # Python 3.12 and has no cp312 wheel, so #762 (install-at-floors CI) can only
-    # run its 3.10 and 3.11 legs until this floor moves to 3.8.0+.
+    # run its 3.11 leg until this floor moves to 3.8.0+.
     "matplotlib>=3.7.1,<3.10.8",
     "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
-    "opencv-python-headless>=4.9.0.80",# necessary lower pin, required by nrtk usage here
+    # necessary lower pin, required by nrtk usage here. Wheels <=4.13 bundle an
+    # ffmpeg with Critical/High findings (CS-2-H-2, #799), but every newer wheel
+    # needs numpy 2, which pybsm 0.16.0 and xaitk-jatic still cap below 2 on 3.11
+    # and 3.12. So the floor stays here and uv.lock carries the fixed wheel on 3.13.
+    "opencv-python-headless>=4.9.0.80",
     "pandas>=2",                       # arbitrary, required for data handling
-    "pillow>=11.0.0",                  # arbitrary
+    "pillow>=13.0.0",                  # necessary lower pin: Critical/High CVEs in 12.x (DSOR-2-H-2, #799)
     "polars>=1.37.0",                  # arbitrary, required for analytics store
     "pydantic>=2.12.0",                # necessary for PEP 728 TypedDict extra-item validation
     "typing-extensions>=4.14.1",        # necessary for PEP 728 TypedDict support on supported Python versions
@@ -71,7 +73,7 @@ platforms = ['linux-64']
 
 [tool.conda-lock.dependencies]
 # conda only dependencies (usually system dependencies)
-python = ">=3.11,<3.14"                            # no 3.10: conda-forge ray-core >=2.53 has no py310 builds; CI narrows it per matrix leg
+python = ">=3.11,<3.14"                            # CI narrows it per matrix leg
 cudatoolkit = "*"                                  # necessary to suppress conda-lock warning
 timm = ">=1.0.7"
 libgl = "*"
@@ -137,8 +139,11 @@ dev = [
     "pypdf>=4.0.0",                                  # arbitrary, used to assert PDF structure in reporting tests
     # This is not needed by us, but required to avoid a critical vulnerability warning
     # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
-    "virtualenv>=20.26.6",
-    "conda-lock>=3.0.3",                             # necessary, used to update conda-lock.yml
+    "virtualenv>=21.14.9",                           # necessary lower pin, CVEs in <21.14.9 (DSOR-2-H-2, #799)
+    # conda-lock is not a dev dependency: it caps dulwich <0.25 and virtualenv <21
+    # (and so filelock <4), which holds them on vulnerable releases (#799). The
+    # pre-commit hook installs it in its own environment; run it with
+    # `uvx --from "conda-lock>=3,<5" conda-lock ...` to update conda-lock.yml.
     "ruamel-yaml>=0.17.21",                          # necessary, for comment-preserving YAML manipulation
 ]
 docs = [
@@ -156,10 +161,6 @@ constraint-dependencies = [
     "urllib3>=2.6.3",
     "cryptography>=46.0.5",
     "nbconvert>=7.17.0",
-    # Pillow 13.0.0 fixes Critical/High CVEs in 12.x that fail the container scan,
-    # but requires Python >=3.11, so 3.10 stays on 12.3.0.
-    "pillow==12.3.0; python_version < '3.11'",
-    "pillow>=13.0.0; python_version >= '3.11'",
     "protobuf==6.33.5",
 ]
 
@@ -200,15 +201,15 @@ checkmaite_evaluate_from_predictions = "checkmaite.core.cached_tasks:evaluate_fr
 [project.optional-dependencies]
 reporting = [
     "markdown>=3.5",
-    "xhtml2pdf>=0.2.16",
+    "xhtml2pdf>=0.2.19",              # necessary lower pin: OS command injection in <0.2.19 (DSOR-2-H-2, #799)
 ]
 onnx = [
     "onnx>=1.14.0",
-    "onnxruntime>=1.14.0,<1.24.0", # 1.24.x lacks CPython 3.10 wheels
+    "onnxruntime>=1.14.0",
 ]
 onnx-cuda = [
     "onnx>=1.14.0",
-    "onnxruntime-gpu>=1.14.0,<1.24.0", # 1.24.x lacks CPython 3.10 wheels
+    "onnxruntime-gpu>=1.14.0",
 ]
 aws = ["s3fs>=2023.1.0"]
 gcs = ["gcsfs>=2023.1.0"]
@@ -241,7 +242,7 @@ exclude = [
 
 line-length = 120
 indent-width = 4
-target-version = "py310"
+target-version = "py311"
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]

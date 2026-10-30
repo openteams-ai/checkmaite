@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from datetime import timezone
+from datetime import UTC
 
 import pytest
 
@@ -189,7 +189,7 @@ def test_snapshot_from_controller_state_does_not_clear_existing_result_or_error_
 def test_created_at_from_submitted_ts_is_utc_datetime() -> None:
     created = job_backend_module._created_at_from_submitted_ts(123.5)
 
-    assert created.tzinfo is timezone.utc
+    assert created.tzinfo is UTC
     assert created.timestamp() == 123.5
 
 

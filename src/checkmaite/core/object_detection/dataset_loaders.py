@@ -14,7 +14,7 @@ complete source integrity (see :mod:`checkmaite.core._common.dataset_utils`).
 import random
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 import maite.protocols.object_detection as od
 import numpy as np
@@ -23,7 +23,6 @@ from datamaite.object_detection import ObjectDetectionDataset
 from maite.protocols import DatasetMetadata
 from modelmaite.object_detection import DetectionTarget
 from torch import Tensor, as_tensor
-from typing_extensions import NotRequired
 from upath import UPath
 
 from checkmaite.core._common.dataset_utils import (

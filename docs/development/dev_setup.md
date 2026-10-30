@@ -230,11 +230,19 @@ conda-lock install -n <env-name> conda-lock.yml
 
 ### Updating the lockfile
 
-To update the lockfile (e.g. after changing pyproject.yaml), run the following:
+To update the lockfile (e.g. after changing `pyproject.toml`), run the following.
+conda-lock is not part of the `dev` dependency group (its pins would hold
+`dulwich`, `virtualenv` and `filelock` on vulnerable releases), so run it in its
+own environment with `uvx`, or from a conda environment that has it installed:
 
 ```bash
-conda-lock -f pyproject.toml --extras dev -p linux-64 --lockfile conda-lock.yml
+uvx --from "conda-lock>=4.0.4,<5" conda-lock -f pyproject.toml --filter-extras \
+    -p linux-64 --lockfile conda-lock.yml
 ```
+
+conda-lock before 4.0.4 downloads a PyPI-to-conda name mapping from a URL that
+no longer exists; with an older conda-lock, add `--pypi_to_conda_lookup_file`
+with the URL in `CONDA_LOCK_MAPPING_URL` in `.gitlab-ci.yml`.
 
 ## Running the GitLab CI locally
 

@@ -5,7 +5,7 @@ This page covers the `checkmaite` Python library. For the batch container, see
 
 ## Software
 
-`checkmaite` requires Python 3.10, 3.11, 3.12, or 3.13 and PyTorch 2.2.0 or
+`checkmaite` requires Python 3.11, 3.12, or 3.13 and PyTorch 2.2.0 or
 later. The installer pulls in PyTorch and every other dependency. See
 [Setup](../get-started/install_setup.md).
 
