@@ -8,8 +8,8 @@ import torch
 from pydantic import Field
 from smqtk_core.configuration import from_config_dict
 from torchvision.transforms.v2.functional import rgb_to_grayscale
-from xaitk_jatic.interop.image_classification.model import JATICImageClassifier
 from xaitk_saliency.interfaces.gen_image_classifier_blackbox_sal import GenerateImageClassifierBlackboxSaliency
+from xaitk_saliency.interop.maite.image_classification import MAITEImageClassifier
 
 from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
 from checkmaite.core._utils import (
@@ -327,7 +327,7 @@ class XaitkExplainable(
         if "index2label" not in model.metadata:
             raise (KeyError("'index2label' not found in model metadata but is required by Xai"))
 
-        classifier = JATICImageClassifier(
+        classifier = MAITEImageClassifier(
             classifier=model,
             ids=sorted(model.metadata["index2label"].keys()),
             img_batch_size=config.img_batch_size,
@@ -339,7 +339,7 @@ class XaitkExplainable(
             transposed_image = np.asarray(ref_img).transpose(1, 2, 0)
             if transposed_image.shape[2] == 1:
                 transposed_image = np.concatenate((transposed_image,) * 3, axis=-1)
-            img_sal_maps.append(config.saliency_generator(transposed_image, classifier))
+            img_sal_maps.append(config.saliency_generator(ref_image=transposed_image, blackbox=classifier))
 
             gray_imgs.append(rgb_to_grayscale(torch.as_tensor(ref_img)).squeeze(0).numpy())
 

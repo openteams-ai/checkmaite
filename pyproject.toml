@@ -36,7 +36,7 @@ dependencies = [
     "modelmaite==0.2.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
     "motmetrics>=1.4.0,<1.5",          # CLEAR-MOT/identity metrics for multiobject tracking (#723); upper pin: multiobject_tracking/metrics.py copies motmetrics' iou_matrix internals for NumPy 2
     "nrtk[pybsm]==1.0.4",
-    "xaitk-jatic==0.8.1",
+    "xaitk-saliency[maite]>=0.16.0",   # necessary lower pin: first release with the MAITE interop that replaces xaitk-jatic (xaitk-jatic#284)
     # external deps
     "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
     "universal-pathlib>=0.3.8",        # arbitrary, required for cloud storage support
@@ -48,9 +48,7 @@ dependencies = [
     "matplotlib>=3.7.1,<3.10.8",
     "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
     # necessary lower pin, required by nrtk usage here. Wheels <=4.13 bundle an
-    # ffmpeg with Critical/High findings (CS-2-H-2, #799), but every newer wheel
-    # needs numpy 2, which pybsm 0.16.0 and xaitk-jatic still cap below 2 on 3.11
-    # and 3.12. So the floor stays here and uv.lock carries the fixed wheel on 3.13.
+    # ffmpeg with Critical/High findings (CS-2-H-2, #799); uv.lock carries 5.x.
     "opencv-python-headless>=4.9.0.80",
     "pandas>=2",                       # arbitrary, required for data handling
     "pillow>=13.0.0",                  # necessary lower pin: Critical/High CVEs in 12.x (DSOR-2-H-2, #799)
@@ -59,7 +57,6 @@ dependencies = [
     "typing-extensions>=4.14.1",        # necessary for PEP 728 TypedDict support on supported Python versions
     "ray[serve]>=2.9.0",               # necessary for Ray Serve endpoint deployment
     "scikit-learn>=1.5.2",             # program standards floor, required for embeddings
-    "setuptools>=78.1.1,<82.0.0",      # xaitk-saliency path still imports pkg_resources
     "torch>=2.2.0",                    # necessary lower pin (at least >=2.2.0 for security)
     "torchmetrics>=1.0.0",             # program standards floor, required for metric computation
     "torchvision>=0.17.0",             # arbitrary, required for models
@@ -138,6 +135,7 @@ dev = [
     "pytest-cov>=4.0.0",                             # arbitrary
     "pytest-mock>=3.6.1",                            # arbitrary
     "pypdf>=4.0.0",                                  # arbitrary, used to assert PDF structure in reporting tests
+    "pyarrow>=18.0.0",                               # necessary, first with Python 3.13 wheels (numpy 2 since 16); Parquet cache codec tests (tests/test_core/test_cache.py)
     # This is not needed by us, but required to avoid a critical vulnerability warning
     # See https://gitlab.jatic.net/jatic/reference-implementation/reference-implementation/-/issues/201#note_176213 for details
     "virtualenv>=21.14.9",                           # necessary lower pin, CVEs in <21.14.9 (DSOR-2-H-2, #799)

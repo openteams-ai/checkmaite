@@ -8,14 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Python 3.14 support with `uv` and pip, with 3.14 added to the uv CI test matrix (SR-4-G-1, #799). conda stays at 3.11–3.13: conda-forge `nrtk` 1.0.4 requires `simsimd <7`, and conda-forge only builds `simsimd` 7.x for Python 3.14. `checkmaite-plugins` is not installed on 3.14 (it supports Python <3.12). The containers stay on Python 3.12; their private runtime lock is re-locked for the wider Python range so it keeps matching the root lock.
+- Python 3.14 support with `uv` and pip, with 3.14 added to the uv CI test matrix (SR-4-G-1, #799). conda stays at 3.11–3.13: conda-forge `nrtk` 1.0.4 requires `simsimd <7`, and conda-forge only builds `simsimd` 7.x for Python 3.14. The containers stay on Python 3.12; their private runtime lock is re-locked for the wider Python range so it keeps matching the root lock.
 
 ### Removed
 - Python 3.10 support. `requires-python` is now `>=3.11, <3.14`, and the 3.10 CI legs are gone. The fixed Pillow release requires Python 3.11, so 3.10 installs could not be kept free of its Critical and High CVEs (DSOR-2-H-2, #799).
 - `conda-lock` is no longer in the `dev` dependency group. It caps `dulwich` below 0.25 and `virtualenv` below 21 (and so `filelock` below 4), which held all three on vulnerable releases. Run it with `uvx --from "conda-lock>=3,<5" conda-lock ...`, as described in the development setup guide; the pre-commit hook already installs it separately (#799).
 
 ### Changed
+- Replaced `xaitk-jatic` with `xaitk-saliency[maite]>=0.16.0`, which now ships the same MAITE interop (`MAITEImageClassifier`, `sal_on_dets`); `xaitk-jatic` is being deprecated upstream. This lifts the last NumPy < 2 caps on Python 3.11 and 3.12 (with `pybsm` 0.16.1), so every supported Python now installs NumPy 2.
 - The `onnx` and `onnx-cuda` extras no longer cap `onnxruntime` below 1.24, a cap that only existed because 1.24 has no Python 3.10 wheels. The lock now resolves 1.31.1.
+- CI no longer installs `checkmaite-plugins`. It pins `numpy<2` and Python `<3.12` through unmaintained upstreams (`gradient`, `survivor`, `reallabel`, `heart-library`) that hold CVE-affected versions, so the `gradient` report tests now skip in CheckMAITE CI ([checkmaite-plugins#2](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins/-/work_items/2)). Real plugin discovery is now tested with a throwaway entry-point distribution; HEART-specific checks belong in `checkmaite-plugins`.
+- Added `pyarrow` to the `dev` dependency group, so the Parquet cache codec tests run instead of skipping.
 
 ### Fixed
 - `create_pdf_output` passes the PDF's path to `xhtml2pdf`, so images still embed when the output directory is outside the working directory. Newer `xhtml2pdf` releases only read local files under the document's directory, which defaults to the working directory.
@@ -23,8 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Raised the minimum `pillow` to 13.0.0 and the minimum `xhtml2pdf` (`reporting` extra) to 0.2.19, which fixes an OS command injection (High). Raised the `dev` group's minimum `virtualenv` to 21.14.9 (#799).
 - Upgraded locked dependencies with dependency-scan findings (DSOR-2-H-2, #799): `pyjwt` 2.15.1, `nbconvert` 7.17.2, `pypdf` 6.21.4, `tornado` 6.6, `oauthlib` 4.0.0, `xhtml2pdf` 0.2.28, `virtualenv` 21.15.1, `filelock` 4.2.4, `msgpack` 1.2.4, and `opentelemetry` 1.45.1. `dulwich` and `gitpython` are no longer locked.
-- Upgraded the container's bundled-ffmpeg packages (CS-2-H-2, #799): `av` 19.0.2 on Python 3.12 and later. On Python 3.13, `opencv-python-headless` moves to 5.0.0.93, removing the Critical ffmpeg finding in 4.11. Python 3.11 and 3.12 (and so the Python 3.12 batch container) stay on 4.11.0.86: every newer wheel needs NumPy 2, which `pybsm` 0.16.0 and `xaitk-jatic` 0.8.1 still cap below 2 there.
-- `setuptools` stays on 81.0.0, which has known CVEs: the fixed releases (83.0.0 and later) remove `pkg_resources`, and `xaitk-saliency` 0.15.0 still requires `setuptools<82`.
+- Upgraded the container's bundled-ffmpeg packages (CS-2-H-2, #799): `av` 19.0.2 on Python 3.12 and later, and `opencv-python-headless` 5.0.0.93 on every Python version, removing the Critical ffmpeg finding in 4.11 from the 3.12 batch container. Python 3.11 stays on `av` 18.1.0, since PyAV 19 has no 3.11 wheels.
+- `setuptools` moves from 81.0.0 to 84.2.1, fixing its known CVEs, now that `xaitk-saliency` 0.16.0 no longer caps it below 82 (#584).
+- Upgraded `pyasn1` to 0.6.5, fixing four High CVEs in 0.6.4 that the container scan reports (CS-2-H-2, #799).
 
 ## [0.6.1] - 2026-10-22
 

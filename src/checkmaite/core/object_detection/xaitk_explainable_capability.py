@@ -9,8 +9,8 @@ from matplotlib.patches import Rectangle
 from PIL import Image
 from pydantic import Field, model_validator
 from smqtk_core.configuration import from_config_dict
-from xaitk_jatic.utils.sal_on_dets import sal_on_dets
 from xaitk_saliency.interfaces.gen_object_detector_blackbox_sal import GenerateObjectDetectorBlackboxSaliency
+from xaitk_saliency.interop.maite.utils import sal_on_dets
 
 from checkmaite.core._common.xaitk_explainable_capability import XaitkExplainableBase, XaitkExplainableRecord
 from checkmaite.core._utils import (

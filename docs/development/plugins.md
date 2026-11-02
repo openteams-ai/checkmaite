@@ -119,6 +119,10 @@ is intentionally kept out of
 uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins.git@main"
 ```
 
+`checkmaite-plugins` is a legacy environment (Python `<3.12`, `numpy<2`) that
+CheckMAITE CI does not test, and its dependency set has known CVEs (the
+ffmpeg bundled in opencv 4.11, and `fsspec` through `heart-library`).
+
 ## Creating a Plugin
 
 A plugin is any Python package that:

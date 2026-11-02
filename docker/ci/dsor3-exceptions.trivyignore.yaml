@@ -117,14 +117,3 @@ vulnerabilities:
       - pkg:deb/ubuntu/libsasl2-modules-db
     statement: "Accepted at Maturity S (DSOR-3 not required): libsasl2-2/libsasl2-modules-db, no Ubuntu fix"
     expired_at: 2027-01-05
-
-  # setuptools 81.0.0, present in both images. Fixed in 83.0.0, but
-  # xaitk-saliency 0.15.0 requires setuptools<82 and 0.14.1 needs pkg_resources,
-  # which setuptools 82 removed. Drop this once xaitk-saliency lifts the cap:
-  # https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/work_items/584.
-  # The purl pins 81.0.0, so any other setuptools copy or version still fails.
-  - id: CVE-2026-59890
-    purls:
-      - pkg:pypi/setuptools@81.0.0
-    statement: "Accepted at Maturity S (DSOR-3 not required): setuptools, blocked by xaitk-saliency <82 cap"
-    expired_at: 2027-01-05
