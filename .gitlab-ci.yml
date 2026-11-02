@@ -663,8 +663,8 @@ include:
     inputs:
       stage: cs-compliance
       cs_images:
-        - "harbor.jatic.net/openteams/checkmaite/cpu:0.6.1"
-        - "harbor.jatic.net/openteams/checkmaite/cuda:0.6.1"
+        - "harbor.jatic.net/openteams/checkmaite/cpu:0.7.0"
+        - "harbor.jatic.net/openteams/checkmaite/cuda:0.7.0"
       full_execution_on_commit: true
       allow_failure: true
 
