@@ -67,7 +67,7 @@ Review and update these locations:
 - Docker, Docker-in-Docker, and BuildKit image digests in
   `.gitlab/container.gitlab-ci.yml`.
 - The Dockerfile frontend digest on the first line of `Dockerfile`.
-- Syft, Trivy, Cosign, and the Trivy GitLab template versions and SHA-256
+- Syft, Trivy, Grype, Cosign, and the Trivy GitLab template versions and SHA-256
   checksums in `docker/ci/install_security_tools.sh`.
 - The digest-pinned uv container in `Dockerfile`.
 
@@ -106,9 +106,11 @@ Confirm that:
   them after `uv pip check`, because the batch runtime cannot use them and they
   carry findings with no available upgrade. Recheck this after every Ray
   upgrade.
-- The retained vulnerability JSON is unfiltered and the High and Critical
-  gate passes, with any accepted findings listed in
-  `docker/ci/dsor3-exceptions.trivyignore.yaml`.
+- The retained Trivy and Grype vulnerability JSON is unfiltered and the Trivy
+  High and Critical gate passes, with any findings accepted by an approved
+  program exception listed in `docker/ci/dsor3-exceptions.trivyignore.yaml`
+  (Trivy gates only). Review the report-only Medium and Grype gates; they block
+  only with `CHECKMAITE_STRICT_SCAN_GATES=true`.
 
 Finally, run the protected publication flow with
 `CONTAINER_RELEASE_DRY_RUN=true` before using a Semantic Version release tag.

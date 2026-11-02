@@ -8,8 +8,9 @@ api adapter: :class:`ModelSpecification`, :func:`load_models`, and the
 ``SUPPORTED_MODELS`` table.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from modelmaite.image_classification import OnnxICModel, TorchvisionICModel
 from modelmaite.image_classification.models import (
@@ -17,6 +18,8 @@ from modelmaite.image_classification.models import (
     SUPPORTED_TORCHVISION_MODELS,
 )
 from modelmaite.image_classification.models import load_models as modelmaite_load_models
+
+from checkmaite.core._common.install_hints import checkmaite_install_hints
 
 __all__ = [
     "SUPPORTED_MODELS",
@@ -48,8 +51,19 @@ class ModelSpecification(TypedDict):
     ]
 
 
-# checkmaite's IC spec keys are exactly modelmaite's, so dispatch, validation,
-# options, and errors are delegated wholesale: this is modelmaite's factory,
-# re-exported. Only the config-facing ModelSpecification/SUPPORTED_MODELS
-# tables above remain checkmaite's.
-load_models = modelmaite_load_models
+def load_models(
+    models: Mapping[str, ModelSpecification],
+    **kwargs: Any,
+) -> dict[str, TorchvisionICModel | OnnxICModel]:
+    """Load image-classification models via modelmaite's native factory.
+
+    checkmaite's IC spec keys are exactly modelmaite's, so dispatch, validation,
+    options, and errors are ``modelmaite.image_classification.load_models``.
+    The only change is that a missing ONNX dependency raises an ``ImportError``
+    that names the ``checkmaite[onnx]`` extra.
+    """
+    # checkmaite's ModelSpecification is one TypedDict; modelmaite's is a union
+    # of per-wrapper TypedDicts, so pyright cannot match them structurally.
+    specs: dict[str, Any] = dict(models)
+    with checkmaite_install_hints():
+        return modelmaite_load_models(specs, **kwargs)

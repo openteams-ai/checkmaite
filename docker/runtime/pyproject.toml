@@ -17,12 +17,12 @@ dependencies = [
 # Keep CPU and CUDA on the same PyTorch release; uv selects the local
 # +cpu or +cu130 build from the explicit index below.
 cpu = [
-    "checkmaite[onnx]",
+    "checkmaite[onnx,visdrone]",
     "torch==2.13.0",
     "torchvision==0.28.0",
 ]
 cuda = [
-    "checkmaite[onnx-cuda]",
+    "checkmaite[onnx-cuda,visdrone]",
     "torch==2.13.0",
     "torchvision==0.28.0",
 ]

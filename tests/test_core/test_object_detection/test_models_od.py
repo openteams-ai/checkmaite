@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,12 @@ from checkmaite.core.object_detection.models import load_models as load_od_model
 ROOT = Path(__file__).parents[2] / "data_for_tests"
 JATIC_ONNX_OD_FIXTURE = ROOT / "jatic_onnx_od"
 HAS_ONNX_DEPS = importlib.util.find_spec("onnx") is not None and importlib.util.find_spec("onnxruntime") is not None
+# VisDrone support is the optional checkmaite[visdrone] extra. smqtk-detection
+# can also arrive through nrtk, so check httpx (weight downloads) as well.
+HAS_VISDRONE_DEPS = all(importlib.util.find_spec(name) is not None for name in ("smqtk_detection", "httpx"))
+requires_visdrone = pytest.mark.skipif(
+    not HAS_VISDRONE_DEPS, reason="VisDrone wrapper tests require the optional checkmaite[visdrone] dependencies."
+)
 
 
 @pytest.fixture(scope="session")
@@ -41,6 +48,7 @@ def test_visdrone_invalid_arch_name():
         VisdroneODModel(arch="invalid_arch", device="cpu")
 
 
+@requires_visdrone
 def test_visdrone_valid_model_initialization(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
@@ -48,6 +56,7 @@ def test_visdrone_valid_model_initialization(fake_model_location):
     assert model.metadata["id"] == "visdrone_resnet18_kitware"
 
 
+@requires_visdrone
 def test_visdrone_metadata_fields(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
@@ -57,6 +66,7 @@ def test_visdrone_metadata_fields(fake_model_location):
     assert isinstance(metadata["index2label"], dict)
 
 
+@requires_visdrone
 def test_visdrone_call_invalid_shape(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
@@ -76,6 +86,7 @@ class _FakeDetector:
         return [[(_FakeBBox(), {"car": 0.8, "bus": 0.2})], []]
 
 
+@requires_visdrone
 def test_visdrone_wrapper_returns_one_detection_target_per_input(fake_model_location):
     dir_, fname = fake_model_location
     model = VisdroneODModel(arch="resnet18", device="cpu", model_pickle_dir=dir_, model_name=fname)
@@ -89,6 +100,26 @@ def test_visdrone_wrapper_returns_one_detection_target_per_input(fake_model_loca
 
 
 @pytest.mark.optional
+def test_load_models_names_checkmaite_visdrone_extra_when_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "smqtk_detection.impls.detect_image_objects.centernet", None)
+    with pytest.raises(ImportError, match=re.escape('uv add "checkmaite[visdrone]"')):
+        load_od_models({"visdrone": {"model_type": "resnet18"}}, device="cpu")
+
+
+def test_load_models_names_checkmaite_onnx_extra_when_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    with pytest.raises(ImportError, match=re.escape('uv add "checkmaite[onnx]"')):
+        load_od_models(
+            {
+                "onnx_model": {
+                    "model_type": "jatic_onnx",
+                    "model_weights_path": str(JATIC_ONNX_OD_FIXTURE / "constant_detector.onnx"),
+                    "model_config_path": str(JATIC_ONNX_OD_FIXTURE / "model-metadata.json"),
+                }
+            }
+        )
+
+
 @pytest.mark.skipif(not HAS_ONNX_DEPS, reason="ONNX wrapper tests require the optional ONNX dependencies.")
 def test_onnx_od_model_converts_jatic_outputs_to_detection_targets():
     """Check conversion from the deterministic JATIC_ONNX fixture to DetectionTarget.
@@ -270,6 +301,7 @@ def test_torchvision_call_invalid_shape():
 
 
 @pytest.mark.real_data
+@requires_visdrone
 def test_integration_visdrone_dataset(tmp_path):
     """
     Integration test for Visdrone model on a sample image.

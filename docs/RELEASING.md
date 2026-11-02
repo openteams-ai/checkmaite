@@ -33,3 +33,7 @@ variables.
    Release from the tag's `CHANGELOG.md` section; retrying it is safe once the
    Release exists.
 8. Pull the release from PyPI and confirm the package works properly.
+9. After the `publish-container-*` jobs publish the containers, set the
+   `cs_images` version in `.gitlab-ci.yml` to the new version in a merge
+   request, so the program's `cs-compliance` jobs check the latest published
+   containers.

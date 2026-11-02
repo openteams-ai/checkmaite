@@ -47,6 +47,7 @@ stages:
   - docs
   - dr-compliance
   - ir-compliance
+  - cs-compliance
   - validate
   - summary
   - publish-test
@@ -222,7 +223,7 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - uv sync --locked --extra onnx --extra reporting
+    - uv sync --locked --extra onnx --extra visdrone --extra reporting
     # SIGABRT a hung pytest (mid-test or at exit) so PYTHONFAULTHANDLER dumps every thread's stack.
     - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing $PYTEST_OPTS
 
@@ -317,7 +318,7 @@ pages-branch:
       url: "https://jatic.pages.jatic.net/-/orchestration-interoperability/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html"
       auto_stop_in: 1 week
   script:
-    - uv sync --locked --group docs --extra onnx --no-cache
+    - uv sync --locked --group docs --extra onnx --extra visdrone --no-cache
     - uv run --no-sync mkdocs build -d public --no-directory-urls
   variables:
       PUBLIC_URL: "/-/orchestration-interoperability/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/"
@@ -356,7 +357,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   image: python:3.11
   stage: docs
   script:
-    - uv sync --locked --group docs --extra onnx --no-cache
+    - uv sync --locked --group docs --extra onnx --extra visdrone --no-cache
     - uv run --no-sync mkdocs build -d public --no-directory-urls
     - rm -rf public/how-tos/tscache
     - rm -rf public/how-tos/visdrone_model_weights
@@ -638,6 +639,35 @@ include:
       full_execution_on_commit: true # set full_execution_on_commit: true to run the component on every pushed commit
       allow_failure: true
 
+  # CS-1/CS-2: the program's checks of the published Harbor containers (OCI media
+  # types, signatures, SemVer tags, non-root Dockerfile, Grype scan) of the
+  # latest container release; bump the cs_images version after each release
+  # (docs/RELEASING.md). Literal tags: not every job expands variables.
+  # pipeline-report needs these jobs, so they
+  # run before it and cannot wait for a release pipeline's own publish jobs,
+  # which verify OCI media types and signatures themselves before tagging.
+  # allow_failure stays true because images published before this change use
+  # Docker media types and MR pipelines cannot read the protected Cosign key;
+  # the release jobs themselves refuse to publish a non-OCI or unsigned image.
+  # validate-container-non-root-user (CS-2-H-1) also fails, as a false positive.
+  # The image runs as USER 10001:10001, and /opt/venv and /checkmaite are owned
+  # by root and not writable by that user on purpose; docker/ci/verify_container.sh
+  # checks both. The component's validate_container_user.py:
+  # - only sees --chown as COPY's first flag, so it misses
+  #   `COPY --from=... --chown=0:0`;
+  # - checks COPY/WORKDIR paths in every build stage, not just the final image
+  #   (/build, /wheels, /src, /requirements.txt, /usr/local/bin/uv);
+  # - wants those paths owned by the runtime user, which would make the installed
+  #   code writable by the process. CS-2-H-1 asks for a non-root user, not that.
+  - component: gitlab.jatic.net/jatic/devsecops/components/cs-compliance@1.2.0
+    inputs:
+      stage: cs-compliance
+      cs_images:
+        - "harbor.jatic.net/openteams/checkmaite/cpu:0.6.1"
+        - "harbor.jatic.net/openteams/checkmaite/cuda:0.6.1"
+      full_execution_on_commit: true
+      allow_failure: true
+
   - component: gitlab.jatic.net/jatic/devsecops/components/ir-compliance@1.2.0
     inputs:
       stage: ir-compliance
@@ -666,8 +696,12 @@ pre-commit🪝:
 
 # The report clones the components repo and calls the GitLab API; a hiccup in
 # either shouldn't block an MR. Main and release runs still produce the report.
+# The component sets no timeout, and mkdocs can spend hours rendering the full
+# Grype report of the published images (job 1638708), so cap it; the job
+# normally finishes in under two minutes.
 create-pipeline⛓️-report🗒:
   allow_failure: true
+  timeout: 5m
 
 secret_detection:
   stage: dr-compliance

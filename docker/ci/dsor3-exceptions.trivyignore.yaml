@@ -1,119 +1,14 @@
-# DSOR-3 exceptions for the release vulnerability gate (scan_container.sh).
+# DSOR-3 exceptions for the Trivy release vulnerability gate (scan_container.sh).
 #
-# Container scans fail on any High or Critical finding. An entry here
-# removes one finding from that gate only; the retained JSON, GitLab, and Cosign
-# vulnerability reports stay unfiltered. Releases rebuild from the release tag,
-# so an exception must be committed before the tag is created.
+# Container scans fail on any Trivy High or Critical finding; Medium findings
+# (DSOR-3-H-2) also fail them when CHECKMAITE_STRICT_SCAN_GATES=true. An entry
+# here removes one finding from the Trivy gates only; the retained JSON, GitLab,
+# and Cosign vulnerability reports stay unfiltered, and the Grype gate applies no
+# exceptions. Releases rebuild from the release tag, so an exception
+# must be committed before the tag is created.
 #
 # Every entry needs `purls`, a `statement` and an `expired_at` date; expired
 # entries no longer suppress the finding. `purls` limits the entry to that CVE in
-# that package. The statement must start with either "Approved exception
-# jatic/internal-docs#<number>" or "Accepted at Maturity S"; the release scan
-# rejects anything else. DSOR-3 is required from JATIC Maturity I; checkmaite
-# targets Maturity S, so these findings are accepted without an exception for
-# now. Before a Maturity I release, raise them as exception requests and drop
-# "Accepted at Maturity S" from the allowed statements in scan_container.sh.
-#
-# Unfixed Ubuntu 24.04 findings (no fixed package at UBUNTU_SNAPSHOT
-# 20261002T000000Z), present in both the CPU and CUDA images.
-vulnerabilities:
-  - id: CVE-2025-66382
-    purls:
-      - pkg:deb/ubuntu/libexpat1
-    statement: "Accepted at Maturity S (DSOR-3 not required): libexpat1, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-18374
-    purls:
-      - pkg:deb/ubuntu/libc6
-      - pkg:deb/ubuntu/libc-bin
-    statement: "Accepted at Maturity S (DSOR-3 not required): libc6/libc-bin, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-85091
-    purls:
-      - pkg:deb/ubuntu/zlib1g
-    statement: "Accepted at Maturity S (DSOR-3 not required): zlib1g, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-86145
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89092
-    purls:
-      - pkg:deb/ubuntu/libc6
-      - pkg:deb/ubuntu/libc-bin
-    statement: "Accepted at Maturity S (DSOR-3 not required): libc6/libc-bin, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89161
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-102473
-    purls:
-      - pkg:deb/ubuntu/dash
-    statement: "Accepted at Maturity S (DSOR-3 not required): dash, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-102474
-    purls:
-      - pkg:deb/ubuntu/dash
-    statement: "Accepted at Maturity S (DSOR-3 not required): dash, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-67693
-    purls:
-      - pkg:deb/ubuntu/libgnutls30t64
-    statement: "Accepted at Maturity S (DSOR-3 not required): libgnutls30t64, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-88647
-    purls:
-      - pkg:deb/ubuntu/libgnutls30t64
-    statement: "Accepted at Maturity S (DSOR-3 not required): libgnutls30t64, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-95184
-    purls:
-      - pkg:deb/ubuntu/libgnutls30t64
-    statement: "Accepted at Maturity S (DSOR-3 not required): libgnutls30t64, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-95209
-    purls:
-      - pkg:deb/ubuntu/libgnutls30t64
-    statement: "Accepted at Maturity S (DSOR-3 not required): libgnutls30t64, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-95210
-    purls:
-      - pkg:deb/ubuntu/libgnutls30t64
-    statement: "Accepted at Maturity S (DSOR-3 not required): libgnutls30t64, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-103111
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89156
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89157
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89158
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-  - id: CVE-2026-89160
-    purls:
-      - pkg:deb/ubuntu/libpcre2-8-0
-    statement: "Accepted at Maturity S (DSOR-3 not required): libpcre2-8-0, no Ubuntu fix"
-    expired_at: 2027-01-05
-
-  # CUDA image only.
-  - id: CVE-2026-107161
-    purls:
-      - pkg:deb/ubuntu/libsasl2-2
-      - pkg:deb/ubuntu/libsasl2-modules-db
-    statement: "Accepted at Maturity S (DSOR-3 not required): libsasl2-2/libsasl2-modules-db, no Ubuntu fix"
-    expired_at: 2027-01-05
+# that package. The statement must start with "Approved exception
+# jatic/internal-docs#<number>"; the release scan rejects anything else.
+vulnerabilities: []

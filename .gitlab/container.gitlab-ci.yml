@@ -58,14 +58,29 @@
     - docker buildx create --use --name "checkmaite-${CI_JOB_ID}" --driver-opt "image=${BUILDKIT_IMAGE}"
     - |
       image="checkmaite-batch:${ARTIFACT_VARIANT}-ci-${CI_COMMIT_SHORT_SHA}"
-      docker buildx build --load \
-        --platform "${TARGET_PLATFORM}" \
-        --target "${VARIANT}" \
-        --build-arg "CHECKMAITE_VERSION=${build_version}" \
-        --label "org.opencontainers.image.revision=${build_revision}" \
-        --tag "${image}" \
-        .
+      # Load into the daemon for testing and scanning. Release jobs push this
+      # same cached build with OCI media types (see publish_container.sh).
+      sh docker/ci/build_container.sh \
+        "${VARIANT}" "${build_version}" "${build_revision}" \
+        "artifacts/container/${ARTIFACT_VARIANT}/build-metadata.json" \
+        --load --tag "${image}"
       export image
+    - |
+      # CS-1-H-1: re-export the cached build with OCI media types, without
+      # pushing, to check on every build what a release would push: an OCI image
+      # manifest for exactly the image tested and scanned here.
+      metadata_directory="artifacts/container/${ARTIFACT_VARIANT}"
+      sh docker/ci/build_container.sh \
+        "${VARIANT}" "${build_version}" "${build_revision}" \
+        "${metadata_directory}/oci-metadata.json" \
+        --output "type=image,name=${image},oci-mediatypes=true"
+      (
+      set -x
+      scanned_config=$(jq -r '."containerimage.config.digest"' "${metadata_directory}/build-metadata.json")
+      printf '%s\n' "${scanned_config}" | grep -Eq '^sha256:[0-9a-f]{64}$'
+      test "$(jq -r '."containerimage.config.digest"' "${metadata_directory}/oci-metadata.json")" = "${scanned_config}"
+      test "$(jq -r '."containerimage.descriptor".mediaType' "${metadata_directory}/oci-metadata.json")" = "application/vnd.oci.image.manifest.v1+json"
+      )
     - |
       # Print each check with its values so a failure identifies itself.
       (

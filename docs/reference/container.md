@@ -440,20 +440,24 @@ default-deny NetworkPolicy with narrow egress exceptions when required.
 ## Publication and verification
 
 Release pipelines build and exercise the supported product platforms with
-Docker 25 or later, retain unfiltered SPDX SBOM and vulnerability reports, and
-block publication on every High or Critical finding. Merge request and `main`
-pipelines that build the containers apply the same gate, so a newly published
-finding fails them before it can block a release. Medium findings are reported
-but do not fail the gate while CheckMAITE targets JATIC Maturity S, where DSOR-3
-is not required. Unfixed findings
-are included; publication requires remediation or an entry in
+Docker 25 or later, scan each image with both Trivy and Grype (the program's
+scanner), retain unfiltered SPDX SBOM and vulnerability reports from both, and
+block publication on every High or Critical finding from Trivy. Medium findings
+(DSOR-3-H-2) and Grype findings (CS-2-H-2) are gated in the same jobs but only
+reported, in `medium-release-gate.txt` and `grype-release-gate.txt`, until the
+findings without an available fix are remediated or excepted; setting
+`CHECKMAITE_STRICT_SCAN_GATES=true` makes them block. Merge request and `main`
+pipelines that build the containers apply the same gates, so a newly published
+finding fails them before it can block a release. Unfixed findings are
+included; publication requires remediation or, for the Trivy gates only, an
+entry in
 `docker/ci/dsor3-exceptions.trivyignore.yaml`. Each entry names the CVE and the
-affected package, has an expiry date, and has a statement starting with either
-its approved program exception ID or, while CheckMAITE targets JATIC Maturity S
-(where DSOR-3 is not required), `Accepted at Maturity S`. The release scan
-rejects any other statement. Entries apply only to the release gate, which
-lists the findings it accepted in the job log and in `release-gate.txt`.
-Because releases rebuild from the tag, commit entries before creating it.
+affected package, has an expiry date, and has a statement starting with its
+approved program exception ID. The release scan rejects any other statement.
+Entries apply only to the Trivy gates, which list the findings they accepted in
+the job log and in `release-gate.txt`; the Grype gate (`grype-release-gate.txt`)
+applies no exceptions. Because releases rebuild from the tag, commit entries
+before creating it.
 
 Before enabling releases, configure the program Harbor project to make Semantic
 Version tags immutable, approve the digest-pinned Docker Official Ubuntu,
@@ -466,9 +470,9 @@ existing unprefixed final Semantic Version Git tag, such as `1.2.3`; pre-release
 suffixes are rejected. The tag's commit must be on `main`. The release job checks
 out that commit and runs the tag's own Dockerfile, `docker/ci/` scripts, and
 exception file, not the copies on `main`. A tag is therefore publishable only if
-it already contains `docker/ci/`; tags created before container publishing was
-added cannot be published. A fix to the release tooling requires a new version
-tag. Set
+it already contains the `docker/ci/` scripts the release jobs call; tags created
+before `docker/ci/build_container.sh` was added (0.6.1 and earlier) cannot be
+published. A fix to the release tooling requires a new version tag. Set
 `CONTAINER_RELEASE_DRY_RUN=true` for the required first staging exercise; CI
 then pushes, signs, attests, verifies, and cleans up without creating a Semantic
 Version tag. Publication creates these write-once references:
@@ -478,7 +482,10 @@ harbor.jatic.net/openteams/checkmaite/cpu:VERSION
 harbor.jatic.net/openteams/checkmaite/cuda:VERSION
 ```
 
-Both references are Linux AMD64 images. CI refuses to overwrite an existing
+Both references are Linux AMD64 images with OCI media types (CS-1-H-1). BuildKit
+pushes the same cached build that was tested and scanned, and CI checks that the
+pushed manifest is an OCI image manifest whose config digest matches the scanned
+image before signing it. CI refuses to overwrite an existing
 version tag. Each image digest is signed with Cosign through the program AWS KMS
 key, and its SPDX SBOM and Trivy vulnerability report are attached as signed
 attestations. CI uses an explicit Cosign configuration with no public

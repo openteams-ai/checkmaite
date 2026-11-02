@@ -33,20 +33,21 @@ dependencies = [
     # (IR-3.3-S-1, #794). conda drops extras; see av in [tool.conda-lock.dependencies].
     "datamaite[fmv,od,ic]==0.6.0",
     "maite>=0.9.4,<0.10",              # necessary lower pin: ships maite.protocols.multiobject_tracking (#723); range avoids lockstep with checkmaite-plugins
-    "modelmaite==0.2.0",               # model wrappers (#718); torchvision/visdrone/onnx extras omitted — checkmaite's own torch/torchvision/httpx/smqtk/onnx deps already cover them
+    # model wrappers (#718). Core torch/torchvision cover modelmaite's torchvision
+    # extra; VisDrone and ONNX support are opt-in via checkmaite's visdrone/onnx/
+    # onnx-cuda extras, which forward to modelmaite's extras of the same name.
+    "modelmaite==0.2.0",
     "motmetrics>=1.4.0,<1.5",          # CLEAR-MOT/identity metrics for multiobject tracking (#723); upper pin: multiobject_tracking/metrics.py copies motmetrics' iou_matrix internals for NumPy 2
     "nrtk[pybsm]==1.0.4",
     "xaitk-saliency[maite]>=0.16.0",   # necessary lower pin: first release with the MAITE interop that replaces xaitk-jatic (xaitk-jatic#284)
     # external deps
     "fsspec>=2023.1.0",                # arbitrary, required for cloud storage support
     "universal-pathlib>=0.3.8",        # arbitrary, required for cloud storage support
-    "httpx>=0.28.1",                   # arbitrary, needed to run visdrone model
     "ipython>=8.13",                    # necessary, rendering Markdown reports
     # required for plotting. Lower bound is the program standards floor. It predates
     # Python 3.12 and has no cp312 wheel, so #762 (install-at-floors CI) can only
     # run its 3.11 leg until this floor moves to 3.8.0+.
     "matplotlib>=3.7.1,<3.10.8",
-    "numba>=0.60.0",                   # arbitrary, needed to run visdrone model
     # necessary lower pin, required by nrtk usage here. Wheels <=4.13 bundle an
     # ffmpeg with Critical/High findings (CS-2-H-2, #799); uv.lock carries 5.x.
     "opencv-python-headless>=4.9.0.80",
@@ -61,8 +62,6 @@ dependencies = [
     "torchmetrics>=1.0.0",             # program standards floor, required for metric computation
     "torchvision>=0.17.0",             # arbitrary, required for models
     "smqtk-core>=0.21.0",              # necessary lower pin for compatibility with pydantic
-    "smqtk-detection>=0.22.0",         # necessary lower pin for running VisDrone model on Mac
-    "transformers[timm]>=4.48.0,!=4.51.0",  # necessary lower pin for security vulnerability
 ]
 
 [tool.conda-lock]
@@ -73,7 +72,6 @@ platforms = ['linux-64']
 # conda only dependencies (usually system dependencies)
 python = ">=3.11,<3.14"                            # no 3.14: conda-forge nrtk pins simsimd <7, which has no py314 builds; CI narrows it per matrix leg
 cudatoolkit = "*"                                  # necessary to suppress conda-lock warning
-timm = ">=1.0.7"
 libgl = "*"
 libopengl = "*"                                    # patch for a missing dependency from something (opencv?) in conda-forge
 pip = "*"                                          # ensure pip is available for conda-lock
@@ -83,6 +81,13 @@ dataeval-plots = {source = "pypi"}
 # beyond checkmaite's own opencv dependency.
 av = ">=11"
 modelmaite = {source = "pypi"}                     # not packaged on conda-forge
+# conda-lock keeps one entry per package name and the last one wins, so the
+# visdrone/onnx extras' modelmaite[...] entries replace the core modelmaite
+# requirement, and --filter-extras then drops modelmaite entirely. Re-declare
+# the core pin here (parsed after the extras) to keep it in the main category.
+# The key is spelled differently only because TOML allows one modelmaite key;
+# conda-lock lowercases it, and the line above still sources it from PyPI.
+ModelMAITE = "==0.2.0"
 motmetrics = {source = "pypi"}                     # conda-forge stalled at 1.2.0; we need >=1.4.0
 # Test tooling for the conda CI jobs. conda-lock cannot read PEP 735
 # [dependency-groups], so the conda-side test dependencies are declared here
@@ -202,14 +207,10 @@ reporting = [
     "markdown>=3.5",
     "xhtml2pdf>=0.2.19",              # necessary lower pin: OS command injection in <0.2.19 (DSOR-2-H-2, #799)
 ]
-onnx = [
-    "onnx>=1.14.0",
-    "onnxruntime>=1.14.0",
-]
-onnx-cuda = [
-    "onnx>=1.14.0",
-    "onnxruntime-gpu>=1.14.0",
-]
+# Model-wrapper extras forward to modelmaite's own extras so the pins live there.
+visdrone = ["modelmaite[visdrone]==0.2.0"]
+onnx = ["modelmaite[onnx]==0.2.0"]
+onnx-cuda = ["modelmaite[onnx-cuda]==0.2.0"]
 aws = ["s3fs>=2023.1.0"]
 gcs = ["gcsfs>=2023.1.0"]
 azure = ["adlfs>=2023.1.0"]

@@ -7,23 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-02
+
 ### Added
 - Python 3.14 support with `uv` and pip, with 3.14 added to the uv CI test matrix (SR-4-G-1, #799). conda stays at 3.11–3.13: conda-forge `nrtk` 1.0.4 requires `simsimd <7`, and conda-forge only builds `simsimd` 7.x for Python 3.14. The containers stay on Python 3.12; their private runtime lock is re-locked for the wider Python range so it keeps matching the root lock.
+- `ROADMAP.md` with planned features and releases for CheckMAITE and the CheckMAITE UI through April 2027, also published as the Roadmap page of the docs (DR-2.2-H-3, #799).
+- A short, runnable code example in the README and Get started page, install instructions for pip, uv, Poetry, and conda from PyPI and from source, and the product tagline and needs statement on the README and docs home page (DR-2.2-H-1, #799).
 
 ### Removed
-- Python 3.10 support. `requires-python` is now `>=3.11, <3.14`, and the 3.10 CI legs are gone. The fixed Pillow release requires Python 3.11, so 3.10 installs could not be kept free of its Critical and High CVEs (DSOR-2-H-2, #799).
+- Python 3.10 support. `requires-python` is now `>=3.11, <3.15`, and the 3.10 CI legs are gone. The fixed Pillow release requires Python 3.11, so 3.10 installs could not be kept free of its Critical and High CVEs (DSOR-2-H-2, #799).
 - `conda-lock` is no longer in the `dev` dependency group. It caps `dulwich` below 0.25 and `virtualenv` below 21 (and so `filelock` below 4), which held all three on vulnerable releases. Run it with `uvx --from "conda-lock>=3,<5" conda-lock ...`, as described in the development setup guide; the pre-commit hook already installs it separately (#799).
+- VisDrone model support is no longer in the base install. Install the new `visdrone` extra (`checkmaite[visdrone]`), which forwards to `modelmaite[visdrone]`. `httpx`, `smqtk-detection` and `numba` are no longer core dependencies; checkmaite does not import them, and they only served modelmaite's VisDrone wrapper. VisDrone and ONNX tests skip when their extra is not installed.
+- `transformers[timm]` is no longer a dependency. Nothing in checkmaite has imported it since the UI was removed in 0.4.0, and dropping it also removes `timm`, `huggingface-hub`, `tokenizers`, `safetensors` and their dependencies from the lock.
 
 ### Changed
 - Replaced `xaitk-jatic` with `xaitk-saliency[maite]>=0.16.0`, which now ships the same MAITE interop (`MAITEImageClassifier`, `sal_on_dets`); `xaitk-jatic` is being deprecated upstream. This lifts the last NumPy < 2 caps on Python 3.11 and 3.12 (with `pybsm` 0.16.1), so every supported Python now installs NumPy 2.
-- The `onnx` and `onnx-cuda` extras no longer cap `onnxruntime` below 1.24, a cap that only existed because 1.24 has no Python 3.10 wheels. The lock now resolves 1.31.1.
+- Release containers are pushed to Harbor with OCI media types instead of Docker media types (CS-1-H-1). BuildKit pushes the same cached build that was tested and scanned; the release job checks the pushed manifest's media type and config digest before signing. Tags 0.6.1 and earlier cannot be republished with the new release jobs.
+- Pipelines include the program's `cs-compliance` component, which checks the latest published Harbor containers (`cs_images`).
 - CI no longer installs `checkmaite-plugins`. It pins `numpy<2` and Python `<3.12` through unmaintained upstreams (`gradient`, `survivor`, `reallabel`, `heart-library`) that hold CVE-affected versions, so the `gradient` report tests now skip in CheckMAITE CI ([checkmaite-plugins#2](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins/-/work_items/2)). Real plugin discovery is now tested with a throwaway entry-point distribution; HEART-specific checks belong in `checkmaite-plugins`.
+- The plugins install docs now add `setuptools<82` and `pybsm<0.16.1`: `gradient` imports `pkg_resources`, which setuptools 82 removed, and `checkmaite-plugins` does not cap it yet ([checkmaite-plugins#2](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins/-/work_items/2)).
 - Added `pyarrow` to the `dev` dependency group, so the Parquet cache codec tests run instead of skipping.
+- The `onnx` and `onnx-cuda` extras no longer cap `onnxruntime` below 1.24, a cap that only existed because 1.24 has no Python 3.10 wheels.
+- The `onnx` and `onnx-cuda` extras now forward to `modelmaite[onnx]` and `modelmaite[onnx-cuda]`, so modelmaite sets the ONNX version bounds. modelmaite 0.2.0 caps `onnxruntime` below 1.29, so the lock moves `onnxruntime` and `onnxruntime-gpu` from 1.31.1 to 1.28.0 (no known CVEs), and Python 3.13 resolves `onnx` 1.23.2 because modelmaite excludes 1.22.0 there.
+- `load_models` (object detection and image classification) names the `checkmaite[visdrone]` or `checkmaite[onnx]` extra when a VisDrone or ONNX dependency is missing.
 
 ### Fixed
 - `create_pdf_output` passes the PDF's path to `xhtml2pdf`, so images still embed when the output directory is outside the working directory. Newer `xhtml2pdf` releases only read local files under the document's directory, which defaults to the working directory.
 
 ### Security
+- Container scans also run Grype, the program's scanner, alongside Trivy (CS-2-H-2), and a Trivy gate on Medium findings (DSOR-3-H-2). Both report without blocking until findings with no available fix are remediated or excepted; `CHECKMAITE_STRICT_SCAN_GATES=true` makes them block. Trivy High and Critical findings still block, and Grype reports are kept with the Trivy ones.
+- Removed the twenty "Accepted at Maturity S" scan acceptances; the exceptions file now accepts only approved program exceptions, and the Grype gate accepts none.
 - Raised the minimum `pillow` to 13.0.0 and the minimum `xhtml2pdf` (`reporting` extra) to 0.2.19, which fixes an OS command injection (High). Raised the `dev` group's minimum `virtualenv` to 21.14.9 (#799).
 - Upgraded locked dependencies with dependency-scan findings (DSOR-2-H-2, #799): `pyjwt` 2.15.1, `nbconvert` 7.17.2, `pypdf` 6.21.4, `tornado` 6.6, `oauthlib` 4.0.0, `xhtml2pdf` 0.2.28, `virtualenv` 21.15.1, `filelock` 4.2.4, `msgpack` 1.2.4, and `opentelemetry` 1.45.1. `dulwich` and `gitpython` are no longer locked.
 - Upgraded the container's bundled-ffmpeg packages (CS-2-H-2, #799): `av` 19.0.2 on Python 3.12 and later, and `opencv-python-headless` 5.0.0.93 on every Python version, removing the Critical ffmpeg finding in 4.11 from the 3.12 batch container. Python 3.11 stays on `av` 18.1.0, since PyAV 19 has no 3.11 wheels.
@@ -356,7 +369,8 @@ Initial public release of CheckMAITE.
 
 ---
 
-[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.1...HEAD
+[Unreleased]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.7.0...HEAD
+[0.7.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.1...0.7.0
 [0.6.1]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.6.0...0.6.1
 [0.6.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite/-/compare/0.4.0...0.5.0

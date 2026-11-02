@@ -132,7 +132,8 @@ platform providers bundled with the regular ONNX Runtime package:
 pip install "checkmaite[onnx]"
 ```
 
-This installs:
+This installs `modelmaite[onnx]`, so the version bounds come from modelmaite.
+It pulls in:
 
 - `onnx`: validates/checks the ONNX model file.
 - `onnxruntime`: runs inference on CPU and may expose additional non-CUDA
@@ -150,10 +151,15 @@ For NVIDIA CUDA environments, install the CUDA-specific extra instead:
 pip install "checkmaite[onnx-cuda]"
 ```
 
-This installs `onnxruntime-gpu` instead of `onnxruntime`. Use this only in
+This installs `modelmaite[onnx-cuda]`, which pulls in `onnxruntime-gpu`
+instead of `onnxruntime`. Use this only in
 environments where the CUDA ONNX Runtime wheel is available and compatible with
 the installed Python/CUDA stack. In particular, this extra is not expected to
 resolve on Mac arm64.
+
+If an extra is missing, `load_models` raises an `ImportError` naming the
+`checkmaite[onnx]` extra to install. The VisDrone wrapper is likewise optional;
+install it with `pip install "checkmaite[visdrone]"`.
 
 ## Provider selection
 

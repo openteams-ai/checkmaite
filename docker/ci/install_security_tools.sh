@@ -8,6 +8,9 @@ TRIVY_VERSION=0.74.0
 TRIVY_ARCHIVE="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
 TRIVY_SHA256=2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
 TRIVY_TEMPLATE_SHA256=6921a9ba0ac4f5ed0c8f4bb6a0c23465b907e76dd5f7c7920f70fa3446523a63
+GRYPE_VERSION=0.120.1
+GRYPE_ARCHIVE="grype_${GRYPE_VERSION}_linux_amd64.tar.gz"
+GRYPE_SHA256=0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d
 COSIGN_VERSION=3.1.3
 COSIGN_SHA256=4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
 TOOLS_DIR=${TOOLS_DIR:-/usr/local/bin}
@@ -32,6 +35,7 @@ install_archive() {
 
 install_archive syft "${SYFT_VERSION}" "${SYFT_ARCHIVE}" "${SYFT_SHA256}" anchore/syft
 install_archive trivy "${TRIVY_VERSION}" "${TRIVY_ARCHIVE}" "${TRIVY_SHA256}" aquasecurity/trivy
+install_archive grype "${GRYPE_VERSION}" "${GRYPE_ARCHIVE}" "${GRYPE_SHA256}" anchore/grype
 
 curl --fail --location --silent --show-error \
     "https://raw.githubusercontent.com/aquasecurity/trivy/v${TRIVY_VERSION}/contrib/gitlab.tpl" \
@@ -51,3 +55,4 @@ fi
 
 "${TOOLS_DIR}/syft" version
 "${TOOLS_DIR}/trivy" version
+"${TOOLS_DIR}/grype" version

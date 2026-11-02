@@ -18,6 +18,8 @@ from modelmaite.object_detection.models import (
 )
 from modelmaite.object_detection.models import load_models as modelmaite_load_models
 
+from checkmaite.core._common.install_hints import checkmaite_install_hints
+
 __all__ = [
     "SUPPORTED_MODELS",
     "SUPPORTED_ONNX_MODELS",
@@ -75,7 +77,9 @@ def load_models(
     everything — dispatch, validation, options, and errors — is
     ``modelmaite.object_detection.load_models``. Keyword arguments therefore
     now reach VisDrone wrappers too (the previous checkmaite dispatch dropped
-    them for the VisDrone branch only).
+    them for the VisDrone branch only). Missing VisDrone or ONNX dependencies
+    raise an ``ImportError`` that names the ``checkmaite[visdrone]`` or
+    ``checkmaite[onnx]`` extra.
     """
     translated: dict[str, Any] = {}
     for name, spec in models.items():
@@ -86,4 +90,5 @@ def load_models(
             translated[name] = visdrone_spec
         else:
             translated[name] = spec
-    return modelmaite_load_models(translated, **kwargs)
+    with checkmaite_install_hints():
+        return modelmaite_load_models(translated, **kwargs)

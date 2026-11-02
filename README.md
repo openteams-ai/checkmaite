@@ -1,7 +1,19 @@
 # CheckMAITE
 
-`CheckMAITE` is an integration point for AI T&E tooling for computer vision that
-is based on the `maite` protocols (see [maite
+<!-- --8<-- [start:tagline] -->
+
+CheckMAITE is an integration point for AI testing and evaluation tooling for
+computer vision workflows.
+
+CheckMAITE provides API and UI workflows that make model evaluation and dataset
+analysis straightforward and reproducible. It integrates JATIC tools through
+common MAITE-compatible interfaces so users can run model evaluation,
+robustness testing, and dataset analysis workflows from a shared application
+layer.
+
+<!-- --8<-- [end:tagline] -->
+
+CheckMAITE is based on the `maite` protocols (see [maite
 documentation](https://mit-ll-ai-technology.github.io/maite/)).
 
 ## Description
@@ -52,7 +64,8 @@ CheckMAITE evaluates models and datasets you supply.
   name the same class and a shared class name must use the same index.
   CheckMAITE does not validate this; mismatches produce silently wrong per-class
   results.
-- ONNX models need the `onnx` (or `onnx-cuda`) extra. ONNX wrappers accept only
+- ONNX models need the `onnx` (or `onnx-cuda`) extra, and VisDrone models need
+  the `visdrone` extra; neither is in the base install. ONNX wrappers accept only
   `uint8` images or finite float images in `[0, 1]` (cast to `float32`); other
   integer dtypes raise `TypeError`. Non-finite or out-of-`[0, 1]` float images
   raise `ValueError`.
@@ -71,15 +84,91 @@ CheckMAITE evaluates models and datasets you supply.
 
 ## Installation
 
-For detailed installation instructions please refer to [Setup Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html).
-To run CheckMAITE as a batch container instead of installing the package, see
-[Run CheckMAITE in a
-container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
+CheckMAITE is published on [PyPI](https://pypi.org/project/checkmaite/). Install
+it with any of:
+
+```bash
+python -m pip install checkmaite   # pip
+uv add checkmaite                  # uv project (or: uv pip install checkmaite)
+poetry add checkmaite              # Poetry project
+```
+
+With conda, create an environment and install from PyPI (CheckMAITE is not on
+conda-forge):
+
+```bash
+conda create -n checkmaite python=3.12 pip
+conda activate checkmaite
+python -m pip install checkmaite
+```
 
 On macOS, `brew install libomp` is required (`dataeval` loads LightGBM, which
 needs `libomp.dylib`).
 
+To install from source, optional extras (`reporting`, `onnx`, `cloud`, ...),
+and the locked uv and conda environments, see the [Setup
+Guide](https://openteams-ai.github.io/checkmaite/get-started/install_setup.html).
+To run CheckMAITE as a batch container instead of installing the package, see
+[Run CheckMAITE in a
+container](https://openteams-ai.github.io/checkmaite/get-started/container.html).
+
 ## Usage
+
+<!-- --8<-- [start:example] -->
+
+This example builds a tiny image classification dataset, checks it for
+duplicates with DataEval, and evaluates a two-class torchvision model on it with
+MAITE. It runs on a CPU in under a minute and needs no downloads. The model has
+untrained weights, so its accuracy is meaningless.
+
+<!-- markdownlint-disable MD013 -- import lines cannot be wrapped -->
+
+```python
+import json
+from pathlib import Path
+
+# Import checkmaite before torch so it can configure PyTorch on macOS.
+from checkmaite.core.image_classification import DataevalCleaning, MaiteEvaluation
+from checkmaite.core.image_classification.dataset_loaders import load_yolo_classification_dataset
+from checkmaite.core.image_classification.metrics import accuracy_multiclass_torch_metric_factory
+from checkmaite.core.image_classification.models import TorchvisionICModel
+
+import torch
+import torchvision
+from PIL import Image
+
+# A tiny YOLO classification dataset: <root>/<split>/<class>/<image>.
+# Each "dog" image is a copy of a "cat" image, so the dataset has duplicates.
+root = Path("example_data")
+for label in ["cat", "dog"]:
+    (root / "test" / label).mkdir(parents=True, exist_ok=True)
+    for i in range(4):
+        Image.new("RGB", (64, 64), color=(60 * i, 0, 0)).save(root / "test" / label / f"{i}.jpg")
+dataset = load_yolo_classification_dataset(root_dir=root, dataset_id="example", split="test")
+
+# A two-class torchvision model (untrained weights) and its index2label config.
+torch.save(torchvision.models.resnext50_32x4d(num_classes=2).state_dict(), root / "model.pt")
+(root / "model.json").write_text(json.dumps({"index2label": {"0": "cat", "1": "dog"}}))
+model = TorchvisionICModel(
+    model_name="resnext50_32x4d", weights_path=root / "model.pt", config_path=root / "model.json"
+)
+metric = accuracy_multiclass_torch_metric_factory(num_classes=2)
+
+# Check the dataset with DataEval, then evaluate the model with MAITE.
+cleaning = DataevalCleaning().run(datasets=[dataset])
+print(cleaning.outputs.duplicates)
+
+evaluation = MaiteEvaluation().run(datasets=[dataset], models=[model], metrics=[metric])
+print(evaluation.outputs.metrics)
+```
+
+<!-- markdownlint-enable MD013 -->
+
+The output lists the duplicate images (`exact=[[0, 4], [1, 5], [2, 6], [3, 7]]`)
+and the accuracy result. Every capability follows the same pattern: wrap your
+model, dataset, and metric, then call `run` on a capability.
+
+<!-- --8<-- [end:example] -->
 
 To learn how to get started using `CheckMAITE`, please visit our [quick start guide](https://openteams-ai.github.io/checkmaite/get-started/index.html).
 
@@ -87,6 +176,11 @@ There are also [How-to
 Guides](https://openteams-ai.github.io/checkmaite/how-to/index.html) &
 [Tutorials](https://openteams-ai.github.io/checkmaite/tool-usage/index.html)
 that will help get new users up to speed on the available functionality.
+
+## Roadmap
+
+Planned features and releases for the next six months are in
+[ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -207,6 +208,20 @@ def test_onnx_ic_model_requires_index2label(tmp_path: Path):
 
     with pytest.raises(ValueError, match="index2label"):
         OnnxICModel(weights_path=model_path, config_path=config_path, device="cpu")
+
+
+def test_load_models_names_checkmaite_onnx_extra_when_missing(monkeypatch, tmp_path: Path):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    with pytest.raises(ImportError, match=re.escape('uv add "checkmaite[onnx]"')):
+        load_ic_models(
+            {
+                "onnx_model": {
+                    "model_type": "jatic_onnx",
+                    "model_weights_path": tmp_path / "model.onnx",
+                    "model_config_path": tmp_path / "config.json",
+                }
+            }
+        )
 
 
 def test_torchvision_invalid_model_name():

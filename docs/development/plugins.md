@@ -123,6 +123,16 @@ uv pip install "checkmaite-plugins[unsupported] @ git+https://gitlab.jatic.net/j
 CheckMAITE CI does not test, and its dependency set has known CVEs (the
 ffmpeg bundled in opencv 4.11, and `fsspec` through `heart-library`).
 
+`gradient` (in the `unsupported` extra) imports `pkg_resources`, which
+setuptools 82 removed, and `checkmaite-plugins` does not cap setuptools yet
+([checkmaite-plugins#2](https://gitlab.jatic.net/jatic/orchestration-interoperability/checkmaite-plugins/-/work_items/2)).
+After installing it, also install `setuptools<82`, and `pybsm<0.16.1`
+because `pybsm` 0.16.1 requires setuptools 83 or later:
+
+```bash
+uv pip install "setuptools<82" "pybsm<0.16.1"
+```
+
 ## Creating a Plugin
 
 A plugin is any Python package that:

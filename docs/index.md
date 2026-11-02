@@ -1,5 +1,7 @@
 # CheckMAITE Documentation
 
+--8<-- "README.md:tagline"
+
 CheckMAITE is a Python API which makes testing and evaluation of models and
 datasets straightforward and reproducible. It can be used to run a wide variety
 of **Model Evaluation** and **Dataset Analysis** investigations for both
@@ -62,7 +64,12 @@ together and who leads each one.
 ## Quick start
 
 New to CheckMAITE? Start with the [Get started guide](get-started/index.md) for
-setup, API workflows, remote inference, and saving or querying results.
+installation, a short code example, and the end-to-end API workflows.
+
+## Roadmap
+
+Planned features and releases for the next six months are on the
+[Roadmap](roadmap.md).
 
 ## About the JATIC program and CDAO
 
