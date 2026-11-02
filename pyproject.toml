@@ -21,8 +21,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.11, <3.15"
 dynamic = ["version"]
 dependencies = [
     "dataeval==1.0.6",
@@ -73,7 +74,7 @@ platforms = ['linux-64']
 
 [tool.conda-lock.dependencies]
 # conda only dependencies (usually system dependencies)
-python = ">=3.11,<3.14"                            # CI narrows it per matrix leg
+python = ">=3.11,<3.14"                            # no 3.14: conda-forge nrtk pins simsimd <7, which has no py314 builds; CI narrows it per matrix leg
 cudatoolkit = "*"                                  # necessary to suppress conda-lock warning
 timm = ">=1.0.7"
 libgl = "*"

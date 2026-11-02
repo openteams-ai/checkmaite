@@ -4,9 +4,10 @@
 
 - **OS:** Linux x86_64 (CI-tested). macOS x86_64 and arm64 are supported but not
   CI-tested. The conda lock is Linux x86_64 only.
-- **Python:** 3.11, 3.12, and 3.13 with `uv`, pip, or conda
-  (`requires-python = ">=3.11, <3.14"`). The committed `conda-lock.yml` is
-  resolved for 3.13.
+- **Python:** 3.11, 3.12, 3.13, and 3.14 with `uv` or pip
+  (`requires-python = ">=3.11, <3.15"`). conda supports 3.11, 3.12, and 3.13
+  (`python = ">=3.11,<3.14"`): conda-forge `nrtk` requires a `simsimd` release
+  that has no 3.14 build. The committed `conda-lock.yml` is resolved for 3.13.
   `checkmaite-plugins` is `<3.12` on all paths.
 - **GPU:** CPU is the supported baseline. CUDA is optional for PyTorch.
 - **Hardware, architectures, and internet access:** see [System requirements](../reference/system_requirements.md).

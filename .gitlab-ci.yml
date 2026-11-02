@@ -63,7 +63,7 @@ stages:
 
 .install_checkmaite_plugins: &install_checkmaite_plugins |
   case "${VERSION:-}" in
-    3.12|3.13) echo "Skipping checkmaite-plugins install on Python $VERSION; checkmaite-plugins supports Python <3.12." ;;
+    3.12|3.13|3.14) echo "Skipping checkmaite-plugins install on Python $VERSION; checkmaite-plugins supports Python <3.12." ;;
     *)
       # The plugins install is unlocked. Keep numpy at the uv.lock version, and
       # cap pyarrow (not in uv.lock): pyarrow>=26 requires numpy>=2 at import
@@ -126,7 +126,7 @@ stages:
 .python-matrix:
   parallel:
     matrix:
-      - VERSION: ["3.11", "3.12", "3.13"]
+      - VERSION: ["3.11", "3.12", "3.13", "3.14"]
   image: python:$VERSION
 
 .shared-setup:
@@ -272,6 +272,11 @@ dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
   needs: []
+  # No 3.14 leg: conda-forge nrtk (1.0.4, 1.1.0) requires simsimd <7, and
+  # conda-forge only builds simsimd 7.x for py314 (#799). uv/pip cover 3.14.
+  parallel:
+    matrix:
+      - VERSION: ["3.11", "3.12", "3.13"]
   script:
     - pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing --cov-report xml:coverage_report.xml
 

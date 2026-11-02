@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Python 3.14 support with `uv` and pip, with 3.14 added to the uv CI test matrix (SR-4-G-1, #799). conda stays at 3.11–3.13: conda-forge `nrtk` 1.0.4 requires `simsimd <7`, and conda-forge only builds `simsimd` 7.x for Python 3.14. `checkmaite-plugins` is not installed on 3.14 (it supports Python <3.12). The containers stay on Python 3.12; their private runtime lock is re-locked for the wider Python range so it keeps matching the root lock.
+
 ### Removed
 - Python 3.10 support. `requires-python` is now `>=3.11, <3.14`, and the 3.10 CI legs are gone. The fixed Pillow release requires Python 3.11, so 3.10 installs could not be kept free of its Critical and High CVEs (DSOR-2-H-2, #799).
 - `conda-lock` is no longer in the `dev` dependency group. It caps `dulwich` below 0.25 and `virtualenv` below 21 (and so `filelock` below 4), which held all three on vulnerable releases. Run it with `uvx --from "conda-lock>=3,<5" conda-lock ...`, as described in the development setup guide; the pre-commit hook already installs it separately (#799).
