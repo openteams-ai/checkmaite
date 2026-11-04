@@ -2,17 +2,19 @@
 # Product containers: build and exercise supported platforms on relevant MRs and
 # every main pipeline. Every build enforces DSOR-3, so a newly published finding
 # fails MRs and main before it can block a release. Release jobs rebuild an
-# existing SemVer Git tag, publish write-once Harbor tags, and sign each
-# published image.
+# existing SemVer Git tag and push it to a staging tag on a large runner, then a
+# separate job on k8s-small-cpu (the only runner class with the AWS KMS signing
+# permissions) signs, attests, and applies the write-once Harbor tag.
 ################################################################################
 
 .container-build:
   stage: build
-  # Docker 25+ is required (CS-1-S-1). All three CI images are digest-pinned.
+  # Docker 25+ is required (CS-1-S-1); before_script checks the daemon version.
+  # The Kubernetes runners attach their own Docker daemon to every job, so no
+  # dind service is declared. Both CI images are digest-pinned.
   image: docker:29.8.2-cli@sha256:b1805116a6a86cc591b5d5f60a910a0715cdcc9d18d866ad68b1457ead25c35c
-  services:
-    - docker:29.8.2-dind@sha256:7dcdfc4a20246236f558175182ccace1eb15a41bd3eb119dd2284f393498b7c1
-  tags: [docker]
+  # Building and smoke-testing the CUDA image needs the large CPU runner.
+  tags: [k8s-large-cpu]
   interruptible: true
   # The container build does not depend on lint or type-check results.
   needs: []
@@ -27,6 +29,9 @@
   before_script:
     - apk add --no-cache curl jq
     - |
+      # Record the runner-provided daemon's version and image store.
+      echo "DOCKER_HOST=${DOCKER_HOST:-unset}"
+      docker info --format 'server={{.ServerVersion}} driver={{.Driver}} status={{json .DriverStatus}}'
       server_version=$(docker version --format '{{.Server.Version}}')
       server_major=${server_version%%.*}
       test "${server_major}" -ge 25
@@ -76,10 +81,22 @@
         --output "type=image,name=${image},oci-mediatypes=true"
       (
       set -x
-      scanned_config=$(jq -r '."containerimage.config.digest"' "${metadata_directory}/build-metadata.json")
-      printf '%s\n' "${scanned_config}" | grep -Eq '^sha256:[0-9a-f]{64}$'
-      test "$(jq -r '."containerimage.config.digest"' "${metadata_directory}/oci-metadata.json")" = "${scanned_config}"
+      oci_config=$(jq -r '."containerimage.config.digest" // empty' "${metadata_directory}/oci-metadata.json")
+      printf '%s\n' "${oci_config}" | grep -Eq '^sha256:[0-9a-f]{64}$'
       test "$(jq -r '."containerimage.descriptor".mediaType' "${metadata_directory}/oci-metadata.json")" = "application/vnd.oci.image.manifest.v1+json"
+      # A daemon with the classic image store reports the loaded image's config
+      # digest. One with the containerd image store (the Kubernetes runners')
+      # loads the OCI manifest itself and reports only its digest, so the loaded
+      # manifest must be the one exported here.
+      scanned_config=$(jq -r '."containerimage.config.digest" // empty' "${metadata_directory}/build-metadata.json")
+      if [ -z "${scanned_config}" ]; then
+        test "$(jq -r '."containerimage.descriptor".mediaType' "${metadata_directory}/build-metadata.json")" = "application/vnd.oci.image.manifest.v1+json"
+        test "$(jq -r '."containerimage.digest"' "${metadata_directory}/build-metadata.json")" = "$(jq -r '."containerimage.digest"' "${metadata_directory}/oci-metadata.json")"
+        scanned_config=${oci_config}
+      fi
+      test "${oci_config}" = "${scanned_config}"
+      # stage_container.sh checks the pushed image against this.
+      printf '%s\n' "${scanned_config}" > "${metadata_directory}/scanned-config.txt"
       )
     - |
       # Print each check with its values so a failure identifies itself.
@@ -92,20 +109,16 @@
       )
     - CONTAINER_TEST_PLATFORM="${TARGET_PLATFORM}" sh docker/ci/verify_container.sh "${image}" "${VARIANT}"
     - sh docker/ci/check_container_size.sh "${image}" "${ARTIFACT_VARIANT}"
-    - |
-      if [ "${CONTAINER_RELEASE}" = "true" ]; then
-        sh docker/ci/install_security_tools.sh --with-cosign
-      else
-        sh docker/ci/install_security_tools.sh
-      fi
+    - sh docker/ci/install_security_tools.sh
     - sh docker/ci/scan_container.sh "${image}" "${ARTIFACT_VARIANT}" enforce
     - |
       if [ "${CONTAINER_RELEASE}" = "true" ]; then
-        sh docker/ci/publish_container.sh \
+        sh docker/ci/stage_container.sh \
           "${image}" "${PUBLISH_VARIANT}" "${ARTIFACT_VARIANT}" \
           "${RELEASE_TAG}" "${PUBLISH_MODE}"
       fi
   after_script:
+    - chmod -R a+rX artifacts 2>/dev/null || true
     - |
       if [ "${CONTAINER_RELEASE}" = "true" ]; then
         docker logout "${HARBOR_URL}" || true
@@ -160,10 +173,10 @@ container-cuda-amd64:
   variables:
     CONTAINER_RELEASE: "true"
     GIT_DEPTH: "0"
-    AWS_REGION: "us-gov-east-1"
   environment:
     name: container-production
     url: "https://harbor.jatic.net/"
+    action: prepare
   artifacts:
     when: always
     paths: [artifacts/container/]
@@ -202,4 +215,64 @@ publish-container-cuda-amd64:
     paths: [artifacts/container/cuda/]
     reports:
       container_scanning: artifacts/container/cuda/gl-container-scanning-report.json
+    expire_in: never
+
+.sign-container:
+  stage: publish
+  image: docker:29.8.2-cli@sha256:b1805116a6a86cc591b5d5f60a910a0715cdcc9d18d866ad68b1457ead25c35c
+  tags: [k8s-small-cpu]
+  # A failed attempt has already removed the staging tag, so a retry would sign
+  # an untagged digest. A signing failure should be looked at, not retried.
+  retry: 0
+  interruptible: false
+  resource_group: checkmaite-container-release
+  variables:
+    HARBOR_URL: "harbor.jatic.net"
+    HARBOR_PROJECT: "openteams"
+    HARBOR_REPO: "checkmaite"
+    GIT_DEPTH: "0"
+    AWS_REGION: "us-gov-east-1"
+  environment:
+    name: container-production
+    url: "https://harbor.jatic.net/"
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    # Run the tag's own scripts, as the staging job did.
+    - . docker/ci/release.sh
+    - checkout_release_tag "${RELEASE_TAG}"
+    - sh docker/ci/install_security_tools.sh --cosign-only
+    - |
+      printf '%s' "${OPENTEAMS_HARBOR_TOKEN}" \
+        | cosign login "${HARBOR_URL}" \
+            --username "${OPENTEAMS_HARBOR_USERNAME}" --password-stdin
+    - sh docker/ci/publish_container.sh "${PUBLISH_VARIANT}" "${ARTIFACT_VARIANT}" "${RELEASE_TAG}" "${PUBLISH_MODE}"
+  after_script:
+    - rm -f "${HOME}/.docker/config.json"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_TAG != ""'
+    - when: never
+
+sign-container-cpu-amd64:
+  extends: .sign-container
+  needs: [publish-container-cpu-amd64]
+  variables:
+    PUBLISH_VARIANT: "cpu"
+    ARTIFACT_VARIANT: "cpu-amd64"
+    PUBLISH_MODE: "release"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cpu-amd64/published-digest.txt]
+    expire_in: never
+
+sign-container-cuda-amd64:
+  extends: .sign-container
+  needs: [publish-container-cuda-amd64]
+  variables:
+    PUBLISH_VARIANT: "cuda"
+    ARTIFACT_VARIANT: "cuda"
+    PUBLISH_MODE: "release"
+  artifacts:
+    when: always
+    paths: [artifacts/container/cuda/published-digest.txt]
     expire_in: never

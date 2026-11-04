@@ -475,7 +475,13 @@ before `docker/ci/build_container.sh` was added (0.6.1 and earlier) cannot be
 published. A fix to the release tooling requires a new version tag. Set
 `CONTAINER_RELEASE_DRY_RUN=true` for the required first staging exercise; CI
 then pushes, signs, attests, verifies, and cleans up without creating a Semantic
-Version tag. Publication creates these write-once references:
+Version tag. Each image is built and pushed to a pipeline-scoped staging tag by
+a manual `publish-container-*` job, then signed and tagged by the
+`sign-container-*` job that follows it on the `k8s-small-cpu` runner, the only
+runner class with the KMS signing permissions. Tags whose `docker/ci/` predates
+this split (0.7.0 and earlier) cannot be published by these jobs, so the first
+staging exercise needs a tag cut after it. Publication
+creates these write-once references:
 
 ```text
 harbor.jatic.net/openteams/checkmaite/cpu:VERSION

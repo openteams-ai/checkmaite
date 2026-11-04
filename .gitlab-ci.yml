@@ -8,6 +8,11 @@ workflow:
 
 default:
   retry: 1
+  # The Kubernetes runners only pick up tagged jobs. Every job, including those
+  # from the DevSecOps components and GitLab templates, gets the smallest class;
+  # heavier jobs override it. Classes are listed in
+  # https://gitlab.jatic.net/jatic/devsecops/components/-/blob/release/1.3.x/docs/migration.md
+  tags: [k8s-small-cpu]
   artifacts:
     expire_in: 1 week
 
@@ -35,6 +40,12 @@ variables:
   CONTAINER_RELEASE_DRY_RUN:
     value: "false"
     description: "Verify container publication without creating immutable release tags."
+  # On the Kubernetes runners the checkout is owned by another user, so git
+  # refuses to operate on it ("dubious ownership"). This applies to every job,
+  # including component jobs whose scripts we can't edit.
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "safe.directory"
+  GIT_CONFIG_VALUE_0: "$CI_PROJECT_DIR"
   MODEL_WEIGHTS_CACHE_SUFFIX: ""  # "-mr" in MR pipelines, set in workflow:rules
   AST_ENABLE_MR_PIPELINES: "true"
 
@@ -56,8 +67,6 @@ stages:
 .git_config: &git_config
 # For internal git dependencies
 - git config --global url."https://gitlab-ci-token:${GITLAB_CI_TOKEN}@gitlab.jatic.net/".insteadOf "https://gitlab.jatic.net/"
-# Trust the GitLab checkout for build backends that call git to derive package metadata.
-- git config --global --add safe.directory "$CI_PROJECT_DIR"
 
 # Diagnostic logging for investigating CI SIGKILL / OOM issues.
 # Controlled by CI_DIAGNOSTICS variable (default: true).
@@ -130,6 +139,9 @@ stages:
     TORCH_HOME: "$CI_PROJECT_DIR/.cache/torch"
     HF_HOME: "$CI_PROJECT_DIR/.cache/huggingface"
   after_script:
+    # The Kubernetes runner uploads artifacts as another user, which cannot read
+    # owner-only files (e.g. tempfile outputs) that jobs leave in artifacts/.
+    - chmod -R a+rX artifacts 2>/dev/null || true
     # Capture final resource state even on SIGKILL/failure
     - |
       if [ "$CI_DIAGNOSTICS" = "true" ]; then
@@ -216,6 +228,8 @@ stages:
 test:
   extends: [.python-matrix, .shared-setup, .uv-setup]
   stage: test
+  # Test suites peak around 6 GB, above k8s-medium-cpu's 3200 MiB.
+  tags: [k8s-large-cpu]
   needs: []
   timeout: 1h
   cache:
@@ -242,6 +256,7 @@ optional-tests-no-extras:
   extends: [.shared-setup, .uv-setup]
   image: python:3.11
   stage: test
+  tags: [k8s-large-cpu]
   needs: []
   script:
     - uv sync --locked
@@ -254,6 +269,7 @@ optional-tests-no-extras:
 dynamic-conda-test:
   extends: [.python-matrix, .shared-setup, .conda-setup]
   stage: test
+  tags: [k8s-large-cpu]
   needs: []
   # No 3.14 leg: conda-forge nrtk (1.0.4, 1.1.0) requires simsimd <7, and
   # conda-forge only builds simsimd 7.x for py314 (#799). uv/pip cover 3.14.
@@ -267,6 +283,7 @@ dynamic-conda-test:
 conda-lock-test:
   extends: [.shared-setup]
   stage: test
+  tags: [k8s-large-cpu]
   needs: []
   image: mambaorg/micromamba:2.5-amazon2023
   cache:
@@ -295,6 +312,7 @@ pyright-internal:
   extends: [.shared-setup, .uv-setup]
   image: python:3.11
   stage: pyright
+  tags: [k8s-medium-cpu]
   needs: []
   script:
     - uv sync --locked
@@ -308,6 +326,8 @@ pages-branch:
   extends: [.shared-setup, .uv-setup]
   image: python:3.11
   stage: docs
+  # mkdocs-jupyter executes the example notebooks.
+  tags: [k8s-large-cpu]
   needs: []
   artifacts:
       expose_as: 'Documentation Build'
@@ -356,6 +376,7 @@ pages: # this must be named "pages" to get GitLab to run "pages:deploy"
   extends: [.shared-setup, .uv-setup]
   image: python:3.11
   stage: docs
+  tags: [k8s-large-cpu]
   script:
     - uv sync --locked --group docs --extra onnx --extra visdrone --no-cache
     - uv run --no-sync mkdocs build -d public --no-directory-urls
@@ -698,10 +719,13 @@ pre-commit🪝:
 # either shouldn't block an MR. Main and release runs still produce the report.
 # The component sets no timeout, and mkdocs can spend hours rendering the full
 # Grype report of the published images (job 1638708), so cap it; the job
-# normally finishes in under two minutes.
+# normally finishes in under two minutes. pipeline-report@1.2.0 has no tags
+# input, and its Grype page (over 1 GB) is OOMKilled on the default
+# k8s-small-cpu (1500 MiB), so the job is moved to the medium class.
 create-pipeline⛓️-report🗒:
   allow_failure: true
   timeout: 5m
+  tags: [k8s-medium-cpu]
 
 secret_detection:
   stage: dr-compliance

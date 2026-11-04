@@ -33,6 +33,18 @@ install_archive() {
     rm -f "/tmp/${archive}"
 }
 
+# The build job scans with Syft and Trivy; the signing job needs only Cosign.
+if [ "${1:-}" = "--cosign-only" ]; then
+    curl --fail --location --silent --show-error \
+        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" \
+        --output "${TOOLS_DIR}/cosign"
+    cosign_digest=$(sha256sum "${TOOLS_DIR}/cosign" | awk '{print $1}')
+    test "${cosign_digest}" = "${COSIGN_SHA256}"
+    chmod 0755 "${TOOLS_DIR}/cosign"
+    "${TOOLS_DIR}/cosign" version
+    exit 0
+fi
+
 install_archive syft "${SYFT_VERSION}" "${SYFT_ARCHIVE}" "${SYFT_SHA256}" anchore/syft
 install_archive trivy "${TRIVY_VERSION}" "${TRIVY_ARCHIVE}" "${TRIVY_SHA256}" aquasecurity/trivy
 install_archive grype "${GRYPE_VERSION}" "${GRYPE_ARCHIVE}" "${GRYPE_SHA256}" anchore/grype
@@ -42,16 +54,6 @@ curl --fail --location --silent --show-error \
     --output "${TRIVY_SHARE_DIR}/gitlab.tpl"
 template_digest=$(sha256sum "${TRIVY_SHARE_DIR}/gitlab.tpl" | awk '{print $1}')
 test "${template_digest}" = "${TRIVY_TEMPLATE_SHA256}"
-
-if [ "${1:-}" = "--with-cosign" ]; then
-    curl --fail --location --silent --show-error \
-        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" \
-        --output "${TOOLS_DIR}/cosign"
-    cosign_digest=$(sha256sum "${TOOLS_DIR}/cosign" | awk '{print $1}')
-    test "${cosign_digest}" = "${COSIGN_SHA256}"
-    chmod 0755 "${TOOLS_DIR}/cosign"
-    "${TOOLS_DIR}/cosign" version
-fi
 
 "${TOOLS_DIR}/syft" version
 "${TOOLS_DIR}/trivy" version

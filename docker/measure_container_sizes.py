@@ -64,6 +64,46 @@ def _inspect_image(reference: str) -> dict[str, Any]:
     return inspected[0]
 
 
+def _exported_filesystem_size(reference: str) -> int:
+    """Return the size of the image's filesystem as streamed by `docker export`.
+
+    Unlike `docker image inspect` .Size, this does not depend on the daemon's
+    image store: under the containerd store .Size also counts compressed layers.
+    """
+    docker = _docker_executable()
+    created = subprocess.run(  # noqa: S603  # nosec B603 - fixed command, no shell
+        [docker, "create", reference],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    container = created.stdout.strip()
+    try:
+        command = [docker, "export", container]
+        process = subprocess.Popen(  # noqa: S603  # nosec B603 - fixed command, no shell
+            command,
+            stdout=subprocess.PIPE,
+        )
+        stream = process.stdout
+        if stream is None:  # pragma: no cover - guaranteed by stdout=PIPE
+            process.kill()
+            raise RuntimeError("docker export did not provide an output stream")
+        size = 0
+        with stream:
+            while chunk := stream.read(_CHUNK_SIZE):
+                size += len(chunk)
+        return_code = process.wait()
+        if return_code != 0:
+            raise subprocess.CalledProcessError(return_code, command)
+    finally:
+        subprocess.run(  # noqa: S603  # nosec B603 - fixed command, no shell
+            [docker, "rm", container],
+            check=False,
+            capture_output=True,
+        )
+    return size
+
+
 def _compressed_archive_size(reference: str) -> int:
     """Return the size of `docker image save` compressed with gzip level 6."""
     command = [_docker_executable(), "image", "save", reference]
@@ -106,13 +146,15 @@ def _compressed_archive_size(reference: str) -> int:
 def measure_image(reference: str) -> ImageSize:
     """Measure one local image without writing an archive to disk."""
     inspected = _inspect_image(reference)
+    print(f"Exporting {reference}...", file=sys.stderr, flush=True)
+    uncompressed_bytes = _exported_filesystem_size(reference)
     print(f"Compressing {reference}...", file=sys.stderr, flush=True)
     compressed_bytes = _compressed_archive_size(reference)
     return ImageSize(
         reference=reference,
         image_id=str(inspected["Id"]),
         platform=f"{inspected['Os']}/{inspected['Architecture']}",
-        uncompressed_bytes=int(inspected["Size"]),
+        uncompressed_bytes=uncompressed_bytes,
         compressed_archive_bytes=compressed_bytes,
     )
 
@@ -150,7 +192,7 @@ def _render_json(measurements: list[ImageSize]) -> str:
     report = {
         "schema_version": 1,
         "methods": {
-            "uncompressed_bytes": "Docker Engine image inspect .Size",
+            "uncompressed_bytes": "bytes of the docker export filesystem stream",
             "compressed_archive_bytes": ("gzip level 6 with mtime 0 over the docker image save archive"),
         },
         "images": [asdict(result) for result in measurements],

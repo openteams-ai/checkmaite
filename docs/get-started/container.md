@@ -33,7 +33,9 @@ python docker/measure_container_sizes.py \
   checkmaite-batch:cpu checkmaite-batch:cuda
 ```
 
-The uncompressed value is Docker Engine's image size. The compressed value is a
+The uncompressed value is the size of the image's filesystem as streamed by
+`docker export`, which does not depend on whether Docker uses the classic or the
+containerd image store. The compressed value is a
 repeatable gzip level 6 measurement of the `docker image save` stream. It is
 useful for comparing builds, but it is not a promise of registry transfer size;
 a registry may compress layers differently.
