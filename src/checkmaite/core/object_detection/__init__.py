@@ -5,6 +5,8 @@ from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationO
 from checkmaite.core._common.metric_fanout import MaiteEvaluationMetricError
 from checkmaite.core._common.nrtk_robustness_capability import NrtkRobustnessConfig, NrtkRobustnessOutputs
 from checkmaite.core._plugins import inject_plugin_exports
+from checkmaite.core.evaluation_tasks import register_task
+from checkmaite.core.object_detection._task import TASK
 from checkmaite.core.object_detection.dataeval_bias_capability import DataevalBias
 from checkmaite.core.object_detection.dataeval_cleaning_capability import DataevalCleaning
 from checkmaite.core.object_detection.dataeval_feasibility_capability import (
@@ -47,4 +49,5 @@ __all__ = [
     "XaitkExplainableOutputs",
 ]
 
+register_task(TASK)
 inject_plugin_exports(globals(), __all__, group="checkmaite.plugins.object_detection")

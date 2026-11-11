@@ -86,6 +86,8 @@ class FakeRun(CapabilityRunBase[FakeConfig, FakeOutputs]):
 
 
 class FakeCapability(Capability):
+    task = "object_detection"
+
     _RUN_TYPE = FakeRun
 
     @classmethod
@@ -107,6 +109,14 @@ class FakeCapability(Capability):
     def _run(self, models, datasets, metrics, config, use_prediction_and_evaluation_cache):
         assert datasets and metrics
         return FakeOutputs(device=models[0].device, batch_size=config.batch_size)
+
+
+class TasklessCapability(FakeCapability):
+    task = None
+
+
+class UnknownTaskCapability(FakeCapability):
+    task = "not_a_task"
 
 
 class FailingCapability(FakeCapability):

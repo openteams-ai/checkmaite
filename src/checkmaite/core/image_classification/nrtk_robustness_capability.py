@@ -20,6 +20,8 @@ class NrtkRobustness(NrtkRobustnessBase[ic.Dataset, ic.Model, ic.Metric]):
     on each perturbed variant, and generates a report summarizing changes in model performance.
     """
 
+    task = "image_classification"
+
     def _run(
         self,
         models: list[ic.Model],
@@ -59,6 +61,7 @@ class NrtkRobustness(NrtkRobustnessBase[ic.Dataset, ic.Model, ic.Metric]):
                 return_augmented_data=False,
                 return_preds=False,
                 use_cache=use_prediction_and_evaluation_cache,
+                task=self.task,
             )
             perturbations.append(perturbed_metrics)
 

@@ -39,7 +39,7 @@ multi-object-tracking model over every video:
 ```python
 from modelmaite import ByteTrackMOTModel, TorchvisionODModel
 
-from checkmaite import cached_tasks
+from checkmaite.core.multiobject_tracking import cached_tasks
 
 detector = TorchvisionODModel(model_name="fasterrcnn_resnet50_fpn")
 tracker = ByteTrackMOTModel(detector=detector)

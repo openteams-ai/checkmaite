@@ -57,6 +57,7 @@ class SmokeRun(CapabilityRunBase[SmokeConfig, SmokeOutputs]):
 
 
 class SmokeCapability(Capability):
+    task = "object_detection"
     _RUN_TYPE = SmokeRun
 
     @classmethod

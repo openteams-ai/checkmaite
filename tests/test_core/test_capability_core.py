@@ -38,6 +38,8 @@ class MissingReportRun(CapabilityRunBase):
 
 
 class ParamCapability(Capability):
+    task = "object_detection"
+
     _RUN_TYPE = MockRun
 
     def __init__(

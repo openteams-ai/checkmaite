@@ -12,6 +12,7 @@ import uuid
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Generic, Literal, TypeVar, cast
 
@@ -344,6 +345,14 @@ def _deserialize_polars_df(v: bytes) -> pl.DataFrame:
         return pl.read_parquet(b)
 
 
+def _serialize_fraction(v: Fraction) -> bytes:
+    return f"{v.numerator}/{v.denominator}".encode()
+
+
+def _deserialize_fraction(v: bytes) -> Fraction:
+    return Fraction(v.decode())
+
+
 def _serialize_torch_tensor(v: torch.Tensor) -> bytes:
     with io.BytesIO() as b:
         torch.save(v, b)
@@ -400,6 +409,13 @@ class _BinaryDeSerializer:
     def supports(self, value: Any) -> bool:
         """Return whether a value is safe for strict task caching."""
         return self._matching_config(value, strict=True) is not None
+
+    def same_encoding(self, value: Any, other: Any) -> bool | None:
+        """Return whether two values encode to the same bytes, or None when ``value`` has no binary codec."""
+        config = self._publication_config(value)
+        if config is None:
+            return None
+        return config.serialize(value) == config.serialize(other)
 
     @contextmanager
     def rollback_binary_writes_on_error(self) -> Iterator[None]:
@@ -577,6 +593,14 @@ binary_de_serializer = _BinaryDeSerializer(
         serialize=_serialize_torch_tensor,
         deserialize=_deserialize_torch_tensor,
         strict_safe=_supports_torch_strict,
+    ),
+    # Video datasets from DataMAITE report each stream's time_base as a Fraction.
+    _BinaryDeSerializeConfig(
+        name="fraction",
+        cls=Fraction,
+        serialize=_serialize_fraction,
+        deserialize=_deserialize_fraction,
+        strict_safe=_supports_no_values,
     ),
 )
 

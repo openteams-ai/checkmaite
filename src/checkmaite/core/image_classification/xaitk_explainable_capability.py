@@ -304,6 +304,8 @@ class XaitkExplainable(
 ):
     """Xai will generate saliency maps for every detections in all images from the dataset."""
 
+    task = "image_classification"
+
     _RUN_TYPE = XaitkExplainableRun
 
     @classmethod

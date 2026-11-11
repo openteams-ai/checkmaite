@@ -308,6 +308,8 @@ class XaitkExplainable(
         config :The config used to run Xai saliency capability for OD.
     """
 
+    task = "object_detection"
+
     _RUN_TYPE = XaitkExplainableRun
 
     @classmethod

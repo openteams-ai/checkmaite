@@ -140,7 +140,7 @@ A task selects named objects and a capability:
 ```yaml
 tasks:
   - name: baseline
-    capability: builtin:MaiteEvaluation
+    capability: builtin:object_detection.MaiteEvaluation
     dataset: evaluation
     model: candidate
     metrics: map50
@@ -148,9 +148,9 @@ tasks:
       batch_size: 32
 ```
 
-The short `builtin:` form infers the CheckMAITE problem type from the selected
-objects. An explicit form such as `builtin:object_detection.MaiteEvaluation` is
-also accepted.
+A `builtin:` capability names its evaluation task, here `object_detection`,
+followed by the capability. The task is never inferred from the selected
+objects.
 
 ## Run on one host
 

@@ -110,6 +110,8 @@ class OversizedReportTinyRun(TinyRun):
 
 
 class TinyCapability(Capability[TinyOutputs, Any, Any, Any, TinyConfig]):
+    task = "object_detection"
+
     _RUN_TYPE = TinyRun
 
     default_num_cpus = 1

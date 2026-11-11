@@ -157,6 +157,8 @@ def _postprocess_target(
 class MaiteEvaluation(MaiteEvaluationBase[od.Dataset, od.Model, od.Metric, MaiteEvaluationConfig]):
     """Evaluate one object-detection model and dataset with one or more metrics."""
 
+    task = "object_detection"
+
     _RUN_TYPE = MaiteEvaluationRun
 
     @classmethod

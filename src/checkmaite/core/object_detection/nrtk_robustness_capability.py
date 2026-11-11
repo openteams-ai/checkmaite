@@ -21,6 +21,8 @@ class NrtkRobustness(NrtkRobustnessBase[od.Dataset, od.Model, od.Metric]):
     on each perturbed variant, and generates a report summarizing changes in model performance.
     """
 
+    task = "object_detection"
+
     def _run(
         self,
         models: list[od.Model],
@@ -60,6 +62,7 @@ class NrtkRobustness(NrtkRobustnessBase[od.Dataset, od.Model, od.Metric]):
                 return_augmented_data=False,
                 return_preds=False,
                 use_cache=use_prediction_and_evaluation_cache,
+                task=self.task,
             )
             perturbations.append(perturbed_metrics)
 

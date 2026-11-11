@@ -261,6 +261,9 @@ unconditional peak-memory guarantee.
 
 Ordinary MOT calls cache predictions, targets, and metadata, including
 `track_ids`, but store empty input batches instead of decoded video.
+Any `frame_tracks` sequence, including DataMAITE's lazy one, is stored as a
+list of frames, so a cache hit returns `frame_tracks` as a list. Models and
+metrics on a fresh run still receive the dataset's own targets.
 `return_augmented_data=True` is intended primarily for debugging and inspecting
 the exact data sent to the model. It returns complete post-augmentation input,
 target, and metadata batches. CheckMAITE always runs that request fresh and
@@ -277,9 +280,10 @@ videos.
 #### Stochastic Inference
 
 A cache key is a claim that the identified model, dataset, augmentation,
-batching, and postprocessing define reusable behavior. Runtime RNG state is not
-inspected or hashed. For stochastic models or augmentations, a cache hit reuses
-the first published realization rather than drawing another sample.
+evaluation task, batching, and postprocessing define reusable behavior. Runtime
+RNG state is not inspected or hashed. For stochastic models or augmentations, a
+cache hit reuses the first published realization rather than drawing another
+sample.
 
 Use `use_cache=False` whenever each call must produce a fresh draw. For
 reproducible stochastic evaluation, control the RNG and include the seed and all
@@ -288,7 +292,7 @@ seed without changing that identity can produce an incorrect cache hit; changing
 an ID does not itself seed the implementation.
 
 ```python
-from checkmaite import cached_tasks
+from checkmaite.core.image_classification import cached_tasks
 
 # Reuse one identified, reproducible realization.
 results, predictions, _ = cached_tasks.evaluate(
@@ -369,7 +373,7 @@ CheckMAITE provides two serialization options for task artifacts:
 Cached-task APIs select the option with `strict_cache_serialization`:
 
 ```python
-from checkmaite import cached_tasks
+from checkmaite.core.image_classification import cached_tasks
 
 # Flexible caching (default).
 results, predictions, _ = cached_tasks.evaluate(

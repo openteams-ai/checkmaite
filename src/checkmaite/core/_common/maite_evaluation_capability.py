@@ -432,6 +432,7 @@ class MaiteEvaluationBase(
             return_augmented_data=False,
             return_preds=False,
             use_cache=use_prediction_and_evaluation_cache,
+            task=self.task,
         )
         if result is None:
             raise RuntimeError(

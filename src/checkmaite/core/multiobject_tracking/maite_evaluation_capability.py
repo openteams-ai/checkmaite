@@ -6,6 +6,8 @@ from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationB
 class MaiteEvaluation(MaiteEvaluationBase[mot.Dataset, mot.Model, mot.Metric]):
     """Evaluate one multi-object-tracking model and dataset with one or more metrics."""
 
+    task = "multiobject_tracking"
+
     @classmethod
     def _create_config(cls) -> MaiteEvaluationConfig:
         return MaiteEvaluationConfig()

@@ -13,9 +13,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from checkmaite_container._plan import ObjectSpec, RunPlan, RunPlanConfigurationError, TaskSpec
-
-_NAMESPACES = ("image_classification", "object_detection")
+from checkmaite.core.evaluation_tasks import get_task, list_tasks
+from checkmaite_container._plan import ObjectSpec, RunPlanConfigurationError
 
 
 def _load_file_symbol(reference: str, plan_root: Path) -> Any:
@@ -76,45 +75,28 @@ def _import_module(module_name: str) -> Any:
         raise RunPlanConfigurationError(f"cannot import {module_name!r}: {exc}") from exc
 
 
-def _namespace_from_plan(task: TaskSpec, plan: RunPlan) -> str | None:
-    # Datasets, models, and metrics are separate mappings, so one name may appear in more than one.
-    lookups = ((task.dataset, plan.datasets), (task.model, plan.models), (task.metrics, plan.metrics))
-    class_paths = [
-        specs[name].class_path for reference, specs in lookups for name in _as_names(reference) if name in specs
-    ]
-    namespaces = {
-        namespace for class_path in class_paths for namespace in _NAMESPACES if f".core.{namespace}." in class_path
-    }
-    if len(namespaces) > 1:
-        raise RunPlanConfigurationError(f"task {task.name!r} mixes objects from different CheckMAITE problem types")
-    return next(iter(namespaces), None)
-
-
-def load_capability(reference: str, task: TaskSpec, plan: RunPlan, plan_root: Path) -> Any:
-    """Load a capability class, including short built-in references."""
+def load_capability(reference: str, plan_root: Path) -> Any:
+    """Load a capability class from a ``builtin:<task>.Name`` reference or a class reference."""
     if not reference.startswith("builtin:"):
         return load_symbol(reference, plan_root)
 
-    builtin_reference = reference.removeprefix("builtin:")
-    first_component, separator, remainder = builtin_reference.partition(".")
-    if separator and first_component in _NAMESPACES:
-        namespace = first_component
-        symbol_name = remainder
-    else:
-        namespace = _namespace_from_plan(task, plan)
-        symbol_name = builtin_reference
-
-    if namespace is None:
-        raise RunPlanConfigurationError(
-            f"cannot infer the problem type for {reference!r}; use "
-            "'builtin:object_detection.Name' or 'builtin:image_classification.Name'"
-        )
-    module = _import_module(f"checkmaite.core.{namespace}")
+    task_name, separator, symbol_name = reference.removeprefix("builtin:").partition(".")
+    try:
+        evaluation_task = get_task(task_name) if separator and symbol_name else None
+    except KeyError:
+        evaluation_task = None
+    if evaluation_task is None:
+        # "builtin:MaiteEvaluation" names a capability; "builtin:object_detection" names a task.
+        registered_names = {name for registered in list_tasks() for name in (registered.name, *registered.aliases)}
+        capability = symbol_name or ("Name" if task_name in registered_names else task_name)
+        examples = " or ".join(f"'builtin:{registered.name}.{capability}'" for registered in list_tasks())
+        raise RunPlanConfigurationError(f"{reference!r} does not name a registered evaluation task; use {examples}")
+    module = _import_module(evaluation_task.namespace)
     try:
         return getattr(module, symbol_name)
     except AttributeError:
         raise RunPlanConfigurationError(
-            f"CheckMAITE {namespace!r} does not export capability {symbol_name!r}"
+            f"CheckMAITE {evaluation_task.name!r} does not export capability {symbol_name!r}"
         ) from None
 
 

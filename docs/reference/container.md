@@ -317,10 +317,12 @@ Every name a task references must exist in the corresponding top-level mapping.
 The capability decides which object kinds, and how many of each, a task
 accepts.
 
-`builtin:MaiteEvaluation` selects a built-in capability and infers the problem
-type from the task's CheckMAITE objects. The explicit forms
-`builtin:object_detection.Name` and `builtin:image_classification.Name` are
-needed when every object in the task comes from a plugin.
+`builtin:<task>.Name`, such as `builtin:object_detection.MaiteEvaluation`,
+selects a capability from an evaluation task's namespace. Any registered
+[evaluation task](../development/adding_a_task.md) can be named, including its
+alias (`od`, `ic`, `mot`) and tasks added by installed packages. The task is
+never inferred from the plan's other objects, so `builtin:MaiteEvaluation`
+without a task is a configuration error.
 
 ### Plugins
 

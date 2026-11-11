@@ -78,7 +78,7 @@ class _FrameCountingTracker:
 def test_flat_mp4_dataset_runs_through_cached_predict(flat_mp4_folder: Path) -> None:
     dataset = load_mot(flat_mp4_folder, dataset_format="flat_mp4").with_mot_options(empty_frame_policy="all")
 
-    predictions, _ = cached_tasks.predict(model=_FrameCountingTracker(), dataset=dataset)
+    predictions, _ = cached_tasks.predict(task="multiobject_tracking", model=_FrameCountingTracker(), dataset=dataset)
 
     targets = [target for batch in predictions for target in batch]
     assert len(targets) == 2

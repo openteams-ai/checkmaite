@@ -38,7 +38,7 @@ metrics:
 
 tasks:
   - name: baseline
-    capability: builtin:MaiteEvaluation
+    capability: builtin:object_detection.MaiteEvaluation
     dataset: evaluation
     model: candidate
     metrics: map50

@@ -325,6 +325,7 @@ def test_evaluate_return_preds_returns_cpu_postprocessed_predictions(
         MaiteEvaluationConfig(confidence_threshold=0.8)
     )
     _, predictions, _ = cached_tasks.evaluate(
+        task="object_detection",
         model=fake_od_model_default,
         dataset=fake_od_dataset_default,
         metric=fake_od_metric_default,

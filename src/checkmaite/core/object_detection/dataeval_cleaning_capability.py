@@ -14,6 +14,8 @@ from checkmaite.core._common.dataeval_cleaning_capability import (
 class DataevalCleaning(DataevalCleaningBase[od.Dataset, od.Model, od.Metric]):
     "Object detection cleaning capability"
 
+    task = "object_detection"
+
     def _run(
         self,
         models: list[od.Model],  # noqa: ARG002

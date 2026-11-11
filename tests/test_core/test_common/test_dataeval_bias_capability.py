@@ -115,8 +115,13 @@ def _create_fake_bias_run(
     )
 
 
+class _Bias(DataevalBiasBase):
+    # The shared implementation behaves the same for every task.
+    task = "object_detection"
+
+
 def do_smoke_run(dataset):
-    capability = DataevalBiasBase()
+    capability = _Bias()
     return capability.run(use_cache=False, datasets=[dataset])  # smoke test
 
 
@@ -173,7 +178,7 @@ class TestOdDataevalBiasCapability:
 
     @pytest.fixture
     def test_run_od(self, fake_od_dataset_default) -> Any:
-        capability = DataevalBiasBase()
+        capability = _Bias()
 
         return capability.run(use_cache=False, datasets=[fake_od_dataset_default])  # smoke test
 
@@ -194,7 +199,7 @@ class TestOdDataevalBiasCapability:
             ann_file=str(self.coco_dataset_dir.joinpath("instances_val2017_resized_6.json")),
         )
 
-        capability = DataevalBiasBase()
+        capability = _Bias()
 
         capability.run(use_cache=False, datasets=[coco_dataset])
         pass  # no explosions
@@ -222,7 +227,7 @@ class TestOdDataevalBiasCapability:
 
         config = DataevalBiasConfig(metadata_to_exclude=metadata_to_exclude)
 
-        capability = DataevalBiasBase()
+        capability = _Bias()
 
         capability.run(use_cache=False, datasets=[coco_dataset], config=config)
         pass  # no explosions
@@ -316,7 +321,7 @@ def test_extract_returns_one_record(bias_run_with_all_outputs):
 
 
 def test_run_with_cache_roundtrip_with_polars_outputs(fake_ic_dataset_cifar10_metadata):
-    capability = DataevalBiasBase()
+    capability = _Bias()
 
     first = capability.run(use_cache=True, datasets=[fake_ic_dataset_cifar10_metadata])
     cached = capability.run(use_cache=True, datasets=[fake_ic_dataset_cifar10_metadata])

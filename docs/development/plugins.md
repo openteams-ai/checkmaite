@@ -9,9 +9,12 @@ picked up without changes to the core repository.
 
 ## How It Works
 
-When `checkmaite.core.object_detection` or
-`checkmaite.core.image_classification` is imported, the module calls
-`inject_plugin_exports()` which:
+This page covers adding capabilities to an existing task. To add a whole new
+task, such as semantic segmentation, see
+[Adding an evaluation task](adding_a_task.md).
+
+When a task namespace such as `checkmaite.core.object_detection` is imported,
+the module calls `inject_plugin_exports()` which:
 
 1. Scans **all installed packages** for entry points registered under the group
    (e.g., `checkmaite.plugins.object_detection`)
@@ -176,14 +179,13 @@ from typing import Any
 
 
 def ic_exports() -> Mapping[str, Any]:
-    from checkmaite.core._plugins import PLUGIN_API_VERSION
     from checkmaite_plugin_debiaser.capability import (
         Debiaser,
         DebiaserConfig,
         DebiaserOutputs,
     )
     return {
-        "__plugin_api_version__": PLUGIN_API_VERSION,
+        "__plugin_api_version__": "1.0.0",
         "Debiaser": Debiaser,
         "DebiaserConfig": DebiaserConfig,
         "DebiaserOutputs": DebiaserOutputs,
@@ -191,7 +193,9 @@ def ic_exports() -> Mapping[str, Any]:
 ```
 
 **capability.py** would contain your `Capability` subclass following the
-standard CheckMAITE [capability pattern](key_concepts.md).
+standard CheckMAITE [capability pattern](key_concepts.md). The subclass must
+set `task` to the name of a registered evaluation task, such as
+`task = "object_detection"`; running a capability without one raises.
 
 Once installed (`pip install checkmaite-plugin-debiaser`), the capability is
 automatically available:
@@ -234,9 +238,7 @@ wraps each import in try/except for graceful degradation:
 
 ```python
 def object_detection_exports() -> Mapping[str, Any]:
-    from checkmaite.core._plugins import PLUGIN_API_VERSION
-
-    exports: dict[str, Any] = {"__plugin_api_version__": PLUGIN_API_VERSION}
+    exports: dict[str, Any] = {"__plugin_api_version__": "1.0.0"}
 
     try:
         from my_plugin.heart_capability import HeartAdversarial, HeartAdversarialConfig
@@ -287,21 +289,24 @@ from checkmaite.core._plugins import PLUGIN_API_VERSION
   core)
 - If the major version does not match, the plugin is rejected and will not load
 
+Evaluation tasks loaded from the `checkmaite.tasks` entry point group declare
+the same version in `EvaluationTask.plugin_api_version`; see
+[Adding an evaluation task](adding_a_task.md#compatible-checkmaite-versions).
+
 **When does the major version bump?**
 
 Only when the Capability/Config/Outputs contract changes in a breaking way
 (e.g., `_run()` signature changes, required base class methods added or
 removed). This is expected to be rare.
 
-**Best practice:** Import `PLUGIN_API_VERSION` from CheckMAITE rather than
-hardcoding a string. This way your plugin always declares the version it was
-built against:
+**Best practice:** Write the version your plugin was built and tested against
+as a string, and change it when you update the plugin for a new major version.
+Don't import `PLUGIN_API_VERSION` from CheckMAITE to set it: that always
+matches the installed CheckMAITE, so the check could never reject the plugin.
 
 ```python
-from checkmaite.core._plugins import PLUGIN_API_VERSION
-
 def my_exports() -> Mapping[str, Any]:
-    return {"__plugin_api_version__": PLUGIN_API_VERSION, ...}
+    return {"__plugin_api_version__": "1.0.0", ...}
 ```
 
 ## Multiple Plugins Coexisting

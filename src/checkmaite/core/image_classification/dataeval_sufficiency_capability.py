@@ -226,6 +226,8 @@ class DataevalSufficiency(DataevalSufficiencyBase[ic.Dataset, ic.Model]):
 
     """
 
+    task = "image_classification"
+
     def _get_model_and_preprocess_fns(
         self,
         num_classes: int,

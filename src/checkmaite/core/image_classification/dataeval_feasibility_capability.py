@@ -219,6 +219,8 @@ class DataevalFeasibility(
     and programatically generates a Gradient report with the results.
     """
 
+    task = "image_classification"
+
     _RUN_TYPE = DataevalFeasibilityRun
 
     @classmethod

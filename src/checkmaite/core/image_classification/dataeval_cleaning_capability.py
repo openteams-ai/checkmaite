@@ -12,6 +12,8 @@ from checkmaite.core._common.dataeval_cleaning_capability import (
 class DataevalCleaning(DataevalCleaningBase[ic.Dataset, ic.Model, ic.Metric]):
     "Image classification cleaning capability"
 
+    task = "image_classification"
+
     def _run(
         self,
         models: list[ic.Model],  # noqa: ARG002

@@ -13,3 +13,5 @@ class DataevalBias(DataevalBiasBase[od.Dataset, od.Model, od.Metric]):
     Balance, diversity, and parity calculate different aspects of correlation
     between metadata factors and class labels, while coverage is calculated using only the images
     """
+
+    task = "object_detection"

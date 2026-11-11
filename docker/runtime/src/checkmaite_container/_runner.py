@@ -261,11 +261,12 @@ def _prepare_tasks(
         _check_known_names(task.dataset, plan.datasets, "dataset")
         _check_known_names(task.model, plan.models, "model")
         _check_known_names(task.metrics, plan.metrics, "metric")
-        capability_type = load_capability(task.capability, task, plan, plan_root)
+        capability_type = load_capability(task.capability, plan_root)
         if not callable(capability_type):
             raise RunPlanConfigurationError(f"configured capability is not callable: {task.capability}")
         check_arguments(capability_type, task.capability_args, task.capability)
         capability: Any = capability_type(**task.capability_args)
+        _check_task(task, capability)
         _check_counts(task, capability)
         configured.append((task, capability, _build_capability_config(capability, task.config, batch_size)))
 
@@ -295,6 +296,17 @@ def _check_known_names(reference: ObjectReferences, specs: dict[str, ObjectSpec]
     for name in _as_names(reference):
         if name not in specs:
             raise RunPlanConfigurationError(f"run plan references unknown {kind} {name!r}")
+
+
+def _check_task(task: TaskSpec, capability: Any) -> None:
+    """Reject a capability without a registered evaluation task, before anything runs."""
+    if not isinstance(capability, Capability):
+        return
+    try:
+        capability._check_task()  # noqa: SLF001
+    except (TypeError, KeyError) as error:
+        message = error.args[0] if error.args else str(error)
+        raise RunPlanConfigurationError(f"task {task.name!r}: {message}") from None
 
 
 def _check_counts(task: TaskSpec, capability: Any) -> None:

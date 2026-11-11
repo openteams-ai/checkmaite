@@ -20,7 +20,10 @@ def do_smoke_run(dataset, monkeypatch):
 
     monkeypatch.setattr(DataevalSufficiencyBase, "_limits", classmethod(_test_limits))
 
-    capability = DataevalSufficiencyBase()
+    class _Sufficiency(DataevalSufficiencyBase):
+        task = "image_classification"
+
+    capability = _Sufficiency()
 
     def _get_model_and_preprocess_fns(num_classes, image_size):
         class Model(torch.nn.Module):

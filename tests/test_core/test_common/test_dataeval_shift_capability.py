@@ -23,6 +23,8 @@ from tests.report_assertions import assert_inline_markdown_report
 @pytest.fixture(scope="module")
 def dummy_shift_capability():
     class DummyShiftCapability(DataevalShiftBase):
+        task = "object_detection"
+
         pass
 
     return DummyShiftCapability

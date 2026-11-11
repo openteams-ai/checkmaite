@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from checkmaite_container._loading import instantiate_object, load_capability, load_symbol
-from checkmaite_container._plan import ObjectSpec, RunPlan, RunPlanConfigurationError, TaskSpec
+from checkmaite_container._plan import ObjectSpec, RunPlanConfigurationError
 
 
 def test_load_symbol_supports_dotted_and_file_references(tmp_path: Path, plugin_file: Path) -> None:
@@ -99,68 +99,34 @@ def test_instantiate_object_rejects_unknown_arguments_before_calling(tmp_path: P
         )
 
 
-def _plan(task: TaskSpec, **objects: dict[str, dict[str, str]]) -> RunPlan:
-    return RunPlan.model_validate({"version": 1, "tasks": [task.model_dump(by_alias=True)], **objects})
+def test_load_capability_resolves_builtins_by_task_name_or_alias(tmp_path: Path) -> None:
+    from checkmaite.core import multiobject_tracking, object_detection
+
+    assert load_capability("builtin:object_detection.MaiteEvaluation", tmp_path) is object_detection.MaiteEvaluation
+    for reference in ("builtin:multiobject_tracking.MaiteEvaluation", "builtin:mot.MaiteEvaluation"):
+        assert load_capability(reference, tmp_path) is multiobject_tracking.MaiteEvaluation
 
 
-_OD_DATASET = {"class": "checkmaite.core.object_detection.dataset_loaders.load_coco_detection_dataset"}
-_IC_DATASET = {"class": "checkmaite.core.image_classification.dataset_loaders.load_yolo_classification_dataset"}
-
-
-def test_load_capability_resolves_explicit_and_inferred_builtins(tmp_path: Path) -> None:
-    explicit_task = TaskSpec(name="explicit", capability="unused")
-    explicit = load_capability(
-        "builtin:object_detection.MaiteEvaluation",
-        explicit_task,
-        _plan(explicit_task),
-        tmp_path,
-    )
-    inferred_task = TaskSpec(name="inferred", capability="unused", dataset="data")
-    inferred = load_capability(
-        "builtin:MaiteEvaluation",
-        inferred_task,
-        _plan(inferred_task, datasets={"data": _OD_DATASET}),
-        tmp_path,
-    )
-    assert inferred is explicit
-
-
-def test_load_capability_looks_up_each_kind_by_its_own_name(tmp_path: Path) -> None:
-    # An unused model that shares the dataset's name must not decide the problem type.
-    task = TaskSpec(name="task", capability="unused", dataset="shared")
-    plan = _plan(task, datasets={"shared": _OD_DATASET}, models={"shared": _IC_DATASET})
-
-    capability = load_capability("builtin:MaiteEvaluation", task, plan, tmp_path)
-
-    assert capability.__module__.startswith("checkmaite.core.object_detection")
-
-
-def test_load_capability_requires_one_problem_type(tmp_path: Path) -> None:
-    task = TaskSpec(name="task", capability="unused")
-    with pytest.raises(RunPlanConfigurationError, match="cannot infer"):
-        load_capability("builtin:MaiteEvaluation", task, _plan(task), tmp_path)
-
-    mixed_task = TaskSpec(name="mixed", capability="unused", dataset="od", model="ic")
-    plan = _plan(mixed_task, datasets={"od": _OD_DATASET}, models={"ic": _IC_DATASET})
-    with pytest.raises(RunPlanConfigurationError, match="mixes objects"):
-        load_capability("builtin:MaiteEvaluation", mixed_task, plan, tmp_path)
-
-
-def test_load_capability_rejects_unsupported_problem_type(tmp_path: Path) -> None:
-    with pytest.raises(RunPlanConfigurationError, match="cannot infer"):
-        load_capability(
-            "builtin:multiobject_tracking.MaiteEvaluation",
-            TaskSpec(name="task", capability="unused"),
-            _plan(TaskSpec(name="task", capability="unused")),
-            tmp_path,
-        )
+@pytest.mark.parametrize("reference", ["builtin:MaiteEvaluation", "builtin:semantic_segmentation.MaiteEvaluation"])
+def test_load_capability_requires_a_registered_task_in_builtins(reference: str, tmp_path: Path) -> None:
+    with pytest.raises(RunPlanConfigurationError, match="does not name a registered evaluation task.*object_detection"):
+        load_capability(reference, tmp_path)
 
 
 def test_load_capability_reports_unknown_builtin(tmp_path: Path) -> None:
     with pytest.raises(RunPlanConfigurationError, match="does not export"):
-        load_capability(
-            "builtin:object_detection.MissingCapability",
-            TaskSpec(name="task", capability="unused"),
-            _plan(TaskSpec(name="task", capability="unused")),
-            tmp_path,
-        )
+        load_capability("builtin:object_detection.MissingCapability", tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("reference", "suggestion"),
+    [
+        ("builtin:MaiteEvaluation", "'builtin:object_detection.MaiteEvaluation'"),
+        ("builtin:object_detection", "'builtin:object_detection.Name'"),
+        ("builtin:od", "'builtin:object_detection.Name'"),
+    ],
+)
+def test_load_capability_suggests_the_explicit_builtin_form(reference: str, suggestion: str, tmp_path: Path) -> None:
+    with pytest.raises(RunPlanConfigurationError) as error:
+        load_capability(reference, tmp_path)
+    assert suggestion in str(error.value)

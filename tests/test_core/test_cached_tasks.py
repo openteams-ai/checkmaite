@@ -77,6 +77,7 @@ def predict_domain_fixture(
         model: Model
         dataset: Dataset
         assert_closeness_fn: Callable
+        task: str
 
     if request.param == "IC":
         return DomainFixture(
@@ -85,6 +86,7 @@ def predict_domain_fixture(
             assert_closeness_fn=functools.partial(
                 _assert_predict_close, assert_target_close_fn=torch.testing.assert_close
             ),
+            task="image_classification",
         )
     if request.param == "OD":
 
@@ -97,6 +99,7 @@ def predict_domain_fixture(
             model=fake_od_model_default,
             dataset=fake_od_dataset_default,
             assert_closeness_fn=functools.partial(_assert_predict_close, assert_target_close_fn=assert_target_close_fn),
+            task="object_detection",
         )
     raise ValueError(f"No fixture available for domain {request.param!r}")
 
@@ -112,12 +115,17 @@ def test_predict(predict_domain_fixture):
         model_id=f"{predict_domain_fixture.model.metadata['id']}-counting-predict",
     )
     actual = tasks.predict(model=model, dataset=predict_domain_fixture.dataset)
-    expected = cached_tasks.predict(model=model, dataset=predict_domain_fixture.dataset, return_augmented_data=False)
+    expected = cached_tasks.predict(
+        task=predict_domain_fixture.task,
+        model=model,
+        dataset=predict_domain_fixture.dataset,
+        return_augmented_data=False,
+    )
 
     predict_domain_fixture.assert_closeness_fn(actual, expected)
 
     calls_before_cache_hit = model.calls
-    cached = cached_tasks.predict(model=model, dataset=predict_domain_fixture.dataset)
+    cached = cached_tasks.predict(task=predict_domain_fixture.task, model=model, dataset=predict_domain_fixture.dataset)
 
     assert model.calls == calls_before_cache_hit
     predict_domain_fixture.assert_closeness_fn(cached, actual, atol=0, rtol=0)
@@ -136,10 +144,10 @@ def test_predict_warns_and_skips_lossy_metadata_cache(fake_ic_model_default):
     model = CountingModel(fake_ic_model_default, model_id="lossy-metadata-model")
 
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, strict_cache_serialization=True)
     calls_after_first_run = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, strict_cache_serialization=True)
 
     assert model.calls > calls_after_first_run
 
@@ -156,9 +164,9 @@ def test_compatibility_mode_allows_lossy_metadata_cache(fake_ic_model_default):
     )
     model = CountingModel(fake_ic_model_default, model_id="compatibility-metadata-model")
 
-    cached_tasks.predict(model=model, dataset=dataset)
+    cached_tasks.predict(task="image_classification", model=model, dataset=dataset)
     calls_after_first_run = model.calls
-    cached_tasks.predict(model=model, dataset=dataset)
+    cached_tasks.predict(task="image_classification", model=model, dataset=dataset)
 
     assert model.calls == calls_after_first_run
 
@@ -172,12 +180,14 @@ def test_strict_mode_reuses_lossless_prediction_cache(predict_domain_fixture):
         model_id=f"{predict_domain_fixture.model.metadata['id']}-strict-cache",
     )
     cached_tasks.predict(
+        task=predict_domain_fixture.task,
         model=model,
         dataset=predict_domain_fixture.dataset,
         strict_cache_serialization=True,
     )
     calls_after_first_run = model.calls
     cached_tasks.predict(
+        task=predict_domain_fixture.task,
         model=model,
         dataset=predict_domain_fixture.dataset,
         strict_cache_serialization=True,
@@ -192,6 +202,7 @@ def test_strict_mode_rejects_unadapted_od_target_classes(fake_od_model_default, 
     model = CountingModel(fake_od_model_default, model_id="strict-unadapted-od-model")
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
         cached_tasks.predict(
+            task="object_detection",
             model=model,
             dataset=fake_od_dataset_default,
             strict_cache_serialization=True,
@@ -199,6 +210,7 @@ def test_strict_mode_rejects_unadapted_od_target_classes(fake_od_model_default, 
     calls_after_first_run = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
         cached_tasks.predict(
+            task="object_detection",
             model=model,
             dataset=fake_od_dataset_default,
             strict_cache_serialization=True,
@@ -224,11 +236,12 @@ def test_strict_mode_validates_predictions_and_has_a_distinct_identity(fake_ic_d
             return [tv_tensors.Image(torch.zeros((1, 2, 2))) for _ in inputs]
 
     model = TVTensorModel()
-    cached_tasks.predict(model=model, dataset=fake_ic_dataset_default)
+    cached_tasks.predict(task="image_classification", model=model, dataset=fake_ic_dataset_default)
     calls_after_compatibility_run = model.calls
 
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
         cached_tasks.predict(
+            task="image_classification",
             model=model,
             dataset=fake_ic_dataset_default,
             strict_cache_serialization=True,
@@ -262,6 +275,7 @@ def test_strict_mode_skips_lossy_evaluation_results(fake_ic_model_default, fake_
     metric = PathMetric()
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
         cached_tasks.evaluate(
+            task="image_classification",
             model=model,
             dataset=fake_ic_dataset_default,
             metric=metric,
@@ -270,6 +284,7 @@ def test_strict_mode_skips_lossy_evaluation_results(fake_ic_model_default, fake_
     calls_after_first_run = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
         cached_tasks.evaluate(
+            task="image_classification",
             model=model,
             dataset=fake_ic_dataset_default,
             metric=metric,
@@ -295,6 +310,7 @@ def test_return_augmented_data_rejects_string_modes(
             dataset=fake_ic_dataset_default,
             return_augmented_data=invalid_value,
             use_cache=False,
+            task="image_classification",
         )
 
 
@@ -304,10 +320,11 @@ def test_prediction_cache_is_reused_by_later_evaluation(fake_ic_model_default, f
     from tests.conftest import FakeICMetric
 
     model = CountingModel(fake_ic_model_default, model_id="predict-then-evaluate-model")
-    cached_tasks.predict(model=model, dataset=fake_ic_dataset_default, use_cache=True)
+    cached_tasks.predict(task="image_classification", model=model, dataset=fake_ic_dataset_default, use_cache=True)
     calls_after_prediction = model.calls
 
     result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=FakeICMetric(metric_metadata={"id": "predict-then-evaluate-metric"}),
@@ -320,7 +337,7 @@ def test_prediction_cache_is_reused_by_later_evaluation(fake_ic_model_default, f
 
 def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_ic_dataset_default):
     """
-    Test that confirms that cached_tasks.evaluate() returns different results for different metrics, even when model
+    Test that confirms that cached_tasks.evaluate(task="image_classification", ) returns different results for different metrics, even when model
     and dataset are the same.  A failure of this test may indicate that the "predict cache" hit (i.e. same dataset and
     model) is incorrectly leading to an "evaluate cache" hit even when the metric is different.
     """
@@ -344,6 +361,7 @@ def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_i
 
     # Run evaluate with the first metric
     results_1, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         metric=metric_1,
@@ -352,6 +370,7 @@ def test_evaluate_cache_respects_different_metrics(fake_ic_model_default, fake_i
 
     # Run evaluate with the second metric (same model and dataset)
     results_2, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         metric=metric_2,
@@ -399,6 +418,7 @@ def test_evaluate_cache_respects_cpu_prediction_postprocessor(fake_ic_model_defa
 
     model = CountingModel(fake_ic_model_default, model_id="postprocessor-cache-model")
     zero_result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -409,6 +429,7 @@ def test_evaluate_cache_respects_cpu_prediction_postprocessor(fake_ic_model_defa
 
     calls_after_first_evaluation = model.calls
     raw_result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -452,6 +473,7 @@ def test_falsey_prediction_postprocessor_is_executed(fake_ic_model_default, fake
 
     postprocessor = FalseyPostprocessor()
     result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -469,10 +491,14 @@ def test_predict_cache_respects_batch_size(fake_od_model_default, fake_od_datase
     from checkmaite import cached_tasks
 
     model = CountingModel(fake_od_model_default, model_id="batch-size-cache-model")
-    cached_tasks.predict(model=model, dataset=fake_od_dataset_default, batch_size=2, use_cache=True)
+    cached_tasks.predict(
+        task="object_detection", model=model, dataset=fake_od_dataset_default, batch_size=2, use_cache=True
+    )
 
     model.batch_sizes.clear()
-    cached_tasks.predict(model=model, dataset=fake_od_dataset_default, batch_size=4, use_cache=True)
+    cached_tasks.predict(
+        task="object_detection", model=model, dataset=fake_od_dataset_default, batch_size=4, use_cache=True
+    )
 
     assert model.batch_sizes == [4, 2]
 
@@ -508,6 +534,7 @@ def test_evaluation_cache_respects_prediction_batch_size(fake_ic_dataset_default
 
     model = BatchSensitiveModel()
     batch_one_result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -516,6 +543,7 @@ def test_evaluation_cache_respects_prediction_batch_size(fake_ic_dataset_default
     )
     calls_after_batch_one = len(model.batch_sizes)
     batch_four_result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -545,8 +573,12 @@ def test_prediction_cache_distinguishes_model_wrapper_ids(fake_ic_dataset_defaul
 
     first_model = ConstantModel("wrapper-postprocessor-a", 1.0)
     second_model = ConstantModel("wrapper-postprocessor-b", 2.0)
-    first_predictions, _ = cached_tasks.predict(model=first_model, dataset=fake_ic_dataset_default, use_cache=True)
-    second_predictions, _ = cached_tasks.predict(model=second_model, dataset=fake_ic_dataset_default, use_cache=True)
+    first_predictions, _ = cached_tasks.predict(
+        task="image_classification", model=first_model, dataset=fake_ic_dataset_default, use_cache=True
+    )
+    second_predictions, _ = cached_tasks.predict(
+        task="image_classification", model=second_model, dataset=fake_ic_dataset_default, use_cache=True
+    )
 
     assert first_model.calls > 0
     assert second_model.calls > 0
@@ -573,6 +605,7 @@ def test_evaluate_postprocessor_without_cache_retains_targets(fake_ic_model_defa
             return {"sum": self.total}
 
     result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -595,6 +628,7 @@ def test_evaluate_rejects_cpu_prediction_postprocessor_id_without_postprocessor(
         ValueError, match="cpu_prediction_postprocessor_id was provided without a cpu_prediction_postprocessor"
     ):
         cached_tasks.evaluate(
+            task="image_classification",
             model=fake_ic_model_default,
             dataset=fake_ic_dataset_default,
             metric=FakeICMetric(),
@@ -625,6 +659,7 @@ def test_evaluate_postprocessor_without_id_warns_and_preserves_prediction_cache(
     model = CountingModel(fake_ic_model_default, model_id="postprocessor-without-id-model")
     with pytest.warns(UserWarning, match="evaluation-result caching is disabled"):
         first_result, _, _ = cached_tasks.evaluate(
+            task="image_classification",
             model=model,
             dataset=fake_ic_dataset_default,
             metric=CountingMetric(),
@@ -635,6 +670,7 @@ def test_evaluate_postprocessor_without_id_warns_and_preserves_prediction_cache(
     calls_after_first_evaluation = model.calls
     with pytest.warns(UserWarning, match="evaluation-result caching is disabled"):
         second_result, _, _ = cached_tasks.evaluate(
+            task="image_classification",
             model=model,
             dataset=fake_ic_dataset_default,
             metric=CountingMetric(),
@@ -660,6 +696,7 @@ def test_augmentation_without_id_disables_caching(fake_ic_model_default, fake_ic
     for _ in range(2):
         with pytest.warns(UserWarning, match="augmentation has no metadata ID"):
             cached_tasks.predict(
+                task="image_classification",
                 model=model,
                 dataset=fake_ic_dataset_default,
                 augmentation=Augmentation(),
@@ -677,10 +714,14 @@ def test_dataloader_calls_disable_caching_without_batching_identity(fake_ic_mode
     model = CountingModel(fake_ic_model_default, model_id="dataloader-cache-model")
 
     with pytest.warns(UserWarning, match="batching has no stable identity"):
-        cached_tasks.predict(model=model, dataloader=dataloader, dataset_id="dataloader-dataset")
+        cached_tasks.predict(
+            task="image_classification", model=model, dataloader=dataloader, dataset_id="dataloader-dataset"
+        )
     calls_after_first_run = model.calls
     with pytest.warns(UserWarning, match="batching has no stable identity"):
-        cached_tasks.predict(model=model, dataloader=dataloader, dataset_id="dataloader-dataset")
+        cached_tasks.predict(
+            task="image_classification", model=model, dataloader=dataloader, dataset_id="dataloader-dataset"
+        )
 
     assert model.calls > calls_after_first_run
 
@@ -698,6 +739,7 @@ def test_predict_cache_warning_no_model_id(fake_ic_dataset_default):
         match="use_cache was requested but caching is disabled because at least one of the following is None:",
     ):
         cached_tasks.predict(
+            task="image_classification",
             model=model_no_id,
             dataset=fake_ic_dataset_default,
             use_cache=True,
@@ -717,6 +759,7 @@ def test_predict_cache_warning_no_dataset_id(fake_ic_model_default):
         match="use_cache was requested but caching is disabled because at least one of the following is None:",
     ):
         cached_tasks.predict(
+            task="image_classification",
             model=fake_ic_model_default,
             dataset=dataset_no_id,
             use_cache=True,
@@ -732,6 +775,7 @@ def test_predict_no_cache_warning_when_use_cache_false(recwarn, fake_ic_model_de
     dataset_no_id = FakeICDataset(dataset_metadata={"index2label": {}, "id": None})
 
     cached_tasks.predict(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=dataset_no_id,
         use_cache=False,
@@ -889,6 +933,7 @@ def test_full_augmented_data_does_not_publish_prediction_cache(
 
     monkeypatch.setattr(cached_tasks_module._predict_cache, "set", reject_cache_write)
     _, augmented_data = cached_tasks.predict(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         return_augmented_data=True,
@@ -928,9 +973,10 @@ def test_full_augmented_evaluation_does_not_replace_cached_result(fake_ic_datase
 
     model = ChangingModel()
     ordinary, _, _ = cached_tasks.evaluate(
-        model=model, dataset=fake_ic_dataset_default, metric=SumMetric(), use_cache=True
+        task="image_classification", model=model, dataset=fake_ic_dataset_default, metric=SumMetric(), use_cache=True
     )
     fresh, _, augmented_data = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -939,7 +985,7 @@ def test_full_augmented_evaluation_does_not_replace_cached_result(fake_ic_datase
     )
     calls_after_fresh = model.calls
     cached, _, _ = cached_tasks.evaluate(
-        model=model, dataset=fake_ic_dataset_default, metric=SumMetric(), use_cache=True
+        task="image_classification", model=model, dataset=fake_ic_dataset_default, metric=SumMetric(), use_cache=True
     )
 
     assert augmented_data
@@ -961,6 +1007,7 @@ def test_cold_evaluate_scores_inside_maite_evaluate(monkeypatch, fake_ic_model_d
     monkeypatch.setattr(maite.tasks, "evaluate_from_predictions", reject_evaluate_from_predictions)
 
     result, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=fake_ic_model_default,
         dataset=fake_ic_dataset_default,
         metric=FakeICMetric(),
@@ -979,7 +1026,9 @@ def test_evaluate_allows_different_class_map_names(fake_ic_model_default):
     model.metadata["index2label"] = {0: "cat"}
     dataset = FakeICDataset(dataset_metadata={"id": "class-map-dataset", "index2label": {0: "feline"}})
 
-    result, _, _ = cached_tasks.evaluate(model=model, dataset=dataset, metric=FakeICMetric(), use_cache=False)
+    result, _, _ = cached_tasks.evaluate(
+        task="image_classification", model=model, dataset=dataset, metric=FakeICMetric(), use_cache=False
+    )
 
     assert result
 
@@ -1015,6 +1064,7 @@ def test_missing_prediction_artifact_does_not_reuse_old_evaluation(fake_ic_datas
 
     model = ChangingModel()
     first, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -1024,12 +1074,14 @@ def test_missing_prediction_artifact_does_not_reuse_old_evaluation(fake_ic_datas
         model_id=model.metadata["id"],
         dataset_id=fake_ic_dataset_default.metadata["id"],
         augmentation_id=None,
+        task="image_classification",
         batch_size=1,
     )
     assert config.cache_key is not None
     cached_tasks_module._predict_cache.path(config.cache_key).unlink()
 
     second, predictions, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=fake_ic_dataset_default,
         metric=SumMetric(),
@@ -1083,6 +1135,7 @@ def test_cached_predictions_preserve_metadata_for_later_metrics(fake_ic_model_de
             return {"total": self.total}
 
     first, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=dataset,
         metric=MetadataMetric("metadata-first"),
@@ -1090,6 +1143,7 @@ def test_cached_predictions_preserve_metadata_for_later_metrics(fake_ic_model_de
     )
     calls_after_first = model.calls
     second, _, _ = cached_tasks.evaluate(
+        task="image_classification",
         model=model,
         dataset=dataset,
         metric=MetadataMetric("metadata-second"),
@@ -1114,9 +1168,9 @@ def test_prediction_cache_escapes_binary_reference_like_strings(fake_ic_model_de
     )
     model = CountingModel(fake_ic_model_default, model_id="reference-like-string-model")
 
-    cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+    cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
     calls_after_first = model.calls
-    cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+    cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
 
     assert model.calls == calls_after_first
 
@@ -1136,10 +1190,10 @@ def test_prediction_cache_disables_for_unsupported_metadata_types(fake_ic_model_
 
     model = CountingModel(fake_ic_model_default, model_id="unsupported-metadata-model")
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
     calls_after_first = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
 
     assert model.calls > calls_after_first
 
@@ -1158,10 +1212,10 @@ def test_prediction_cache_disables_for_cyclic_metadata(fake_ic_model_default):
     model = CountingModel(fake_ic_model_default, model_id="cyclic-metadata-model")
 
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
     calls_after_first = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, use_cache=True)
+        cached_tasks.predict(task="image_classification", model=model, dataset=dataset, use_cache=True)
 
     assert model.calls > calls_after_first
 
@@ -1200,7 +1254,9 @@ def test_cold_evaluate_validates_prediction_target_alignment():
             return {}
 
     with pytest.raises(ValueError, match="prediction and target batches"):
-        cached_tasks.evaluate(model=Model(), dataset=Dataset(), metric=Metric(), use_cache=True)
+        cached_tasks.evaluate(
+            task="image_classification", model=Model(), dataset=Dataset(), metric=Metric(), use_cache=True
+        )
 
 
 def test_predict_allows_empty_data():
@@ -1223,6 +1279,7 @@ def test_predict_allows_empty_data():
             return []
 
     predictions, augmented_data = cached_tasks.predict(
+        task="image_classification",
         model=Model(),
         dataset=EmptyDataset(),
         return_augmented_data=False,
@@ -1265,7 +1322,9 @@ def test_cold_evaluate_rejects_empty_data():
             return {}
 
     with pytest.raises(ValueError, match="at least one element"):
-        cached_tasks.evaluate(model=Model(), dataset=EmptyDataset(), metric=Metric(), use_cache=True)
+        cached_tasks.evaluate(
+            task="image_classification", model=Model(), dataset=EmptyDataset(), metric=Metric(), use_cache=True
+        )
 
 
 def test_evaluate_from_predictions_no_cache_warning_when_use_cache_false(recwarn, fake_ic_model_default):
@@ -1347,9 +1406,9 @@ def test_cached_predictions_preserve_native_dataset_datum_metadata():
     fresh_metric = _RecordingMetric("native-metadata-fresh")
     cached_metric = _RecordingMetric("native-metadata-cached")
 
-    cached_tasks.evaluate(model=model, dataset=dataset, metric=fresh_metric)
+    cached_tasks.evaluate(task="object_detection", model=model, dataset=dataset, metric=fresh_metric)
     calls_after_miss = model.calls
-    cached_tasks.evaluate(model=model, dataset=dataset, metric=cached_metric)
+    cached_tasks.evaluate(task="object_detection", model=model, dataset=dataset, metric=cached_metric)
 
     assert model.calls == calls_after_miss, "second evaluation should reuse the cached predictions"
     assert len(fresh_metric.seen) == len(cached_metric.seen) == len(dataset)
@@ -1383,9 +1442,9 @@ def test_strict_cache_mode_declines_native_yolo_datasets():
     validate_metadata_value({key: value for key, value in datum_metadata.items() if key != "yolo_bbox"}, strict=True)
 
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+        cached_tasks.predict(task="object_detection", model=model, dataset=dataset, strict_cache_serialization=True)
     calls_after_first_run = model.calls
     with pytest.warns(UserWarning, match="Cache publication is disabled"):
-        cached_tasks.predict(model=model, dataset=dataset, strict_cache_serialization=True)
+        cached_tasks.predict(task="object_detection", model=model, dataset=dataset, strict_cache_serialization=True)
 
     assert model.calls > calls_after_first_run

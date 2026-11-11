@@ -113,10 +113,10 @@ example `file:plugins/detector.py:FixedBoxDetector`. It can be used anywhere a
 - **Paths** are resolved from the directory containing the plan unless they are
   absolute. The text after the last `:` names the class or factory function.
 - **Loaded once per run.** Every reference to the same file shares one module.
-- **Explicit `builtin:` forms for plugin-only tasks.** Short `builtin:` names
-  infer the problem type from CheckMAITE objects only, so a task whose objects
-  all come from plugins needs, for example,
-  `builtin:object_detection.MaiteEvaluation`.
+- **`builtin:` references name the task.** Use `builtin:<task>.Name`, for
+  example `builtin:object_detection.MaiteEvaluation`. Any registered evaluation
+  task (`checkmaite.core.evaluation_tasks.list_tasks()`) or alias can be named
+  this way. The task is never inferred from the plan's other objects.
 
 ## Dependencies and lock
 

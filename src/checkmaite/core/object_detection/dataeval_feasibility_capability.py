@@ -660,6 +660,8 @@ class DataevalFeasibility(
     across datasets when the embedding model is fixed.
     """
 
+    task = "object_detection"
+
     _RUN_TYPE = DataevalFeasibilityRun
 
     @classmethod

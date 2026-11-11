@@ -89,8 +89,7 @@ def test_mounted_plugin_model_runs_with_builtin_objects(tmp_path: Path, coco_inp
             "tasks": [
                 {
                     "name": "baseline",
-                    # Inferred from the built-in dataset even though the model is a plugin.
-                    "capability": "builtin:MaiteEvaluation",
+                    "capability": "builtin:object_detection.MaiteEvaluation",
                     "dataset": "evaluation",
                     "model": "candidate",
                     "metrics": "map50",
@@ -120,13 +119,17 @@ def test_multi_task_plan_shares_objects_across_capabilities(tmp_path: Path, coco
             "tasks": [
                 {
                     "name": "evaluation",
-                    "capability": "builtin:MaiteEvaluation",
+                    "capability": "builtin:object_detection.MaiteEvaluation",
                     "dataset": "evaluation",
                     "model": "candidate",
                     "metrics": ["map50", "map"],
                     "config": {"batch_size": 1},
                 },
-                {"name": "cleaning", "capability": "builtin:DataevalCleaning", "dataset": "evaluation"},
+                {
+                    "name": "cleaning",
+                    "capability": "builtin:object_detection.DataevalCleaning",
+                    "dataset": "evaluation",
+                },
             ],
         },
     )

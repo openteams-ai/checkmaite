@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from pathlib import Path
 
 import numpy as np
@@ -6,6 +7,7 @@ import pytest
 from datamaite import load_mot
 from PIL import Image
 
+from checkmaite import cached_tasks
 from checkmaite.core.multiobject_tracking import MaiteEvaluation, load_mot_dataset
 from checkmaite.core.multiobject_tracking.metrics import clear_mot_metrics_factory
 from tests.test_core.test_multiobject_tracking.conftest import FakeMOTTarget, frame_tracks
@@ -124,3 +126,62 @@ def test_different_datasets_do_not_share_cached_evaluations(mot_root_a: Path, mo
     # The tracker's box matches dataset a exactly and misses dataset b entirely (1 miss + 1 FP per frame).
     assert results == [pytest.approx(1.0), pytest.approx(-1.0)]
     assert np.isfinite(results).all()
+
+
+class CountingTracker(FixedBoxTracker):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self, streams):
+        self.calls += 1
+        return super().__call__(streams)
+
+
+def _assert_predictions_and_evaluations_are_cached(dataset, recwarn: pytest.WarningsRecorder) -> None:
+    tracker = CountingTracker()
+    metric = clear_mot_metrics_factory()
+
+    fresh_results, fresh_preds, _ = cached_tasks.evaluate(
+        task="multiobject_tracking", model=tracker, dataset=dataset, return_preds=True
+    )
+    calls_after_first = tracker.calls
+    cached_preds, _ = cached_tasks.predict(task="multiobject_tracking", model=tracker, dataset=dataset)
+    # The metric is scored from cached predictions and targets the first time, then served from its own cache.
+    first_scores, _, _ = cached_tasks.evaluate(
+        task="multiobject_tracking", model=tracker, dataset=dataset, metric=metric
+    )
+    second_scores, _, _ = cached_tasks.evaluate(
+        task="multiobject_tracking", model=tracker, dataset=dataset, metric=metric
+    )
+
+    assert calls_after_first > 0
+    assert tracker.calls == calls_after_first
+    assert fresh_results == {}
+    assert first_scores == second_scores
+    for fresh, cached in zip(
+        [p for batch in fresh_preds for p in batch], [p for batch in cached_preds for p in batch], strict=True
+    ):
+        for fresh_frame, cached_frame in zip(fresh.frame_tracks, cached.frame_tracks, strict=True):
+            np.testing.assert_array_equal(fresh_frame.track_ids, cached_frame.track_ids)
+            np.testing.assert_array_equal(fresh_frame.boxes, cached_frame.boxes)
+    assert not [w for w in recwarn if "Cache publication is disabled" in str(w.message)]
+
+
+def test_datamaite_mot_predictions_and_evaluations_are_cached(
+    mot_root_a: Path, recwarn: pytest.WarningsRecorder
+) -> None:
+    """datamaite's lazy frame_tracks and Fraction time_base used to stop every MOT run being cached."""
+    _assert_predictions_and_evaluations_are_cached(load_mot_dataset(mot_root_a, "motchallenge"), recwarn)
+
+
+_EXAMPLE_DATASETS = os.environ.get("DATAMAITE_EXAMPLE_DATASETS")
+
+
+@pytest.mark.skipif(
+    not _EXAMPLE_DATASETS or not Path(_EXAMPLE_DATASETS, "hmie", "real-meva").is_dir(),
+    reason="set DATAMAITE_EXAMPLE_DATASETS to the datamaite example datasets directory",
+)
+def test_datamaite_example_video_predictions_are_cached(recwarn: pytest.WarningsRecorder) -> None:
+    dataset = load_mot(Path(str(_EXAMPLE_DATASETS), "hmie", "real-meva"), dataset_format="hmie")
+    dataset.metadata["id"] = "datamaite-example-hmie-real-meva"
+    _assert_predictions_and_evaluations_are_cached(dataset, recwarn)

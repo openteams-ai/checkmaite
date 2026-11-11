@@ -87,6 +87,7 @@ nav:  # navigation links on sidebar
     - Container maintenance: development/container_maintenance.md
     - Analytics store guide: development/analytics_store_guide.ipynb
     - Plugin system: development/plugins.md
+    - Adding an evaluation task: development/adding_a_task.md
     - Releasing: RELEASING.md
     - Contributing: development/contributing.md
   - Roadmap: roadmap.md

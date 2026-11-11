@@ -116,3 +116,37 @@ def _validate_cache_value(
     finally:
         active_container_ids.remove(id(value))
     validated_container_ids.add(id(value))
+
+
+def _converted_children(original: Any, converted: Any, *, location: str) -> list[tuple[Any, Any, str]]:
+    if type(original) is list:
+        if len(converted) != len(original):
+            raise TypeError(f"{location} changed length when converted to the task's target type.")
+        return [(item, converted[index], f"{location}[{index}]") for index, item in enumerate(original)]
+    if converted.keys() != original.keys():
+        raise TypeError(f"{location} changed keys when converted to the task's target type.")
+    return [(item, converted[key], f"{location}.{key}") for key, item in original.items()]
+
+
+def require_unchanged_cache_value(original: Any, converted: Any, *, location: str = "value") -> None:
+    """Require that converting a strict cache value, such as to a task's target type, kept it exactly.
+
+    ``original`` must already satisfy :func:`validate_cache_value`.
+    """
+    if converted is original:
+        return
+    if type(converted) is not type(original):
+        raise TypeError(
+            f"{location} changed from {type(original).__qualname__} to {type(converted).__qualname__} "
+            "when converted to the task's target type."
+        )
+    if type(original) in (list, dict):
+        for item, converted_item, item_location in _converted_children(original, converted, location=location):
+            require_unchanged_cache_value(item, converted_item, location=item_location)
+        return
+    unchanged = binary_de_serializer.same_encoding(original, converted)
+    if unchanged is None:
+        # == treats -0.0 and 0.0 as equal; their exact representations differ.
+        unchanged = original.hex() == converted.hex() if type(original) is float else original == converted
+    if not unchanged:
+        raise TypeError(f"{location} changed value when converted to the task's target type.")

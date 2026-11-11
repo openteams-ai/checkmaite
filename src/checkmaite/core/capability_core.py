@@ -14,6 +14,7 @@ from typing_extensions import TypedDict
 
 from checkmaite import cache_path
 from checkmaite.core._cache import PydanticCache, binary_de_serializer
+from checkmaite.core.evaluation_tasks import get_task
 
 if TYPE_CHECKING:
     from checkmaite.core.analytics_store._schema import BaseRecord
@@ -271,6 +272,11 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
     ----------
     _RUN_TYPE : type[CapabilityRunBase]
         The type of the run object associated with this capability.
+    task : str
+        Name of the evaluation task this capability works on, such as
+        ``"object_detection"`` (see :mod:`checkmaite.core.evaluation_tasks`).
+        Every concrete capability must set it to a registered task; running
+        one that does not raises ``TypeError`` or ``KeyError``.
     """
 
     # precise generic type is important, pyright doesn't like this
@@ -278,6 +284,16 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
     # keep the generic type information. alternative is to drop the
     # ClassVar annotation, but not sure if that will impact our caching mechanism ...
     _RUN_TYPE: ClassVar[type[CapabilityRunBase[TConfig, TOutputs]]]  # type: ignore[reportGeneralTypeIssues]
+    task: ClassVar[str]
+
+    @classmethod
+    def _check_task(cls) -> None:
+        # Checked when a capability runs rather than when its class is defined, so shared
+        # bases need no task and a package's task only has to be registered by then.
+        task = getattr(cls, "task", None)
+        if not isinstance(task, str):
+            raise TypeError(f"{cls.__name__} must set the class attribute 'task' to a registered evaluation task.")
+        get_task(task)  # raises KeyError naming the registered tasks
 
     @classmethod
     def _create_config(cls) -> TConfig: ...
@@ -350,6 +366,8 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
         CapabilityRunBase
             The results of the capability execution.
         """
+        self._check_task()
+
         # replace None sentinel with iterable to reduce boilerplate checks in capability implementations
         datasets = datasets if datasets else []
         models = models if models else []

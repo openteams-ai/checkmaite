@@ -40,7 +40,7 @@ def test_example_plan_references_callable_objects() -> None:
     for reference in references:
         assert callable(load_symbol(reference, _EXAMPLE_PLAN.parent)), reference
     for task in plan.tasks:
-        assert callable(load_capability(task.capability, task, plan, _EXAMPLE_PLAN.parent)), task.capability
+        assert callable(load_capability(task.capability, _EXAMPLE_PLAN.parent)), task.capability
 
 
 def test_example_plan_runs_on_fixture_data(tmp_path: Path, coco_input_directory: Path) -> None:

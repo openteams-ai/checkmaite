@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Evaluation tasks are no longer hard-coded into the core (#814). Each task is described by an `EvaluationTask` in the new `checkmaite.core.evaluation_tasks` registry, which gives its name, the namespace of its capabilities, how its predictions and targets are cached, and whether its inputs are one-shot streams. A package adds a task, such as semantic segmentation, by declaring an entry point in the `checkmaite.tasks` group, without changing CheckMAITE. Image classification, object detection and multi-object tracking are described the same way and register themselves when their namespaces are imported, with the aliases `ic`, `od` and `mot` used by DataMAITE. See the new "Adding an evaluation task" development guide.
+- Predictions from a package-added task are cached; before, they failed validation against the built-in target types and were never cached.
+- A task loaded from a `checkmaite.tasks` entry point must set `EvaluationTask.plugin_api_version`, checked against `PLUGIN_API_VERSION` like capability plugins. A missing or incompatible version, or a `target_adapter` that is not a complete pydantic `TypeAdapter`, is recorded as a failed entry point and does not affect other tasks.
+- `EvaluationTask` takes keyword arguments only, is generic in its target type, and takes a pydantic `TypeAdapter` for one prediction or target, so any type pydantic validates works, including unions such as image classification's `ArrayLike`. Annotated with the task's target protocol, for example `EvaluationTask[SegmentationTarget]`, the type checker verifies that the adapter's type satisfies the protocol and that a task object passed as `task=` matches the model's target type.
+
+### Changed
+- **Breaking:** `cached_tasks.evaluate` and `predict` require `task=` naming a registered task; the task is never inferred from the data. An unknown task name raises `KeyError`, and predictions or targets that do not match the named task raise `ValueError`. The match is checked on the first non-empty batch of every fresh run, including with `use_cache=False` and dataloaders; before, a value that did not fit only disabled caching with a warning. Use `checkmaite.core.<task>.cached_tasks` for the same functions with the task bound.
+- **Breaking:** every `Capability` subclass must set the class attribute `task` to a registered task, for example `task = "object_detection"`. Running one that does not raises `TypeError`, or `KeyError` for an unknown task.
+- **Breaking for capability plugins:** a plugin capability must set `task`, and any `cached_tasks.evaluate` or `predict` call it makes must pass `task=`. `PLUGIN_API_VERSION` stays `1.0.0`, so a plugin written for 0.7.0 still loads but fails when it runs. Update plugins, including `checkmaite-plugins`, before upgrading.
+- **Breaking:** container plans must name the task in `builtin:` capability references, such as `builtin:object_detection.MaiteEvaluation`. The short form `builtin:MaiteEvaluation`, which inferred the task from the plan's other objects, is a configuration error.
+- `checkmaite.core.image_classification.cached_tasks`, `object_detection.cached_tasks` and `multiobject_tracking.cached_tasks` export `evaluate` and `predict` with the task bound, so they take the same arguments as `maite.tasks.evaluate` and `maite.tasks.predict`. They also re-export `evaluate_from_predictions`, which takes no task. `cached_tasks.for_task(task)` binds a package's own task the same way.
+- The task is part of the prediction and metric-result cache keys, so an entry is never reused for a different task. The prediction cache validates predictions and targets with the task's target type, instead of a fixed union of the image-classification, object-detection and tracking types.
+- Prediction and metric-result caches written by earlier versions are not reused. They are recomputed once, the first time each evaluation runs again. Capability-level caches are not affected.
+- The batch container resolves `builtin:<task>.Name` for every registered task, including aliases and tasks added by packages, instead of only `object_detection` and `image_classification`. `builtin:multiobject_tracking.MaiteEvaluation` now works.
+- **Breaking:** the Pydantic models for cached object-detection and tracking targets moved from `checkmaite.core.cached_tasks` to `checkmaite.core.object_detection._task` and `checkmaite.core.multiobject_tracking._task`. Importing them from `checkmaite.core.cached_tasks` now fails.
+
+### Fixed
+- Tracking predictions, targets and evaluations from DataMAITE video datasets are now cached. Before, every `cached_tasks.predict` or `evaluate` call on them ran the model again and warned `Cache publication is disabled for this value`, because the cache could not store DataMAITE's lazy `frame_tracks` sequence or the `Fraction` `time_base` in each video's metadata. The cache now stores `frame_tracks` as a list of frames and stores `Fraction` values exactly. Cache files written by 0.7.0 still load.
+
 ## [0.7.0] - 2026-11-02
 
 ### Added

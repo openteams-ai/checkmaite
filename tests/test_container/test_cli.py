@@ -315,6 +315,32 @@ def test_main_stops_at_first_execution_failure(tmp_path: Path, plugin_file: Path
     assert not (output / "run-results.json").exists()
 
 
+@pytest.mark.parametrize(
+    ("capability", "message"),
+    [("TasklessCapability", "must set the class attribute 'task'"), ("UnknownTaskCapability", "not_a_task")],
+)
+def test_main_rejects_a_capability_without_a_registered_task_before_running(
+    tmp_path: Path, plugin_file: Path, capability: str, message: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    assert plugin_file.is_file()
+    plan_path = _write_plan(tmp_path)
+    payload = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+    completed_task = payload["tasks"][0]
+    payload["tasks"] = [
+        completed_task,
+        {**completed_task, "name": "taskless", "capability": f"file:plugin.py:{capability}"},
+    ]
+    plan_path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    output = tmp_path / "output"
+
+    status = cli.main(["run", "--config", str(plan_path), "--output", str(output), "--cache", str(tmp_path / "cache")])
+
+    assert status == 2
+    assert message in caplog.text
+    # Checked up front, so the earlier task did not run either.
+    assert not (output / "tasks/evaluation").exists()
+
+
 def test_main_removes_stale_summary_when_rerun_fails(tmp_path: Path, plugin_file: Path) -> None:
     assert plugin_file.is_file()
     output = tmp_path / "output"
