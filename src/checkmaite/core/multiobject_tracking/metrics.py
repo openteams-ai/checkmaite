@@ -269,8 +269,10 @@ class MotMetricsTrackingMetric(mot.Metric):
         motmetrics metric names to compute, by default
         :data:`DEFAULT_MOT_METRIC_NAMES`.
     return_key : str
-        Key in the ``compute()`` mapping treated as the overall metric by the
-        evaluation capability, by default ``"mota"``. Must be in ``metric_names``.
+        The result that must be defined, by default ``"mota"``: ``compute()``
+        raises if it is not. Must be in ``metric_names``. MAITE Evaluation
+        highlights a result only if ``MaiteEvaluationConfig.metric_keys`` names
+        it, for example ``{metric.metadata["id"]: "mota"}``.
     metric_id : str
         The ID for the metric metadata.
     """

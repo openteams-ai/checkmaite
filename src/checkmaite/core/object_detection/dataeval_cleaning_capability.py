@@ -1,5 +1,7 @@
+import warnings
+
 import maite.protocols.object_detection as od
-from dataeval.core import compute_ratios, compute_stats
+from dataeval.core import compute_ratios, image_stats
 from dataeval.flags import ImageStats
 from dataeval.quality import Duplicates
 
@@ -40,16 +42,27 @@ class DataevalCleaning(DataevalCleaningBase[od.Dataset, od.Model, od.Metric]):
         image_outliers = self._compute_basic_outliers(stats=stats)
 
         # boxes stats
-        boxes_stats_output = compute_stats(
+        boxes_stats_output = image_stats(
             dataset,
             stats=(ImageStats.DIMENSION | ImageStats.VISUAL | ImageStats.PIXEL_ZEROS | ImageStats.PIXEL_MISSING),
             per_image=False,
             per_target=True,
         )
-        dimensional_ratio_stats = compute_ratios(stats, target_stats_output=boxes_stats_output)
+        # DataEval 1.2 deprecates compute_ratios (removal in 1.3) in favour of the rel_*
+        # dimension statistics. Those cover only part of the ratio_stats output (not center,
+        # channels or invalid_box), so keep compute_ratios until the output schema moves.
+        # It now requires both inputs to carry the same statistics, so drop the image-only
+        # hashes before pairing.
+        ratio_image_stats = stats.copy()
+        ratio_image_stats["stats"] = {
+            key: value for key, value in stats["stats"].items() if key in boxes_stats_output["stats"]
+        }
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="'compute_ratios' is deprecated", category=FutureWarning)
+            dimensional_ratio_stats = compute_ratios(ratio_image_stats, target_stats_output=boxes_stats_output)
         box_outliers = self._compute_box_outliers(boxes_stats_output, ratiostats=dimensional_ratio_stats)
 
-        image_stats = self._get_img_stats(stats)
+        img_stats = self._get_img_stats(stats)
         box_stats = self._get_box_stats(boxes_stats_output, dimensional_ratio_stats)
         label_stats_result = self._convert_label_stats(label_stats_result)
 
@@ -57,7 +70,7 @@ class DataevalCleaning(DataevalCleaningBase[od.Dataset, od.Model, od.Metric]):
             {
                 "duplicates": _normalize_duplicates_output(duplicates),
                 "image_outliers": image_outliers,
-                "image_stats": image_stats,
+                "image_stats": img_stats,
                 "label_stats": label_stats_result,
                 "box_outliers": box_outliers,
                 "box_stats": box_stats,

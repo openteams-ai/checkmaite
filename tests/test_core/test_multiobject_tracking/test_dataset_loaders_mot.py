@@ -121,7 +121,7 @@ def test_different_datasets_do_not_share_cached_evaluations(mot_root_a: Path, mo
             metrics=[clear_mot_metrics_factory()],
         )
         (metric_result,) = run.outputs.metrics.values()
-        results.append(metric_result.overall_metric_value)
+        results.append(metric_result.scalar_values["mota"])
 
     # The tracker's box matches dataset a exactly and misses dataset b entirely (1 miss + 1 FP per frame).
     assert results == [pytest.approx(1.0), pytest.approx(-1.0)]

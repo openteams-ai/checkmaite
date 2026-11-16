@@ -7,7 +7,11 @@ from checkmaite.core._common.maite_evaluation_capability import (
     MaiteMetricResult,
 )
 from checkmaite.core._common.metric_fanout import MaiteEvaluationMetricError
-from checkmaite.core._common.nrtk_robustness_capability import NrtkRobustnessConfig, NrtkRobustnessOutputs
+from checkmaite.core._common.nrtk_robustness_capability import (
+    NrtkRobustnessConfig,
+    NrtkRobustnessOutputs,
+    NrtkRobustnessPoint,
+)
 from checkmaite.core._plugins import inject_plugin_exports
 from checkmaite.core.evaluation_tasks import register_task
 from checkmaite.core.image_classification._task import TASK
@@ -48,6 +52,7 @@ __all__ = [
     "NrtkRobustness",
     "NrtkRobustnessConfig",
     "NrtkRobustnessOutputs",
+    "NrtkRobustnessPoint",
     "XaitkExplainable",
     "XaitkExplainableConfig",
     "XaitkExplainableOutputs",

@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import hashlib
+import importlib.metadata
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
@@ -29,7 +30,8 @@ TOutputs = TypeVar("TOutputs", bound="CapabilityOutputsBase")
 
 
 class CapabilityConfigBase(BaseModel):
-    pass
+    # An unknown field is an error, so a misspelled or removed option is not silently ignored.
+    model_config = ConfigDict(extra="forbid")
 
 
 class CapabilityOutputsBase(BaseModel):
@@ -81,6 +83,9 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
         Unique identifier of the capability that produced this run.
     config
         The configuration object used for this run.
+    versions
+        Capability and library versions that are part of the run UID, as
+        returned by ``Capability.cache_versions()``.
     dataset_metadata
         Sequence of metadata associated with MAITE dataset objects.
     model_metadata
@@ -105,6 +110,7 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
 
     capability_id: str
     config: TConfig
+    versions: dict[str, str] = {}
     dataset_metadata: list[RunDatasetMetadata]
     model_metadata: list[RunModelMetadata]
     metric_metadata: list[RunMetricMetadata]
@@ -117,11 +123,14 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
         dataset_metadata: Sequence[Mapping[str, Any]],
         model_metadata: Sequence[Mapping[str, Any]],
         metric_metadata: Sequence[Mapping[str, Any]],
+        *,
+        versions: Mapping[str, str],
     ) -> str:
         """Compute a unique identifier (SHA-256 hash) for a run configuration.
 
         The UID is deterministically generated based on the provided configuration
-        object, dataset identifiers, model identifiers, and metric identifier.
+        object, dataset identifiers, model identifiers, metric identifiers, and
+        the capability and library versions.
 
         Parameters
         ----------
@@ -135,6 +144,9 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
             Sequence of metadata associated with MAITE model objects.
         metric_metadata
             Sequence of metadata associated with MAITE metric objects.
+        versions
+            Capability and library versions, as returned by
+            ``Capability.cache_versions()``.
 
         Returns
         -------
@@ -151,6 +163,10 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
             "model_ids": [d["id"] for d in model_metadata],
             "metric_id": [d["id"] for d in metric_metadata],
         }
+        # Left out when empty, so a run saved before versions were recorded keeps its UID.
+        # Every new run has at least the capability version.
+        if versions:
+            uid_content["versions"] = dict(sorted(versions.items()))
 
         return hashlib.sha256(json.dumps(uid_content).encode("utf-8")).hexdigest()
 
@@ -163,6 +179,7 @@ class CapabilityRunBase(BaseModel, Generic[TConfig, TOutputs]):
             dataset_metadata=self.dataset_metadata,
             model_metadata=self.model_metadata,
             metric_metadata=self.metric_metadata,
+            versions=self.versions,
         )
 
     def collect_report_consumables(self, threshold: float) -> list[dict[str, Any]]:  # pragma: no cover
@@ -277,6 +294,14 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
         ``"object_detection"`` (see :mod:`checkmaite.core.evaluation_tasks`).
         Every concrete capability must set it to a registered task; running
         one that does not raises ``TypeError`` or ``KeyError``.
+    version : str
+        Version of this capability's own logic, part of the run UID. Bump it
+        when a change in CheckMAITE changes the outputs for the same inputs,
+        so cached runs from before the change are not reused.
+    cache_dependencies : tuple[str, ...]
+        Distribution names of the libraries that compute this capability's
+        outputs. Their exact installed version is part of the run UID, so any
+        upgrade, including a patch release, invalidates cached runs.
     """
 
     # precise generic type is important, pyright doesn't like this
@@ -285,6 +310,8 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
     # ClassVar annotation, but not sure if that will impact our caching mechanism ...
     _RUN_TYPE: ClassVar[type[CapabilityRunBase[TConfig, TOutputs]]]  # type: ignore[reportGeneralTypeIssues]
     task: ClassVar[str]
+    version: ClassVar[str] = "1"
+    cache_dependencies: ClassVar[tuple[str, ...]] = ()
 
     @classmethod
     def _check_task(cls) -> None:
@@ -297,6 +324,21 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
 
     @classmethod
     def _create_config(cls) -> TConfig: ...
+
+    @classmethod
+    def cache_versions(cls) -> dict[str, str]:
+        """Return the versions that are part of this capability's run UID.
+
+        Returns
+        -------
+        dict[str, str]
+            ``{"capability": cls.version}`` plus the exact installed version
+            of each distribution in ``cache_dependencies``.
+        """
+        versions = {"capability": cls.version}
+        for distribution in cls.cache_dependencies:
+            versions[distribution] = importlib.metadata.version(distribution)
+        return versions
 
     @property
     @abstractmethod
@@ -384,6 +426,7 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
         dataset_metadata = cast(list[RunDatasetMetadata], [d.metadata for d in datasets])
         model_metadata = cast(list[RunModelMetadata], [m.metadata for m in models])
         metric_metadata = cast(list[RunMetricMetadata], [m.metadata for m in metrics])
+        versions = self.cache_versions()
 
         uid = self._RUN_TYPE.compute_uid(
             capability_id=self.id,
@@ -391,6 +434,7 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
             dataset_metadata=dataset_metadata,
             model_metadata=model_metadata,
             metric_metadata=metric_metadata,
+            versions=versions,
         )
 
         if use_cache:
@@ -403,6 +447,7 @@ class Capability(ABC, Generic[TOutputs, TDataset, TModel, TMetric, TConfig]):
         run = self._RUN_TYPE(
             capability_id=self.id,
             config=config,
+            versions=versions,
             dataset_metadata=dataset_metadata,
             model_metadata=model_metadata,
             metric_metadata=metric_metadata,

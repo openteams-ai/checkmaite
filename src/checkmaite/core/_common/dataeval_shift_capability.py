@@ -255,6 +255,7 @@ class DataevalShiftBase(Capability[DataevalShiftOutputs, TDataset, TModel, TMetr
     """
 
     _RUN_TYPE = DataevalShiftRun
+    cache_dependencies = ("dataeval",)
 
     @classmethod
     def _create_config(cls) -> DataevalShiftConfig:

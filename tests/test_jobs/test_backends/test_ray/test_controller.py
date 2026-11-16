@@ -1331,8 +1331,10 @@ def test_execute_capability_ref_writes_provenance_to_runs_table(tmp_path: Path, 
         },
     )
 
-    result = AnalyticsStore(ParquetBackend(str(store_path))).query_sql(
-        "SELECT user_id, workspace_id, job_id, backend, submitted_at, completed_at, run_event_id FROM runs"
+    store = AnalyticsStore(ParquetBackend(str(store_path)))
+    result = store.query_sql(
+        "SELECT user_id, workspace_id, job_id, backend, submitted_at, completed_at, run_event_id "
+        "FROM runs WHERE entity_type = 'dataset'"
     )
 
     assert ref.run_uid

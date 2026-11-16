@@ -159,13 +159,12 @@ def test_strict_mot_targets_skip_prediction_cache_publication():
 
 
 def test_augmented_data_keeps_streams_for_lazy_datamaite_targets():
-    # DataMAITE's lazy frame tracks pass the tracking adapter, so the streams are materialized.
-    from datamaite.maite._mot import MotTarget, _FrameTracks
-
+    # Lazy frame tracks like DataMAITE's pass the tracking adapter, so the streams are materialized.
+    # DataMAITE 0.7 made its target classes private, so LazyFrameTracks mirrors them.
     class LazyTargetVideoDataset(VideoDataset):
         def __getitem__(self, index: int) -> tuple[Any, Any, dict[str, Any]]:
             stream, _, metadata = super().__getitem__(index)
-            return stream, MotTarget(frame_tracks=_FrameTracks([0], {})), metadata
+            return stream, TrackingTarget(frame_tracks=LazyFrameTracks([0], {})), metadata  # type: ignore[arg-type]
 
     _, augmented_data = cached_tasks.predict(
         task="multiobject_tracking",

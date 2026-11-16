@@ -190,19 +190,23 @@ deterministic dataset for DataEval runs.
 
 ### Metric conventions
 
+- A MAITE metric's `compute()` returns a dictionary, and some metrics return
+  several numbers, such as `map`, `map_50` and `map_75`. The metric does not
+  say which one matters. A capability that needs one number gets its key from
+  the capability's config, the same way Lightning's `monitor` or Hugging
+  Face's `metric_for_best_model` name a logged value:
+    - NRTK Robustness and Sufficiency have `metric_key`, and MAITE Evaluation
+      has `metric_keys`, which maps a metric ID to a key.
+    - If the config does not name a key and the metric returns exactly one
+      number, that number is used. Otherwise the capability raises an error
+      listing the keys (MAITE Evaluation highlights nothing instead).
+    - Plugin capabilities that need one number should do the same, using
+      `checkmaite.core.metric_keys.resolve_metric_key`.
+    - Do not read a `return_key` attribute from the metric. CheckMAITE's own
+      metric wrappers take `return_key` only to name or filter what
+      `compute()` returns.
+
 - Classes for computing metrics within `CheckMAITE` will follow these conventions:
-    - The `Metric` class will have an attribute called `return_key` which
-      describes the top-level performance metric:
-        - E.g., for a metric that computes `map_50`, the `return_key` will be `map_50`.
-        - Because `return_key` is not an attribute of the protocols for metrics,
-          using it in a test stage or elsewhere will trigger a failure of the
-          type checker, so use `# pyright: ignore[reportUnknownMemberType]` on
-          those lines that depend on the `return_key` attribute.
-
-    - The list of keys returned by `compute()` will include a key that matches
-      the `return_key` of the metric, which describes the top-level performance
-      of predictions against the ground truth provided in the `update()` method.
-
     - The values of each element in the dictionary returned by `compute()` will
       adhere to the `numpy.ArrayLike` type, and will consist of an array
       containing a single floating point value such that:

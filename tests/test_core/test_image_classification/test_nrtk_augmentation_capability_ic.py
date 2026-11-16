@@ -7,8 +7,8 @@ from tests.report_assertions import assert_inline_markdown_report
 ARGS = {
     "name": "NRTKTestStage Example",
     "perturber_factory": {
-        "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-        "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+        "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+        "nrtk.impls.perturb_factory.PerturberStepFactory": {
             "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
             "theta_key": "ksize",
             "start": 1,
@@ -21,7 +21,9 @@ ARGS = {
 
 @pytest.fixture
 def test_config():
-    return NrtkRobustnessConfig(name=ARGS["name"], perturber_factory=ARGS["perturber_factory"])
+    return NrtkRobustnessConfig(
+        metric_key="fake_metric", name=ARGS["name"], perturber_factory=ARGS["perturber_factory"]
+    )
 
 
 @pytest.fixture
@@ -59,10 +61,11 @@ def test_no_cache_hit_same_perturber_different_step(
     augmentation IDs and therefore no predict-cache hit."""
 
     config_a = NrtkRobustnessConfig(
+        metric_key="fake_metric",
         name="cache_test_a",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+            "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_factory.PerturberStepFactory": {
                 "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
@@ -74,10 +77,11 @@ def test_no_cache_hit_same_perturber_different_step(
 
     # Different step *and* non-overlapping range so no individual perturber can cache-hit
     config_b = NrtkRobustnessConfig(
+        metric_key="fake_metric",
         name="cache_test_b",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+            "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_factory.PerturberStepFactory": {
                 "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
@@ -132,10 +136,11 @@ def test_no_cache_hit_different_perturber(
     augmentation ID and therefore no predict-cache hit."""
 
     config_blur = NrtkRobustnessConfig(
+        metric_key="fake_metric",
         name="cache_test_blur",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+            "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_factory.PerturberStepFactory": {
                 "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
                 "theta_key": "ksize",
                 "start": 1,
@@ -146,10 +151,11 @@ def test_no_cache_hit_different_perturber(
     )
 
     config_brightness = NrtkRobustnessConfig(
+        metric_key="fake_metric",
         name="cache_test_brightness",
         perturber_factory={
-            "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-            "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
+            "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+            "nrtk.impls.perturb_factory.PerturberStepFactory": {
                 "perturber": "nrtk.impls.perturb_image.photometric.enhance.BrightnessPerturber",
                 "theta_key": "factor",
                 "start": 1,
@@ -192,3 +198,53 @@ def test_no_cache_hit_different_perturber(
         datasets=[fake_ic_dataset_default],
         config=config_blur,
     )
+
+
+def test_step_factory_config_end_to_end(
+    tmp_path, mocker, fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
+):
+    """A step factory config runs, is reloaded from the cache, and gives a report and analytics rows."""
+    from checkmaite.core.analytics_store import AnalyticsStore, ParquetBackend
+
+    factory_config = {
+        "type": "nrtk.impls.perturb_factory.PerturberStepFactory",
+        "nrtk.impls.perturb_factory.PerturberStepFactory": {
+            "perturber": "nrtk.impls.perturb_image.photometric.blur.AverageBlurPerturber",
+            "theta_key": "ksize",
+            "start": 1,
+            "stop": 4,
+            "step": 1,
+        },
+    }
+    config = NrtkRobustnessConfig(metric_key="fake_metric", name="step_config", perturber_factory=factory_config)
+    inputs = {
+        "models": [fake_ic_model_default],
+        "metrics": [fake_ic_metric_default],
+        "datasets": [fake_ic_dataset_default],
+        "config": config,
+    }
+
+    capability = NrtkRobustness()
+    run = capability.run(**inputs)
+    assert [point.theta for point in run.outputs.points] == [1.0, 2.0, 3.0]
+    assert run.outputs.perturber == "AverageBlurPerturber"
+    assert run.outputs.theta_key == "ksize"
+
+    # The second run must come from the cache, with the factory restored from it.
+    spy = mocker.spy(capability, "_run")
+    cached = capability.run(**inputs)
+    spy.assert_not_called()
+    assert cached.run_uid == run.run_uid
+    assert list(cached.config.perturber_factory.thetas) == [1, 2, 3]
+    assert cached.config.perturber_factory.get_config()["theta_key"] == "ksize"
+    assert cached.outputs.model_dump() == run.outputs.model_dump()
+
+    report = cached.collect_md_report(threshold=0.5)
+    assert_inline_markdown_report(report, capability_id=cached.capability_id)
+    assert "ksize" in report.content
+
+    store = AnalyticsStore(ParquetBackend(str(tmp_path / "store")))
+    store.write([cached])
+    rows = store.query_sql("SELECT theta_key, theta_value FROM nrtk_robustness ORDER BY theta_index")
+    assert set(rows["theta_key"]) == {"ksize"}
+    assert sorted(set(rows["theta_value"])) == [1.0, 2.0, 3.0]

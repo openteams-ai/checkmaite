@@ -54,6 +54,24 @@ def test_maite_evaluation_scoped_key_is_metric_order_independent(
     assert forward_key == reverse_key
 
 
+def test_scoped_key_matches_worker_run_uid(fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default):
+    # The submitter's dedupe key and the run_uid the worker returns must agree,
+    # including the capability and library versions.
+    capability = MaiteEvaluation()
+    run_kwargs = {
+        "models": [fake_ic_model_default],
+        "datasets": [fake_ic_dataset_default],
+        "metrics": [fake_ic_metric_default],
+        "config": MaiteEvaluationConfig(),
+    }
+
+    scoped_key = RayJobBackend._compute_scoped_run_key(capability, run_kwargs)
+    run = capability.run(**run_kwargs, use_cache=False)
+
+    assert run.versions == MaiteEvaluation.cache_versions()
+    assert scoped_key == run.run_uid
+
+
 @pytest.fixture(scope="module", name="ray_runtime")
 def _ray_runtime():
     shutdown_job_backend(wait=False)
@@ -263,6 +281,7 @@ def test_submitted_ray_job_writes_provenance(local_ray: Path, fake_ic_dataset_de
             SELECT user_id, workspace_id, environment, job_id, backend,
                    submitted_at, completed_at, run_event_id
             FROM runs
+            WHERE entity_type = 'dataset'
             """
         )
 

@@ -12,6 +12,19 @@ from checkmaite.core.analytics_store._storage._base import StorageWriteReceipt
 
 _RUNS_BASE_KEY = ["run_uid", "capability_table", "entity_type", "entity_id"]
 _RUNS_EVENT_KEY = [*_RUNS_BASE_KEY, "run_event_id"]
+_RUN_VERSIONS_KEY = ["run_uid", "kind", "name"]
+# Tables the store fills itself; they describe runs and hold no capability payload.
+_STORE_TABLES = frozenset({"runs", "run_versions"})
+
+
+def _existing_keys(existing_lf: pl.LazyFrame, keys: list[str], batch: pl.DataFrame) -> pl.DataFrame:
+    """Distinct stored values of ``keys``, cast to the batch's types so they can be joined.
+
+    A key column that held only nulls in the stored files, such as ``run_event_id``
+    before any job wrote one, reads with the null type, which cannot be joined
+    with the batch's string column.
+    """
+    return existing_lf.select(keys).unique().collect().cast({key: batch.schema[key] for key in keys})
 
 
 class ParquetBackend:
@@ -140,7 +153,7 @@ class ParquetBackend:
         # If there is no run-event column, or it is all null, all rows use the base key.
         if "run_event_id" not in batch.columns or batch.get_column("run_event_id").null_count() == batch.height:
             # Read the base keys that are already stored.
-            existing_keys = existing_lf.select(_RUNS_BASE_KEY).unique().collect()
+            existing_keys = _existing_keys(existing_lf, _RUNS_BASE_KEY, batch)
             # Keep only rows whose base key is not already stored.
             return batch.join(existing_keys, on=_RUNS_BASE_KEY, how="anti")
 
@@ -154,7 +167,7 @@ class ParquetBackend:
         # Skip this work when there are no no-event rows.
         if not without_event.is_empty():
             # Read the base keys that are already stored.
-            existing_base_keys = existing_lf.select(_RUNS_BASE_KEY).unique().collect()
+            existing_base_keys = _existing_keys(existing_lf, _RUNS_BASE_KEY, batch)
             # Keep only no-event rows whose base key is not already stored.
             without_event = without_event.join(existing_base_keys, on=_RUNS_BASE_KEY, how="anti")
             # Add rows that remain after comparing with existing data.
@@ -169,7 +182,7 @@ class ParquetBackend:
             # Older stored data may not have run_event_id yet.
             if "run_event_id" in existing_schema:
                 # Read the event keys that are already stored.
-                existing_event_keys = existing_lf.select(_RUNS_EVENT_KEY).unique().collect()
+                existing_event_keys = _existing_keys(existing_lf, _RUNS_EVENT_KEY, batch)
                 # Keep only event rows whose event key is not already stored.
                 with_event = with_event.join(existing_event_keys, on=_RUNS_EVENT_KEY, how="anti")
             # Add rows that remain after comparing with existing data.
@@ -190,6 +203,38 @@ class ParquetBackend:
         existing_uids = existing_lf.select("run_uid").unique().collect().to_series().to_list()
         return batch.filter(~pl.col("run_uid").is_in(existing_uids))
 
+    @classmethod
+    def _dedupe_within_batch(cls, table_name: str, batch: pl.DataFrame) -> pl.DataFrame:
+        """Drop rows that repeat within one write, for the tables the store fills itself."""
+        if table_name == "runs":
+            return cls._dedupe_runs_within_batch(batch)
+        if table_name == "run_versions":
+            # The same run written twice in one call gives the same version rows twice.
+            return batch.unique(subset=_RUN_VERSIONS_KEY, maintain_order=True)
+        return batch
+
+    def _scan_table(self, table_name: str, *, include_file_paths: str | None = None) -> pl.LazyFrame | None:
+        """Scan every Parquet file of a table as one frame, or return ``None`` if it has none.
+
+        Files written by different CheckMAITE versions can have different
+        columns, for example after a record gains a field. Each file is scanned
+        on its own and the scans are combined by column name, so a column that
+        an older file lacks reads as null. A single glob scan would instead use
+        one file's schema for all of them and fail on the others' extra columns.
+        """
+        files = sorted(self._table_path(table_name).glob("*.parquet"), key=str)
+        if not files:
+            return None
+        frames = [
+            pl.scan_parquet(
+                str(file),
+                include_file_paths=include_file_paths,
+                storage_options=(self._storage_options or None),
+            )
+            for file in files
+        ]
+        return pl.concat(frames, how="diagonal_relaxed") if len(frames) > 1 else frames[0]
+
     def _write_impl(self, records: Sequence[BaseRecord]) -> StorageWriteReceipt:
         if not records:
             return StorageWriteReceipt()
@@ -197,20 +242,15 @@ class ParquetBackend:
         run_table_files: dict[str, dict[str, str]] = defaultdict(dict)
 
         for table_name, rows in self._group_records(records).items():
-            batch = pl.DataFrame(rows)
-            if table_name == "runs":
-                batch = self._dedupe_runs_within_batch(batch)
+            batch = self._dedupe_within_batch(table_name, pl.DataFrame(rows))
 
             output_dir = self._table_path(table_name)
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            parquet_glob = str(output_dir / "*.parquet")
-            try:
-                existing_lf = pl.scan_parquet(
-                    parquet_glob,
-                    missing_columns="insert",
-                    storage_options=(self._storage_options or None),
-                )
+            # Errors reading existing files propagate: treating them as an empty table would skip
+            # deduplication and write duplicate rows.
+            existing_lf = self._scan_table(table_name)
+            if existing_lf is not None:
                 existing_schema = existing_lf.collect_schema()
                 self._validate_schema_compatibility(table_name, batch, existing_schema)
 
@@ -221,15 +261,17 @@ class ParquetBackend:
 
                 if batch.is_empty():
                     continue
-            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
-                pass  # No existing files yet
 
             timestamp = int(time.time() * 1000)
             output_file = output_dir / f"{timestamp}_{uuid.uuid4().hex[:8]}.parquet"
             output_file_str = str(output_file)
-            batch.write_parquet(output_file_str, storage_options=(self._storage_options or None))
+            # Written under a name reads ignore, then renamed, so a crashed or concurrent
+            # write never leaves a truncated file that would make every later read fail.
+            partial_file = output_dir / f"{output_file.name}.tmp"
+            batch.write_parquet(str(partial_file), storage_options=(self._storage_options or None))
+            partial_file.rename(output_file)
 
-            if table_name != "runs" and "run_uid" in batch.columns:
+            if table_name not in _STORE_TABLES and "run_uid" in batch.columns:
                 run_uids = batch.get_column("run_uid").drop_nulls().unique().to_list()
                 for run_uid in run_uids:
                     run_table_files[str(run_uid)][table_name] = output_file_str
@@ -245,8 +287,8 @@ class ParquetBackend:
         file per table per ``write()`` call.
 
         Dedupe semantics are table-specific:
-        - capability payload tables are idempotent by ``run_uid`` across
-          repeated write calls,
+        - capability payload tables and the ``run_versions`` table are
+          idempotent by ``run_uid`` across repeated write calls,
         - the ``runs`` table deduplicates rows without ``run_event_id`` by
           mapping key ``(run_uid, capability_table, entity_type, entity_id)``,
           and rows with ``run_event_id`` by provenance-aware mapping key
@@ -269,26 +311,15 @@ class ParquetBackend:
 
     def get_run_uri(self, run_uid: str) -> str:
         """Return concrete parquet file path for payload data associated with ``run_uid``."""
-        tables = [table_name for table_name in self.list_tables() if table_name != "runs"]
+        tables = [table_name for table_name in self.list_tables() if table_name not in _STORE_TABLES]
         if not tables:
             raise ValueError(f"Run UID {run_uid!r} not found: parquet store {str(self._path)!r} has no payload tables")
 
         for table_name in tables:
-            parquet_glob = str(self._table_path(table_name) / "*.parquet")
-            try:
-                lf = pl.scan_parquet(
-                    parquet_glob,
-                    missing_columns="insert",
-                    include_file_paths="__file_path",
-                    storage_options=(self._storage_options or None),
-                )
-                schema = lf.collect_schema()
-                if "run_uid" not in schema or "__file_path" not in schema:
-                    continue
-
-                match = lf.filter(pl.col("run_uid") == run_uid).select("__file_path").unique().collect()
-            except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
+            lf = self._scan_table(table_name, include_file_paths="__file_path")
+            if lf is None or "run_uid" not in lf.collect_schema():
                 continue
+            match = lf.filter(pl.col("run_uid") == run_uid).select("__file_path").unique().collect()
 
             if match.is_empty():
                 continue
@@ -320,14 +351,10 @@ class ParquetBackend:
         if not table_path.exists():
             raise ValueError(f"Table '{table_name}' does not exist")
 
-        parquet_glob = str(table_path / "*.parquet")
-
         try:
-            lf = pl.scan_parquet(
-                parquet_glob,
-                missing_columns="insert",
-                storage_options=(self._storage_options or None),
-            )
+            lf = self._scan_table(table_name)
+            if lf is None:
+                raise ValueError("it has no data files")
             schema = lf.collect_schema()
             return {name: str(dtype) for name, dtype in schema.items()}
         except Exception as e:
@@ -345,21 +372,10 @@ class ParquetBackend:
         ctx = pl.SQLContext()
 
         for table_name in tables:
-            table_path = self._table_path(table_name)
-            files = sorted(table_path.glob("*.parquet"), key=str)
-            if not files:
-                continue
-
             try:
-                frames = [
-                    pl.scan_parquet(
-                        str(f),
-                        missing_columns="insert",
-                        storage_options=(self._storage_options or None),
-                    )
-                    for f in files
-                ]
-                lf = pl.concat(frames, how="diagonal_relaxed") if len(frames) > 1 else frames[0]
+                lf = self._scan_table(table_name)
+                if lf is None:
+                    continue
                 ctx.register(table_name, lf)
             except (pl.exceptions.ComputeError, pl.exceptions.SchemaError, FileNotFoundError, OSError):
                 continue

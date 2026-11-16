@@ -321,27 +321,201 @@ results, predictions, _ = cached_tasks.evaluate(
 <!-- Updated 2026-03-20: Original only listed model_id, dataset_id, metric_id.
      Added capability_id and config per compute_uid() in
      capability_core.py:130-136. -->
-Cache hits are determined by a SHA-256 hash of:
+Each cache level has its own key, a SHA-256 hash.
+
+**Capability-level cache.** The key is the run's `run_uid`, a hash of:
 
 - `capability_id`
 - `config` (the full configuration object)
 - `dataset_id` (for each dataset)
 - `model_id` (for each model)
 - `metric_id` (for each metric)
+- the capability's `version` and the exact installed version of each library
+  in its `cache_dependencies` (see [What invalidates the cache](#what-invalidates-the-cache))
+
+**Prediction cache.** The key is a hash of the `model_id`, the `dataset_id`,
+the `augmentation_id` (if an augmentation is applied), the task and the batch
+size. **Evaluation cache:** the prediction key plus the `metric_id`. Neither
+includes library versions.
 
 Changing the config or using a different capability will produce a different
 cache key, even with the same datasets and models. **The IDs are user-supplied
 metadata fields and must be unique.** The cache does not perform content-based
-hashing (e.g., checksumming image files) for performance reasons. It is the
-responsibility of the caller to ensure that IDs accurately reflect the data
-being passed in.
+hashing (e.g., checksumming image files or model weights) for performance
+reasons.
 
-> ⚠️ **Important:** If you run the same model or dataset under the same ID but
-> with different underlying content, you will get incorrect cache hits. When
-> using this library programmatically (e.g., from a notebook), ensure IDs are
-> managed carefully. In a production environment with a model registry or
-> dataset warehouse, these IDs should be derived automatically from versioned
-> artifacts.
+### What you are responsible for: IDs
+
+CheckMAITE assumes that every ID you supply identifies exactly one thing. When
+the thing changes, the ID must change too:
+
+- **`model_id`** (`model.metadata["id"]`): change it when the weights or
+  checkpoint change, or when anything in the model wrapper that affects
+  predictions changes: preprocessing, resizing, normalisation, postprocessing
+  such as NMS or confidence thresholds, precision, or seeds and sampling
+  settings (see [Stochastic Inference](#stochastic-inference)).
+- **`dataset_id`** (`dataset.metadata["id"]`): change it when images, labels
+  or metadata change, or when the dataset wrapper transforms them differently.
+- **`augmentation_id`** (`augmentation.metadata["id"]`): change it when the
+  augmentation, its parameters, or the library code that implements it
+  change, including an upgrade of that library.
+- **`metric_id`** (`metric.metadata["id"]`): change it when the metric or its
+  settings change.
+
+> ⚠️ **Important:** If you run the same model, dataset, augmentation or
+> metric under the same ID but with different underlying content, you will get
+> incorrect cache hits: the cache returns results computed for the old
+> content, without a warning. When using this library programmatically (e.g.,
+> from a notebook), ensure IDs are managed carefully. In a production
+> environment with a model registry or dataset warehouse, these IDs should be
+> derived automatically from versioned artifacts.
+
+#### NRTK Robustness builds its own augmentation IDs
+
+NRTK Robustness is the exception to the rule above. You pass a
+`perturber_factory` in its config, and the capability builds one augmentation
+per perturber. It also builds the `augmentation_id` for each one, so you never
+set it: the ID is a hash of the perturber's class name, its attributes, and
+the **exact installed NRTK version**. A perturbation can change between NRTK
+releases, including patch releases, so any NRTK upgrade gives every perturber
+a new ID and the next run recomputes the predictions on perturbed images.
+
+This matters most for a cache that is shared, such as a cache directory
+on a shared file system or one used by several Ray workers:
+
+- Users or workers with different NRTK versions write prediction and
+  evaluation entries under different IDs. They do not get wrong results from
+  each other, but they do not reuse each other's work either: each version
+  runs inference for every perturbation again, which is the most expensive
+  step, and the cache grows by one copy per version.
+- To share NRTK results, every user and worker of the cache must install the
+  same NRTK version, for example from the same lockfile or container image.
+
+### Your Python environment and the cache
+
+The keys include the versions of only a few libraries: those in each
+capability's `cache_dependencies`, and NRTK in NRTK Robustness's augmentation
+IDs. Nothing else about the Python environment is part of any key. That
+includes:
+
+- the libraries your model runs on, such as PyTorch, torchvision, Ultralytics,
+  ONNX Runtime or TensorFlow, and their CUDA and cuDNN builds;
+- MAITE (see [Why MAITE is not versioned](#why-maite-is-not-versioned));
+- numerical libraries such as NumPy, SciPy and scikit-learn;
+- the Python version, the hardware, and the GPU driver;
+- CheckMAITE itself, except where a capability's `version` was bumped.
+
+Changing any of these can change predictions or results, and the cache will
+keep returning the old ones. To keep the cache valid:
+
+- **Treat a cache directory as belonging to one environment.** Install from a
+  lockfile (`uv.lock`, `conda-lock.yml`) or use a container image, and point
+  different environments at different caches with `cache_path("...")`.
+- **After changing the environment outside its lockfile**, for example with
+  `pip install -U torch`, use a new cache directory, clear the cache, or run
+  with `use_cache=False`.
+- **After editing an editable install** of a library in `cache_dependencies`,
+  such as DataEval or NRTK installed with `pip install -e`, do the same: its
+  version does not change when its source does, so cached results come back.
+- **Share a cache only between identical environments.** Everyone who reads
+  and writes a shared cache, including Ray workers, must use the same lockfile
+  or image. A different version of a library in `cache_dependencies` only
+  causes cache misses; a different version of any other library can cause
+  incorrect cache hits.
+
+#### Why MAITE is not versioned
+
+MAITE Evaluation and NRTK Robustness run your model and metric through MAITE's
+`evaluate`. MAITE does not compute any numbers itself: it takes the data in
+batches, passes each batch to your model, passes the predictions to your
+metric, and asks your metric for the final score. The predictions come from
+your model and the scores from your metric, and their IDs identify them.
+
+So MAITE is treated like PyTorch: it is part of your environment, and its
+version is not in any cache key. Upgrading MAITE does not invalidate cached
+results. If a MAITE upgrade could change your results, for example because it
+batches data differently for your model, clear the cache or use a new cache
+directory.
+
+CheckMAITE follows one rule for this: a library goes in a capability's
+`cache_dependencies` only if it is also part of every lower-level cache key
+that the capability reads. MAITE is not part of the prediction cache key, so
+listing it would change the run UID without recomputing anything: the
+capability would reuse the cached predictions and record a MAITE version they
+were not computed with. NRTK follows the rule, because NRTK Robustness puts the
+NRTK version in its augmentation IDs.
+
+### What invalidates the cache
+
+The same hash is the run's `run_uid`. Local runs, the analytics store and the
+Ray job backend all compute it with `compute_uid()`, so they agree for the same
+inputs.
+
+Besides the inputs above, two things change the hash:
+
+- **Any upgrade of a wrapped library.** Each capability lists the libraries
+  that compute its outputs in `cache_dependencies`. The DataEval capabilities
+  list `dataeval`, NRTK Robustness lists `nrtk` and XAITK Explainable lists
+  `xaitk-saliency`. MAITE Evaluation lists none (see [Why MAITE is not
+  versioned](#why-maite-is-not-versioned)). The exact installed version of
+  each is part of the hash, read with `importlib.metadata.version`.
+  A patch release can change results too, so upgrading `dataeval` from 1.2.0
+  to 1.2.1 also invalidates the cache.
+- **The capability's `version` attribute.** It defaults to `"1"`. Bump it when
+  a change in CheckMAITE changes a capability's outputs for the same inputs and
+  the same library versions, for example a bug fix that changes a score or a new
+  default threshold. Changes that only affect reports or plots built from the
+  outputs do not need a bump.
+
+```python
+class DataevalBiasBase(Capability[...]):
+    _RUN_TYPE = DataevalBiasRun
+    cache_dependencies = ("dataeval",)
+    version = "2"  # bumped after fixing the coverage radius
+```
+
+When the hash changes, old cache entries are not deleted. They are no longer
+looked up, so the next run recomputes and stores a new entry, and any analytics
+rows it writes carry the new `run_uid`. Each run also records the versions it
+was computed with in `run.versions`, and the analytics store writes the library
+versions to the `run_versions` table.
+
+#### After a library upgrade
+
+When an upgrade changes the version of a library in `cache_dependencies`, such
+as DataEval 1.0.6 to 1.2.0 or NRTK 1.0.4 to 1.1.0:
+
+1. Re-run the capabilities whose results you need. There is nothing to clear and
+   no need for `use_cache=False`: the new version gives a new run UID, so the
+   first run recomputes.
+2. Write the new runs to the analytics store as usual. They get new `run_uid`
+   values, so the rows from before the upgrade stay next to them.
+3. Compare like with like by filtering on the version in the `run_versions`
+   table:
+
+    ```sql
+    SELECT c.*
+    FROM dataeval_cleaning c
+    JOIN run_versions v ON c.run_uid = v.run_uid
+    WHERE v.kind = 'library' AND v.name = 'dataeval' AND v.version = '1.2.0'
+    ```
+
+    Runs written before CheckMAITE recorded versions have no `library` rows.
+    Treat them as computed with the library version you had installed then.
+4. Old cache entries are no longer read. Delete the cache directory if you need
+   the disk space.
+
+Check the CHANGELOG for which results a release changes and why.
+
+The prediction and evaluation caches do not include library versions. A new
+capability run UID does not make them recompute: when a capability calls
+`evaluate`, it still reuses cached predictions for the same model, dataset and
+augmentation IDs. This is why a capability lists in `cache_dependencies` only
+libraries that are also in those keys. After an upgrade that changes
+predictions, such as a new version of your model's framework or of MAITE, clear
+the cache or run with `use_cache=False` (see [Your Python environment and the
+cache](#your-python-environment-and-the-cache)). NRTK Robustness is the
+exception, because its augmentation IDs include the NRTK version.
 
 ---
 
@@ -414,6 +588,54 @@ part of the computation.
 
 Flexible serialization is the default for CheckMAITE's built-in capabilities and
 capability-level caches. The strict option applies to cached-task orchestration.
+
+### Checking components before you use them
+
+MAITE 0.10 attaches checks to its protocol types, for example that object
+detection boxes have four columns and as many rows as labels. Static type
+checkers cannot see these. Run `component_checks.check_components` once when
+you wire up a new model, dataset, metric or augmentation:
+
+```python
+from checkmaite.core.component_checks import check_components
+
+check_components(
+    task="object_detection",
+    model=model,
+    dataset=dataset,
+    metric=metric,
+)
+```
+
+It wraps each component in MAITE's spotcheck proxy for the task's protocols and
+runs a few real batches from the dataset through them: the augmentation, then
+the model, then `metric.update` and `metric.compute`. `batches` and
+`batch_size` (2 and 2 by default) set how much data it uses. A value that breaks
+a protocol raises `maite.spotcheck.SpotcheckError`, with a note naming the
+component. On success it returns the names of the components it checked.
+
+A dataset is always needed, because the other components are checked on what
+they return for real data. Without a model, the metric is checked with the
+targets as predictions. Nothing is read from or written to the cache, and
+`cached_tasks` never runs these checks itself.
+
+The augmentation and metric are checked as copies, so an augmentation's random
+state and a metric's accumulated results are left as they were. If one cannot
+be copied, it is checked itself and a warning says so. The model really runs
+on the items read, so a model that keeps state between calls, such as a
+tracker, may have it advanced. Datasets must return fresh inputs on each read,
+as MAITE expects; one that hands out the same one-shot video stream twice
+would give an exhausted stream after the check.
+
+This needs the `spotcheck` extra, which installs `beartype` and requires MAITE
+0.10 (`maite>=0.10,<0.11`), as does the base install.
+
+```bash
+pip install "checkmaite[spotcheck]"
+```
+
+Without the extra, `check_components` raises an `ImportError` that gives this
+install command.
 
 ---
 

@@ -104,6 +104,7 @@ PosixPath('/home/user/my-cache')
 from checkmaite.core import (  # noqa: E402
     cached_tasks,
     capability_core,
+    component_checks,
     evaluation_tasks,
     image_classification,
     multiobject_tracking,
@@ -125,6 +126,7 @@ __all__ = [
     "object_detection",
     "cached_tasks",
     "capability_core",
+    "component_checks",
     "evaluation_tasks",
     "binary_de_serializer",
     "report",

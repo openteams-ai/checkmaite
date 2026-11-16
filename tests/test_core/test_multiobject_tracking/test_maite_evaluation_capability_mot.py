@@ -15,6 +15,11 @@ from tests.test_core.test_multiobject_tracking.conftest import (
 )
 
 
+def _mota_config(**kwargs):
+    """Highlight MOTA, one of the several numbers CLEAR-MOT returns."""
+    return MaiteEvaluationConfig(metric_keys={clear_mot_metrics_factory().metadata["id"]: "mota"}, **kwargs)
+
+
 def _only_metric(run):
     (metric_result,) = run.outputs.metrics.values()
     return metric_result
@@ -27,6 +32,7 @@ def test_run_mot(fake_mot_model_default, fake_mot_dataset_default):
         datasets=[fake_mot_dataset_default],
         models=[fake_mot_model_default],
         metrics=[clear_mot_metrics_factory()],
+        config=_mota_config(),
     )
     assert output.model_dump()  # smoke test
 
@@ -46,10 +52,10 @@ def test_maite_evaluation_mot_run_cache_round_trip(fake_mot_model_default, fake_
     metric = clear_mot_metrics_factory()
 
     first = MaiteEvaluation().run(
-        datasets=[fake_mot_dataset_default], models=[fake_mot_model_default], metrics=[metric]
+        datasets=[fake_mot_dataset_default], models=[fake_mot_model_default], metrics=[metric], config=_mota_config()
     )
     second = MaiteEvaluation().run(
-        datasets=[fake_mot_dataset_default], models=[fake_mot_model_default], metrics=[metric]
+        datasets=[fake_mot_dataset_default], models=[fake_mot_model_default], metrics=[metric], config=_mota_config()
     )
 
     assert second.run_uid == first.run_uid
@@ -77,7 +83,7 @@ def test_batch_size_controls_inference_batches_and_preserves_metrics(fake_mot_mo
         datasets=[fake_mot_dataset_default],
         models=[model],
         metrics=[clear_mot_metrics_factory()],
-        config=MaiteEvaluationConfig(batch_size=2),
+        config=_mota_config(batch_size=2),
     )
 
     assert model.batch_sizes == [2]
@@ -114,6 +120,7 @@ def test_class_agnostic_tracking_evaluates_despite_a_differing_taxonomy(fake_mot
         datasets=[coco_flavoured],
         models=[fake_mot_model_default],
         metrics=[clear_mot_metrics_factory()],
+        config=_mota_config(),
     )
 
     assert _only_metric(output).overall_metric_value == pytest.approx(EXPECTED_MOT_MOTA)
@@ -138,15 +145,21 @@ def test_undefined_headline_metric_fails_the_same_way_on_a_cached_rerun():
 
     for _ in range(2):  # the second attempt reads the cached evaluation
         with pytest.raises(MaiteEvaluationMetricError, match="'mota' is undefined for this evaluation"):
-            MaiteEvaluation().run(models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()])
+            MaiteEvaluation().run(
+                models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()], config=_mota_config()
+            )
 
 
 def test_undefined_secondary_metric_is_omitted_and_survives_the_run_cache(recwarn):
     model, dataset = _degenerate_run_inputs("all_missed")
 
-    first = MaiteEvaluation().run(models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()])
+    first = MaiteEvaluation().run(
+        models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()], config=_mota_config()
+    )
     calls_after_first = model.n_calls
-    second = MaiteEvaluation().run(models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()])
+    second = MaiteEvaluation().run(
+        models=[model], datasets=[dataset], metrics=[clear_mot_metrics_factory()], config=_mota_config()
+    )
 
     metric_result = _only_metric(first)
     assert "motp" not in metric_result.scalar_values

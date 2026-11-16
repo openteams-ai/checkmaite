@@ -9,6 +9,7 @@ Key Components
 - AnalyticsStore: Main API for writing runs and querying via SQL
 - ParquetBackend: Default storage backend using Parquet files
 - RunRecord: Auto-populated run metadata with flat provenance columns
+- RunVersionRecord: Auto-populated library versions of each run
 
 Usage
 -----
@@ -74,7 +75,7 @@ class MyCapabilityRecord(BaseRecord, table_name="my_capability"):
 
 class MyCapabilityRun(CapabilityRunBase[MyConfig, MyOutputs]):
     def extract(self) -> list[MyCapabilityRecord]:
-        run_uid = self.compute_uid(...)
+        run_uid = self.run_uid
         return [
             MyCapabilityRecord(
                 run_uid=run_uid,
@@ -94,7 +95,7 @@ from checkmaite.core.analytics_store._provenance import (
     get_provenance_defaults,
     reset_provenance,
 )
-from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
+from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord, RunVersionRecord
 from checkmaite.core.analytics_store._storage import ParquetBackend, StorageBackend, StorageWriteReceipt
 from checkmaite.core.analytics_store._store import AnalyticsStore
 
@@ -105,6 +106,7 @@ __all__ = [
     "Provenance",
     "ProvenanceLike",
     "RunRecord",
+    "RunVersionRecord",
     "StorageBackend",
     "StorageWriteReceipt",
     "configure_provenance",

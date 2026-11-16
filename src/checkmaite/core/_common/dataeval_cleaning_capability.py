@@ -10,15 +10,14 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 from dataeval import Metadata
-from dataeval.core import compute_stats, label_stats
+from dataeval.core import image_stats, label_stats
 from dataeval.flags import ImageStats
 from dataeval.quality import Outliers
 from dataeval.types import SourceIndex
 from dataeval.utils.thresholds import ZScoreThreshold
 
 if TYPE_CHECKING:
-    from dataeval.core._compute_stats import StatsResult
-    from dataeval.core._label_stats import LabelStatsResult
+    from dataeval.core import LabelStatsResult, StatsResult
     from dataeval.quality import DuplicatesOutput
 
 
@@ -411,7 +410,9 @@ class DataevalCleaningRun(CapabilityRunBase[DataevalCleaningConfig, DataevalClea
         sharpness = outputs.image_stats.vis_stats.sharpness.astype(float)
 
         image_counts_per_class = outputs.label_stats.image_counts_per_class
-        class_image_counts = list(image_counts_per_class.values()) if image_counts_per_class else [0]
+        # DataEval lists every class in index2label, including ones with no images. Keep the
+        # ratio over the classes that appear so a single absent class doesn't make it inf.
+        class_image_counts = [count for count in image_counts_per_class.values() if count > 0] or [0]
         min_class_count = min(class_image_counts)
         max_class_count = max(class_image_counts)
         imbalance_ratio = float(max_class_count) / min_class_count if min_class_count > 0 else float("inf")
@@ -453,6 +454,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
     """
 
     _RUN_TYPE = DataevalCleaningRun
+    cache_dependencies = ("dataeval",)
 
     @classmethod
     def _create_config(cls) -> DataevalCleaningConfig:
@@ -529,7 +531,7 @@ class DataevalCleaningBase(Capability[DataevalCleaningOutputs, TDataset, TModel,
             return "perceptual" in msg and "hash" in msg
 
         with squash_repeated_warnings("dataeval", is_small_perceptual_hash_warning) as filt:
-            stats = compute_stats(
+            stats = image_stats(
                 dataset,
                 stats=flags,
                 per_target=False,

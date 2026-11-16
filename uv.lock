@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11, <3.15"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -439,6 +439,15 @@ wheels = [
 ]
 
 [[package]]
+name = "beartype"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/34/c0cfdaee9c796c8381439fed0fcab62810753b8b0adb1ec88fa7f41eaa5d/beartype-0.23.1.tar.gz", hash = "sha256:8b805f246b32931c74f2b321ea0939fe5bb2ff43c12a3eff19cc4c854b832e1d", size = 1993714, upload-time = "2026-10-11T05:36:55.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/cb/2f6aa982e2860c1156830db3da7f823b71784ed7d533ca289ea9b6c6347a/beartype-0.23.1-py3-none-any.whl", hash = "sha256:4461b4dc57e3fdd6c8a8464b22cf118002eea107c33e9fef651c69068ab3cce3", size = 1582101, upload-time = "2026-10-11T05:36:52.431Z" },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -703,6 +712,10 @@ reporting = [
     { name = "markdown" },
     { name = "xhtml2pdf" },
 ]
+spotcheck = [
+    { name = "beartype" },
+    { name = "maite" },
+]
 visdrone = [
     { name = "modelmaite", extra = ["visdrone"] },
 ]
@@ -730,14 +743,16 @@ docs = [
 requires-dist = [
     { name = "adlfs", marker = "extra == 'azure'", specifier = ">=2023.1.0" },
     { name = "adlfs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
-    { name = "dataeval", specifier = "==1.0.6" },
-    { name = "dataeval-plots", specifier = "==0.0.6" },
-    { name = "datamaite", extras = ["fmv", "ic", "od"], specifier = "==0.6.0" },
+    { name = "beartype", marker = "extra == 'spotcheck'", specifier = ">=0.22.9" },
+    { name = "dataeval", specifier = "==1.2.0" },
+    { name = "dataeval-plots", specifier = "==0.0.16" },
+    { name = "datamaite", extras = ["fmv", "ic", "od"], specifier = "==0.7.0" },
     { name = "fsspec", specifier = ">=2023.1.0" },
     { name = "gcsfs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
     { name = "gcsfs", marker = "extra == 'gcs'", specifier = ">=2023.1.0" },
     { name = "ipython", specifier = ">=8.13" },
-    { name = "maite", specifier = ">=0.9.4,<0.10" },
+    { name = "maite", specifier = ">=0.10,<0.11" },
+    { name = "maite", marker = "extra == 'spotcheck'", specifier = ">=0.10,<0.11" },
     { name = "markdown", marker = "extra == 'reporting'", specifier = ">=3.5" },
     { name = "matplotlib", specifier = ">=3.7.1,<3.10.8" },
     { name = "modelmaite", specifier = "==0.2.0" },
@@ -745,7 +760,7 @@ requires-dist = [
     { name = "modelmaite", extras = ["onnx-cuda"], marker = "extra == 'onnx-cuda'", specifier = "==0.2.0" },
     { name = "modelmaite", extras = ["visdrone"], marker = "extra == 'visdrone'", specifier = "==0.2.0" },
     { name = "motmetrics", specifier = ">=1.4.0,<1.5" },
-    { name = "nrtk", extras = ["pybsm"], specifier = "==1.0.4" },
+    { name = "nrtk", extras = ["pybsm"], specifier = "==1.1.0" },
     { name = "opencv-python-headless", specifier = ">=4.9.0.80" },
     { name = "pandas", specifier = ">=2" },
     { name = "pillow", specifier = ">=13.0.0" },
@@ -764,7 +779,7 @@ requires-dist = [
     { name = "xaitk-saliency", extras = ["maite"], specifier = ">=0.16.0" },
     { name = "xhtml2pdf", marker = "extra == 'reporting'", specifier = ">=0.2.19" },
 ]
-provides-extras = ["aws", "azure", "cloud", "gcs", "onnx", "onnx-cuda", "reporting", "visdrone"]
+provides-extras = ["aws", "azure", "cloud", "gcs", "onnx", "onnx-cuda", "reporting", "spotcheck", "visdrone"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1086,7 +1101,7 @@ name = "cuda-bindings"
 version = "13.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cuda-pathfinder", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "cuda-pathfinder" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/6b/457ca12dad3ee9bfcc9a545cfd6b64b359ba49de40f776f6e028e678f262/cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c5879712accf6e14bb01aa5e67440eb84998b8d104b509cc7a6dc0b8f656a474", size = 6053539, upload-time = "2026-05-29T23:11:43.19Z" },
@@ -1119,43 +1134,43 @@ wheels = [
 
 [package.optional-dependencies]
 cublas = [
-    { name = "nvidia-cublas", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-cuda-nvrtc", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cublas", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-cuda-nvrtc", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cudart = [
-    { name = "nvidia-cuda-runtime", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cuda-runtime", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cufft = [
-    { name = "nvidia-cufft", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cufft", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cufile = [
-    { name = "nvidia-cufile", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cufile", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cupti = [
-    { name = "nvidia-cuda-cupti", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cuda-cupti", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 curand = [
-    { name = "nvidia-curand", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-curand", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cusolver = [
-    { name = "nvidia-cublas", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-cusolver", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-cusparse", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cublas", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-cusolver", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-cusparse", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 cusparse = [
-    { name = "nvidia-cusparse", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cusparse", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 nvjitlink = [
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 nvrtc = [
-    { name = "nvidia-cuda-nvrtc", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cuda-nvrtc", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 nvtx = [
-    { name = "nvidia-nvtx", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-nvtx", marker = "platform_machine == 'aarch64' or platform_machine == 'x86_64'" },
 ]
 
 [[package]]
@@ -1169,10 +1184,11 @@ wheels = [
 
 [[package]]
 name = "dataeval"
-version = "1.0.6"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "lightgbm" },
+    { name = "maite" },
     { name = "numba", version = "0.62.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "numba", version = "0.68.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
@@ -1186,14 +1202,14 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/06/0d70c37e045164792d9682a6c38dd619d39c4d3fee60f124c7dd62163b50/dataeval-1.0.6.tar.gz", hash = "sha256:5816dc1cefbcb9b6934064e9db70725100108c64c9316b7f9a4e5e52fbf5b1a6", size = 258010, upload-time = "2026-04-10T23:08:01.168Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1b/30/4dde8653239f4c75701817d24869595260736a8209c21b23fcb40515aabb/dataeval-1.2.0.tar.gz", hash = "sha256:5e029f7f62fd3ad570166cad318a92d91a9f11df3e966ec52282d600b338a309", size = 1130736, upload-time = "2026-11-03T07:12:56.13Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/47/9505320e4122264d00b0431f8bd7e8c10679bf7a724e4b4dbdc2e03eb88c/dataeval-1.0.6-py3-none-any.whl", hash = "sha256:30eba1c68837b177897ab9fd861e37720dab0c686fbf46e9c5e4483c86fd573e", size = 317475, upload-time = "2026-04-10T23:07:59.855Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/27/22bf4c089f1c0274a42f2d355e9d0d2c5c48ace618acbd3f269ab073543b/dataeval-1.2.0-py3-none-any.whl", hash = "sha256:15955caaa999fe5fe2f895f94ffe615cb78c27e54459c8e5d18409be7818b47c", size = 1285702, upload-time = "2026-11-03T07:12:53.967Z" },
 ]
 
 [[package]]
 name = "dataeval-plots"
-version = "0.0.6"
+version = "0.0.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "matplotlib" },
@@ -1201,26 +1217,27 @@ dependencies = [
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "polars" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/f5/ad41b80fbec129387e7298b22818b95ce50d102e6c8dd7fa34b6e5a4a20f/dataeval_plots-0.0.6.tar.gz", hash = "sha256:371699e5d61ee56ae738ebb8ee0de33fcbb1f5f5d190bd6cf3f75f7bf8fb9497", size = 33773, upload-time = "2026-02-06T07:52:02.158Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/cf/db3a97894173165d4fd6ae6aa6998d39ee67f5024d184ab5037091f4094a/dataeval_plots-0.0.16.tar.gz", hash = "sha256:b2e5da54cf0e7ac3267cc27d1c8a0be534a9529cc77a126f69f95ab023af4a62", size = 67778, upload-time = "2026-10-31T04:29:05.607Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/55/8da0a3934303c65390ecc1d27c7ac9ee4d92d0059f1274d808ca877431dd/dataeval_plots-0.0.6-py3-none-any.whl", hash = "sha256:97b3f33f486ac26ce52b0414eca7a5bd61f1c1e75cf14fcf320ff665038319e5", size = 42251, upload-time = "2026-02-06T07:52:00.909Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/94/90b29ac876ee30479ff06c83891d14f36a6213ed43fe531a224e3dd5a304/dataeval_plots-0.0.16-py3-none-any.whl", hash = "sha256:2ed844940852c5082c12a35bd6f4400e1331ca02dbf3f4c76afb62e3a6f9d1a2", size = 76725, upload-time = "2026-10-31T04:29:04.626Z" },
 ]
 
 [[package]]
 name = "datamaite"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "typing-extensions" },
     { name = "universal-pathlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/fb/0f8c803dc6fae4499bd4d7ab66736ac92bbe7e3b0f8d55d48cd778ea9796/datamaite-0.6.0.tar.gz", hash = "sha256:d209f9973743483b9c3897d776539568750508bf5f1b92207d40f60d08204a19", size = 435012, upload-time = "2026-10-07T22:39:26.085Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/78/a75f479b0af641490e7cf945b848908d3fccd6249a226de6809bc67f90cc/datamaite-0.7.0.tar.gz", hash = "sha256:e7ba4178580d091c9095d44f4812fe55c878fa9bcb761a8fbeaa22d2f1bf79ea", size = 470962, upload-time = "2026-10-22T17:44:08.843Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/c2/4a2825e98f5e6a836084b44f0ecd2ac8961c0bffbf1c4ac33bea32b1ac58/datamaite-0.6.0-py3-none-any.whl", hash = "sha256:1230a80be24a33b980d0e14c5ea6c873011a2d78880260426181918731118730", size = 298102, upload-time = "2026-10-07T22:39:23.922Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/f9/b84078ebcc0b4e321e4e2dc3355f237fddc3fbefd2402b80496fb0f06794/datamaite-0.7.0-py3-none-any.whl", hash = "sha256:85df8c6b03b28d2c5df1a9dfe7adda0157ca0452b06d52d38872ed6fc8fae2ca", size = 311560, upload-time = "2026-10-22T17:44:07.45Z" },
 ]
 
 [package.optional-dependencies]
@@ -1231,9 +1248,11 @@ fmv = [
 ]
 ic = [
     { name = "opencv-python-headless" },
+    { name = "tifffile" },
 ]
 od = [
     { name = "opencv-python-headless" },
+    { name = "tifffile" },
 ]
 
 [[package]]
@@ -2419,16 +2438,16 @@ wheels = [
 
 [[package]]
 name = "maite"
-version = "0.9.5"
+version = "0.10.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/68/e6/02fefc59ce5c179df5f629d636c8451efc5d0ad1301ebfc17d50bb1a7a7b/maite-0.9.5.tar.gz", hash = "sha256:abf14ecc6ed8cedb91aa7b1dc9c790409d0c954652731fb6f3cdd617bd8c42b8", size = 94952, upload-time = "2026-03-30T14:52:19.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/30/30fc27ef2db95fd0b75a88f8302bb15fcd281c526ec664deb3bfdce5a798/maite-0.10.3.tar.gz", hash = "sha256:0b7eb2854d22b98ee391062e239777c539e26c9bdd430c25efc575009261f9c6", size = 145895, upload-time = "2026-10-02T01:40:24.159Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/a6/9ace69f9ddfb4f9af0438e07c98e3a9dea3f44cc1dc11cd39a0c85b138e8/maite-0.9.5-py3-none-any.whl", hash = "sha256:a710ec5e3ffa93541a3dffb69ca9cc7002452d73aca744f911383e886ce7e233", size = 90861, upload-time = "2026-03-30T14:52:17.772Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/f9/3f32a77bfa06241404170b214508acda26ca990e9a96a3fb81e4ef2322d3/maite-0.10.3-py3-none-any.whl", hash = "sha256:7669d8fd2b788f72e9450ff5be2bf41520a7fd1392db32ea1cab3edfd2d80b11", size = 119895, upload-time = "2026-10-02T01:40:22.326Z" },
 ]
 
 [[package]]
@@ -3238,14 +3257,12 @@ wheels = [
 
 [[package]]
 name = "nrtk"
-version = "1.0.4"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "lazy-loader" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "pycocotools" },
-    { name = "setuptools" },
     { name = "smqtk-classifier", version = "0.20.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "smqtk-classifier", version = "0.21.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "smqtk-core" },
@@ -3254,9 +3271,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/83/ba83bc8b8d1de09f7bfba4ba9c623ad8dbc7330e108ec5a0aaff5e5e1917/nrtk-1.0.4.tar.gz", hash = "sha256:9ae62e41903257cd2c44e92a9bd5bf3cf69fcd9863314806263912048b711fbd", size = 86836, upload-time = "2026-06-25T22:15:53.442Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/86/c4ed5aa2541042684687fd0c3b8ef5eff22fdf8e9b157eed4b420bc77924/nrtk-1.1.0.tar.gz", hash = "sha256:4ce038ce817b7f0cefdccd081342fc2678ab74fc2f1648b13e6946d1c057cba6", size = 127951, upload-time = "2026-08-29T03:58:10.965Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/13/f57275e918ce0c548d7671db9441ee1ebfd6af0502e6d38b1a7af1494dd3/nrtk-1.0.4-py3-none-any.whl", hash = "sha256:2bb9feda5d27046e56a52388d8ca97ceea75ba6a9647b209a93a9f88a5a3e79b", size = 144033, upload-time = "2026-06-25T22:15:54.533Z" },
+    { url = "https://files.pythonhosted.org/packages/80/73/1fa3fdfd757331f801023e3afdebfc8cca09e32fd08454da29d3c7a64141/nrtk-1.1.0-py3-none-any.whl", hash = "sha256:807803900731013712ae08d01c6ad9297029fc547390081ab81dc2e948748ec9", size = 199098, upload-time = "2026-08-29T03:58:12.04Z" },
 ]
 
 [package.optional-dependencies]
@@ -3281,8 +3298,8 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "llvmlite", version = "0.45.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "llvmlite", version = "0.45.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a3/20/33dbdbfe60e5fd8e3dbfde299d106279a33d9f8308346022316781368591/numba-0.62.1.tar.gz", hash = "sha256:7b774242aa890e34c21200a1fc62e5b5757d5286267e71103257f4e2af0d5161", size = 2749817, upload-time = "2025-09-29T10:46:31.551Z" }
 wheels = [
@@ -3316,8 +3333,8 @@ resolution-markers = [
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "llvmlite", version = "0.50.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
+    { name = "llvmlite", version = "0.50.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4e/cd/e8280f9ffa30fea9fabc5341223701231fcc5d53a31f51419d42d4bec3a6/numba-0.68.0.tar.gz", hash = "sha256:8a781de54b980b98f43bff7f1093701b5f07c80d031c7cfa8a87493d8bf73f2d", size = 2855363, upload-time = "2026-09-30T15:05:44.721Z" }
 wheels = [
@@ -3503,7 +3520,7 @@ name = "nvidia-cublas"
 version = "13.1.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cuda-nvrtc", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-cuda-nvrtc" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/a1/0bd24ee8c8d03adac032fd2909426a00c88f8c57961b1277ded97f91119f/nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:b7a210458267ac818974c53038fbec2e969d5c99f305ab15c72522fa9f001dd5", size = 542848918, upload-time = "2026-04-08T18:46:22.985Z" },
@@ -3542,7 +3559,7 @@ name = "nvidia-cudnn-cu13"
 version = "9.20.0.48"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-cublas" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/c5/83384d846b2fd17c44bd499b36c75a45ed4f095fbbb2252294e89cea5c5c/nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:e31454ae00094b0c55319d9d15b6fa2fc50a9e1c0f5c8c80fb75258234e731e1", size = 444574296, upload-time = "2026-03-09T19:28:27.751Z" },
@@ -3554,7 +3571,7 @@ name = "nvidia-cufft"
 version = "12.0.0.61"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-nvjitlink" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/ae/f417a75c0259e85c1d2f83ca4e960289a5f814ed0cea74d18c353d3e989d/nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:2708c852ef8cd89d1d2068bdbece0aa188813a0c934db3779b9b1faa8442e5f5", size = 214053554, upload-time = "2025-09-04T08:31:38.196Z" },
@@ -3584,9 +3601,9 @@ name = "nvidia-cusolver"
 version = "12.0.4.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
-    { name = "nvidia-cusparse", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
-    { name = "nvidia-nvjitlink", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-cublas" },
+    { name = "nvidia-cusparse" },
+    { name = "nvidia-nvjitlink" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/c3/b30c9e935fc01e3da443ec0116ed1b2a009bb867f5324d3f2d7e533e776b/nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:02c2457eaa9e39de20f880f4bd8820e6a1cfb9f9a34f820eb12a155aa5bc92d2", size = 223467760, upload-time = "2025-09-04T08:33:04.222Z" },
@@ -3598,7 +3615,7 @@ name = "nvidia-cusparse"
 version = "12.6.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink", marker = "(python_full_version >= '3.13' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-nvjitlink" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/94/5c26f33738ae35276672f12615a64bd008ed5be6d1ebcb23579285d960a9/nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:80bcc4662f23f1054ee334a15c72b8940402975e0eab63178fc7e670aa59472c", size = 162155568, upload-time = "2025-09-04T08:33:42.864Z" },
@@ -3679,11 +3696,11 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "ml-dtypes", marker = "python_full_version != '3.13.*'" },
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "ml-dtypes" },
+    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
-    { name = "protobuf", marker = "python_full_version != '3.13.*'" },
-    { name = "typing-extensions", marker = "python_full_version != '3.13.*'" },
+    { name = "protobuf" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/19/8ea73a64b368b75fe339771a20a02bc61ea1f551484c9e3d9d0bfbd0450f/onnx-1.22.0.tar.gz", hash = "sha256:ef40c0aaf0b643857ea9306fc7eddce17eaf9fb0407e4801f1fc5758443a38e0", size = 12024721, upload-time = "2026-06-15T12:50:05.354Z" }
 wheels = [
@@ -3717,10 +3734,10 @@ resolution-markers = [
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "ml-dtypes", marker = "python_full_version == '3.13.*'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.13.*'" },
-    { name = "protobuf", marker = "python_full_version == '3.13.*'" },
-    { name = "typing-extensions", marker = "python_full_version == '3.13.*'" },
+    { name = "ml-dtypes" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "protobuf" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3f/62/bc2dfadb63ecf04cb2d65a6b17751863039d36c65de51d6a3128ab35f1e7/onnx-1.23.2.tar.gz", hash = "sha256:008cb0467b2bbee41448acc7da8b6f4e704624cb0d327a2d5adafc7ce19bc5b8", size = 6023090, upload-time = "2026-10-06T04:25:58.681Z" }
 wheels = [
@@ -4034,7 +4051,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -5379,10 +5396,10 @@ resolution-markers = [
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "smqtk-core", marker = "python_full_version >= '3.13'" },
-    { name = "smqtk-dataprovider", marker = "python_full_version >= '3.13'" },
-    { name = "smqtk-descriptors", marker = "python_full_version >= '3.13'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "smqtk-core" },
+    { name = "smqtk-dataprovider" },
+    { name = "smqtk-descriptors" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/3f/0bf57315f4b8d1c1412a378b9314d94f7b879f27e48858172fe0955246bd/smqtk_classifier-0.20.0.tar.gz", hash = "sha256:bd888e5eb718592b922cf24ea524ffad08f24c06e6203f638c6a2aeb5304f632", size = 27254, upload-time = "2025-08-29T20:30:33.236Z" }
 wheels = [
@@ -5406,10 +5423,10 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "smqtk-core", marker = "python_full_version < '3.13'" },
-    { name = "smqtk-dataprovider", marker = "python_full_version < '3.13'" },
-    { name = "smqtk-descriptors", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" } },
+    { name = "smqtk-core" },
+    { name = "smqtk-dataprovider" },
+    { name = "smqtk-descriptors" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/30/8263a0763c619f99bc787864ce20e57c3dbba59f81667658e16e62872628/smqtk_classifier-0.21.0.tar.gz", hash = "sha256:e9e1141f6f46dcf15dcf4d07f07d466c639faecb24c2ccdbbcfb445b993e7bd4", size = 27514, upload-time = "2026-10-12T22:14:31.802Z" }
 wheels = [

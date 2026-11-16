@@ -151,7 +151,9 @@ def test_bias_output(fake_ic_dataset_cifar10_metadata):
         {"Factor": "batch_id", "Balance Score": 0.0},
     ]
     assert len(output.outputs.balance.factors) == 0
-    assert output.outputs.balance.classwise.shape == (14, 4)
+    # 7 classes x 1 factor: since DataEval 1.1 the classwise table no longer scores
+    # class_label against itself.
+    assert output.outputs.balance.classwise.shape == (7, 4)
     assert isinstance(output.outputs.balance.image_classwise, PILImage.Image)
     assert output.outputs.balance.image_metadata is None
 

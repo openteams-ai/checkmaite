@@ -1480,6 +1480,7 @@ class RayJobBackend:
             dataset_metadata=[dataset.metadata for dataset in (run_kwargs.get("datasets") or [])],
             model_metadata=[model.metadata for model in (run_kwargs.get("models") or [])],
             metric_metadata=[metric.metadata for metric in (run_kwargs.get("metrics") or [])],
+            versions=capability.cache_versions(),
         )
 
     @staticmethod

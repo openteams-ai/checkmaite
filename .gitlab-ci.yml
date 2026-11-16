@@ -237,7 +237,9 @@ test:
   variables:
     PYTEST_OPTS: --cov-report xml:coverage_report.xml --cov-fail-under=90
   script:
-    - uv sync --locked --extra onnx --extra visdrone --extra reporting
+    # spotcheck runs the real check_components tests; optional-tests-no-extras
+    # and the conda jobs run without it.
+    - uv sync --locked --extra onnx --extra visdrone --extra reporting --extra spotcheck
     # SIGABRT a hung pytest (mid-test or at exit) so PYTHONFAULTHANDLER dumps every thread's stack.
     - PYTHONFAULTHANDLER=1 uv run --no-sync timeout -s ABRT 40m pytest tests -vvv --cov=checkmaite --cov=checkmaite_container --cov-report term-missing $PYTEST_OPTS
 

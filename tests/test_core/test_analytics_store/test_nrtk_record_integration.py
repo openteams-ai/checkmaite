@@ -4,6 +4,7 @@ import torch
 from checkmaite.core._common.nrtk_robustness_capability import (
     NrtkRobustnessConfig,
     NrtkRobustnessOutputs,
+    NrtkRobustnessPoint,
     NrtkRobustnessRecord,
     NrtkRobustnessRun,
 )
@@ -27,6 +28,7 @@ def _nrtk_record(
     theta_value: float = 1.0,
     metric_key: str = "accuracy",
     metric_value: float = 0.95,
+    baseline_value: float = 0.97,
     is_primary: bool = True,
 ) -> NrtkRobustnessRecord:
     return NrtkRobustnessRecord(
@@ -41,6 +43,7 @@ def _nrtk_record(
         theta_value=theta_value,
         metric_key=metric_key,
         metric_value=metric_value,
+        baseline_value=baseline_value,
         is_primary=is_primary,
     )
 
@@ -111,7 +114,7 @@ def test_multi_metric_records(backend: ParquetBackend) -> None:
 
 
 def test_is_primary_filter(backend: ParquetBackend) -> None:
-    """is_primary flag correctly distinguishes return_key from secondary metrics."""
+    """is_primary flag correctly distinguishes metric_key from secondary metrics."""
     backend.write(_robustness_curve_records())
 
     primary = backend.query_sql("SELECT COUNT(*) AS n FROM nrtk_robustness WHERE is_primary = true")
@@ -162,47 +165,23 @@ def test_cross_table_join_with_feasibility(backend: ParquetBackend) -> None:
     assert result["ber_upper"][0] == pytest.approx(0.15)
 
 
-def _make_run(perturbations: list[dict[str, object]], return_key: str = "accuracy") -> NrtkRobustnessRun:
-    """Construct a minimal NrtkRobustnessRun for testing extract().
-
-    Builds a PerturberStepFactory whose theta count matches ``perturbations``.
-    """
-    from nrtk.interfaces import PerturbImageFactory
-    from smqtk_core.configuration import from_config_dict
-
-    n = len(perturbations)
-    factory = (
-        from_config_dict(
-            {
-                "type": "nrtk.impls.perturb_image_factory.PerturberStepFactory",
-                "nrtk.impls.perturb_image_factory.PerturberStepFactory": {
-                    "perturber": "nrtk.impls.perturb_image.photometric.enhance.BrightnessPerturber",
-                    "theta_key": "factor",
-                    "start": 1.0,
-                    "stop": float(n) + 0.5,
-                    "step": 1.0,
-                },
-            },
-            PerturbImageFactory.get_impls(),
-        )
-        if n > 0
-        else from_config_dict(
-            {
-                "type": "nrtk.impls.perturb_image_factory.PerturberOneStepFactory",
-                "nrtk.impls.perturb_image_factory.PerturberOneStepFactory": {
-                    "perturber": "nrtk.impls.perturb_image.photometric.enhance.BrightnessPerturber",
-                    "theta_key": "factor",
-                    "theta_value": 1.0,
-                },
-            },
-            PerturbImageFactory.get_impls(),
-        )
+def _make_run(
+    perturbations: list[dict[str, object]], metric_key: str = "accuracy", baseline: dict[str, object] | None = None
+) -> NrtkRobustnessRun:
+    """Construct a minimal NrtkRobustnessRun for testing extract(), with thetas 1.0, 2.0, ..."""
+    baseline = baseline if baseline is not None else {key: 1.0 for key in perturbations[0]}
+    outputs = NrtkRobustnessOutputs(
+        perturber="BrightnessPerturber",
+        theta_key="factor",
+        baseline=baseline,
+        points=[
+            NrtkRobustnessPoint(theta=float(index + 1), metrics=metrics) for index, metrics in enumerate(perturbations)
+        ],
+        metric_key=metric_key,
     )
-    config = NrtkRobustnessConfig(perturber_factory=factory)
-    outputs = NrtkRobustnessOutputs(perturbations=perturbations, return_key=return_key)
     return NrtkRobustnessRun(
         capability_id="test.NrtkRobustness",
-        config=config,
+        config=NrtkRobustnessConfig(),
         dataset_metadata=[{"id": "ds1"}],
         model_metadata=[{"id": "resnet50"}],
         metric_metadata=[{"id": "coco_metrics"}],
@@ -228,7 +207,7 @@ def test_extract_produces_records_per_theta_and_metric() -> None:
 
 
 def test_extract_is_primary_flag() -> None:
-    """extract() sets is_primary=True only for the return_key metric."""
+    """extract() sets is_primary=True only for the metric_key metric."""
     run = _make_run(perturbations=[{"accuracy": 0.9, "f1_score": 0.8}])
     records = run.extract()
 
@@ -258,3 +237,44 @@ def test_extract_perturber_fields() -> None:
     assert records[0].perturber_class == "BrightnessPerturber"
     assert records[0].perturber_type == "Brightness Perturber"
     assert records[0].theta_key == "factor"
+
+
+def test_extract_records_the_baseline_for_each_metric() -> None:
+    """extract() puts the unperturbed score for the same metric key on every record."""
+    run = _make_run(
+        perturbations=[{"accuracy": 0.8, "f1_score": 0.7}, {"accuracy": 0.6, "f1_score": 0.5}],
+        baseline={"accuracy": torch.tensor(0.9), "f1_score": 0.85},
+    )
+    records = run.extract()
+
+    assert [(r.metric_key, r.theta_value) for r in records] == [
+        ("accuracy", 1.0),
+        ("f1_score", 1.0),
+        ("accuracy", 2.0),
+        ("f1_score", 2.0),
+    ]
+    assert [r.baseline_value for r in records] == pytest.approx([0.9, 0.85, 0.9, 0.85])
+
+
+def test_extract_skips_results_that_are_not_single_numbers() -> None:
+    """An unfiltered mAP metric also returns per-class arrays, which have no single value to record."""
+    results = {
+        "map": torch.tensor(0.3),
+        "map_50": torch.tensor(0.5),
+        "map_per_class": torch.tensor([0.1, 0.2]),
+        "classes": torch.tensor([0, 1], dtype=torch.int32),
+    }
+    run = _make_run(perturbations=[results], metric_key="map_50", baseline=results)
+
+    records = run.extract()
+
+    assert sorted(r.metric_key for r in records) == ["map", "map_50"]
+    assert [r.metric_key for r in records if r.is_primary] == ["map_50"]
+
+
+def test_extract_skips_per_class_results_that_are_single_numbers() -> None:
+    """With per-class metrics off or one class, torchmetrics returns 0-d per-class tensors."""
+    results = {"map": torch.tensor(0.3), "map_per_class": torch.tensor(-1.0), "classes": torch.tensor(3)}
+    run = _make_run(perturbations=[results], metric_key="map", baseline=results)
+
+    assert [r.metric_key for r in run.extract()] == ["map"]

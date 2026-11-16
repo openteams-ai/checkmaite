@@ -145,7 +145,9 @@ class RunRecord(BaseRecord, table_name="runs"):
 
     Maps a ``run_uid`` to the human-readable identifiers that produced it
     (capability, datasets, models, metrics) plus flat provenance metadata for
-    the run history event. One record is written per unique
+    the run history event. The capability and library versions that went
+    into the run UID are in the ``run_versions`` table instead (see
+    :class:`RunVersionRecord`). One record is written per unique
     ``(run_uid, capability_table, entity_type, entity_id)`` mapping by
     default, or per ``(run_uid, capability_table, entity_type, entity_id,
     run_event_id)`` when an explicit run event ID is supplied, so that users
@@ -185,3 +187,39 @@ class RunRecord(BaseRecord, table_name="runs"):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("submitted_at and completed_at must be timezone-aware datetimes")
         return value.astimezone(UTC)
+
+
+RUN_VERSION_KINDS = ("library",)
+
+
+class RunVersionRecord(BaseRecord, table_name="run_versions"):
+    """A row in the ``run_versions`` table, emitted automatically by the store.
+
+    Records the exact installed version of each library the capability
+    depends on (its ``cache_dependencies``), as in ``run.versions``: one row
+    per library with ``kind = 'library'``, ``name`` set to the distribution
+    name (such as ``dataeval``) and ``version`` set to its version. The
+    capability's own ``version`` is a cache detail and is not recorded. A run
+    of a capability with no library dependencies, such as MAITE Evaluation,
+    has no rows, and neither do runs written before CheckMAITE recorded
+    versions. Like capability tables, the rows for a ``run_uid`` are written
+    once.
+
+    Use it to tell results computed with different library versions apart::
+
+        SELECT c.*
+        FROM dataeval_cleaning c
+        JOIN run_versions v ON c.run_uid = v.run_uid
+        WHERE v.kind = 'library' AND v.name = 'dataeval' AND v.version = '1.2.0'
+    """
+
+    kind: str  # "library"
+    name: str
+    version: str
+
+    @pydantic.field_validator("kind")
+    @classmethod
+    def _known_kind(cls, kind: str) -> str:
+        if kind not in RUN_VERSION_KINDS:
+            raise ValueError(f"kind must be one of {RUN_VERSION_KINDS}, got {kind!r}.")
+        return kind

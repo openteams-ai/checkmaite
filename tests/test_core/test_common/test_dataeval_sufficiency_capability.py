@@ -136,3 +136,56 @@ def test_collect_report_consumables_ic(test_run_ic):
     with pytest.warns(DeprecationWarning):
         consumables = test_run_ic.collect_report_consumables(threshold=0.5)
     assert consumables  # smoke test
+
+
+class _DictMetric:
+    def __init__(self, result):
+        self.result = result
+        self.metadata = {"id": "dict_metric"}
+
+    def reset(self):
+        pass
+
+    def update(self, preds, targets, metadata):
+        pass
+
+    def compute(self):
+        return self.result
+
+
+class _ZeroModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.zeros(x.shape[0], 2)
+
+
+_TINY_DATASET = [(torch.zeros(1, 2, 2), 0, {})] * 2
+
+
+def _strategy(metrics, metric_key=None):
+    from checkmaite.core._common.dataeval_sufficiency_capability import _DefaultEvaluationStrategy
+
+    return _DefaultEvaluationStrategy(
+        metrics=metrics, batch_size=2, device=torch.device("cpu"), num_workers=0, verbose=False, metric_key=metric_key
+    )
+
+
+def test_evaluation_fails_on_an_ambiguous_target_metric():
+    strategy = _strategy([_DictMetric({"accuracy": 0.5, "f1_score": 0.4})])
+
+    with pytest.raises(ValueError, match="Set metric_key"):
+        strategy.evaluate(_ZeroModel(), _TINY_DATASET)
+
+
+def test_evaluation_tracks_the_configured_key_and_ignores_extra_metrics():
+    strategy = _strategy([_DictMetric({"accuracy": 0.5, "f1_score": 0.4}), _DictMetric({"recall": 0.3})], "f1_score")
+
+    assert strategy.evaluate(_ZeroModel(), _TINY_DATASET) == {"accuracy": 0.5, "f1_score": 0.4, "recall": 0.3}
+    assert strategy.resolved_metric_key == "f1_score"
+
+
+def test_a_single_number_target_metric_needs_no_key_even_with_extra_metrics():
+    strategy = _strategy([_DictMetric({"accuracy": 0.5}), _DictMetric({"recall": 0.3})])
+
+    strategy.evaluate(_ZeroModel(), _TINY_DATASET)
+
+    assert strategy.resolved_metric_key == "accuracy"

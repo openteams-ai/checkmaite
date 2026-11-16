@@ -32,7 +32,7 @@ def dummy_shift_capability():
 
 @pytest.fixture
 def test_config():
-    return DataevalShiftConfig(dim=32)
+    return DataevalShiftConfig()
 
 
 @pytest.fixture

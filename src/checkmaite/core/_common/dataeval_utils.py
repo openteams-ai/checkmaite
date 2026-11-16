@@ -1,8 +1,8 @@
-from typing import Any, TypeAlias, TypeVar
+from typing import TypeAlias, TypeVar
 
 import maite.protocols.generic as gen
-from dataeval.selection import Indices, Limit, Select, Selection
-from dataeval.utils.data import split_dataset as dataeval_split_dataset
+from dataeval.data import Indices, Limit, Operation, View
+from dataeval.data import split_dataset as dataeval_split_dataset
 from maite.protocols import DatasetMetadata
 
 TInput = TypeVar("TInput")
@@ -29,30 +29,30 @@ SplitDatasetOutput: TypeAlias = (
 )
 
 
-# TODO(CheckMAITE): Remove this wrapper once ``dataeval.selection.Select`` is
+# TODO(CheckMAITE): Remove this wrapper once ``dataeval.data.View`` is
 # typed as MAITE-compatible (i.e., it satisfies ``maite.protocols.generic.Dataset``
-# with MAITE ``DatasetMetadata``). Today, ``Select`` follows DataEval protocol
+# with MAITE ``DatasetMetadata``). Today, ``View`` follows DataEval protocol
 # metadata typing, which causes pyright protocol mismatches in our MAITE-typed API.
-class _MaiteSelectDataset(gen.Dataset[TInput, TTarget, TDatumMetadata]):
-    """MAITE Dataset wrapper around ``dataeval.selection.Select``."""
+class _MaiteViewDataset(gen.Dataset[TInput, TTarget, TDatumMetadata]):
+    """MAITE Dataset wrapper around ``dataeval.data.View``."""
 
     def __init__(
         self,
         dataset: gen.Dataset[TInput, TTarget, TDatumMetadata],
         indices: list[int] | None = None,
-        selections: list[Selection[Any]] | None = None,
+        operations: list[Operation] | None = None,
     ) -> None:
-        if (indices and selections) or not (indices or selections):
-            raise ValueError("Only indices or selections should be provided")
-        sels = Indices(indices) if indices is not None else selections
-        self._select = Select(dataset, selections=sels)
+        if (indices and operations) or not (indices or operations):
+            raise ValueError("Only indices or operations should be provided")
+        ops = Indices(indices) if indices is not None else operations
+        self._view = View(dataset, operations=ops)
         self.metadata: DatasetMetadata = dataset.metadata
 
     def __getitem__(self, ind: int) -> tuple[TInput, TTarget, TDatumMetadata]:
-        return self._select[ind]
+        return self._view[ind]
 
     def __len__(self) -> int:
-        return len(self._select)
+        return len(self._view)
 
 
 def split_dataset(
@@ -106,11 +106,11 @@ def split_dataset(
     for fold in split_defs.folds:
         train_indices = fold.train.tolist()
         val_indices = fold.val.tolist()
-        train_dataset = _MaiteSelectDataset(dataset, train_indices)
-        val_dataset = _MaiteSelectDataset(dataset, val_indices)
+        train_dataset = _MaiteViewDataset(dataset, train_indices)
+        val_dataset = _MaiteViewDataset(dataset, val_indices)
         output.append((train_dataset, val_dataset))
     if len(test_indices) > 0:
-        test_dataset = _MaiteSelectDataset(dataset, test_indices.tolist())
+        test_dataset = _MaiteViewDataset(dataset, test_indices.tolist())
         return output, test_dataset
     return output
 
@@ -139,7 +139,7 @@ def make_subset(
         gen.Dataset[TInput, TTarget, TDatumMetadata] instance
     """
     if not stratify:
-        selections = Limit(num_samples)
+        operation = Limit(num_samples)
     else:
         val_frac = (len(dataset) - num_samples + 1) / len(dataset)
         split_defs = dataeval_split_dataset(
@@ -156,5 +156,5 @@ def make_subset(
             others = split_defs.folds[0].val.tolist()
             num_remaining = num_samples - len(indices)
             indices = indices + others[:num_remaining]
-        selections = Indices(indices)
-    return _MaiteSelectDataset(dataset, selections=[selections])
+        operation = Indices(indices)
+    return _MaiteViewDataset(dataset, operations=[operation])

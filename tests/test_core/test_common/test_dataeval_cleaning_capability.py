@@ -41,7 +41,7 @@ def sample_image_stats():
     n = 100
     rng = np.random.default_rng(42)
     return DataevalCleaningStatsOutputs(
-        source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
+        source_index=[SourceIndex(item=i) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
         invalid_box_count=[],
@@ -79,7 +79,7 @@ def sample_box_stats():
     n = 100
     rng = np.random.default_rng(42)
     return DataevalCleaningStatsOutputs(
-        source_index=[SourceIndex(item=i, target=None, channel=None) for i in range(n)],
+        source_index=[SourceIndex(item=i) for i in range(n)],
         object_count=[5] * n,
         image_count=n,
         invalid_box_count=[],

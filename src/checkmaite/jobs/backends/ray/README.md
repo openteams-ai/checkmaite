@@ -181,7 +181,11 @@ the existing active or completed job instead of starting duplicate work.
 
 The run key is based on the logical inputs to the capability. If an input changes
 the result, it must be included in the capability config or in the
-model/dataset/metric metadata used by `compute_uid(...)`. Worker resources, Ray
+model/dataset/metric metadata used by `compute_uid(...)`. The key also includes
+the capability's `version` and the exact installed versions of its
+`cache_dependencies`, read on the submitting process. The worker computes the
+returned `run_uid` from its own installed versions, so the two match only when the
+submitter and the workers run the same image. Worker resources, Ray
 address, runtime environment, analytics-store URI, and `report_threshold` are not
 part of that key.
 

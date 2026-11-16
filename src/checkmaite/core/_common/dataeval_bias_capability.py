@@ -314,6 +314,7 @@ class DataevalBiasBase(Capability[DataevalBiasOutputs, TDataset, TModel, TMetric
     """
 
     _RUN_TYPE = DataevalBiasRun
+    cache_dependencies = ("dataeval",)
 
     @classmethod
     def _create_config(cls) -> DataevalBiasConfig:

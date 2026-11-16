@@ -91,12 +91,14 @@ def test_maite_evaluation_rejects_an_undefined_headline_value(
     fake_ic_model_default, fake_ic_dataset_default, fake_ic_metric_default
 ) -> None:
     metric = type(fake_ic_metric_default)(
-        calculated_metrics={"fake_metric": torch.tensor(float("inf"))},
-        return_key="fake_metric",
+        calculated_metrics={"fake_metric": torch.tensor(float("inf")), "other": torch.tensor(0.5)},
     )
+    config = MaiteEvaluationConfig(metric_keys={metric.metadata["id"]: "fake_metric"})
 
     with pytest.raises(RuntimeError, match="'fake_metric' is undefined for this evaluation"):
-        MaiteEvaluation().run(datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric])
+        MaiteEvaluation().run(
+            datasets=[fake_ic_dataset_default], models=[fake_ic_model_default], metrics=[metric], config=config
+        )
 
 
 @pytest.mark.optional

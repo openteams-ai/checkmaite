@@ -17,7 +17,8 @@ class StorageWriteReceipt:
     ----------
     run_table_files
         Mapping of ``run_uid`` to payload-table file/object URIs written by the
-        call. The auto-generated ``runs`` table is intentionally excluded.
+        call. The auto-generated ``runs`` and ``run_versions`` tables are
+        intentionally excluded.
     """
 
     run_table_files: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -52,6 +53,7 @@ class StorageBackend(Protocol):
 
     Storage is organized by table name:
     - ``runs`` — automatically populated run metadata
+    - ``run_versions`` — automatically populated library versions
     - ``dataeval_cleaning``, ``maite_evaluation``, etc. — capability data
 
     The primary query interface is SQL-based via query_sql(), which provides
@@ -65,7 +67,8 @@ class StorageBackend(Protocol):
 
         Backend implementations are expected to preserve analytics-store
         idempotency semantics across repeated writes:
-        - capability payload tables deduplicate by ``run_uid`` across writes,
+        - capability payload tables and ``run_versions`` deduplicate by
+          ``run_uid`` across writes,
         - the ``runs`` table deduplicates rows without ``run_event_id`` by
           mapping key ``(run_uid, capability_table, entity_type, entity_id)``,
           and rows with ``run_event_id`` by provenance-aware mapping key

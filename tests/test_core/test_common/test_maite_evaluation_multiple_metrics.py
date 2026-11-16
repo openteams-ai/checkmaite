@@ -268,7 +268,7 @@ def test_metric_failure_aborts_with_attributed_pickleable_error(
 
 
 def test_normalization_failure_is_attributed(fake_ic_model_default, fake_ic_dataset_default):
-    metric = RecordingMetric("bad-return-key", {"different": 0.5}, return_key="missing")
+    metric = RecordingMetric("bad-metric-key", {"different": 0.5})
 
     with pytest.raises(MaiteEvaluationMetricError) as error_info:
         MaiteEvaluation().run(
@@ -276,14 +276,15 @@ def test_normalization_failure_is_attributed(fake_ic_model_default, fake_ic_data
             models=[fake_ic_model_default],
             datasets=[fake_ic_dataset_default],
             metrics=[metric],
+            config=MaiteEvaluationConfig(metric_keys={"bad-metric-key": "missing"}),
         )
 
-    assert error_info.value.metric_id == "bad-return-key"
+    assert error_info.value.metric_id == "bad-metric-key"
     assert error_info.value.stage == "normalize"
     assert error_info.value.error_type == "ValueError"
 
 
-def test_generic_structured_metric_without_return_key_is_supported(fake_ic_model_default, fake_ic_dataset_default):
+def test_generic_structured_metric_highlights_its_only_number(fake_ic_model_default, fake_ic_dataset_default):
     metric = RecordingMetric(
         "structured-metric",
         {"score": 0.5, "enabled": True, "label": "0.8", "details": {"count": 2}},
@@ -297,8 +298,8 @@ def test_generic_structured_metric_without_return_key_is_supported(fake_ic_model
     )
     result = run.outputs.metrics["structured-metric"]
 
-    assert result.overall_metric_name is None
-    assert result.overall_metric_value is None
+    assert result.overall_metric_name == "score"
+    assert result.overall_metric_value == 0.5
     assert result.scalar_values == {"score": 0.5}
     assert result.result["enabled"] is True
     assert result.result["label"] == "0.8"
@@ -345,3 +346,66 @@ def test_duplicate_display_labels_do_not_fail(fake_ic_model_default, fake_ic_dat
     )
 
     assert run.outputs.metrics["per-class-duplicates"].class_metrics == {"N/A": 0.2}
+
+
+def test_metric_keys_must_name_evaluated_metrics(fake_ic_model_default, fake_ic_dataset_default):
+    with pytest.raises(ValueError, match="metric_keys names metrics that were not evaluated: not-evaluated"):
+        MaiteEvaluation().run(
+            use_cache=False,
+            models=[fake_ic_model_default],
+            datasets=[fake_ic_dataset_default],
+            metrics=[RecordingMetric("evaluated", {"a": 0.1, "b": 0.2})],
+            config=MaiteEvaluationConfig(metric_keys={"not-evaluated": "a"}),
+        )
+
+
+def test_metric_keys_choose_the_highlighted_value(fake_ic_model_default, fake_ic_dataset_default):
+    run = MaiteEvaluation().run(
+        use_cache=False,
+        models=[fake_ic_model_default],
+        datasets=[fake_ic_dataset_default],
+        metrics=[RecordingMetric("several", {"a": 0.1, "b": 0.2})],
+        config=MaiteEvaluationConfig(metric_keys={"several": "b"}),
+    )
+
+    result = run.outputs.metrics["several"]
+    assert (result.overall_metric_name, result.overall_metric_value) == ("b", 0.2)
+
+
+def test_several_numbers_and_no_metric_key_highlight_nothing(fake_ic_model_default, fake_ic_dataset_default):
+    run = MaiteEvaluation().run(
+        use_cache=False,
+        models=[fake_ic_model_default],
+        datasets=[fake_ic_dataset_default],
+        metrics=[RecordingMetric("several", {"a": 0.1, "b": 0.2})],
+    )
+
+    assert run.outputs.metrics["several"].overall_metric_name is None
+
+
+def test_records_mark_the_highlighted_result_as_primary(fake_ic_model_default, fake_ic_dataset_default):
+    run = MaiteEvaluation().run(
+        use_cache=False,
+        models=[fake_ic_model_default],
+        datasets=[fake_ic_dataset_default],
+        metrics=[RecordingMetric("several", {"a": 0.1, "b": 0.2}), RecordingMetric("unchosen", {"c": 0.3, "d": 0.4})],
+        config=MaiteEvaluationConfig(metric_keys={"several": "b"}),
+    )
+
+    primary = {(record.metric_id, record.output_key) for record in run.extract() if record.is_primary}
+
+    assert primary == {("several", "b")}
+
+
+def test_class_records_are_not_primary(fake_ic_model_default, fake_ic_dataset_default):
+    run = MaiteEvaluation().run(
+        use_cache=False,
+        models=[fake_ic_model_default],
+        datasets=[fake_ic_dataset_default],
+        metrics=[RecordingMetric("per-class", {"per_class_flag": 1, "score": 0.5, "0": 0.1, "1": 0.2})],
+    )
+
+    records = run.extract()
+
+    assert [(r.output_key, r.scope) for r in records if r.is_primary] == [("score", "overall")]
+    assert {r.scope for r in records if not r.is_primary} == {"class"}

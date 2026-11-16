@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import polars as pl
 import pytest
 
@@ -500,3 +502,92 @@ def test_query_invalid_sql_raises(backend: ParquetBackend) -> None:
     backend.write([_metric()])
     with pytest.raises(ValueError, match="SQL query failed"):
         backend.query_sql("SELECT * FROM nonexistent_table")
+
+
+def _write_old_schema_file(base: Path, table: str, row: dict) -> None:
+    """A file written before a record gained a field: it lacks the new column."""
+    (base / table).mkdir(parents=True)
+    pl.DataFrame([row]).write_parquet(base / table / "0000000000000_oldschema.parquet")
+
+
+_OLD_MAITE_ROW = {
+    "run_uid": "old",
+    "dataset_id": "d",
+    "model_id": "m",
+    "metric_id": "x",
+    "output_key": "a",
+    "output_value": 0.1,
+    "scope": "overall",
+    "class_name": None,
+}
+
+
+def test_a_new_column_keeps_deduplication_and_lookup_working(tmp_path: Path) -> None:
+    from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationRecord
+
+    _write_old_schema_file(tmp_path, "maite_evaluation", _OLD_MAITE_ROW)
+    backend = ParquetBackend(str(tmp_path))
+    record = MaiteEvaluationRecord(
+        run_uid="new", dataset_id="d", model_id="m", metric_id="x", output_key="a", output_value=0.2, is_primary=True
+    )
+
+    backend.write([record])
+    backend.write([record])
+
+    counts = backend.query_sql(
+        "SELECT run_uid, COUNT(*) AS n, MAX(is_primary) AS primary FROM maite_evaluation GROUP BY run_uid ORDER BY run_uid"
+    )
+    assert counts.rows() == [("new", 1, True), ("old", 1, None)]
+    assert "/maite_evaluation/" in backend.get_run_uri("new")
+    assert backend.get_run_uri("old").endswith("_oldschema.parquet")
+    assert "is_primary" in backend.describe_table("maite_evaluation")
+
+
+def test_a_new_column_in_the_nrtk_table_keeps_deduplication(tmp_path: Path) -> None:
+    from checkmaite.core._common.nrtk_robustness_capability import NrtkRobustnessRecord
+
+    old_row = {
+        "run_uid": "old",
+        "dataset_id": "d",
+        "model_id": "m",
+        "metric_id": "x",
+        "perturber_class": "BrightnessPerturber",
+        "perturber_type": "Brightness Perturber",
+        "theta_key": "factor",
+        "theta_index": 0,
+        "theta_value": 0.5,
+        "metric_key": "map_50",
+        "metric_value": 0.1,
+        "is_primary": True,
+    }
+    _write_old_schema_file(tmp_path, "nrtk_robustness", old_row)
+    backend = ParquetBackend(str(tmp_path))
+    record = NrtkRobustnessRecord(**{**old_row, "run_uid": "new", "baseline_value": 0.2})
+
+    backend.write([record])
+    backend.write([record])
+
+    rows = backend.query_sql("SELECT run_uid, baseline_value FROM nrtk_robustness ORDER BY run_uid").rows()
+    assert rows == [("new", 0.2), ("old", None)]
+
+
+def test_a_failed_write_leaves_no_file_that_breaks_later_writes(tmp_path: Path, monkeypatch) -> None:
+    from checkmaite.core._common.maite_evaluation_capability import MaiteEvaluationRecord
+
+    backend = ParquetBackend(str(tmp_path))
+    record = MaiteEvaluationRecord(
+        run_uid="r", dataset_id="d", model_id="m", metric_id="x", output_key="a", output_value=0.2
+    )
+
+    def crash_midway(self, file, **kwargs):
+        Path(file).write_bytes(b"PAR1 truncated")
+        raise OSError("disk full")
+
+    with monkeypatch.context() as m:
+        m.setattr(pl.DataFrame, "write_parquet", crash_midway)
+        with pytest.raises(OSError, match="disk full"):
+            backend.write([record])
+
+    backend.write([record])
+    assert backend.query_sql("SELECT COUNT(*) AS n FROM maite_evaluation").item() == 1
+    assert list((tmp_path / "maite_evaluation").glob("*.parquet.tmp"))  # left behind, never read

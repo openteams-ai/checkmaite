@@ -75,6 +75,7 @@ example `python -m pip install "checkmaite[reporting,onnx]"`,
 | `reporting` | PDF report export (`markdown`, `xhtml2pdf`) |
 | `onnx` | ONNX model wrappers on the CPU (`onnx`, `onnxruntime`) |
 | `onnx-cuda` | ONNX model wrappers on NVIDIA GPUs (`onnx`, `onnxruntime-gpu`) |
+| `spotcheck` | `check_components` protocol checks (`beartype`, MAITE 0.10) |
 | `aws`, `gcs`, `azure` | Datasets and analytics stores on S3, GCS, or Azure |
 | `cloud` | All three cloud storage backends |
 
@@ -119,12 +120,15 @@ uv sync --extra reporting  # PDF report export (markdown + xhtml2pdf)
 uv sync --extra cloud      # cloud storage dependencies (aws+gcs+azure)
 uv sync --extra visdrone   # VisDrone (CenterNet) object-detection wrapper
 uv sync --extra onnx       # JATIC_ONNX model wrappers (onnx-cuda for NVIDIA GPUs)
+uv sync --extra spotcheck  # MAITE runtime protocol checks (beartype, MAITE 0.10)
 ```
 
 The base install covers the torchvision model wrappers only. The VisDrone and
 ONNX wrappers need the `visdrone` and `onnx` (or `onnx-cuda`) extras, which
 forward to modelmaite's extras of the same name; with pip, install
 `"checkmaite[visdrone]"` or `"checkmaite[onnx]"`.
+
+CheckMAITE requires MAITE 0.10 (`maite>=0.10,<0.11`).
 
 JATIC tools which are not under active development are distributed through the
 separate `checkmaite-plugins` package.

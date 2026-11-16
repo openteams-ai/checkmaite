@@ -2,7 +2,7 @@ import dataclasses
 import io
 import logging
 from collections.abc import Callable, Mapping
-from typing import Any, Generic, Protocol, TypeAlias, TypeVar, runtime_checkable
+from typing import Any, Generic, TypeAlias, TypeVar
 
 import maite.protocols.generic as gen
 import matplotlib.pyplot as plt
@@ -13,11 +13,10 @@ import pydantic
 import torch
 import torch.nn as nn
 from dataeval import Metadata
+from dataeval.data import Indices, View, split_dataset
 from dataeval.performance import Sufficiency
 from dataeval.protocols import AnnotatedDataset, ArrayLike, DatumMetadata, EvaluationStrategy, TrainingStrategy
 from dataeval.protocols import Dataset as DatasetType
-from dataeval.selection import Indices, Select
-from dataeval.utils.data import split_dataset
 from PIL import Image as PILImage
 from pydantic import Field
 from scipy.optimize import curve_fit
@@ -40,6 +39,7 @@ from checkmaite.core.capability_core import (
     TDataset,
     TModel,
 )
+from checkmaite.core.metric_keys import resolve_metric_key
 from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report import _gradient as gd
 from checkmaite.core.report._markdown import MarkdownOutput
@@ -65,15 +65,14 @@ class _SufficiencyLimits:
 _DEFAULT_SUFFICIENCY_LIMITS = _SufficiencyLimits()
 
 
-@runtime_checkable
-class _SupportsReturnKey(Protocol):
-    return_key: str
-
-
 class DataevalSufficiencyConfig(CapabilityConfigBase):
     target_metric_value: float = Field(default=0.95, description="Target metric value on validation set.")
-    target_metric_name: str | None = Field(
-        default=None, description="Target metric name if not specified in the metric object"
+    metric_key: str | None = Field(
+        default=None,
+        description=(
+            "Key of the metric result to track, for example 'accuracy'. Needed only when the metric returns "
+            "several numbers; if it returns one, that one is used."
+        ),
     )
     extra_metrics: list[SufficiencyMetric] = Field(
         default_factory=lambda: [], description="Extra metrics to compute on validation set"
@@ -264,8 +263,13 @@ class _DefaultEvaluationStrategy(Generic[TDatum]):
         device: torch.device,
         num_workers: int = 4,
         verbose: bool = True,
+        metric_key: str | None = None,
     ) -> None:
+        # metrics[0] is the target metric and the rest are extra metrics.
         self.metrics = metrics
+        self.metric_key = metric_key
+        # Set on the first evaluation: the key of the target metric's tracked result.
+        self.resolved_metric_key: str | None = None
         self.batch_size = batch_size
         self.device = device
         self.num_workers = num_workers
@@ -294,12 +298,35 @@ class _DefaultEvaluationStrategy(Generic[TDatum]):
                 for metric in self.metrics:
                     metric.update(preds, y, ())
 
-            for metric in self.metrics:
-                result |= metric.compute()
+            for index, metric in enumerate(self.metrics):
+                metric_result = metric.compute()
+                if index == 0 and self.resolved_metric_key is None:
+                    # Fails on the first evaluation if the key is missing or ambiguous. The value may be
+                    # undefined here: the first evaluation is of the model trained on the fewest samples.
+                    self.resolved_metric_key = resolve_metric_key(metric_result, self.metric_key, allow_undefined=True)
+                result |= metric_result
 
         if self.verbose:
             logger.info(f"Evaluation results: {result}")
         return result
+
+
+def _tracked_metric_key(
+    strategy: EvaluationStrategy[SufficiencyDatum],
+    measures: Mapping[str, np.ndarray],
+    metric_key: str | None,
+) -> str:
+    """Key of the result Sufficiency tracks.
+
+    The default strategy chooses it from the target metric's own results on
+    the first evaluation. A custom strategy reports only the combined
+    results, so the key is chosen from the last step's values.
+    """
+    resolved = getattr(strategy, "resolved_metric_key", None)
+    if resolved is not None:
+        return resolved
+    last_step = {key: values[-1] for key, values in measures.items()}
+    return resolve_metric_key(last_step, metric_key)
 
 
 class _DefaultModelResetStrategy:
@@ -359,6 +386,7 @@ class DataevalSufficiencyBase(
     """
 
     _RUN_TYPE = DataevalSufficiencyRun
+    cache_dependencies = ("dataeval",)
 
     @classmethod
     def _create_config(cls) -> DataevalSufficiencyConfig:
@@ -422,6 +450,7 @@ class DataevalSufficiencyBase(
             batch_size=config.batch_size,
             device=config.device,
             verbose=config.verbose,
+            metric_key=config.metric_key,
         )
 
     def _split_dataset(self, dataset: SufficiencyDataset) -> tuple[SufficiencyDataset, SufficiencyDataset]:
@@ -432,8 +461,8 @@ class DataevalSufficiencyBase(
         split_defs = split_dataset(dataset, num_folds=num_folds, stratify=True)
         train_indices = split_defs.folds[0].train.tolist()
         eval_indices = split_defs.folds[0].val.tolist()
-        train_dataset = Select(dataset, selections=Indices(train_indices))
-        eval_dataset = Select(dataset, selections=Indices(eval_indices))
+        train_dataset = View(dataset, operations=Indices(train_indices))
+        eval_dataset = View(dataset, operations=Indices(eval_indices))
         return train_dataset, eval_dataset
 
     def _run(
@@ -506,10 +535,7 @@ class DataevalSufficiencyBase(
             schedule = np.linspace(train_data_size // 10, train_data_size, num=10, dtype=int).tolist()
 
         output = sufficiency_evaluator.evaluate(train_dataset, eval_dataset, schedule)
-        if isinstance(metric, _SupportsReturnKey):
-            metric_name = metric.return_key
-        else:
-            metric_name = config.target_metric_name if config.target_metric_name is not None else "target_metric"
+        metric_name = _tracked_metric_key(eval_strategy, output.averaged_measures, config.metric_key)
         steps = output.steps
         measurements = output.averaged_measures[metric_name]
         last_metric_measurement = measurements[-1]

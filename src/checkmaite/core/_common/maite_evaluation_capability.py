@@ -1,4 +1,3 @@
-import math
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -32,6 +31,7 @@ from checkmaite.core.capability_core import (
     TMetric,
     TModel,
 )
+from checkmaite.core.metric_keys import numeric_value, resolve_metric_key, undefined_to_none
 from checkmaite.core.report import InlineTextReport
 from checkmaite.core.report._markdown import MarkdownOutput
 from checkmaite.core.report._plotting_utils import create_metrics_bar_plot, save_figure_to_tempfile
@@ -44,6 +44,8 @@ class MaiteEvaluationRecord(BaseRecord, table_name="maite_evaluation"):
     breakdowns are stored as separate records with ``scope="class"`` and the
     class name in ``class_name``. Multi-metric runs emit records for every
     member under the same run UID, distinguished by ``metric_id``.
+    ``is_primary`` marks the overall record of the metric's highlighted
+    result, its ``overall_metric_name``; class records are never primary.
     """
 
     dataset_id: str
@@ -53,6 +55,7 @@ class MaiteEvaluationRecord(BaseRecord, table_name="maite_evaluation"):
     output_value: float
     scope: str = "overall"
     class_name: str | None = None
+    is_primary: bool = False
 
 
 class MaiteEvaluationConfig(CapabilityConfigBase):
@@ -60,6 +63,13 @@ class MaiteEvaluationConfig(CapabilityConfigBase):
         default=1,
         ge=1,
         description="Number of dataset items to pass to the MAITE model per inference call.",
+    )
+    metric_keys: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Key of the result to highlight for each metric, by metric ID, for example {'mAP_50': 'map_50'}. "
+            "A metric with no entry has its only numeric result highlighted, or none if it returns several."
+        ),
     )
     run_cache_schema_version: Literal[1] = 1
 
@@ -74,8 +84,9 @@ TMaiteEvaluationConfig = TypeVar(
 class MaiteMetricResult(CapabilityOutputsBase):
     """Normalized result for one member of a MAITE evaluation.
 
-    ``overall_metric_name`` is the metric's optional CheckMAITE ``return_key``.
-    It identifies the member's headline value within ``scalar_values``.
+    ``overall_metric_name`` is the key of the member's highlighted value in
+    ``scalar_values``: the config's ``metric_keys`` entry for the metric, or
+    the metric's only numeric result, or ``None`` if it returns several.
     """
 
     metric_id: str
@@ -103,30 +114,8 @@ class MaiteEvaluationOutputs(CapabilityOutputsBase):
     metrics: dict[str, MaiteMetricResult]
 
 
-def _numeric_scalar(value: Any) -> float | None:
-    if isinstance(value, (bool, np.bool_, str, bytes)):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-
-
-def _undefined_to_none(value: Any) -> Any:
-    """Map a non-finite numeric scalar to ``None``, the marker for an undefined metric value.
-
-    A metric can be undefined for an evaluation, for example a ratio whose
-    denominator is zero. JSON has no NaN or infinity, so the caches and run files
-    would write them as ``null`` and a cached rerun would differ from a fresh run;
-    normalizing them to ``None`` up front keeps both identical.
-    """
-    scalar = _numeric_scalar(value)
-    return None if scalar is not None and not math.isfinite(scalar) else value
-
-
 def _extract_class_metrics(
     result: dict[str, Any],
-    return_key: str | None,
     model_metadata: Mapping[str, Any],
 ) -> dict[str, float | None] | None:
     if "per_class_flag" not in result:
@@ -140,16 +129,14 @@ def _extract_class_metrics(
     class_metrics: dict[str, float | None] = {}
     for index, label in index2label.items():
         value = result.pop(str(index), None)
-        scalar = None if value is None else _numeric_scalar(value)
+        scalar = None if value is None else numeric_value(value)
         if value is not None and scalar is None:
             raise TypeError(f"Per-class result for index {index!r} must be numeric or None.")
         # Preserve the established display-label behavior, including accepting
         # repeated labels without rejecting the evaluation.
         class_metrics[str(label)] = scalar
 
-    if return_key is None:
-        raise ValueError("Per-class metric results require the metric to define return_key.")
-    if result.keys() != {return_key}:
+    if len(result) != 1:
         raise ValueError(
             "When 'per_class_flag' is included, the metric must return one overall value plus class values, "
             f"but got {', '.join(sorted(result))}."
@@ -160,28 +147,22 @@ def _extract_class_metrics(
 def _normalize_metric_result(
     metric: Any,
     raw_result: Mapping[str, Any],
+    metric_key: str | None,
     model_metadata: Mapping[str, Any],
 ) -> MaiteMetricResult:
     metric_id = metric.metadata["id"]
     try:
-        result = {key: _undefined_to_none(value) for key, value in raw_result.items()}
-        return_key = getattr(metric, "return_key", None)
-        if return_key is not None and (type(return_key) is not str or not return_key):
-            raise TypeError("Metric return_key must be a non-empty string when defined.")
-
-        class_metrics = _extract_class_metrics(result, return_key, model_metadata)
-        scalar_values = {key: scalar for key, value in result.items() if (scalar := _numeric_scalar(value)) is not None}
-        if return_key is not None and return_key in result and result[return_key] is None:
-            raise ValueError(
-                f"Metric return_key {return_key!r} is undefined for this evaluation (not a finite number), "
-                "for example because a ratio's denominator is zero."
-            )
-        if return_key is not None and return_key not in scalar_values:
-            raise ValueError(f"Metric return_key {return_key!r} does not identify a numeric top-level result.")
+        result = {key: undefined_to_none(value) for key, value in raw_result.items()}
+        class_metrics = _extract_class_metrics(result, model_metadata)
+        # Per-class results have one overall value, which is always the highlighted one.
+        if class_metrics is not None:
+            metric_key = metric_key or next(iter(result))
+        overall_metric_name = resolve_metric_key(result, metric_key, required=class_metrics is not None)
+        scalar_values = {key: scalar for key, value in result.items() if (scalar := numeric_value(value)) is not None}
 
         return MaiteMetricResult(
             metric_id=metric_id,
-            overall_metric_name=return_key,
+            overall_metric_name=overall_metric_name,
             result=result,
             scalar_values=scalar_values,
             class_metrics=class_metrics,
@@ -208,6 +189,8 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
         dataset_metadata: Sequence[Mapping[str, Any]],
         model_metadata: Sequence[Mapping[str, Any]],
         metric_metadata: Sequence[Mapping[str, Any]],
+        *,
+        versions: Mapping[str, str],
     ) -> str:
         """Compute an order-independent UID for the metric collection."""
         return CapabilityRunBase.compute_uid(
@@ -216,6 +199,7 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
             dataset_metadata=dataset_metadata,
             model_metadata=model_metadata,
             metric_metadata=sorted(metric_metadata, key=lambda metadata: metadata["id"]),
+            versions=versions,
         )
 
     @requires_optional_dependency("gradient", install_hint=CHECKMAITE_PLUGINS_UNSUPPORTED_INSTALL_HINT)
@@ -346,6 +330,7 @@ class MaiteEvaluationRun(CapabilityRunBase[TMaiteEvaluationConfig, MaiteEvaluati
                         output_key=key,
                         output_value=value,
                         scope="overall",
+                        is_primary=(key == metric_result.overall_metric_name),
                     )
                 )
 
@@ -374,6 +359,11 @@ class MaiteEvaluationBase(
     """Evaluate one model and dataset with one or more metrics."""
 
     _RUN_TYPE = MaiteEvaluationRun
+    # No cache_dependencies: the results come from the user's model and metric,
+    # which their IDs identify. MAITE only batches the data and calls them, and
+    # the prediction cache this capability reads does not key on MAITE, so
+    # listing it would label reused results with a MAITE version they were not
+    # computed with.
 
     @classmethod
     @abstractmethod
@@ -420,6 +410,10 @@ class MaiteEvaluationBase(
     ) -> MaiteEvaluationOutputs:
         model = models[0]
         dataset = datasets[0]
+        # Checked before evaluating, so a typo does not cost an evaluation.
+        unknown_ids = config.metric_keys.keys() - {metric.metadata["id"] for metric in metrics}
+        if unknown_ids:
+            raise ValueError(f"metric_keys names metrics that were not evaluated: {', '.join(sorted(unknown_ids))}.")
         metric_fanout = _MetricFanout(metrics)
         cpu_prediction_postprocessor, cpu_prediction_postprocessor_id = self._cpu_prediction_postprocessor(config)
         result, _, _ = evaluate(
@@ -452,7 +446,9 @@ class MaiteEvaluationBase(
                     error_type=type(error).__name__,
                     message=str(error),
                 ) from error
-            normalized_results[metric_id] = _normalize_metric_result(metric, raw_metric_result, model.metadata)
+            normalized_results[metric_id] = _normalize_metric_result(
+                metric, raw_metric_result, config.metric_keys.get(metric_id), model.metadata
+            )
 
         return MaiteEvaluationOutputs(metrics=normalized_results)
 

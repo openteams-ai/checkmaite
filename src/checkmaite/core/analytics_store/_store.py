@@ -3,7 +3,7 @@ from __future__ import annotations
 import polars as pl
 
 from checkmaite.core.analytics_store._provenance import Provenance, ProvenanceLike
-from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord
+from checkmaite.core.analytics_store._schema import BaseRecord, RunRecord, RunVersionRecord
 from checkmaite.core.analytics_store._storage import StorageBackend, StorageWriteReceipt
 from checkmaite.core.capability_core import CapabilityRunBase
 
@@ -14,7 +14,9 @@ class AnalyticsStore:
     Provides methods to write records from capability runs and query stored data.
     Data is organized into per-capability tables (e.g., "dataeval_cleaning",
     "maite_evaluation"), plus an automatic ``runs`` table that maps each
-    ``run_uid`` to human-readable identifiers (dataset IDs, model IDs, etc.).
+    ``run_uid`` to human-readable identifiers (dataset IDs, model IDs, etc.),
+    and an automatic ``run_versions`` table with the library versions that
+    went into each ``run_uid``.
 
     Write semantics distinguish payload artifacts from run-event history:
     payload tables are deduplicated by ``run_uid`` across separate write calls,
@@ -71,40 +73,34 @@ class AnalyticsStore:
         run_uid = run.run_uid
         cap_id = run.capability_id
         provenance_kwargs = provenance.model_dump(mode="python", exclude_none=True)
+        entities = [
+            *[("dataset", ds["id"]) for ds in run.dataset_metadata],
+            *[("model", m["id"]) for m in run.model_metadata],
+            *[("metric", mt["id"]) for mt in run.metric_metadata],
+        ]
         return [
-            *[
-                RunRecord(
-                    run_uid=run_uid,
-                    capability_id=cap_id,
-                    capability_table=capability_table,
-                    entity_type="dataset",
-                    entity_id=ds["id"],
-                    **provenance_kwargs,
-                )
-                for ds in run.dataset_metadata
-            ],
-            *[
-                RunRecord(
-                    run_uid=run_uid,
-                    capability_id=cap_id,
-                    capability_table=capability_table,
-                    entity_type="model",
-                    entity_id=m["id"],
-                    **provenance_kwargs,
-                )
-                for m in run.model_metadata
-            ],
-            *[
-                RunRecord(
-                    run_uid=run_uid,
-                    capability_id=cap_id,
-                    capability_table=capability_table,
-                    entity_type="metric",
-                    entity_id=mt["id"],
-                    **provenance_kwargs,
-                )
-                for mt in run.metric_metadata
-            ],
+            RunRecord(
+                run_uid=run_uid,
+                capability_id=cap_id,
+                capability_table=capability_table,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                **provenance_kwargs,
+            )
+            for entity_type, entity_id in entities
+        ]
+
+    @staticmethod
+    def _build_version_records(run: CapabilityRunBase) -> list[RunVersionRecord]:
+        """Build ``run_versions`` table rows: one per library in ``run.versions``.
+
+        The ``capability`` entry, the capability's own version, only invalidates
+        the cache and is not recorded.
+        """
+        return [
+            RunVersionRecord(run_uid=run.run_uid, kind="library", name=name, version=version)
+            for name, version in sorted(run.versions.items())
+            if name != "capability"
         ]
 
     def _collect_records(
@@ -132,6 +128,7 @@ class AnalyticsStore:
 
                 capability_table = next(iter(capability_tables))
                 all_records.extend(self._build_run_records(run, capability_table, base_provenance))
+                all_records.extend(self._build_version_records(run))
 
         return all_records
 
@@ -145,7 +142,8 @@ class AnalyticsStore:
 
         For each run, this method:
         1. Emits rows into the ``runs`` table (automatic — maps run_uid
-           to dataset/model/metric IDs).
+           to dataset/model/metric IDs) and the ``run_versions`` table
+           (the library versions in the run UID).
         2. Calls ``run.extract()`` for capability-specific records.
 
         Repeated writes are expected to be idempotent for payload tables at the

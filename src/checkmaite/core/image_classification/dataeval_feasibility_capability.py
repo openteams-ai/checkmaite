@@ -222,6 +222,7 @@ class DataevalFeasibility(
     task = "image_classification"
 
     _RUN_TYPE = DataevalFeasibilityRun
+    cache_dependencies = ("dataeval",)
 
     @classmethod
     def _create_config(cls) -> DataevalFeasibilityConfig:

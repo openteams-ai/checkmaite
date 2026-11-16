@@ -57,8 +57,8 @@ uses modelmaite's ByteTrack wrapper around a torchvision detector, which needs
 `checkmaite.core.multiobject_tracking.MaiteEvaluation` scores a MOT model on an
 annotated dataset, the same way the object-detection and image-classification
 `MaiteEvaluation` capabilities do. The built-in metric, computed with
-[py-motmetrics](https://github.com/cheind/py-motmetrics), reports MOTA (the
-headline value), MOTP, IDF1 and the number of identity switches. MOTP follows
+[py-motmetrics](https://github.com/cheind/py-motmetrics), reports MOTA, MOTP,
+IDF1 and the number of identity switches. MOTP follows
 the motmetrics convention: the mean IoU *distance* (1 - IoU) of matched boxes,
 so lower is better. A score that is undefined for the evaluation is left out of
 the results, such as MOTP when the tracker matched nothing; if MOTA is undefined
@@ -77,7 +77,11 @@ import numpy as np
 from modelmaite import ByteTrackMOTModel
 from modelmaite.object_detection import DetectionTarget
 
-from checkmaite.core.multiobject_tracking import MaiteEvaluation, load_mot_dataset
+from checkmaite.core.multiobject_tracking import (
+    MaiteEvaluation,
+    MaiteEvaluationConfig,
+    load_mot_dataset,
+)
 from checkmaite.core.multiobject_tracking.metrics import clear_mot_metrics_factory
 
 
@@ -107,9 +111,17 @@ class PersonDetector:
 person_tracker = ByteTrackMOTModel(detector=PersonDetector(detector))
 dataset = load_mot_dataset("path/to/MOT17", "motchallenge", classes={1})
 
-run = MaiteEvaluation().run(models=[person_tracker], datasets=[dataset], metrics=[clear_mot_metrics_factory()])
+metric = clear_mot_metrics_factory()
+# Highlight MOTA
+config = MaiteEvaluationConfig(metric_keys={metric.metadata["id"]: "mota"})
+run = MaiteEvaluation().run(
+    models=[person_tracker], datasets=[dataset], metrics=[metric], config=config
+)
 run.outputs.metrics
 ```
+
+The metric returns several numbers, so MAITE Evaluation highlights one only if
+`metric_keys` names it.
 
 Predictions with track ID `-1`, which MAITE reserves for untracked detections,
 are not scored. MOTChallenge distractor classes and ignored regions are not

@@ -13,6 +13,8 @@ from checkmaite.core.capability_core import (
 class XaitkExplainableBase(Capability[TOutputs, TDataset, TModel, TMetric, TConfig]):
     """Xai capability that takes in the necessary arguements to demo saliency map generation."""
 
+    cache_dependencies = ("xaitk-saliency",)
+
     @property
     def supports_datasets(self) -> Number:
         """Number of datasets this capability supports.
