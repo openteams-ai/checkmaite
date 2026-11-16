@@ -17,12 +17,8 @@ from dataclasses import replace
 from typing import Any, Literal, NotRequired, TypedDict
 
 import maite.protocols.object_detection as od
-import numpy as np
 from datamaite import load_od
 from datamaite.object_detection import ObjectDetectionDataset
-from maite.protocols import DatasetMetadata
-from modelmaite.object_detection import DetectionTarget
-from torch import Tensor, as_tensor
 from upath import UPath
 
 from checkmaite.core._common.dataset_utils import (
@@ -206,42 +202,6 @@ def load_datasets(datasets: dict[str, DatasetSpecification]) -> dict[str, Object
         else:
             raise RuntimeError(f"Dataset format {dataset_format} is not supported.")
     return loaded
-
-
-class XaitkExplainableDetectionBaselineDataset(od.Dataset):
-    """Replace ground-truth targets with a model's top predictions for XAITK."""
-
-    def __init__(self, dataset: od.Dataset, model: od.Model, dets_limit: int = 10) -> None:
-        metadata_id = f"xai_temp_{dataset.metadata['id']}"
-        if "index2label" in dataset.metadata:
-            self.metadata = DatasetMetadata(id=metadata_id, index2label=dataset.metadata["index2label"])
-        else:
-            self.metadata = DatasetMetadata(id=metadata_id)
-        self.items = self._construct_dataset(dataset, model, dets_limit)
-
-    def __getitem__(self, index: int) -> tuple[Tensor, DetectionTarget, od.DatumMetadataType]:
-        return self.items[index]
-
-    def __len__(self) -> int:
-        return len(self.items)
-
-    @staticmethod
-    def _construct_dataset(
-        dataset: od.Dataset,
-        model: od.Model,
-        dets_limit: int,
-    ) -> list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]]:
-        items: list[tuple[Tensor, DetectionTarget, od.DatumMetadataType]] = []
-        for image, _target, metadata in dataset:
-            predictions = model([image])[0]
-            sorted_indices = np.argsort(np.asarray(predictions.scores))[::-1][:dets_limit].copy()
-            target = DetectionTarget(
-                boxes=np.asarray(predictions.boxes)[sorted_indices],
-                labels=np.asarray(predictions.labels)[sorted_indices],
-                scores=np.asarray(predictions.scores)[sorted_indices],
-            )
-            items.append((as_tensor(image), target, metadata))
-        return items
 
 
 class YoloDetectionDataLoader:

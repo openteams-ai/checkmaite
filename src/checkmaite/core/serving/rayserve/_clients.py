@@ -9,8 +9,9 @@ import numpy as np
 from maite.protocols import ModelMetadata
 from maite.protocols import image_classification as ic
 from maite.protocols import object_detection as od
-from modelmaite.object_detection import DetectionTarget
 from ray.serve.handle import DeploymentHandle
+
+from checkmaite.core._common.detection_target import DetectionTarget
 
 _executor = ThreadPoolExecutor(max_workers=1)
 
@@ -64,9 +65,9 @@ class RayObjectDetectionClient:
         result = _get_result(self._handle.predict.remote(np_batch))
         return [
             DetectionTarget(
-                boxes=pred["boxes"],
-                labels=pred["labels"],
-                scores=pred["scores"],
+                boxes=np.asarray(pred["boxes"]),
+                labels=np.asarray(pred["labels"]),
+                scores=np.asarray(pred["scores"]),
             )
             for pred in result
         ]

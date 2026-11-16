@@ -2,9 +2,9 @@ from collections.abc import Callable, Sequence
 
 import maite.protocols.object_detection as od
 import numpy as np
-from modelmaite.object_detection import DetectionTarget
 from pydantic import Field, model_validator
 
+from checkmaite.core._common.detection_target import DetectionTarget
 from checkmaite.core._common.maite_evaluation_capability import (
     MaiteEvaluationBase,
 )

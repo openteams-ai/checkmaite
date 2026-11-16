@@ -5,7 +5,6 @@ PACKAGE_NAME = "checkmaite"
 # Model wrappers are advertised by modelmaite and the on-disk dataset classes by datamaite.
 # CheckMAITE advertises what it still contains, including the Ray Serve clients.
 EXPECTED_PROTOCOL_ENTRY_POINTS: dict[str, frozenset[str]] = {
-    "maite.protocols.object_detection.Dataset": frozenset({"checkmaite_XaitkExplainableDetectionBaselineDataset"}),
     "maite.protocols.object_detection.Metric": frozenset(
         {
             "checkmaite_TorchODMetric",
@@ -20,10 +19,11 @@ EXPECTED_PROTOCOL_ENTRY_POINTS: dict[str, frozenset[str]] = {
     "maite.protocols.image_classification.Model": frozenset({"checkmaite_RayImageClassificationClient"}),
 }
 
-# On-disk image-classification datasets live in datamaite (!612), so that group stays
-# empty here. object_detection.Dataset is not delegated: the XAI baseline dataset is
-# defined in this package.
-DELEGATED_GROUPS = ("maite.protocols.image_classification.Dataset",)
+# On-disk datasets live in datamaite (!612), so CheckMAITE advertises no datasets.
+DELEGATED_GROUPS = (
+    "maite.protocols.image_classification.Dataset",
+    "maite.protocols.object_detection.Dataset",
+)
 
 EXPECTED_TASK_ENTRY_POINTS = frozenset(
     {

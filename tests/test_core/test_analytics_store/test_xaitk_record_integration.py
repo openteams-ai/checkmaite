@@ -207,3 +207,35 @@ def test_cross_table_join_with_cleaning(backend: ParquetBackend) -> None:
     assert result.shape[0] == 1
     assert result["mean_saliency"][0] == pytest.approx(0.25)
     assert result["exact_duplicate_ratio"][0] == pytest.approx(0.03)
+
+
+def test_saliency_score_fields_queryable(backend: ParquetBackend) -> None:
+    """Entropy and ground-truth coverage columns can be aggregated per run."""
+    backend.write(
+        [
+            _od_record(run_uid="od_scores", detection_index=0).model_copy(
+                update={
+                    "saliency_entropy": 15.2,
+                    "normalized_saliency_entropy": 0.93,
+                    "matched_gt_index": 1,
+                    "matched_gt_iou": 0.8,
+                    "gt_saliency_coverage": 0.6,
+                    "gt_saliency_peak_in_box": True,
+                    "gt_saliency_peak_distance": 0.0,
+                }
+            ),
+            _od_record(run_uid="od_scores", detection_index=1).model_copy(update={"saliency_entropy": 15.6}),
+        ]
+    )
+
+    result = backend.query_sql(
+        "SELECT AVG(saliency_entropy) AS mean_entropy, AVG(gt_saliency_coverage) AS mean_coverage, "
+        "AVG(CAST(gt_saliency_peak_in_box AS DOUBLE)) AS hit_rate, "
+        "MAX(gt_saliency_peak_distance) AS max_peak_distance, "
+        "COUNT(gt_saliency_coverage) AS n_matched FROM xaitk_explainable"
+    )
+    assert result["mean_entropy"][0] == pytest.approx(15.4)
+    assert result["mean_coverage"][0] == pytest.approx(0.6)
+    assert result["hit_rate"][0] == pytest.approx(1.0)
+    assert result["max_peak_distance"][0] == pytest.approx(0.0)
+    assert result["n_matched"][0] == 1

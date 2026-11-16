@@ -173,10 +173,7 @@ constraint-dependencies = [
 # IR-1-H-3 advertises the MAITE components this package *contains*. Model wrappers
 # live in modelmaite and on-disk dataset classes in datamaite, so those re-exports
 # are not advertised here. The Ray Serve clients are CheckMAITE-only serving
-# wrappers, and the XAI baseline dataset is capability-specific; both stay.
-[project.entry-points."maite.protocols.object_detection.Dataset"]
-checkmaite_XaitkExplainableDetectionBaselineDataset = "checkmaite.core.object_detection.dataset_loaders:XaitkExplainableDetectionBaselineDataset"
-
+# wrappers, so they stay.
 [project.entry-points."maite.protocols.object_detection.Metric"]
 checkmaite_TorchODMetric = "checkmaite.core.object_detection.metrics:TorchODMetric"
 checkmaite_TorchODMultiClassMap50 = "checkmaite.core.object_detection.metrics:TorchODMultiClassMap50"
