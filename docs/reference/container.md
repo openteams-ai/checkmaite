@@ -462,10 +462,11 @@ applies no exceptions. Because releases rebuild from the tag, commit entries
 before creating it.
 
 Before enabling releases, configure the program Harbor project to make Semantic
-Version tags immutable, approve the digest-pinned Docker Official Ubuntu,
-NVIDIA, and Astral base-container sources (the NVIDIA CUDA base is not from
-a CS-1-S-2 approved registry; CS-1 is not required at Maturity S), and provide
-the Harbor credentials and AWS KMS key to protected CI jobs.
+Version tags immutable, add the tag retention rules described below, approve
+the digest-pinned Docker Official Ubuntu, NVIDIA, and Astral base-container
+sources (the NVIDIA CUDA base is not from a CS-1-S-2 approved registry; CS-1 is
+not required at Maturity S), and provide the Harbor credentials and AWS KMS key
+to protected CI jobs.
 
 A release is started from the default branch with `RELEASE_TAG` set to an
 existing unprefixed final Semantic Version Git tag, such as `1.2.3`; pre-release
@@ -476,14 +477,15 @@ it already contains the `docker/ci/` scripts the release jobs call; tags created
 before `docker/ci/build_container.sh` was added (0.6.1 and earlier) cannot be
 published. A fix to the release tooling requires a new version tag. Set
 `CONTAINER_RELEASE_DRY_RUN=true` for the required first staging exercise; CI
-then pushes, signs, attests, verifies, and cleans up without creating a Semantic
-Version tag. Each image is built and pushed to a pipeline-scoped staging tag by
-a manual `publish-container-*` job, then signed and tagged by the
-`sign-container-*` job that follows it on the `k8s-small-cpu` runner, the only
-runner class with the KMS signing permissions. Tags whose `docker/ci/` predates
-this split (0.7.0 and earlier) cannot be published by these jobs, so the first
-staging exercise needs a tag cut after it. Publication
-creates these write-once references:
+then pushes a staging tag, signs, attests, and verifies, then applies a
+throwaway `staging-dryrun-PIPELINE-VARIANT` tag the same way it would apply the
+version tag, without creating a Semantic Version tag. Each image is built and
+pushed to a pipeline-scoped staging tag by a manual `publish-container-*` job,
+then signed and tagged by the `sign-container-*` job that follows it on the
+`k8s-small-cpu` runner, the only runner class with the KMS signing permissions.
+Tags whose `docker/ci/` predates this split (0.7.0 and earlier) cannot be
+published by these jobs, so the first staging exercise needs a tag cut after
+it. Publication creates these write-once references:
 
 ```text
 harbor.jatic.net/openteams/checkmaite/cpu:VERSION
@@ -498,6 +500,41 @@ version tag. Each image digest is signed with Cosign through the program AWS KMS
 key, and its SPDX SBOM and Trivy vulnerability report are attached as signed
 attestations. CI uses an explicit Cosign configuration with no public
 transparency-log or timestamp service.
+
+The release jobs use only Harbor's OCI distribution API (`/v2/`), with a bearer
+token from Harbor's token service; Harbor's REST API (`/api/v2.0/`) is not
+reachable from the CI runners. A HEAD request on the version tag must return
+404 before staging and again before signing; any other status stops the
+release. The Semantic Version tag is applied by pushing the signed digest's
+exact manifest bytes under the tag, and CI then checks that the tag resolves to
+that digest. The manifest is kept in the `sign-container-*` job's
+`release-manifest.json` artifact.
+
+Staging tags (`staging-VERSION-PIPELINE-VARIANT`, and
+`staging-dryrun-PIPELINE-VARIANT` from dry runs) are not removed by CI: the
+registry API cannot remove a tag without deleting the manifest it points to,
+which would also delete the released digest.
+
+Harbor 2.x tag retention rules say which artifacts to keep, and Harbor deletes
+the other artifacts as a whole, with their Cosign signatures and attestations.
+A rule that kept only `staging-*` tags would therefore delete released images.
+The project's retention policy must have these two rules, both for
+repositories matching `checkmaite/**`, the repositories this pipeline writes
+(`checkmaite/cpu` and `checkmaite/cuda`):
+
+- **retain always**, with tags matching `[0-9]*.[0-9]*.[0-9]*` (the Semantic
+  Version tags);
+- **retain the artifacts pushed within the last 30 days**, with tags matching
+  `staging-*`.
+
+Never widen the repository pattern to `**`: the Harbor project holds other
+teams' repositories, whose tags match neither rule, so retention would delete
+every image in them. The policy exists to clean up artifacts that have only
+staging tags, left by dry runs and failed pipelines. Before scheduling it, use
+Harbor's retention dry run to check that it deletes no artifact with a Semantic
+Version tag and nothing outside `checkmaite/`. A released
+digest keeps its staging tag; a maintainer removes that tag by hand, in the
+Harbor UI or through the REST API, as a tag only, never the artifact.
 
 The signature and attestations are verified before the write-once Semantic
 Version tag is applied as the final publication action. Before the first

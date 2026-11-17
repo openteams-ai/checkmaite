@@ -56,8 +56,11 @@ revision=$(docker image inspect \
 test -n "${revision}"
 
 # Push a pipeline-scoped staging tag so the digest exists in the registry for
-# Cosign. The Semantic Version tag is applied only after verification, and
-# publish_container.sh removes the staging tag.
+# Cosign. The Semantic Version tag is applied only after verification. The
+# staging tag is left in place: the registry API cannot remove a tag without
+# deleting the manifest it points to. Harbor's tag retention policy removes
+# artifacts that have only staging tags; a maintainer removes the staging tag
+# from a released digest (see docs/reference/container.md).
 # `docker push` from the daemon's image store re-encodes the image with Docker
 # media types, which CS-1-H-1 rejects, so BuildKit pushes the same, fully cached
 # build with OCI media types instead.
@@ -67,18 +70,7 @@ sh "${script_directory}/build_container.sh" \
 
 pushed_digest=$(jq -r '."containerimage.digest" // empty' "${push_metadata}")
 staging_digest="${harbor_image_base}@${pushed_digest}"
-harbor_encode_digest "${staging_digest}" >/dev/null
-
-# Remove the staging tag if a check below fails; on success the signing job
-# (publish_container.sh) removes it.
-staged=false
-remove_failed_staging() {
-    if [ "${staged}" != "true" ]; then
-        harbor_remove_tag "${staging_digest}" "${staging_tag}" || true
-    fi
-}
-trap remove_failed_staging EXIT
-trap 'exit 1' HUP INT TERM
+harbor_digest "${staging_digest}" >/dev/null
 
 # Read the manifest back from Harbor: it must be an OCI image manifest for the
 # exact image that was tested and scanned.
@@ -96,5 +88,4 @@ if [ "${published_config}" != "${scanned_config}" ]; then
 fi
 
 printf '%s\n' "${staging_digest}" > "${artifact_directory}/staging-digest.txt"
-staged=true
 echo "Staged ${staging_digest} as ${staging_reference}"

@@ -33,7 +33,16 @@ variables.
    Release from the tag's `CHANGELOG.md` section; retrying it is safe once the
    Release exists.
 8. Pull the release from PyPI and confirm the package works properly.
-9. After the `publish-container-*` jobs publish the containers, set the
-   `cs_images` version in `.gitlab-ci.yml` to the new version in a merge
-   request, so the program's `cs-compliance` jobs check the latest published
-   containers.
+9. In Harbor, check that the project's tag retention policy has a **retain
+   always** rule for tags matching `[0-9]*.[0-9]*.[0-9]*` and a rule that
+   retains `staging-*` artifacts pushed within the last 30 days, both for
+   repositories matching `checkmaite/**`, and create them if not (see
+   "Publication and verification" in `docs/reference/container.md`). Without
+   the first rule, retention deletes released images; with a wider repository
+   pattern such as `**`, it deletes other teams' images in the project.
+10. Trigger the manual `publish-container-*` jobs. Each pushes its image to a
+    `staging-*` tag, and the `sign-container-*` job that follows signs it and
+    applies the version tag. CI does not remove the `staging-*` tags.
+11. After the containers are published, set the `cs_images` version in
+    `.gitlab-ci.yml` to the new version in a merge request, so the program's
+    `cs-compliance` jobs check the latest published containers.

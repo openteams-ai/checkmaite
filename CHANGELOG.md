@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Container release jobs use only Harbor's OCI distribution API (`/v2/`), with a token from Harbor's token service, to check that the version tag does not exist and to apply it. Harbor's REST API (`/api/v2.0/`), which they used before, is not reachable from the Kubernetes CI runners, so the 0.8.0 container publication failed and 0.8.0 has no containers. The version tag is applied by pushing the signed digest's exact manifest under the tag, still only after signing and attestation are verified, and CI checks that the tag then resolves to that digest. A dry run (`CONTAINER_RELEASE_DRY_RUN=true`) applies a throwaway `staging-dryrun-*` tag the same way, so it also tests the tag write. CI no longer removes the pipeline's `staging-*` tags, because the registry API cannot remove a tag without deleting the image. Configure Harbor tag retention rules, for repositories matching `checkmaite/**` only, that always retain artifacts with Semantic Version tags and retain `staging-*` artifacts only for a limited time, so artifacts left with only staging tags by dry runs and failed pipelines are cleaned up; see `docs/reference/container.md`. Remove a staging tag from a released image by hand, as a tag only, never the artifact.
+
 ## [0.8.0] - 2026-11-16
 
 ### Added

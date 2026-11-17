@@ -4,7 +4,10 @@
 # fails MRs and main before it can block a release. Release jobs rebuild an
 # existing SemVer Git tag and push it to a staging tag on a large runner, then a
 # separate job on k8s-small-cpu (the only runner class with the AWS KMS signing
-# permissions) signs, attests, and applies the write-once Harbor tag.
+# permissions) signs, attests, and applies the write-once Harbor tag. Both jobs
+# use only Harbor's OCI distribution API (/v2/); its REST API (/api/v2.0/) is not
+# reachable from the Kubernetes runners. Staging tags are not removed (see
+# docs/reference/container.md).
 ################################################################################
 
 .container-build:
@@ -221,8 +224,9 @@ publish-container-cuda-amd64:
   stage: publish
   image: docker:29.8.2-cli@sha256:b1805116a6a86cc591b5d5f60a910a0715cdcc9d18d866ad68b1457ead25c35c
   tags: [k8s-small-cpu]
-  # A failed attempt has already removed the staging tag, so a retry would sign
-  # an untagged digest. A signing failure should be looked at, not retried.
+  # A failed attempt may already have signed or attested the digest, so a retry
+  # would add duplicate signatures. A signing failure should be looked at, not
+  # retried.
   retry: 0
   interruptible: false
   resource_group: checkmaite-container-release
@@ -262,7 +266,9 @@ sign-container-cpu-amd64:
     PUBLISH_MODE: "release"
   artifacts:
     when: always
-    paths: [artifacts/container/cpu-amd64/published-digest.txt]
+    paths:
+      - artifacts/container/cpu-amd64/published-digest.txt
+      - artifacts/container/cpu-amd64/release-manifest.json
     expire_in: never
 
 sign-container-cuda-amd64:
@@ -274,5 +280,7 @@ sign-container-cuda-amd64:
     PUBLISH_MODE: "release"
   artifacts:
     when: always
-    paths: [artifacts/container/cuda/published-digest.txt]
+    paths:
+      - artifacts/container/cuda/published-digest.txt
+      - artifacts/container/cuda/release-manifest.json
     expire_in: never

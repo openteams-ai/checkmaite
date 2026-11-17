@@ -1,6 +1,6 @@
 #!/bin/sh
 # Sign, attest, and verify the digest that stage_container.sh pushed, then apply
-# the write-once Semantic Version tag. Runs on k8s-small-cpu, the only runner
+# the write-once Semantic Version tag through the registry API. Runs on k8s-small-cpu, the only runner
 # class with the AWS KMS signing permissions; it needs no Docker daemon.
 set -eu
 
@@ -39,7 +39,6 @@ artifact_directory="artifacts/container/${artifact_variant}"
 release_reference="${harbor_image_base}:${release_tag}"
 # Another pipeline may have published this version since the staging job ran.
 harbor_assert_release_tag_available "${release_tag}"
-staging_tag=$(harbor_staging_tag "${release_tag}" "${artifact_variant}")
 
 release_digest=$(cat "${artifact_directory}/staging-digest.txt")
 case "${release_digest}" in
@@ -49,15 +48,7 @@ case "${release_digest}" in
         exit 1
         ;;
 esac
-harbor_encode_digest "${release_digest}" >/dev/null
-
-cleanup_staging() {
-    harbor_remove_tag "${release_digest}" "${staging_tag}" || true
-}
-# Exit on a signal so the EXIT trap removes staging tags without resuming the
-# signing flow.
-trap cleanup_staging EXIT
-trap 'exit 1' HUP INT TERM
+harbor_digest "${release_digest}" >/dev/null
 
 cosign_key="awskms:///${COSIGN_KMS_KEY}"
 signing_config=docker/ci/cosign-signing-config.json
@@ -99,12 +90,23 @@ cosign verify-attestation --insecure-ignore-tlog=true \
 printf '%s\n' "${release_digest}" \
     > "${artifact_directory}/published-digest.txt"
 if [ "${CONTAINER_RELEASE_DRY_RUN:-false}" = "true" ]; then
-    echo "Verified dry-run container ${release_digest}; no release tag was applied"
+    # Apply a throwaway staging tag the same way as the release tag, so the dry
+    # run exercises the push token, the manifest PUT, and the check that the tag
+    # resolves to the signed digest. It is not a Semantic Version, so the
+    # immutability rule does not apply to it.
+    dry_run_tag="staging-dryrun-${CI_PIPELINE_ID}-${artifact_variant}"
+    harbor_validate_tag "${dry_run_tag}"
+    harbor_add_tag "${release_digest}" "${dry_run_tag}" \
+        "${artifact_directory}/release-manifest.json"
+    echo "Verified dry-run container ${release_digest} and tagged it ${harbor_image_base}:${dry_run_tag}; no release tag was applied"
     exit 0
 fi
 
 # This is the final fallible publication action. A failed signing or attestation
-# can never strand an unsigned, immutable Semantic Version tag.
-harbor_add_tag "${release_digest}" "${release_tag}"
+# can never strand an unsigned, immutable Semantic Version tag. The tag is
+# applied by pushing the signed digest's exact manifest bytes under it, and is
+# then checked to resolve to that digest.
+harbor_add_tag "${release_digest}" "${release_tag}" \
+    "${artifact_directory}/release-manifest.json"
 
 echo "Published signed immutable container ${release_digest} as ${release_reference}"
